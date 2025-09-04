@@ -16,7 +16,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Filter, Plus, MoreHorizontal, Calendar, Gift, Eye, Edit, Trash2, CalendarPlus } from "lucide-react"
+import {
+  Search,
+  Filter,
+  Plus,
+  MoreHorizontal,
+  Calendar,
+  Gift,
+  Eye,
+  Edit,
+  Trash2,
+  CalendarPlus,
+  ArrowLeft,
+} from "lucide-react"
+import { PatientRegistrationForm } from "@/components/forms/patient-registration-form"
 
 const patients = [
   {
@@ -88,9 +101,11 @@ const patients = [
 
 export default function PacientesPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedConvenio, setSelectedConvenio] = useState("all") // Updated default value to "all"
+  const [selectedConvenio, setSelectedConvenio] = useState("all")
   const [showVipOnly, setShowVipOnly] = useState(false)
   const [showBirthdays, setShowBirthdays] = useState(false)
+  const [showPatientForm, setShowPatientForm] = useState(false)
+  const [editingPatient, setEditingPatient] = useState<number | null>(null)
   const [advancedFilters, setAdvancedFilters] = useState({
     city: "",
     state: "",
@@ -108,12 +123,10 @@ export default function PacientesPage() {
     const matchesConvenio = selectedConvenio === "all" || patient.convenio === selectedConvenio
     const matchesVip = !showVipOnly || patient.isVip
 
-    // Check if patient has birthday this month
     const currentMonth = new Date().getMonth() + 1
     const patientBirthMonth = new Date(patient.birthday).getMonth() + 1
     const matchesBirthday = !showBirthdays || patientBirthMonth === currentMonth
 
-    // Advanced filters
     const matchesCity = !advancedFilters.city || patient.city.toLowerCase().includes(advancedFilters.city.toLowerCase())
     const matchesState =
       !advancedFilters.state || patient.state.toLowerCase().includes(advancedFilters.state.toLowerCase())
@@ -145,39 +158,67 @@ export default function PacientesPage() {
 
   const handleViewDetails = (patientId: number) => {
     console.log("[v0] Ver detalhes do paciente:", patientId)
-    // TODO: Navigate to patient details page
   }
 
   const handleEditPatient = (patientId: number) => {
     console.log("[v0] Editar paciente:", patientId)
-    // TODO: Navigate to edit patient form
+    setEditingPatient(patientId)
+    setShowPatientForm(true)
   }
 
   const handleScheduleAppointment = (patientId: number) => {
     console.log("[v0] Marcar consulta para paciente:", patientId)
-    // TODO: Open appointment scheduling modal
   }
 
   const handleDeletePatient = (patientId: number) => {
     console.log("[v0] Excluir paciente:", patientId)
-    // TODO: Show confirmation dialog and delete patient
+  }
+
+  const handleAddPatient = () => {
+    setEditingPatient(null)
+    setShowPatientForm(true)
+  }
+
+  const handleFormClose = () => {
+    setShowPatientForm(false)
+    setEditingPatient(null)
+  }
+
+  if (showPatientForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={handleFormClose} className="p-2">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {editingPatient ? "Editar Paciente" : "Cadastrar Novo Paciente"}
+            </h1>
+            <p className="text-muted-foreground">
+              {editingPatient ? "Atualize as informações do paciente" : "Preencha os dados do novo paciente"}
+            </p>
+          </div>
+        </div>
+
+        <PatientRegistrationForm patientId={editingPatient} onClose={handleFormClose} inline={true} />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
           <p className="text-muted-foreground">Gerencie as informações de seus pacientes</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button className="bg-primary hover:bg-primary/90" onClick={handleAddPatient}>
           <Plus className="mr-2 h-4 w-4" />
           Adicionar
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-64">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -290,7 +331,6 @@ export default function PacientesPage() {
         </Dialog>
       </div>
 
-      {/* Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>

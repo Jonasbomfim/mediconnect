@@ -1028,7 +1028,7 @@ export function PatientRegistrationForm({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange ?? (() => { })}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -1630,7 +1630,7 @@ export function PatientRegistrationForm({
 
           {/* Botões de Ação */}
           <div className="flex justify-end gap-4 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)} disabled={isSubmitting}>
               <XCircle className="mr-2 h-4 w-4" />
               Cancelar
             </Button>

@@ -395,8 +395,8 @@ export function PatientRegistrationForm({
 
       if (inline && onClose) {
         onClose()
-      } else if (onOpenChange) {
-        onOpenChange(false)
+      } else {
+        onOpenChange?.(false)
       }
 
       // Show success message (you might want to use a toast notification)
@@ -412,8 +412,8 @@ export function PatientRegistrationForm({
   const handleCancel = () => {
     if (inline && onClose) {
       onClose()
-    } else if (onOpenChange) {
-      onOpenChange(false)
+    } else {
+      onOpenChange?.(false)
     }
   }
 
@@ -464,10 +464,10 @@ export function PatientRegistrationForm({
                     <div className="space-y-2">
                       <Label htmlFor="photo" className="cursor-pointer">
                         <Button type="button" variant="outline" asChild>
-                          <span>
+                          <label htmlFor="photo" className="cursor-pointer">
                             <Upload className="mr-2 h-4 w-4" />
                             Carregar Foto
-                          </span>
+                          </label>
                         </Button>
                       </Label>
                       <Input id="photo" type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />

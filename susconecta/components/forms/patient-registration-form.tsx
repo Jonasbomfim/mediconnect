@@ -397,8 +397,8 @@ export function PatientRegistrationForm({
 
       if (inline && onClose) {
         onClose()
-      } else if (onOpenChange) {
-        onOpenChange(false)
+      } else {
+        onOpenChange?.(false)
       }
 
       // Show success message (you might want to use a toast notification)
@@ -414,8 +414,8 @@ export function PatientRegistrationForm({
   const handleCancel = () => {
     if (inline && onClose) {
       onClose()
-    } else if (onOpenChange) {
-      onOpenChange(false)
+    } else {
+      onOpenChange?.(false)
     }
   }
 
@@ -466,10 +466,10 @@ export function PatientRegistrationForm({
                     <div className="space-y-2">
                       <Label htmlFor="photo" className="cursor-pointer">
                         <Button type="button" variant="outline" asChild>
-                          <span>
+                          <label htmlFor="photo" className="cursor-pointer">
                             <Upload className="mr-2 h-4 w-4" />
                             Carregar Foto
-                          </span>
+                          </label>
                         </Button>
                       </Label>
                       <Input id="photo" type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
@@ -1047,7 +1047,7 @@ export function PatientRegistrationForm({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange ?? (() => { })}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -1649,6 +1649,7 @@ export function PatientRegistrationForm({
 
           {/* Botões de Ação */}
           <div className="flex justify-end gap-4 pt-6 border-t">
+<<<<<<< HEAD
             <Button
               type="button"
               variant="outline"
@@ -1657,6 +1658,9 @@ export function PatientRegistrationForm({
               }}
               disabled={isSubmitting}
             >
+=======
+            <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)} disabled={isSubmitting}>
+>>>>>>> 3cce8a9774ff469e9a525f42607dcfa5b09c84b8
               <XCircle className="mr-2 h-4 w-4" />
               Cancelar
             </Button>

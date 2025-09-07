@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { salvarPaciente } from "@/lib/api";
 import {
   Upload,
   ChevronDown,
@@ -28,6 +29,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react"
+
 
 interface PatientFormData {
   // Dados pessoais
@@ -378,7 +380,7 @@ export function PatientRegistrationForm({
       console.log("[v0] Patient ID:", patientId)
 
       // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await salvarPaciente(formData)
 
       // TODO: Implement actual API call
       // const response = await fetch('/api/patients', {
@@ -1012,16 +1014,33 @@ export function PatientRegistrationForm({
           </Collapsible>
 
           {/* Botões de Ação */}
-          <div className="flex justify-end gap-4 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+            <div className="flex justify-end gap-4 pt-6 border-t">
+              <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isSubmitting}
+              >
               <XCircle className="mr-2 h-4 w-4" />
               Cancelar
-            </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isSubmitting ? "Salvando..." : mode === "create" ? "Salvar Paciente" : "Atualizar Paciente"}
-            </Button>
-          </div>
+              </Button>
+              <Button
+              type="submit"
+              className="bg-primary hover:bg-primary/90"
+              disabled={isSubmitting}
+              >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {isSubmitting
+                ? "Salvando..."
+                : mode === "create"
+                ? "Salvar Paciente"
+                : "Atualizar Paciente"}
+              </Button>
+            </div>
         </form>
       </div>
     )
@@ -1630,7 +1649,14 @@ export function PatientRegistrationForm({
 
           {/* Botões de Ação */}
           <div className="flex justify-end gap-4 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (onOpenChange) onOpenChange(false)
+              }}
+              disabled={isSubmitting}
+            >
               <XCircle className="mr-2 h-4 w-4" />
               Cancelar
             </Button>

@@ -40,19 +40,15 @@ export function Header() {
             >
               Sou Paciente
             </Button>
-            <Link href="/dashboard">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                Sou Profissional de Saúde
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button
-                variant="outline"
-                className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
-              >
-                Sou Administrador de uma Clínica
-              </Button>
-            </Link>
+            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Link href="/profissional">Sou Profissional de Saúde</Link>
+            </Button>
+            <Button
+              variant="outline"
+              className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
+            >
+              Sou Administrador de uma Clínica
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -86,19 +82,15 @@ export function Header() {
                 >
                   Sou Paciente
                 </Button>
-                <Link href="/dashboard">
-                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
-                    Sou Profissional de Saúde
-                  </Button>
-                </Link>
-                <Link href="/dashboard">
-                  <Button
-                    variant="outline"
-                    className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent w-full"
-                  >
-                    Sou Administrador de uma Clínica
-                  </Button>
-                </Link>
+                <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Link href="/profissional" onClick={() => setIsMenuOpen(false)}>Sou Profissional de Saúde</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
+                >
+                  Sou Administrador de uma Clínica
+                </Button>
               </div>
             </nav>
           </div>

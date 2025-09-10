@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Shield, Clock, Users } from "lucide-react"
+import Link from "next/link"
 
 export function HeroSection() {
   return (
@@ -32,7 +33,7 @@ export function HeroSection() {
                 variant="outline"
                 className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
               >
-                Sou Profissional de Saúde
+                <Link href="/profissional">Sou Profissional de Saúde</Link>
               </Button>
             </div>
           </div>

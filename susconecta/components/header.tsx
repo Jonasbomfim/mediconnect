@@ -82,16 +82,16 @@ export function Header() {
               <div className="flex flex-col space-y-2 pt-4">
                 <Button
                   variant="outline"
-                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent w-full"
                 >
                   Sou Paciente
                 </Button>
-                <Link href="/dashboard">
+                <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
                   <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
                     Sou Profissional de Saúde
                   </Button>
                 </Link>
-                <Link href="/dashboard">
+                <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
                   <Button
                     variant="outline"
                     className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent w-full"
@@ -107,3 +107,4 @@ export function Header() {
     </header>
   )
 }
+

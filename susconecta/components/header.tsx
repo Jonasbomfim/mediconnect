@@ -40,15 +40,19 @@ export function Header() {
             >
               Sou Paciente
             </Button>
-            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href="/profissional">Sou Profissional de Saúde</Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
-            >
-              Sou Administrador de uma Clínica
-            </Button>
+            <Link href="/dashboard">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                Sou Profissional de Saúde
+              </Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button
+                variant="outline"
+                className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
+              >
+                Sou Administrador de uma Clínica
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -78,19 +82,23 @@ export function Header() {
               <div className="flex flex-col space-y-2 pt-4">
                 <Button
                   variant="outline"
-                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent w-full"
                 >
                   Sou Paciente
                 </Button>
-                <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                  <Link href="/profissional" onClick={() => setIsMenuOpen(false)}>Sou Profissional de Saúde</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
-                >
-                  Sou Administrador de uma Clínica
-                </Button>
+                <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
+                    Sou Profissional de Saúde
+                  </Button>
+                </Link>
+                <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                  <Button
+                    variant="outline"
+                    className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent w-full"
+                  >
+                    Sou Administrador de uma Clínica
+                  </Button>
+                </Link>
               </div>
             </nav>
           </div>
@@ -99,3 +107,4 @@ export function Header() {
     </header>
   )
 }
+

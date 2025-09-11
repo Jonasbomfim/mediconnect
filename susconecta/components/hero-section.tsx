@@ -42,8 +42,8 @@ export function HeroSection() {
           <div className="relative">
             <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-accent/20 to-primary/20 p-8">
               <img
-                src="/professional-doctor-in-white-coat-smiling-confiden.png"
-                alt="Médico profissional sorrindo em ambiente médico moderno"
+                src="/medico-sorridente-de-tiro-medio-vestindo-casaco.jpg"
+                alt="Médico profissional sorrindo"
                 className="w-full h-auto rounded-lg"
               />
             </div>

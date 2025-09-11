@@ -13,8 +13,8 @@ export function AboutSection() {
             {/* Professional Image */}
             <div className="relative">
               <img
-                src="/professional-working-on-laptop-in-modern-office-en.jpg"
-                alt="Profissional trabalhando em laptop em ambiente moderno"
+                src="/Screenshot 2025-09-11 121911.png"
+                alt="Profissional trabalhando em laptop"
                 className="w-full h-auto rounded-2xl"
               />
             </div>

@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { User, FolderOpen, X, Users, MessageSquare, ClipboardList } from "lucide-react"
+import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2 } from "lucide-react"
 import { Calendar as CalendarIcon, FileText, Settings } from "lucide-react";
 import {
   Tooltip,
@@ -30,6 +30,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+// Importações do FullCalendar
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 
 const pacientes = [
   { nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, statusLaudo: "Finalizado" },
@@ -43,8 +50,31 @@ const medico = {
   fotoUrl: "",
 }
 
+// Tipos de consulta com cores
+const colorsByType = {
+  Rotina: "#4dabf7",
+  Cardiologia: "#f76c6c",
+  Otorrino: "#f7b84d",
+  Pediatria: "#6cf78b",
+  Dermatologia: "#9b59b6",
+  Oftalmologia: "#2ecc71"
+};
+
 const ProfissionalPage = () => {
   const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [step, setStep] = useState(1);
+  const [newEvent, setNewEvent] = useState({ 
+    title: "", 
+    type: "", 
+    time: "",
+    pacienteId: "" 
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   const handleSave = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -66,17 +96,12 @@ const ProfissionalPage = () => {
   const handleAbrirProntuario = (paciente: any) => {
     setPacienteSelecionado(paciente);
     
-    // Preencher campos da seção Gestão de Laudos
     const pacienteLaudo = document.getElementById('pacienteLaudo') as HTMLInputElement;
-    
     if (pacienteLaudo) pacienteLaudo.value = paciente.nome;
     
-    // Preencher campos da seção Comunicação com o Paciente
     const destinatario = document.getElementById('destinatario') as HTMLInputElement;
-    
     if (destinatario) destinatario.value = `${paciente.nome} - ${paciente.cpf}`;
     
-    // Rolar para a seção do prontuário
     const prontuarioSection = document.getElementById('prontuario-paciente');
     if (prontuarioSection) {
       prontuarioSection.scrollIntoView({ behavior: 'smooth' });
@@ -87,22 +112,130 @@ const ProfissionalPage = () => {
     setPacienteSelecionado(null);
   };
 
+  // Clicar em um dia -> abrir popup 3 etapas
+  const handleDateClick = (arg: any) => {
+    setSelectedDate(arg.dateStr);
+    setNewEvent({ title: "", type: "", time: "", pacienteId: "" });
+    setStep(1);
+    setEditingEvent(null);
+    setShowPopup(true);
+  };
+
+  // Adicionar nova consulta
+  const handleAddEvent = () => {
+    const paciente = pacientes.find(p => p.nome === newEvent.title);
+    const eventToAdd = {
+      id: Date.now(),
+      title: newEvent.title,
+      type: newEvent.type,
+      time: newEvent.time,
+      date: selectedDate,
+      pacienteId: paciente ? paciente.cpf : "",
+      color: colorsByType[newEvent.type as keyof typeof colorsByType] || "#4dabf7"
+    };
+    setEvents((prev) => [...prev, eventToAdd]);
+    setShowPopup(false);
+  };
+
+  // Editar consulta existente
+  const handleEditEvent = () => {
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) =>
+        ev.id.toString() === editingEvent.id.toString()
+          ? {
+              ...ev,
+              title: newEvent.title,
+              type: newEvent.type,
+              time: newEvent.time,
+              color: colorsByType[newEvent.type as keyof typeof colorsByType] || "#4dabf7"
+            }
+          : ev
+      )
+    );
+    setEditingEvent(null);
+    setShowPopup(false);
+    setShowActionModal(false);
+  };
+
+  // Próxima etapa no popup
+  const handleNextStep = () => {
+    if (step < 3) setStep(step + 1);
+    else editingEvent ? handleEditEvent() : handleAddEvent();
+  };
+
+  // Clicar em uma consulta -> abre modal de ação (Editar/Apagar)
+  const handleEventClick = (clickInfo: any) => {
+    setSelectedEvent(clickInfo.event);
+    setShowActionModal(true);
+  };
+
+  // Apagar consulta
+  const handleDeleteEvent = () => {
+    if (!selectedEvent) return;
+    setEvents((prevEvents) =>
+      prevEvents.filter((ev: any) => ev.id.toString() !== selectedEvent.id.toString())
+    );
+    setShowActionModal(false);
+  };
+
+  // Começar a editar
+  const handleStartEdit = () => {
+    if (!selectedEvent) return;
+    setEditingEvent(selectedEvent);
+    setNewEvent({
+      title: selectedEvent.title,
+      type: selectedEvent.extendedProps.type,
+      time: selectedEvent.extendedProps.time,
+      pacienteId: selectedEvent.extendedProps.pacienteId || ""
+    });
+    setStep(1);
+    setShowActionModal(false);
+    setShowPopup(true);
+  };
+
+  // Aparência da consulta dentro do calendário
+  const renderEventContent = (eventInfo: any) => {
+    const bg = eventInfo.event.backgroundColor || eventInfo.event.extendedProps?.color || "#4dabf7";
+
+    return (
+      <div
+        className="flex items-center gap-1 text-xs p-1 rounded cursor-pointer"
+        style={{
+          backgroundColor: bg,
+          color: "#fff",
+          maxWidth: "100%",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis"
+        }}
+        title={`${eventInfo.event.title} • ${eventInfo.event.extendedProps.type} • ${eventInfo.event.extendedProps.time}`}
+      >
+        <span className="truncate">{eventInfo.event.title}</span>
+        <span>•</span>
+        <span className="truncate">{eventInfo.event.extendedProps.type}</span>
+        <span>•</span>
+        <span>{eventInfo.event.extendedProps.time}</span>
+      </div>
+    );
+  };
+
   return (
     <TooltipProvider>
     <div className="container mx-auto px-4 py-8">
       <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex items-center gap-4">
-  <Avatar className="h-12 w-12">
-    <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
-    <AvatarFallback className="bg-muted">
-      <User className="h-5 w-5" />
-    </AvatarFallback>
-  </Avatar>
-  <div className="min-w-0">
-      <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
-      <h2 className="text-lg font-semibold leading-none truncate">{medico.nome}</h2>
-      <p className="text-sm text-muted-foreground truncate">{medico.identificacao}</p>
-    </div>
-    </header>
+        <Avatar className="h-12 w-12">
+          <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
+          <AvatarFallback className="bg-muted">
+            <User className="h-5 w-5" />
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
+          <h2 className="text-lg font-semibold leading-none truncate">{medico.nome}</h2>
+          <p className="text-sm text-muted-foreground truncate">{medico.identificacao}</p>
+        </div>
+      </header>
+      
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         {/* Sidebar */}
         <aside className="md:sticky md:top-8 h-fit">
@@ -164,7 +297,6 @@ const ProfissionalPage = () => {
           </nav>
         </aside>
 
-
         <main>
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-3xl font-bold">Área do Profissional de Saúde</h1>
@@ -175,10 +307,48 @@ const ProfissionalPage = () => {
           <p className="mb-8">Bem-vindo à sua área exclusiva.</p>
 
           <section id="calendario" className="bg-white shadow-md rounded-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-4">Calendário</h2>
-            <p className="text-sm text-muted-foreground">
-              Seção do calendário (integração pode ser adicionada depois).
-            </p>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Calendário de Consultas</h2>
+              <Button onClick={() => setShowPopup(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Nova Consulta
+              </Button>
+            </div>
+            
+            <div className="calendar-container">
+              <FullCalendar
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                initialView="dayGridMonth"
+                locale={ptBrLocale}
+                height="auto"
+                dateClick={handleDateClick}
+                events={events.map((ev) => ({
+                  id: ev.id.toString(),
+                  title: ev.title,
+                  date: ev.date,
+                  color: ev.color,
+                  extendedProps: {
+                    type: ev.type,
+                    time: ev.time,
+                    pacienteId: ev.pacienteId,
+                    color: ev.color
+                  }
+                }))}
+                eventContent={renderEventContent}
+                eventClick={handleEventClick}
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                }}
+                buttonText={{
+                  today: 'Hoje',
+                  month: 'Mês',
+                  week: 'Semana',
+                  day: 'Dia'
+                }}
+              />
+            </div>
           </section>
 
           <div id="gerenciamento-pacientes" className="bg-white shadow-md rounded-lg p-6 mb-8">
@@ -427,6 +597,157 @@ const ProfissionalPage = () => {
           </div>
         </main>
       </div>
+
+      {/* POPUP 3 etapas (Adicionar/Editar) */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+
+          <div className="bg-white p-6 rounded-lg w-96 border border-black">
+
+            {step === 1 && (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Selecionar Paciente</h3>
+                <Select
+                  value={newEvent.title}
+                  onValueChange={(value) => setNewEvent({ ...newEvent, title: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o paciente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pacientes.map((paciente) => (
+                      <SelectItem key={paciente.cpf} value={paciente.nome}>
+                        {paciente.nome} - {paciente.cpf}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={() => setShowPopup(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!newEvent.title}
+                    className="flex-1"
+                  >
+                    Próximo
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {step === 2 && (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Tipo da Consulta</h3>
+                <Select
+                  value={newEvent.type}
+                  onValueChange={(value) => setNewEvent({ ...newEvent, type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(colorsByType).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={() => setStep(1)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!newEvent.type}
+                    className="flex-1"
+                  >
+                    Próximo
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {step === 3 && (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Horário da Consulta</h3>
+                <Input
+                  type="time"
+                  value={newEvent.time}
+                  onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                  className="mb-4"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setStep(2)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!newEvent.time}
+                    className="flex-1"
+                  >
+                    {editingEvent ? "Salvar" : "Agendar"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL de ação ao clicar em consulta */}
+      {showActionModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96">
+            <h3 className="text-lg font-semibold mb-2">
+              Consulta de {selectedEvent.title}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {selectedEvent.extendedProps.type} às {selectedEvent.extendedProps.time}
+            </p>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleStartEdit}
+                className="flex-1 flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+              <Button
+                onClick={handleDeleteEvent}
+                variant="destructive"
+                className="flex-1 flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir
+              </Button>
+            </div>
+
+            <Button
+              onClick={() => setShowActionModal(false)}
+              variant="outline"
+              className="w-full mt-2"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
     </TooltipProvider>
   );

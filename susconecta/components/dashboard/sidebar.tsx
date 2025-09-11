@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Calendar, Users, UserCheck, FileText, BarChart3, Settings, Stethoscope } from "lucide-react"
+import { Home, Calendar, Users, UserCheck, FileText, BarChart3, Settings, Stethoscope, User } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Agenda", href: "/dashboard/agenda", icon: Calendar },
   { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
+  { name: "Médicos", href: "/dashboard/medicos", icon: User },
   { name: "Consultas", href: "/dashboard/consultas", icon: UserCheck },
   { name: "Prontuários", href: "/dashboard/prontuarios", icon: FileText },
   { name: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },

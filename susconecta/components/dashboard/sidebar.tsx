@@ -7,7 +7,7 @@ import { Home, Calendar, Users, UserCheck, FileText, BarChart3, Settings, Stetho
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Agenda", href: "/dashboard/agenda", icon: Calendar },
+ { name: "Agendamento", href: "/agendamento", icon: Calendar },
   { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
   { name: "Médicos", href: "/dashboard/medicos", icon: User },
   { name: "Consultas", href: "/dashboard/consultas", icon: UserCheck },

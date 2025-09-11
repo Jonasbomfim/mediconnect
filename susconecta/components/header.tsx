@@ -41,7 +41,7 @@ export function Header() {
               Sou Paciente
             </Button>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              Sou Profissional de Saúde
+              <Link href="/profissional">Sou Profissional de Saúde</Link>
             </Button>
             <Link href="/dashboard">
               <Button

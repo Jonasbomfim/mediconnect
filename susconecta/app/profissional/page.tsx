@@ -32,11 +32,15 @@ import {
 } from "@/components/ui/tooltip";
 
 // Importações do FullCalendar
-import FullCalendar from "@fullcalendar/react";
+import dynamic from "next/dynamic";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
+
+const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
+  ssr: false,
+});
 
 const pacientes = [
   { nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, statusLaudo: "Finalizado" },

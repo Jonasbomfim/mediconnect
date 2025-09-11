@@ -347,9 +347,9 @@ const ProfissionalPage = () => {
                 }}
                 buttonText={{
                   today: 'Hoje',
-                  month: 'Mês',
+                  month: 'Dia',
                   week: 'Semana',
-                  day: 'Dia'
+                  day: 'Mês'
                 }}
               />
             </div>

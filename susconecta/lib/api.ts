@@ -1,4 +1,4 @@
-/* src/lib/api.ts */
+
 
 export type ApiOk<T = any> = {
   success: boolean;
@@ -58,9 +58,7 @@ export type PacienteInput = {
   observacoes?: string | null;
 };
 
-// -----------------------------------------------------------------------------
-// Config & helpers
-// -----------------------------------------------------------------------------
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://mock.apidog.com/m1/1053378-0-default";
 
@@ -97,21 +95,20 @@ async function parse<T>(res: Response): Promise<T> {
   try {
     json = await res.json();
   } catch {
-    // ignore
+  
   }
   if (!res.ok) {
     const code = json?.apidogError?.code ?? res.status;
     const msg = json?.apidogError?.message ?? res.statusText;
     throw new Error(`${code}: ${msg}`);
   }
-  // muitos endpoints do mock respondem { success, data }
+  
   return (json?.data ?? json) as T;
 }
 
-// -----------------------------------------------------------------------------
+//
 // Pacientes (CRUD)
-// -----------------------------------------------------------------------------
-
+// 
 export async function listarPacientes(params?: { page?: number; limit?: number; q?: string }): Promise<Paciente[]> {
   const query = new URLSearchParams();
   if (params?.page) query.set("page", String(params.page));
@@ -156,9 +153,9 @@ export async function excluirPaciente(id: string | number): Promise<void> {
   logAPI("excluirPaciente", { url, result: { ok: true } });
 }
 
-// -----------------------------------------------------------------------------
+// 
 // Foto
-// -----------------------------------------------------------------------------
+// 
 
 export async function uploadFotoPaciente(id: string | number, file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> {
   const url = `${API_BASE}${PATHS.foto(id)}`;
@@ -178,9 +175,9 @@ export async function removerFotoPaciente(id: string | number): Promise<void> {
   logAPI("removerFotoPaciente", { url, result: { ok: true } });
 }
 
-// -----------------------------------------------------------------------------
+//
 // Anexos
-// -----------------------------------------------------------------------------
+//
 
 export async function listarAnexos(id: string | number): Promise<any[]> {
   const url = `${API_BASE}${PATHS.anexos(id)}`;
@@ -193,7 +190,7 @@ export async function listarAnexos(id: string | number): Promise<any[]> {
 export async function adicionarAnexo(id: string | number, file: File): Promise<any> {
   const url = `${API_BASE}${PATHS.anexos(id)}`;
   const fd = new FormData();
-  // alguns mocks usam "arquivo" e outros "file"; tentamos ambos
+  
   fd.append("arquivo", file);
   const res = await fetch(url, { method: "POST", body: fd, headers: headers("form") });
   const data = await parse<ApiOk<any>>(res);
@@ -208,9 +205,9 @@ export async function removerAnexo(id: string | number, anexoId: string | number
   logAPI("removerAnexo", { url, result: { ok: true } });
 }
 
-// -----------------------------------------------------------------------------
+// 
 // Validações
-// -----------------------------------------------------------------------------
+// 
 
 export async function validarCPF(cpf: string): Promise<{ valido: boolean; existe: boolean; paciente_id: string | null }> {
   const url = `${API_BASE}${PATHS.validarCPF}`;

@@ -19,7 +19,7 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {}
           <nav className="hidden md:flex items-center space-x-8">
             <Link
               href="/"
@@ -32,7 +32,7 @@ export function Header() {
             </Link>
           </nav>
 
-          {/* Desktop Action Buttons */}
+          {}
           <div className="hidden md:flex items-center space-x-3">
             <Button
               variant="outline"
@@ -53,13 +53,13 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Mobile Menu Button */}
+          {}
           <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle menu">
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {}
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <nav className="flex flex-col space-y-4">

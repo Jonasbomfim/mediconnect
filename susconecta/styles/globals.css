@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-/* Removed invalid @custom-variant at-rule */
+
 
 :root {
     --background: var(--primary)

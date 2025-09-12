@@ -31,7 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Importações do FullCalendar
+
 import dynamic from "next/dynamic";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -54,7 +54,7 @@ const medico = {
   fotoUrl: "",
 }
 
-// Tipos de consulta com cores
+
 const colorsByType = {
   Rotina: "#4dabf7",
   Cardiologia: "#f76c6c",
@@ -116,7 +116,7 @@ const ProfissionalPage = () => {
     setPacienteSelecionado(null);
   };
 
-  // Clicar em um dia -> abrir popup 3 etapas
+  
   const handleDateClick = (arg: any) => {
     setSelectedDate(arg.dateStr);
     setNewEvent({ title: "", type: "", time: "", pacienteId: "" });
@@ -125,7 +125,7 @@ const ProfissionalPage = () => {
     setShowPopup(true);
   };
 
-  // Adicionar nova consulta
+ 
   const handleAddEvent = () => {
     const paciente = pacientes.find(p => p.nome === newEvent.title);
     const eventToAdd = {
@@ -141,7 +141,7 @@ const ProfissionalPage = () => {
     setShowPopup(false);
   };
 
-  // Editar consulta existente
+
   const handleEditEvent = () => {
     setEvents((prevEvents) =>
       prevEvents.map((ev) =>
@@ -161,19 +161,19 @@ const ProfissionalPage = () => {
     setShowActionModal(false);
   };
 
-  // Próxima etapa no popup
+  
   const handleNextStep = () => {
     if (step < 3) setStep(step + 1);
     else editingEvent ? handleEditEvent() : handleAddEvent();
   };
 
-  // Clicar em uma consulta -> abre modal de ação (Editar/Apagar)
+  
   const handleEventClick = (clickInfo: any) => {
     setSelectedEvent(clickInfo.event);
     setShowActionModal(true);
   };
 
-  // Apagar consulta
+
   const handleDeleteEvent = () => {
     if (!selectedEvent) return;
     setEvents((prevEvents) =>
@@ -182,7 +182,7 @@ const ProfissionalPage = () => {
     setShowActionModal(false);
   };
 
-  // Começar a editar
+ 
   const handleStartEdit = () => {
     if (!selectedEvent) return;
     setEditingEvent(selectedEvent);
@@ -197,7 +197,7 @@ const ProfissionalPage = () => {
     setShowPopup(true);
   };
 
-  // Aparência da consulta dentro do calendário
+ 
   const renderEventContent = (eventInfo: any) => {
     const bg = eventInfo.event.backgroundColor || eventInfo.event.extendedProps?.color || "#4dabf7";
 
@@ -241,7 +241,7 @@ const ProfissionalPage = () => {
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
-        {/* Sidebar */}
+        {}
         <aside className="md:sticky md:top-8 h-fit">
           <nav className="bg-white shadow-md rounded-lg p-3 space-y-1">
             <Button asChild variant="ghost" className="w-full justify-start hover:bg-primary hover:text-primary-foreground">
@@ -602,7 +602,7 @@ const ProfissionalPage = () => {
         </main>
       </div>
 
-      {/* POPUP 3 etapas (Adicionar/Editar) */}
+      {}
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 
@@ -713,7 +713,7 @@ const ProfissionalPage = () => {
         </div>
       )}
 
-      {/* MODAL de ação ao clicar em consulta */}
+      {}
       {showActionModal && selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg w-96">

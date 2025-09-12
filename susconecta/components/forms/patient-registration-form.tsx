@@ -1,4 +1,4 @@
-/* src/components/forms/patient-registration-form.tsx */
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -101,7 +101,7 @@ export function PatientRegistrationForm({
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Paciente" : "Editar Paciente"), [mode]);
 
-  // Edição
+  
   useEffect(() => {
     async function load() {
       if (mode !== "edit" || patientId == null) return;
@@ -129,7 +129,7 @@ export function PatientRegistrationForm({
         const ax = await listarAnexos(String(patientId)).catch(() => []);
         setServerAnexos(Array.isArray(ax) ? ax : []);
       } catch {
-        // ignora
+        
       }
     }
     load();
@@ -208,7 +208,7 @@ export function PatientRegistrationForm({
     ev.preventDefault();
     if (!validateLocal()) return;
 
-    // validação externa do CPF (mock → pode falhar, tratamos erro legível)
+    
     try {
       const { valido, existe } = await validarCPF(form.cpf);
       if (!valido) {
@@ -220,7 +220,7 @@ export function PatientRegistrationForm({
         return;
       }
     } catch {
-      // se o mock der 404/timeout, seguimos sem bloquear
+      
     }
 
     setSubmitting(true);
@@ -318,7 +318,7 @@ export function PatientRegistrationForm({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* DADOS PESSOAIS */}
+        {}
         <Collapsible open={expanded.dados} onOpenChange={() => setExpanded((s) => ({ ...s, dados: !s.dados }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -337,7 +337,7 @@ export function PatientRegistrationForm({
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 border-2 border-dashed border-muted-foreground rounded-lg flex items-center justify-center overflow-hidden">
                     {photoPreview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
+                      
                       <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <FileImage className="h-8 w-8 text-muted-foreground" />
@@ -420,7 +420,7 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {/* CONTATO */}
+        {}
         <Collapsible open={expanded.contato} onOpenChange={() => setExpanded((s) => ({ ...s, contato: !s.contato }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -448,7 +448,7 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {/* ENDEREÇO */}
+        {}
         <Collapsible open={expanded.endereco} onOpenChange={() => setExpanded((s) => ({ ...s, endereco: !s.endereco }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -517,7 +517,7 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {/* OBSERVAÇÕES & ANEXOS */}
+        {}
         <Collapsible open={expanded.obs} onOpenChange={() => setExpanded((s) => ({ ...s, obs: !s.obs }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -584,7 +584,7 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {/* AÇÕES */}
+        {}
         <div className="flex justify-end gap-4 pt-6 border-t">
           <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
             <XCircle className="mr-2 h-4 w-4" />

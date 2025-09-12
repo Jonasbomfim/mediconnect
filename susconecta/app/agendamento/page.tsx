@@ -1,10 +1,10 @@
-// app/agendamento/page.tsx
+
 'use client';
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 
-// Importação dinâmica para evitar erros de SSR
+
 const AgendaCalendar = dynamic(() => import('@/components/agendamento/AgendaCalendar'), { 
   ssr: false,
   loading: () => (
@@ -24,7 +24,7 @@ const AgendaCalendar = dynamic(() => import('@/components/agendamento/AgendaCale
 const AppointmentModal = dynamic(() => import('@/components/agendamento/AppointmentModal'), { ssr: false });
 const ListaEspera = dynamic(() => import('@/components/agendamento/ListaEspera'), { ssr: false });
 
-// Dados mockados
+
 const mockAppointments = [
   { id: '1', patient: 'Ana Costa', time: '2025-09-10T09:00', duration: 30, type: 'consulta' as const, status: 'confirmed' as const, professional: '1', notes: '' },
   { id: '2', patient: 'Pedro Alves', time: '2025-09-10T10:30', duration: 45, type: 'retorno' as const, status: 'pending' as const, professional: '2', notes: '' },

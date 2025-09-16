@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { Shield, Clock, Users } from "lucide-react"
+import Link from "next/link"
 
 export function HeroSection() {
   return (
     <section className="py-16 lg:py-24 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Content */}
+          {}
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="inline-block px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-medium">
@@ -22,7 +23,7 @@ export function HeroSection() {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {}
             <div className="flex flex-col sm:flex-row gap-4">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 Sou Paciente
@@ -32,12 +33,12 @@ export function HeroSection() {
                 variant="outline"
                 className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
               >
-                Sou Profissional de Saúde
+                <Link href="/profissional">Sou Profissional de Saúde</Link>
               </Button>
             </div>
           </div>
 
-          {/* Hero Image */}
+          {}
           <div className="relative">
             <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-accent/20 to-primary/20 p-8">
               <img
@@ -49,7 +50,7 @@ export function HeroSection() {
           </div>
         </div>
 
-        {/* Features */}
+        {}
         <div className="mt-16 grid md:grid-cols-3 gap-8">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">

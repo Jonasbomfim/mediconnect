@@ -1,4 +1,4 @@
-// hooks/useAgenda.ts
+
 import { useState } from 'react';
 
 export interface Appointment {
@@ -42,10 +42,10 @@ export const useAgenda = () => {
 
   const handleSaveAppointment = (appointment: Appointment) => {
     if (appointment.id) {
-      // Editar agendamento existente
+      
       setAppointments(prev => prev.map(a => a.id === appointment.id ? appointment : a));
     } else {
-      // Novo agendamento
+    
       const newAppointment = {
         ...appointment,
         id: Date.now().toString(),
@@ -70,7 +70,7 @@ export const useAgenda = () => {
   };
 
   const handleNotifyPatient = (patientId: string) => {
-    // Lógica para notificar paciente
+  
     console.log(`Notificando paciente ${patientId}`);
   };
 

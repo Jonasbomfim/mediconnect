@@ -1,4 +1,4 @@
-/* src/app/dashboard/pacientes/page.tsx */
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -11,7 +11,7 @@ import { MoreHorizontal, Plus, Search, Eye, Edit, Trash2, ArrowLeft } from "luci
 import { Paciente, Endereco, listarPacientes, buscarPacientePorId, excluirPaciente } from "@/lib/api";
 import { PatientRegistrationForm } from "@/components/forms/patient-registration-form";
 
-// Converte qualquer formato que vier do mock para o shape do nosso tipo Paciente
+
 function normalizePaciente(p: any): Paciente {
   const endereco: Endereco = {
     cep: p.endereco?.cep ?? p.cep ?? "",
@@ -114,7 +114,7 @@ export default function PacientesPage() {
     const q = search.trim();
     if (!q) return loadAll();
 
-    // Se for apenas números, tentamos como ID no servidor
+    
     if (/^\d+$/.test(q)) {
       try {
         setLoading(true);
@@ -130,7 +130,7 @@ export default function PacientesPage() {
       return;
     }
 
-    // Senão, recarrega e filtra local (o mock nem sempre filtra por nome/CPF)
+    
     await loadAll();
     setTimeout(() => setSearch(q), 0);
   }
@@ -161,7 +161,7 @@ export default function PacientesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho + Busca (um único input no padrão do print) */}
+      {}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Pacientes</h1>

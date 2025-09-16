@@ -1,4 +1,4 @@
-// components/agendamento/AgendaCalendar.tsx (atualizado)
+
 'use client';
 
 import { useState } from 'react';
@@ -86,7 +86,7 @@ export default function AgendaCalendar({
     setCurrentDate(new Date());
   };
 
-  // Filtra os agendamentos por profissional selecionado
+  
   const filteredAppointments = selectedProfessional === 'all' 
     ? appointments 
     : appointments.filter(app => app.professional === selectedProfessional);
@@ -187,7 +187,7 @@ export default function AgendaCalendar({
         </div>
       </div>
 
-      {/* Visualização de Dia/Semana (calendário) */}
+      {}
       {view !== 'month' && (
         <div className="overflow-auto">
           <div className="min-w-full">
@@ -256,7 +256,7 @@ export default function AgendaCalendar({
         </div>
       )}
 
-      {/* Visualização de Mês (lista) */}
+      {}
       {view === 'month' && (
         <div className="p-4">
           <div className="space-y-4">

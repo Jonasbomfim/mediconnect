@@ -8,18 +8,18 @@ export function AboutSection() {
     <section className="py-16 lg:py-24 bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
+          {}
           <div className="space-y-8">
-            {/* Professional Image */}
+            {}
             <div className="relative">
               <img
-                src="/professional-working-on-laptop-in-modern-office-en.jpg"
-                alt="Profissional trabalhando em laptop em ambiente moderno"
+                src="/Screenshot 2025-09-11 121911.png"
+                alt="Profissional trabalhando em laptop"
                 className="w-full h-auto rounded-2xl"
               />
             </div>
 
-            {/* Objective Card */}
+            {}
             <Card className="bg-primary text-primary-foreground p-8 rounded-2xl">
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 w-12 h-12 bg-primary-foreground/20 rounded-full flex items-center justify-center">
@@ -36,7 +36,7 @@ export function AboutSection() {
             </Card>
           </div>
 
-          {/* Right Content */}
+          {}
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium uppercase tracking-wide">

@@ -1,4 +1,4 @@
-// components/agendamento/ListaEspera.tsx
+
 'use client';
 
 import { useState } from 'react';

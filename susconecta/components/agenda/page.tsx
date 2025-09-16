@@ -1,10 +1,10 @@
-// app/agenda/page.tsx
+
 'use client';
 
 import { useState } from 'react';
 import { AgendaCalendar, AppointmentModal, ListaEspera } from '@/components/agendamento';
 
-// Dados mockados - substitua pelos seus dados reais
+
 const mockAppointments = [
   { id: '1', patient: 'Ana Costa', time: '2025-09-10T09:00', duration: 30, type: 'consulta' as const, status: 'confirmed' as const, professional: '1', notes: '' },
   { id: '2', patient: 'Pedro Alves', time: '2025-09-10T10:30', duration: 45, type: 'retorno' as const, status: 'pending' as const, professional: '2', notes: '' },
@@ -32,10 +32,10 @@ export default function AgendaPage() {
 
   const handleSaveAppointment = (appointment: any) => {
     if (appointment.id) {
-      // Editar agendamento existente
+      
       setAppointments(prev => prev.map(a => a.id === appointment.id ? appointment : a));
     } else {
-      // Novo agendamento
+      
       const newAppointment = {
         ...appointment,
         id: Date.now().toString(),
@@ -60,7 +60,7 @@ export default function AgendaPage() {
   };
 
   const handleNotifyPatient = (patientId: string) => {
-    // Lógica para notificar paciente
+    
     console.log(`Notificando paciente ${patientId}`);
   };
 

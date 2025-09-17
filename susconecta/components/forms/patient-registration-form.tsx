@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -395,20 +395,16 @@ export function PatientRegistrationForm({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Sexo</Label>
-                    <RadioGroup value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="masculino" id="masculino" />
-                        <Label htmlFor="masculino">Masculino</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="feminino" id="feminino" />
-                        <Label htmlFor="feminino">Feminino</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="outro" id="outro" />
-                        <Label htmlFor="outro">Outro</Label>
-                      </div>
-                    </RadioGroup>
+                    <Select value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o sexo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="masculino">Masculino</SelectItem>
+                        <SelectItem value="feminino">Feminino</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Data de Nascimento</Label>
@@ -538,9 +534,9 @@ export function PatientRegistrationForm({
                 <div className="space-y-2">
                   <Label>Adicionar anexos</Label>
                   <div className="border-2 border-dashed rounded-lg p-4">
-                    <Label htmlFor="anexos" className="cursor-pointer">
-                      <div className="text-center">
-                        <Upload className="mx-auto h-7 w-7 mb-2" />
+                    <Label htmlFor="anexos" className="cursor-pointer block w-full">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <Upload className="h-7 w-7 mb-2" />
                         <p className="text-sm text-muted-foreground">Clique para adicionar documentos (PDF, imagens, etc.)</p>
                       </div>
                     </Label>

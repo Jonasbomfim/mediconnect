@@ -5,14 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertCircle, ChevronDown, ChevronUp, FileImage, Loader2, Save, Upload, User, X, XCircle, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 // Mock data and types since API is not used for now
+
+type FormacaoAcademica = {
+  instituicao: string;
+  curso: string;
+  ano_conclusao: string;
+};
+
+type DadosBancarios = {
+  banco: string;
+  agencia: string;
+  conta: string;
+  tipo_conta: string;
+};
+
 export type Medico = {
   id: string;
   nome?: string;
@@ -22,11 +38,22 @@ export type Medico = {
   sexo?: string | null;
   data_nascimento?: string | null;
   telefone?: string;
+  celular?: string;
+  contato_emergencia?: string;
   email?: string;
   crm?: string;
+  estado_crm?: string;
+  rqe?: string;
+  formacao_academica?: FormacaoAcademica[];
+  curriculo_url?: string | null;
   especialidade?: string;
   observacoes?: string | null;
   foto_url?: string | null;
+  tipo_vinculo?: string;
+  dados_bancarios?: DadosBancarios;
+  
+  agenda_horario?: string;
+  valor_consulta?: number | string;
 };
 
 type Mode = "create" | "edit";
@@ -46,6 +73,10 @@ type FormData = {
   nome: string;
   nome_social: string;
   crm: string;
+  estado_crm: string;
+  rqe: string;
+  formacao_academica: FormacaoAcademica[];
+  curriculo: File | null;
   especialidade: string;
   cpf: string;
   rg: string;
@@ -53,6 +84,8 @@ type FormData = {
   data_nascimento: string;
   email: string;
   telefone: string;
+  celular: string;
+  contato_emergencia: string;
   cep: string;
   logradouro: string;
   numero: string;
@@ -62,6 +95,11 @@ type FormData = {
   estado: string;
   observacoes: string;
   anexos: File[];
+  tipo_vinculo: string;
+  dados_bancarios: DadosBancarios;
+  
+  agenda_horario: string;
+  valor_consulta: string;
 };
 
 const initial: FormData = {
@@ -69,6 +107,10 @@ const initial: FormData = {
   nome: "",
   nome_social: "",
   crm: "",
+  estado_crm: "",
+  rqe: "",
+  formacao_academica: [],
+  curriculo: null,
   especialidade: "",
   cpf: "",
   rg: "",
@@ -76,6 +118,8 @@ const initial: FormData = {
   data_nascimento: "",
   email: "",
   telefone: "",
+  celular: "",
+  contato_emergencia: "",
   cep: "",
   logradouro: "",
   numero: "",
@@ -85,7 +129,18 @@ const initial: FormData = {
   estado: "",
   observacoes: "",
   anexos: [],
+  tipo_vinculo: "",
+  dados_bancarios: {
+    banco: "",
+    agencia: "",
+    conta: "",
+    tipo_conta: "",
+  },
+  agenda_horario: "",
+  valor_consulta: "",
 };
+
+
 
 export function DoctorRegistrationForm({
   open = true,
@@ -98,7 +153,7 @@ export function DoctorRegistrationForm({
 }: DoctorRegistrationFormProps) {
   const [form, setForm] = useState<FormData>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false });
+  const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false, formacao: false, admin: false });
   const [isSubmitting, setSubmitting] = useState(false);
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -117,6 +172,44 @@ export function DoctorRegistrationForm({
   function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
     setForm((s) => ({ ...s, [k]: v }));
     if (errors[k as string]) setErrors((e) => ({ ...e, [k]: "" }));
+  }
+
+
+  function addFormacao() {
+    setField("formacao_academica", [
+      ...form.formacao_academica,
+      { instituicao: "", curso: "", ano_conclusao: "" },
+    ]);
+  }
+
+  function removeFormacao(index: number) {
+    const newFormacao = [...form.formacao_academica];
+    newFormacao.splice(index, 1);
+    setField("formacao_academica", newFormacao);
+  }
+
+  function handleFormacaoChange(index: number, field: keyof FormacaoAcademica, value: string) {
+    const newFormacao = [...form.formacao_academica];
+    newFormacao[index][field] = value;
+    setField("formacao_academica", newFormacao);
+  }
+
+  function formatPhone(v: string) {
+    const n = v.replace(/\D/g, "").slice(0, 11);
+    if (n.length > 6) {
+      return n.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3");
+    } else if (n.length > 2) {
+      return n.replace(/(\d{2})(\d{0,5})/, "($1) $2");
+    }
+    return n;
+  }
+
+  function formatRG(v: string) {
+    v = v.replace(/\D/g, "").slice(0, 9);
+    v = v.replace(/(\d{2})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    return v;
   }
 
   function formatCPF(v: string) {
@@ -274,9 +367,42 @@ export function DoctorRegistrationForm({
                         {errors.crm && <p className="text-sm text-destructive">{errors.crm}</p>}
                     </div>
                     <div className="space-y-2">
+                        <Label>Estado do CRM</Label>
+                        <Input value={form.estado_crm} onChange={(e) => setField("estado_crm", e.target.value)} />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
                         <Label>Especialidade *</Label>
                         <Input value={form.especialidade} onChange={(e) => setField("especialidade", e.target.value)} className={errors.especialidade ? "border-destructive" : ""} />
                         {errors.especialidade && <p className="text-sm text-destructive">{errors.especialidade}</p>}
+                    </div>
+                    <div className="space-y-2">
+                        <Label>RQE</Label>
+                        <Input value={form.rqe} onChange={(e) => setField("rqe", e.target.value)} />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Currículo</Label>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="curriculo-input" className="cursor-pointer">
+                            <Button type="button" variant="outline" asChild>
+                                <span>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Anexar PDF ou DOC
+                                </span>
+                            </Button>
+                        </Label>
+                        <Input
+                            id="curriculo-input"
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => setField("curriculo", e.target.files?.[0] || null)}
+                            accept=".pdf,.doc,.docx"
+                        />
+                        {form.curriculo && <span className="text-sm text-muted-foreground">{form.curriculo.name}</span>}
                     </div>
                 </div>
 
@@ -294,33 +420,95 @@ export function DoctorRegistrationForm({
                   </div>
                   <div className="space-y-2">
                     <Label>RG</Label>
-                    <Input value={form.rg} onChange={(e) => setField("rg", e.target.value)} />
+                    <Input 
+                      value={form.rg} 
+                      onChange={(e) => setField("rg", formatRG(e.target.value))}
+                      maxLength={12}
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Sexo</Label>
-                    <RadioGroup value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="masculino" id="masculino" />
-                        <Label htmlFor="masculino">Masculino</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="feminino" id="feminino" />
-                        <Label htmlFor="feminino">Feminino</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="outro" id="outro" />
-                        <Label htmlFor="outro">Outro</Label>
-                      </div>
-                    </RadioGroup>
+                    <Select value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o sexo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="masculino">Masculino</SelectItem>
+                        <SelectItem value="feminino">Feminino</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Data de Nascimento</Label>
                     <Input type="date" value={form.data_nascimento} onChange={(e) => setField("data_nascimento", e.target.value)} />
                   </div>
                 </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        <Collapsible open={expanded.formacao} onOpenChange={() => setExpanded((s) => ({ ...s, formacao: !s.formacao }))}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Formação Acadêmica
+                  </span>
+                  {expanded.formacao ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4 pt-4">
+                {form.formacao_academica.map((formacao, index) => (
+                  <div key={index} className="grid grid-cols-4 gap-4 items-center">
+                    <div className="space-y-2 col-span-2">
+                      <Label>Instituição</Label>
+                      <Input
+                        value={formacao.instituicao}
+                        onChange={(e) =>
+                          handleFormacaoChange(index, "instituicao", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Curso</Label>
+                      <Input
+                        value={formacao.curso}
+                        onChange={(e) =>
+                          handleFormacaoChange(index, "curso", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ano de Conclusão</Label>
+                      <Input
+                        value={formacao.ano_conclusao}
+                        onChange={(e) =>
+                          handleFormacaoChange(index, "ano_conclusao", e.target.value)
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFormacao(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" onClick={addFormacao}>
+                  Adicionar Formação
+                </Button>
               </CardContent>
             </CollapsibleContent>
           </Card>
@@ -345,9 +533,130 @@ export function DoctorRegistrationForm({
                   </div>
                   <div className="space-y-2">
                     <Label>Telefone</Label>
-                    <Input value={form.telefone} onChange={(e) => setField("telefone", e.target.value)} />
+                    <Input 
+                      value={form.telefone} 
+                      onChange={(e) => setField("telefone", formatPhone(e.target.value))}
+                      placeholder="(XX) XXXXX-XXXX"
+                    />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Celular</Label>
+                    <Input 
+                      value={form.celular} 
+                      onChange={(e) => setField("celular", formatPhone(e.target.value))}
+                      placeholder="(XX) XXXXX-XXXX"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contato de Emergência</Label>
+                    <Input 
+                      value={form.contato_emergencia} 
+                      onChange={(e) => setField("contato_emergencia", formatPhone(e.target.value))}
+                      placeholder="(XX) XXXXX-XXXX"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        <Collapsible open={expanded.admin} onOpenChange={() => setExpanded((s) => ({ ...s, admin: !s.admin }))}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Dados Administrativos e Financeiros
+                  </span>
+                  {expanded.admin ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo de Vínculo</Label>
+                    <Select value={form.tipo_vinculo} onValueChange={(v) => setField("tipo_vinculo", v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o vínculo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="funcionario">Funcionário</SelectItem>
+                        <SelectItem value="autonomo">Autônomo</SelectItem>
+                        <SelectItem value="parceiro">Parceiro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valor da Consulta</Label>
+                    <Input
+                      type="number"
+                      value={form.valor_consulta}
+                      onChange={(e) => setField("valor_consulta", e.target.value)}
+                      placeholder="R$ 0,00"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Agenda/Horário</Label>
+                  <Textarea
+                    value={form.agenda_horario}
+                    onChange={(e) => setField("agenda_horario", e.target.value)}
+                    placeholder="Descreva os dias e horários de atendimento"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <Label>Dados Bancários</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Banco</Label>
+                      <Input
+                        value={form.dados_bancarios.banco}
+                        onChange={(e) => setField("dados_bancarios", { ...form.dados_bancarios, banco: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Agência</Label>
+                      <Input
+                        value={form.dados_bancarios.agencia}
+                        onChange={(e) => setField("dados_bancarios", { ...form.dados_bancarios, agencia: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Conta</Label>
+                      <Input
+                        value={form.dados_bancarios.conta}
+                        onChange={(e) => setField("dados_bancarios", { ...form.dados_bancarios, conta: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de Conta</Label>
+                      <Select
+                        value={form.dados_bancarios.tipo_conta}
+                        onValueChange={(v) => setField("dados_bancarios", { ...form.dados_bancarios, tipo_conta: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="corrente">Conta Corrente</SelectItem>
+                          <SelectItem value="poupanca">Conta Poupança</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                
               </CardContent>
             </CollapsibleContent>
           </Card>
@@ -441,9 +750,9 @@ export function DoctorRegistrationForm({
                 <div className="space-y-2">
                   <Label>Adicionar anexos</Label>
                   <div className="border-2 border-dashed rounded-lg p-4">
-                    <Label htmlFor="anexos" className="cursor-pointer">
-                      <div className="text-center">
-                        <Upload className="mx-auto h-7 w-7 mb-2" />
+                    <Label htmlFor="anexos" className="cursor-pointer block w-full">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <Upload className="h-7 w-7 mb-2" />
                         <p className="text-sm text-muted-foreground">Clique para adicionar documentos (PDF, imagens, etc.)</p>
                       </div>
                     </Label>

@@ -12,12 +12,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { SidebarTrigger } from "../ui/sidebar"
 
-export function DashboardHeader() {
+export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
   return (
     <header className="h-16 border-b border-border bg-background px-6 flex items-center justify-between">
-      <div className="flex items-center space-x-4">
-        <h1 className="text-lg font-semibold text-foreground">NÚCLEO DE ESPECIALIDADES</h1>
+      <div className="flex flex-row items-center gap-4">
+        <SidebarTrigger />
+        <div className="flex items-start flex-col justify-center py-2">
+          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          <p className="text-gray-600">{subtitle}</p>
+        </div>
       </div>
 
       <div className="flex items-center space-x-4">

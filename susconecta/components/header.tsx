@@ -1,12 +1,14 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Menu, X } from "lucide-react"
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="bg-background border-b border-border sticky top-0 z-50">
@@ -20,14 +22,21 @@ export function Header() {
           </Link>
 
           {}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center gap-10">
             <Link
               href="/"
-              className="text-foreground hover:text-primary transition-colors border-b-2 border-primary pb-1"
+              className={`text-foreground hover:text-primary transition-colors border-b-2 border-b-[transparent] ${
+                pathname === "/" ? "border-b-blue-500" : ""
+              }`}
             >
               Início
             </Link>
-            <Link href="/sobre" className="text-muted-foreground hover:text-primary transition-colors">
+            <Link
+              href="/sobre"
+              className={`text-foreground hover:text-primary transition-colors border-b-2 border-b-[transparent] ${
+                pathname === "/sobre" ? "border-b-blue-500" : ""
+              }`}
+            >
               Sobre
             </Link>
           </nav>
@@ -54,7 +63,11 @@ export function Header() {
           </div>
 
           {}
-          <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle menu">
+          <button
+            className="md:hidden p-2"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle menu"
+          >
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
@@ -101,5 +114,5 @@ export function Header() {
         )}
       </div>
     </header>
-  )
+  );
 }

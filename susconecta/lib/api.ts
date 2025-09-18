@@ -61,8 +61,10 @@ export type PacienteInput = {
 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://mock.apidog.com/m1/1053378-0-default";
+const MEDICOS_BASE = process.env.NEXT_PUBLIC_MEDICOS_BASE_PATH ?? "/medicos";
 
-const PATHS = {
+export const PATHS = {
+  // Pacientes (já existia)
   pacientes: "/pacientes",
   pacienteId: (id: string | number) => `/pacientes/${id}`,
   foto: (id: string | number) => `/pacientes/${id}/foto`,
@@ -70,7 +72,15 @@ const PATHS = {
   anexoId: (id: string | number, anexoId: string | number) => `/pacientes/${id}/anexos/${anexoId}`,
   validarCPF: "/pacientes/validar-cpf",
   cep: (cep: string) => `/utils/cep/${cep}`,
+
+  // Médicos (APONTANDO PARA PACIENTES por enquanto)
+  medicos: MEDICOS_BASE,
+  medicoId: (id: string | number) => `${MEDICOS_BASE}/${id}`,
+  medicoFoto: (id: string | number) => `${MEDICOS_BASE}/${id}/foto`,
+  medicoAnexos: (id: string | number) => `${MEDICOS_BASE}/${id}/anexos`,
+  medicoAnexoId: (id: string | number, anexoId: string | number) => `${MEDICOS_BASE}/${id}/anexos/${anexoId}`,
 } as const;
+
 
 function headers(kind: "json" | "form" = "json"): Record<string, string> {
   const h: Record<string, string> = {};
@@ -95,16 +105,21 @@ async function parse<T>(res: Response): Promise<T> {
   try {
     json = await res.json();
   } catch {
-  
+    // ignora erro de parse vazio
   }
+
   if (!res.ok) {
+    // 🔴 ADICIONE ESSA LINHA AQUI:
+    console.error("[API ERROR]", res.url, res.status, json);
+
     const code = json?.apidogError?.code ?? res.status;
-    const msg = json?.apidogError?.message ?? res.statusText;
+    const msg  = json?.apidogError?.message ?? res.statusText;
     throw new Error(`${code}: ${msg}`);
   }
-  
+
   return (json?.data ?? json) as T;
 }
+
 
 //
 // Pacientes (CRUD)
@@ -250,3 +265,150 @@ export async function buscarCepAPI(cep: string): Promise<{ logradouro?: string; 
     };
   }
 }
+
+// >>> ADICIONE (ou mova) ESTES TIPOS <<<
+export type FormacaoAcademica = {
+  instituicao: string;
+  curso: string;
+  ano_conclusao: string;
+};
+
+export type DadosBancarios = {
+  banco: string;
+  agencia: string;
+  conta: string;
+  tipo_conta: string;
+};
+
+export type Medico = {
+  id: string;
+  nome?: string;
+  nome_social?: string | null;
+  cpf?: string;
+  rg?: string | null;
+  sexo?: string | null;
+  data_nascimento?: string | null;
+  telefone?: string;
+  celular?: string;
+  contato_emergencia?: string;
+  email?: string;
+  crm?: string;
+  estado_crm?: string;
+  rqe?: string;
+  formacao_academica?: FormacaoAcademica[];
+  curriculo_url?: string | null;
+  especialidade?: string;
+  observacoes?: string | null;
+  foto_url?: string | null;
+  tipo_vinculo?: string;
+  dados_bancarios?: DadosBancarios;
+  agenda_horario?: string;
+  valor_consulta?: number | string;
+};
+
+export type MedicoInput = {
+  nome: string;
+  nome_social?: string | null;
+  cpf?: string | null;
+  rg?: string | null;
+  sexo?: string | null;
+  data_nascimento?: string | null;
+  telefone?: string | null;
+  celular?: string | null;
+  contato_emergencia?: string | null;
+  email?: string | null;
+  crm: string;
+  estado_crm?: string | null;
+  rqe?: string | null;
+  formacao_academica?: FormacaoAcademica[];
+  curriculo_url?: string | null;
+  especialidade: string;
+  observacoes?: string | null;
+  tipo_vinculo?: string | null;
+  dados_bancarios?: DadosBancarios | null;
+  agenda_horario?: string | null;
+  valor_consulta?: number | string | null;
+};
+
+//
+// MÉDICOS (CRUD)
+//
+// ======= MÉDICOS (forçando usar rotas de PACIENTES no mock) =======
+
+export async function listarMedicos(params?: { page?: number; limit?: number; q?: string }): Promise<Medico[]> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.q) query.set("q", params.q);
+
+  // FORÇA /pacientes
+  const url = `${API_BASE}/pacientes${query.toString() ? `?${query.toString()}` : ""}`;
+  const res = await fetch(url, { method: "GET", headers: headers("json") });
+  const data = await parse<ApiOk<Medico[]>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
+  const url = `${API_BASE}/pacientes/${id}`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "GET", headers: headers("json") });
+  const data = await parse<ApiOk<Medico>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function criarMedico(input: MedicoInput): Promise<Medico> {
+  const url = `${API_BASE}/pacientes`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "POST", headers: headers("json"), body: JSON.stringify(input) });
+  const data = await parse<ApiOk<Medico>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function atualizarMedico(id: string | number, input: MedicoInput): Promise<Medico> {
+  const url = `${API_BASE}/pacientes/${id}`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "PUT", headers: headers("json"), body: JSON.stringify(input) });
+  const data = await parse<ApiOk<Medico>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function excluirMedico(id: string | number): Promise<void> {
+  const url = `${API_BASE}/pacientes/${id}`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "DELETE", headers: headers("json") });
+  await parse<any>(res);
+}
+
+export async function uploadFotoMedico(id: string | number, file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> {
+  const url = `${API_BASE}/pacientes/${id}/foto`; // FORÇA /pacientes
+  const fd = new FormData();
+  fd.append("foto", file);
+  const res = await fetch(url, { method: "POST", headers: headers("form"), body: fd });
+  const data = await parse<ApiOk<{ foto_url?: string; thumbnail_url?: string }>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function removerFotoMedico(id: string | number): Promise<void> {
+  const url = `${API_BASE}/pacientes/${id}/foto`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "DELETE", headers: headers("json") });
+  await parse<any>(res);
+}
+
+export async function listarAnexosMedico(id: string | number): Promise<any[]> {
+  const url = `${API_BASE}/pacientes/${id}/anexos`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "GET", headers: headers("json") });
+  const data = await parse<ApiOk<any[]>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function adicionarAnexoMedico(id: string | number, file: File): Promise<any> {
+  const url = `${API_BASE}/pacientes/${id}/anexos`; // FORÇA /pacientes
+  const fd = new FormData();
+  fd.append("arquivo", file);
+  const res = await fetch(url, { method: "POST", headers: headers("form"), body: fd });
+  const data = await parse<ApiOk<any>>(res);
+  return (data as any)?.data ?? (data as any);
+}
+
+export async function removerAnexoMedico(id: string | number, anexoId: string | number): Promise<void> {
+  const url = `${API_BASE}/pacientes/${id}/anexos/${anexoId}`; // FORÇA /pacientes
+  const res = await fetch(url, { method: "DELETE", headers: headers("json") });
+  await parse<any>(res);
+}
+// ======= FIM: médicos usando rotas de pacientes =======

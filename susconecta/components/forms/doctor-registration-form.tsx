@@ -13,6 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertCircle, ChevronDown, ChevronUp, FileImage, Loader2, Save, Upload, User, X, XCircle, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  criarMedico,
+  atualizarMedico,
+  buscarMedicoPorId,
+  uploadFotoMedico,
+  listarAnexosMedico,
+  adicionarAnexoMedico,
+  removerAnexoMedico,
+  MedicoInput,
+} from "@/lib/api";
+
+import { buscarCepAPI } from "@/lib/api"; // use o seu já existente
 
 // Mock data and types since API is not used for now
 
@@ -161,13 +173,57 @@ export function DoctorRegistrationForm({
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Médico" : "Editar Médico"), [mode]);
 
-  useEffect(() => {
-    // Data loading logic would go here in a real scenario
+ useEffect(() => {
+  let alive = true;
+  async function load() {
     if (mode === "edit" && doctorId) {
-      console.log("Loading doctor data for ID:", doctorId);
-      // Example: setForm(loadedDoctorData);
+      const medico = await buscarMedicoPorId(doctorId);
+      if (!alive) return;
+      // mapeia API -> estado do formulário
+      setForm({
+        photo: null,
+        nome: medico.nome ?? "",
+        nome_social: medico.nome_social ?? "",
+        crm: medico.crm ?? "",
+        estado_crm: medico.estado_crm ?? "",
+        rqe: medico.rqe ?? "",
+        formacao_academica: medico.formacao_academica ?? [],
+        curriculo: null, // se a API devolver URL, você pode exibir ao lado
+        especialidade: medico.especialidade ?? "",
+        cpf: medico.cpf ?? "",
+        rg: medico.rg ?? "",
+        sexo: medico.sexo ?? "",
+        data_nascimento: medico.data_nascimento ?? "",
+        email: medico.email ?? "",
+        telefone: medico.telefone ?? "",
+        celular: medico.celular ?? "",
+        contato_emergencia: medico.contato_emergencia ?? "",
+        cep: "",
+        logradouro: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+        observacoes: medico.observacoes ?? "",
+        anexos: [],
+        tipo_vinculo: medico.tipo_vinculo ?? "",
+        dados_bancarios: medico.dados_bancarios ?? { banco: "", agencia: "", conta: "", tipo_conta: "" },
+        agenda_horario: medico.agenda_horario ?? "",
+        valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
+      });
+
+      // (Opcional) listar anexos que já existem no servidor
+      try {
+        const list = await listarAnexosMedico(doctorId);
+        setServerAnexos(list ?? []);
+      } catch {}
     }
-  }, [mode, doctorId]);
+  }
+  load();
+  return () => { alive = false; };
+}, [mode, doctorId]);
+
 
   function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
     setForm((s) => ({ ...s, [k]: v }));
@@ -225,27 +281,26 @@ export function DoctorRegistrationForm({
     return n.replace(/(\d{5})(\d{0,3})/, (_, a, b) => `${a}${b ? "-" + b : ""}`);
   }
   async function fillFromCEP(cep: string) {
-    const clean = cep.replace(/\D/g, "");
-    if (clean.length !== 8) return;
-    setSearchingCEP(true);
-    try {
-      // Mocking API call
-      console.log("Searching CEP:", clean);
-      // In a real app: const res = await buscarCepAPI(clean);
-      // Mock response:
-      const res = { logradouro: "Rua Fictícia", bairro: "Bairro dos Sonhos", localidade: "Cidade Exemplo", uf: "EX" };
-      if (res) {
-        setField("logradouro", res.logradouro ?? "");
-        setField("bairro", res.bairro ?? "");
-        setField("cidade", res.localidade ?? "");
-        setField("estado", res.uf ?? "");
-      }
-    } catch {
-      setErrors((e) => ({ ...e, cep: "Erro ao buscar CEP" }));
-    } finally {
-      setSearchingCEP(false);
+  const clean = cep.replace(/\D/g, "");
+  if (clean.length !== 8) return;
+  setSearchingCEP(true);
+  try {
+    const res = await buscarCepAPI(clean);
+    if (res && !res.erro) {
+      setField("logradouro", res.logradouro ?? "");
+      setField("bairro", res.bairro ?? "");
+      setField("cidade", res.localidade ?? "");
+      setField("estado", res.uf ?? "");
+    } else {
+      setErrors((e) => ({ ...e, cep: "CEP não encontrado" }));
     }
+  } catch {
+    setErrors((e) => ({ ...e, cep: "Erro ao buscar CEP" }));
+  } finally {
+    setSearchingCEP(false);
   }
+}
+
 
   function validateLocal(): boolean {
     const e: Record<string, string> = {};
@@ -258,25 +313,75 @@ export function DoctorRegistrationForm({
   }
 
   async function handleSubmit(ev: React.FormEvent) {
-    ev.preventDefault();
-    if (!validateLocal()) return;
+  ev.preventDefault();
+  if (!validateLocal()) return;
 
-    setSubmitting(true);
-    console.log("Submitting form with data:", form);
+  setSubmitting(true);
+  setErrors((e) => ({ ...e, submit: "" }));
 
-    // Simulate API call
-    setTimeout(() => {
-      setSubmitting(false);
-      const savedData: Medico = {
-        id: doctorId ? String(doctorId) : String(Date.now()),
-        ...form,
-      };
-      onSaved?.(savedData);
-      alert(mode === "create" ? "Médico cadastrado com sucesso! (simulado)" : "Médico atualizado com sucesso! (simulado)");
-      if (inline) onClose?.();
-      else onOpenChange?.(false);
-    }, 1000);
+  try {
+    // monta o payload esperado pela API
+    const payload: MedicoInput = {
+      nome: form.nome,
+      nome_social: form.nome_social || null,
+      cpf: form.cpf || null,
+      rg: form.rg || null,
+      sexo: form.sexo || null,
+      data_nascimento: form.data_nascimento || null,
+      telefone: form.telefone || null,
+      celular: form.celular || null,
+      contato_emergencia: form.contato_emergencia || null,
+      email: form.email || null,
+      crm: form.crm,
+      estado_crm: form.estado_crm || null,
+      rqe: form.rqe || null,
+      formacao_academica: form.formacao_academica ?? [],
+      curriculo_url: null, // se quiser, suba arquivo do currículo num endpoint próprio e salve a URL aqui
+      especialidade: form.especialidade,
+      observacoes: form.observacoes || null,
+      tipo_vinculo: form.tipo_vinculo || null,
+      dados_bancarios: form.dados_bancarios ?? null,
+      agenda_horario: form.agenda_horario || null,
+      valor_consulta: form.valor_consulta || null,
+    };
+
+    // cria ou atualiza
+    const saved = mode === "create"
+      ? await criarMedico(payload)
+      : await atualizarMedico(doctorId as number, payload);
+
+    const medicoId = saved.id;
+
+    // foto (opcional)
+    if (form.photo) {
+      try {
+        await uploadFotoMedico(medicoId, form.photo);
+      } catch (e) {
+        console.warn("Falha ao enviar foto:", e);
+      }
+    }
+
+    // anexos locais (opcional)
+    if (form.anexos?.length) {
+      for (const f of form.anexos) {
+        try {
+          await adicionarAnexoMedico(medicoId, f);
+        } catch (e) {
+          console.warn("Falha ao enviar anexo:", f.name, e);
+        }
+      }
+    }
+
+    onSaved?.(saved);
+    if (inline) onClose?.();
+    else onOpenChange?.(false);
+  } catch (err: any) {
+    setErrors((e) => ({ ...e, submit: err?.message || "Erro ao salvar médico" }));
+  } finally {
+    setSubmitting(false);
   }
+}
+
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];

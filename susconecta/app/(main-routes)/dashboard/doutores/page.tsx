@@ -1,39 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { DoctorRegistrationForm, Medico } from "@/components/forms/doctor-registration-form";
+import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
 
-// Mock data for doctors
-const initialDoctors: Medico[] = [
-  {
-    id: "1",
-    nome: "Dr. João Silva",
-    especialidade: "Cardiologia",
-    crm: "12345-SP",
-    email: "joao.silva@example.com",
-    telefone: "(11) 99999-1234",
-  },
-  {
-    id: "2",
-    nome: "Dra. Maria Oliveira",
-    especialidade: "Pediatria",
-    crm: "54321-RJ",
-    email: "maria.oliveira@example.com",
-    telefone: "(21) 98888-5678",
-  },
-];
+// >>> IMPORTES DA API <<<
+import { listarMedicos, excluirMedico, Medico } from "@/lib/api";
 
 export default function DoutoresPage() {
-  const [doctors, setDoctors] = useState<Medico[]>(initialDoctors);
+  const [doctors, setDoctors] = useState<Medico[]>([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Carrega da API
+  async function load() {
+    setLoading(true);
+    try {
+      const list = await listarMedicos({ limit: 50 });
+      setDoctors(list ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return doctors;
@@ -56,26 +55,17 @@ export default function DoutoresPage() {
     setShowForm(true);
   }
 
-  function handleDelete(id: string) {
+  // Excluir via API e recarregar
+  async function handleDelete(id: string) {
     if (!confirm("Excluir este médico?")) return;
-    setDoctors((prev) => prev.filter((x) => String(x.id) !== String(id)));
+    await excluirMedico(id);
+    await load();
   }
 
-  function handleSaved(medico: Medico) {
-    const saved = medico;
-    setDoctors((prev) => {
-      // Se não houver ID, é um novo médico
-      if (!saved.id) {
-        return [{ ...saved, id: String(Date.now()) }, ...prev];
-      }
-      // Se houver ID, é uma edição
-      const i = prev.findIndex((x) => String(x.id) === String(saved.id));
-      if (i < 0) return [{ ...saved, id: String(Date.now()) }, ...prev]; // Caso não encontre, adiciona
-      const clone = [...prev];
-      clone[i] = saved;
-      return clone;
-    });
+  // Após salvar/criar/editar no form, fecha e recarrega
+  async function handleSaved() {
     setShowForm(false);
+    await load();
   }
 
   if (showForm) {
@@ -117,7 +107,7 @@ export default function DoutoresPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button onClick={handleAdd}>
+          <Button onClick={handleAdd} disabled={loading}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Médico
           </Button>
@@ -136,7 +126,13 @@ export default function DoutoresPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length > 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  Carregando…
+                </TableCell>
+              </TableRow>
+            ) : filtered.length > 0 ? (
               filtered.map((doctor) => (
                 <TableRow key={doctor.id}>
                   <TableCell className="font-medium">{doctor.nome}</TableCell>
@@ -186,7 +182,9 @@ export default function DoutoresPage() {
           </TableBody>
         </Table>
       </div>
-      <div className="text-sm text-muted-foreground">Mostrando {filtered.length} de {doctors.length}</div>
+      <div className="text-sm text-muted-foreground">
+        Mostrando {filtered.length} de {doctors.length}
+      </div>
     </div>
   );
-} 
+}

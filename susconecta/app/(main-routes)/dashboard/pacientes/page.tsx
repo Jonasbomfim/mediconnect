@@ -140,7 +140,7 @@ export default function PacientesPage() {
 
   if (showForm) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={() => setShowForm(false)}>
             <ArrowLeft className="h-4 w-4" />
@@ -160,7 +160,7 @@ export default function PacientesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>

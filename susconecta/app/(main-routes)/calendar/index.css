@@ -1,0 +1,41 @@
+
+.fc-media-screen {
+  flex-grow: 1;
+  height: 74vh;
+}
+
+
+.fc-prev-button,
+.fc-next-button {
+  background-color: var(--color-blue-600) !important;
+  border: none !important;
+  transition: 0.2s ease;
+}
+
+.fc-prev-button:hover,
+.fc-next-button:hover {
+  background-color: var(--color-blue-700) !important;
+}
+
+.fc-timeGridWeek-button,
+.fc-timeGridDay-button,
+.fc-dayGridMonth-button {
+  border: none !important;
+  background-color: var(--color-blue-600) !important;
+  transition: 0.2s ease;
+}
+
+.fc-timeGridWeek-button:hover,
+.fc-timeGridDay-button:hover,
+.fc-dayGridMonth-button:hover {
+  background-color: var(--color-blue-700) !important;
+}
+
+.fc-button-active {
+  background-color: var(--color-blue-500) !important;
+}
+
+.fc-toolbar-title {
+  font-weight: bold;
+  color: var(--color-gray-900);
+}

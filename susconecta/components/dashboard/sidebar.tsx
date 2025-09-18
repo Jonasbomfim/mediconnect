@@ -3,11 +3,35 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Calendar, Users, UserCheck, FileText, BarChart3, Settings, Stethoscope, User } from "lucide-react"
+import {
+  Sidebar as ShadSidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+
+import {
+  Home,
+  Calendar,
+  Users,
+  UserCheck,
+  FileText,
+  BarChart3,
+  Settings,
+  Stethoscope,
+  User,
+} from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
- { name: "Agendamento", href: "/agendamento", icon: Calendar },
+  { name: "Calendario", href: "/calendar", icon: Calendar },
   { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
   { name: "Médicos", href: "/dashboard/medicos", icon: User },
   { name: "Consultas", href: "/dashboard/consultas", icon: UserCheck },
@@ -20,36 +44,61 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border">
-      <div className="p-6">
-        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+    <ShadSidebar
+      /* mude para side="right" se preferir */
+      side="left"
+      /* isso faz colapsar para ícones */
+      collapsible="icon"
+      className="border-r border-sidebar-border"
+    >
+      <SidebarHeader>
+        <Link
+          href="/"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity pt-2"
+        >
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
             <Stethoscope className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-sidebar-foreground">SUSConecta</span>
-        </Link>
-      </div>
 
-      <nav className="px-3 space-y-1">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <item.icon className="mr-3 h-4 w-4" />
-              {item.name}
-            </Link>
-          )
-        })}
-      </nav>
-    </div>
+          {/* este span some no modo ícone */}
+          <span className="text-lg font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+            SUSConecta
+          </span>
+        </Link>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
+            Menu
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigation.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton asChild isActive={isActive}>
+                      <Link href={item.href} className="flex items-center">
+                        <item.icon className="mr-3 h-4 w-4 shrink-0" />
+                        {/* o texto esconde quando colapsa */}
+                        <span className="truncate group-data-[collapsible=icon]:hidden">
+                          {item.name}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>{/* espaço para perfil/logout, se quiser */}</SidebarFooter>
+
+      {/* rail clicável/hover que ajuda a reabrir/fechar */}
+      <SidebarRail />
+    </ShadSidebar>
   )
 }

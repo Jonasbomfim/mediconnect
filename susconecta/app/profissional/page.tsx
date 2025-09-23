@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import SignatureCanvas from "react-signature-canvas";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -529,9 +532,156 @@ const ProfissionalPage = () => {
   
   const renderLaudosSection = () => (
     <section>
-      <h2>Página em construção</h2>
+      <LaudoEditor />
     </section>
   );
+// --- LaudoEditor COMPONENT ---
+function LaudoEditor() {
+  const [conteudo, setConteudo] = useState("");
+  const [paciente, setPaciente] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [imagem, setImagem] = useState<string | null>(null);
+  const [assinatura, setAssinatura] = useState<string | null>(null);
+  const sigCanvasRef = useRef<any>(null);
+  const [idade, setIdade] = useState("");
+  const [sexo, setSexo] = useState("");
+  const [cid, setCid] = useState("");
+  const [laudos, setLaudos] = useState<any[]>([]);
+  const [preview, setPreview] = useState(false);
+
+  const salvarLaudo = (status: string) => {
+    const novoLaudo = {
+      paciente,
+      cpf,
+      idade,
+      sexo,
+      cid,
+      conteudo,
+      imagem,
+      assinatura,
+      data: new Date().toLocaleString(),
+      status
+    };
+    setLaudos(prev => [novoLaudo, ...prev]);
+    setPaciente(""); setCpf(""); setIdade(""); setSexo(""); setCid(""); setConteudo(""); setImagem(null); setAssinatura(null);
+    if (sigCanvasRef.current) sigCanvasRef.current.clear();
+  };
+
+  return (
+    <div className="min-h-screen bg-muted p-6">
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-md w-full md:w-1/3 flex flex-col gap-4">
+          <h2 className="text-2xl font-bold text-primary text-center mb-4">Informações do Paciente</h2>
+          <input type="text" placeholder="Nome do paciente" value={paciente} onChange={e => setPaciente(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
+          <input type="text" placeholder="CPF" value={cpf} onChange={e => setCpf(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
+          <input type="number" placeholder="Idade" value={idade} onChange={e => setIdade(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
+          <select value={sexo} onChange={e => setSexo(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none">
+            <option value="">Sexo</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Feminino">Feminino</option>
+            <option value="Outro">Outro</option>
+          </select>
+          <input type="text" placeholder="CID" value={cid} onChange={e => setCid(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
+          <div>
+            <label className="block mb-1 font-medium text-primary">Imagem (opcional)</label>
+            <input type="file" accept="image/*" onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => setImagem(reader.result as string);
+                reader.readAsDataURL(file);
+              } else {
+                setImagem(null);
+              }
+            }} className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+            {imagem && (
+              <img src={imagem} alt="Pré-visualização" className="mt-2 rounded-md max-h-32 border" />
+            )}
+          </div>
+          <div>
+            <label className="block mb-1 font-medium text-primary">Assinatura Digital</label>
+            <div className="bg-muted rounded-md border p-2 flex flex-col items-center">
+              <SignatureCanvas
+                ref={sigCanvasRef}
+                penColor="#0f172a"
+                backgroundColor="#fff"
+                canvasProps={{ width: 300, height: 100, className: "rounded border bg-white" }}
+                onEnd={() => setAssinatura(sigCanvasRef.current?.isEmpty() ? null : sigCanvasRef.current?.toDataURL())}
+              />
+              <div className="flex gap-2 mt-2">
+                <button type="button" onClick={() => { sigCanvasRef.current?.clear(); setAssinatura(null); }} className="px-3 py-1 text-xs rounded bg-muted-foreground text-white hover:bg-muted">Limpar</button>
+                <button type="button" onClick={() => setAssinatura(sigCanvasRef.current?.toDataURL())} className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90">Salvar Assinatura</button>
+              </div>
+              {assinatura && (
+                <img src={assinatura} alt="Assinatura" className="mt-2 max-h-16 border rounded bg-white" />
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button type="button" onClick={() => salvarLaudo("Rascunho")} className="w-1/2 bg-muted-foreground text-white py-2 rounded-md hover:bg-muted">Salvar Rascunho</button>
+            <button type="button" onClick={() => salvarLaudo("Entregue")} className="w-1/2 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90">Liberar Laudo</button>
+          </div>
+          <button type="button" onClick={() => setPreview(!preview)} className="mt-2 w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90">Pré-visualizar Laudo</button>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-md w-full md:w-2/3 flex flex-col gap-4">
+          <h2 className="text-2xl font-bold text-primary text-center mb-4">Editor de Laudo</h2>
+          {!preview ? (
+            <ReactQuill value={conteudo} onChange={setConteudo} modules={{
+              toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{'list': 'ordered'}, {'list': 'bullet'}],
+                [{'align': []}],
+                [{'size': ['small', false, 'large', 'huge']}],
+                ['clean']
+              ]
+            }} className="h-64"/>
+          ) : (
+            <div className="border p-4 rounded-md bg-muted overflow-auto">
+              <h3 className="text-lg font-semibold mb-2">Pré-visualização:</h3>
+              <div dangerouslySetInnerHTML={{__html: conteudo}} />
+            </div>
+          )}
+          <div className="mt-6">
+            <h3 className="text-xl font-bold text-primary mb-4 text-center">Histórico de Laudos</h3>
+            {laudos.length === 0 ? (
+              <p className="text-muted-foreground text-center">Nenhum laudo registrado.</p>
+            ) : (
+              laudos.map((laudo: any, idx: number) => (
+                <div key={idx} className="border border-primary/20 rounded-lg p-4 mb-4 bg-muted shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                    <p className="font-semibold text-primary-foreground">{laudo.paciente}</p>
+                    <p className="text-muted-foreground">CPF: {laudo.cpf}</p>
+                    <p className="text-muted-foreground">Idade: {laudo.idade}</p>
+                    <p className="text-muted-foreground">Sexo: {laudo.sexo}</p>
+                    <p className="text-muted-foreground">CID: {laudo.cid}</p>
+                    <p className="text-muted-foreground">Status: {laudo.status}</p>
+                    <p className="text-muted-foreground">Data: {laudo.data}</p>
+                  </div>
+                  {laudo.imagem && (
+                    <div className="mb-2">
+                      <p className="font-semibold text-primary">Imagem:</p>
+                      <img src={laudo.imagem} alt="Imagem do laudo" className="rounded-md max-h-32 border mb-2" />
+                    </div>
+                  )}
+                  {laudo.assinatura && (
+                    <div className="mb-2">
+                      <p className="font-semibold text-primary">Assinatura Digital:</p>
+                      <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-md max-h-16 border bg-white" />
+                    </div>
+                  )}
+                  <div className="mb-2">
+                    <p className="font-semibold text-primary">Conteúdo:</p>
+                    <div dangerouslySetInnerHTML={{__html: laudo.conteudo}}/>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   
   const renderComunicacaoSection = () => (

@@ -50,9 +50,9 @@ export function Header() {
               Sou Paciente
             </Button>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href="/profissional">Sou Profissional de Saúde</Link>
+              <Link href="/login">Sou Profissional de Saúde</Link>
             </Button>
-            <Link href="/dashboard">
+            <Link href="/login-admin">
               <Button
                 variant="outline"
                 className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
@@ -98,9 +98,9 @@ export function Header() {
                   Sou Paciente
                 </Button>
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
-                  Sou Profissional de Saúde
+                  <Link href="/login">Sou Profissional de Saúde</Link>
                 </Button>
-                <Link href="/dashboard">
+                <Link href="/login-admin">
                   <Button
                     variant="outline"
                     className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent w-full"

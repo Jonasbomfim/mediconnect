@@ -5,6 +5,8 @@ import SignatureCanvas from "react-signature-canvas";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,8 +70,24 @@ const colorsByType = {
 };
 
 const ProfissionalPage = () => {
+  const { logout, userEmail } = useAuth();
   const [activeSection, setActiveSection] = useState('calendario');
   const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
+  
+  // Estados para o perfil do médico
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({
+    nome: "Dr. Carlos Andrade",
+    email: userEmail || "carlos.andrade@hospital.com",
+    telefone: "(11) 99999-9999",
+    endereco: "Rua das Flores, 123 - Centro",
+    cidade: "São Paulo",
+    cep: "01234-567",
+    crm: "CRM 000000",
+    especialidade: "Cardiologia",
+    biografia: "Médico cardiologista com mais de 15 anos de experiência em cirurgias cardíacas e tratamentos preventivos."
+  });
+  
   const [events, setEvents] = useState<any[]>([
     
     {
@@ -169,6 +187,23 @@ const ProfissionalPage = () => {
 
   const getStatusColor = (type: string) => {
     return colorsByType[type as keyof typeof colorsByType] || "#4dabf7";
+  };
+
+  // Funções para o perfil
+  const handleProfileChange = (field: string, value: string) => {
+    setProfileData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveProfile = () => {
+    setIsEditingProfile(false);
+    alert('Perfil atualizado com sucesso!');
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingProfile(false);
   };
 
   
@@ -739,9 +774,166 @@ function LaudoEditor() {
 
   
   const renderPerfilSection = () => (
-    <section>
-      <h2>Página em construção</h2>
-    </section>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Meu Perfil</h2>
+        {!isEditingProfile ? (
+          <Button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2">
+            <Edit className="h-4 w-4" />
+            Editar Perfil
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button onClick={handleSaveProfile} className="flex items-center gap-2">
+              Salvar
+            </Button>
+            <Button variant="outline" onClick={handleCancelEdit}>
+              Cancelar
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Informações Pessoais */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold border-b pb-2">Informações Pessoais</h3>
+          
+          <div className="space-y-2">
+            <Label htmlFor="nome">Nome Completo</Label>
+            <p className="p-2 bg-gray-100 rounded text-gray-600">{profileData.nome}</p>
+            <span className="text-xs text-gray-500">Este campo não pode ser alterado</span>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            {isEditingProfile ? (
+              <Input
+                id="email"
+                type="email"
+                value={profileData.email}
+                onChange={(e) => handleProfileChange('email', e.target.value)}
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded">{profileData.email}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="telefone">Telefone</Label>
+            {isEditingProfile ? (
+              <Input
+                id="telefone"
+                value={profileData.telefone}
+                onChange={(e) => handleProfileChange('telefone', e.target.value)}
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded">{profileData.telefone}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="crm">CRM</Label>
+            <p className="p-2 bg-gray-100 rounded text-gray-600">{profileData.crm}</p>
+            <span className="text-xs text-gray-500">Este campo não pode ser alterado</span>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="especialidade">Especialidade</Label>
+            {isEditingProfile ? (
+              <Input
+                id="especialidade"
+                value={profileData.especialidade}
+                onChange={(e) => handleProfileChange('especialidade', e.target.value)}
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded">{profileData.especialidade}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Endereço e Contato */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold border-b pb-2">Endereço e Contato</h3>
+          
+          <div className="space-y-2">
+            <Label htmlFor="endereco">Endereço</Label>
+            {isEditingProfile ? (
+              <Input
+                id="endereco"
+                value={profileData.endereco}
+                onChange={(e) => handleProfileChange('endereco', e.target.value)}
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded">{profileData.endereco}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cidade">Cidade</Label>
+            {isEditingProfile ? (
+              <Input
+                id="cidade"
+                value={profileData.cidade}
+                onChange={(e) => handleProfileChange('cidade', e.target.value)}
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded">{profileData.cidade}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cep">CEP</Label>
+            {isEditingProfile ? (
+              <Input
+                id="cep"
+                value={profileData.cep}
+                onChange={(e) => handleProfileChange('cep', e.target.value)}
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded">{profileData.cep}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="biografia">Biografia</Label>
+            {isEditingProfile ? (
+              <Textarea
+                id="biografia"
+                value={profileData.biografia}
+                onChange={(e) => handleProfileChange('biografia', e.target.value)}
+                rows={4}
+                placeholder="Descreva sua experiência profissional..."
+              />
+            ) : (
+              <p className="p-2 bg-gray-50 rounded min-h-[100px]">{profileData.biografia}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Foto do Perfil */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+        <div className="flex items-center gap-4">
+          <Avatar className="h-20 w-20">
+            <AvatarFallback className="text-lg">
+              {profileData.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {isEditingProfile && (
+            <div className="space-y-2">
+              <Button variant="outline" size="sm">
+                Alterar Foto
+              </Button>
+              <p className="text-xs text-gray-500">
+                Formatos aceitos: JPG, PNG (máx. 2MB)
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 
   
@@ -765,20 +957,33 @@ function LaudoEditor() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex items-center gap-4">
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
-          <AvatarFallback className="bg-muted">
-            <User className="h-5 w-5" />
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
-          <h2 className="text-lg font-semibold leading-none truncate">{medico.nome}</h2>
-          <p className="text-sm text-muted-foreground truncate">{medico.identificacao}</p>
-        </div>
-      </header>
+    <ProtectedRoute requiredUserType="profissional">
+      <div className="container mx-auto px-4 py-8">
+        <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
+              <AvatarFallback className="bg-muted">
+                <User className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
+              <h2 className="text-lg font-semibold leading-none truncate">{medico.nome}</h2>
+              <p className="text-sm text-muted-foreground truncate">{medico.identificacao}</p>
+              {userEmail && (
+                <p className="text-xs text-muted-foreground truncate">Logado como: {userEmail}</p>
+              )}
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={logout}
+            className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white cursor-pointer"
+          >
+            Sair
+          </Button>
+        </header>
       
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         {}
@@ -841,6 +1046,7 @@ function LaudoEditor() {
             <Button asChild>
               <Link href="/">Início</Link>
             </Button>
+            
           </div>
           <p className="mb-8">Bem-vindo à sua área exclusiva.</p>
 
@@ -1001,7 +1207,8 @@ function LaudoEditor() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 };
 

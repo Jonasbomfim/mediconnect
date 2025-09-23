@@ -1,20 +1,34 @@
 "use client"
 
-import { Bell, Search } from "lucide-react"
+import { Bell, Search, ChevronDown } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { useState, useEffect, useRef } from "react"
 import { SidebarTrigger } from "../ui/sidebar"
 
 export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
+  const { logout, userEmail, userType } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fechar dropdown quando clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [dropdownOpen]);
+
   return (
     <header className="h-16 border-b border-border bg-background px-6 flex items-center justify-between">
       <div className="flex flex-row items-center gap-4">
@@ -35,29 +49,70 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
           <Bell className="h-4 w-4" />
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="/avatars/01.png" alt="@usuario" />
-                <AvatarFallback>RA</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Dr. Roberto Alves</p>
-                <p className="text-xs leading-none text-muted-foreground">roberto@clinica.com</p>
+
+        {/* Avatar Dropdown Simples */}
+        <div className="relative" ref={dropdownRef}>
+          <Button 
+            variant="ghost" 
+            className="relative h-8 w-8 rounded-full border-2 border-gray-300 hover:border-blue-500"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage src="/avatars/01.png" alt="@usuario" />
+              <AvatarFallback className="bg-blue-500 text-white font-semibold">RA</AvatarFallback>
+            </Avatar>
+          </Button>
+
+          {/* Dropdown Content */}
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+              <div className="p-4 border-b border-gray-100">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-semibold leading-none">
+                    {userType === 'administrador' ? 'Administrador da Clínica' : 'Usuário do Sistema'}
+                  </p>
+                  {userEmail ? (
+                    <p className="text-xs leading-none text-gray-600">{userEmail}</p>
+                  ) : (
+                    <p className="text-xs leading-none text-gray-600">Email não disponível</p>
+                  )}
+                  <p className="text-xs leading-none text-blue-600 font-medium">
+                    Tipo: {userType === 'administrador' ? 'Administrador' : userType || 'Não definido'}
+                  </p>
+                </div>
               </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Perfil</DropdownMenuItem>
-            <DropdownMenuItem>Configurações</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Sair</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              
+              <div className="py-1">
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer">
+                  👤 Perfil
+                </button>
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer">
+                  ⚙️ Configurações
+                </button>
+                <div className="border-t border-gray-100 my-1"></div>
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDropdownOpen(false);
+                    
+                    // Logout específico para administrador
+                    if (userType === 'administrador') {
+                      localStorage.removeItem('isAuthenticated');
+                      localStorage.removeItem('userEmail');
+                      localStorage.removeItem('userType');
+                      window.location.href = '/login-admin';
+                    } else {
+                      logout();
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
+                >
+                  🚪 Sair
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

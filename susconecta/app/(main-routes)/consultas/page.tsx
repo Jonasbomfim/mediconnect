@@ -9,6 +9,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  ArrowLeft,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -43,11 +44,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import {
-  mockAppointments,
-  mockProfessionals,
-} from "@/lib/mocks/appointment-mocks";
+import { mockAppointments, mockProfessionals } from "@/lib/mocks/appointment-mocks";
+import { AppointmentForm } from "@/components/forms/appointment-form";
 
+// --- Helper Functions ---
 const formatDate = (date: string | Date) => {
   return new Date(date).toLocaleDateString("pt-BR", {
     day: "2-digit",
@@ -60,14 +60,94 @@ const formatDate = (date: string | Date) => {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// --- Main Page Component ---
 export default function ConsultasPage() {
   const [appointments, setAppointments] = useState(mockAppointments);
+  const [showForm, setShowForm] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
+
+  // Converte o objeto da consulta para o formato esperado pelo formulário
+  const mapAppointmentToFormData = (appointment: any) => {
+    const professional = mockProfessionals.find(p => p.id === appointment.professional);
+    const appointmentDate = new Date(appointment.time);
+    
+    return {
+        id: appointment.id,
+        patientName: appointment.patient,
+        professionalName: professional ? professional.name : '',
+        appointmentDate: appointmentDate.toISOString().split('T')[0], // Formato YYYY-MM-DD
+        startTime: appointmentDate.toTimeString().split(' ')[0].substring(0, 5), // Formato HH:MM
+        endTime: new Date(appointmentDate.getTime() + appointment.duration * 60000).toTimeString().split(' ')[0].substring(0, 5),
+        status: appointment.status,
+        appointmentType: appointment.type,
+        notes: appointment.notes,
+        // Adicione outros campos do paciente aqui se necessário (cpf, rg, etc.)
+        // Eles não existem no mock de agendamento, então virão vazios
+        cpf: '',
+        rg: '',
+        birthDate: '',
+        phoneCode: '+55',
+        phoneNumber: '',
+        email: '',
+        unit: 'nei',
+    };
+  };
 
   const handleDelete = (appointmentId: string) => {
     if (window.confirm("Tem certeza que deseja excluir esta consulta?")) {
       setAppointments((prev) => prev.filter((a) => a.id !== appointmentId));
     }
   };
+
+  const handleEdit = (appointment: any) => {
+    const formData = mapAppointmentToFormData(appointment);
+    setEditingAppointment(formData);
+    setShowForm(true);
+  };
+
+  const handleCancel = () => {
+    setEditingAppointment(null);
+    setShowForm(false);
+  };
+
+  const handleSave = (formData: any) => {
+    // Como o formulário edita campos que não estão na tabela,
+    // precisamos mapear de volta para o formato original do agendamento.
+    // Para a simulação, vamos atualizar apenas os campos que existem no mock.
+    const updatedAppointment = {
+        id: formData.id,
+        patient: formData.patientName,
+        time: new Date(`${formData.appointmentDate}T${formData.startTime}`).toISOString(),
+        duration: 30, // Duração não está no form, então mantemos um valor fixo
+        type: formData.appointmentType as any,
+        status: formData.status as any,
+        professional: appointments.find(a => a.id === formData.id)?.professional || '', // Mantém o ID do profissional
+        notes: formData.notes,
+    };
+
+    setAppointments(prev => 
+        prev.map(a => a.id === updatedAppointment.id ? updatedAppointment : a)
+    );
+    handleCancel(); // Fecha o formulário
+  };
+
+  if (showForm && editingAppointment) {
+    return (
+        <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <div className="flex items-center gap-4">
+                <Button type="button" variant="ghost" size="icon" onClick={handleCancel}> 
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="text-lg font-semibold md:text-2xl">Editar Consulta</h1>
+            </div>
+            <AppointmentForm 
+                initialData={editingAppointment} 
+                onSave={handleSave} 
+                onCancel={handleCancel} 
+            />
+        </div>
+    )
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -176,9 +256,7 @@ export default function ConsultasPage() {
                             <Eye className="mr-2 h-4 w-4" />
                             Ver
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => alert(`Editando: ${appointment.patient}`)}
-                          >
+                          <DropdownMenuItem onClick={() => handleEdit(appointment)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>

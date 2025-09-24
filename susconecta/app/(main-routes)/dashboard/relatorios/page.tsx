@@ -1,10 +1,21 @@
 "use client";
 
+
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
 import jsPDF from "jspdf";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export default function RelatoriosPage() {
+  // Dados fictícios para o gráfico financeiro
+  const financeiro = [
+    { mes: "Jan", faturamento: 35000, despesas: 12000 },
+    { mes: "Fev", faturamento: 29000, despesas: 15000 },
+    { mes: "Mar", faturamento: 42000, despesas: 18000 },
+    { mes: "Abr", faturamento: 38000, despesas: 14000 },
+    { mes: "Mai", faturamento: 45000, despesas: 20000 },
+    { mes: "Jun", faturamento: 41000, despesas: 17000 },
+  ];
   // ============================
   // PASSO 3 - Funções de exportar
   // ============================
@@ -53,10 +64,20 @@ export default function RelatoriosPage() {
           </Button>
         </div>
 
-        {/* Card Financeiro */}
-        <div className="p-4 border rounded-lg shadow">
-          <h2 className="font-semibold text-lg">Relatório Financeiro</h2>
-          <p className="text-sm text-gray-500">Receitas e despesas da clínica.</p>
+        {/* Card Financeiro com gráfico */}
+        <div className="p-4 border rounded-lg shadow col-span-3 md:col-span-3">
+          <h2 className="font-semibold text-lg mb-2">Relatório Financeiro</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={financeiro} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="mes" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="faturamento" fill="#10b981" name="Faturamento" />
+              <Bar dataKey="despesas" fill="#ef4444" name="Despesas" />
+            </BarChart>
+          </ResponsiveContainer>
           <Button onClick={exportFinanceiroPDF} className="mt-4">
             <FileDown className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>

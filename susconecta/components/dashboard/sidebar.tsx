@@ -32,9 +32,9 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Calendario", href: "/calendar", icon: Calendar },
-  { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
-  { name: "Médicos", href: "/dashboard/doutores", icon: User },
-  { name: "Consultas", href: "/dashboard/consultas", icon: UserCheck },
+  { name: "Pacientes", href: "/pacientes", icon: Users },
+  { name: "Médicos", href: "/doutores", icon: User },
+  { name: "Consultas", href: "/consultas", icon: UserCheck },
   { name: "Prontuários", href: "/dashboard/prontuarios", icon: FileText },
   { name: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },

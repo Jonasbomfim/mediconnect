@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Eye, Edit, Trash2, ArrowLeft } from "lucide-react";
 
 import { Paciente, Endereco, listarPacientes, buscarPacientePorId, excluirPaciente } from "@/lib/api";
@@ -47,6 +49,7 @@ export default function PacientesPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingPatient, setViewingPatient] = useState<Paciente | null>(null);
 
   async function loadAll() {
     try {
@@ -86,6 +89,10 @@ export default function PacientesPage() {
   function handleEdit(id: string) {
     setEditingId(id);
     setShowForm(true);
+  }
+
+  function handleView(patient: Paciente) {
+    setViewingPatient(patient);
   }
 
   async function handleDelete(id: string) {
@@ -161,7 +168,6 @@ export default function PacientesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      {}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Pacientes</h1>
@@ -217,7 +223,7 @@ export default function PacientesPage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => alert(JSON.stringify(p, null, 2))}>
+                        <DropdownMenuItem onClick={() => handleView(p)}>
                           <Eye className="mr-2 h-4 w-4" />
                           Ver
                         </DropdownMenuItem>
@@ -244,6 +250,46 @@ export default function PacientesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {viewingPatient && (
+        <Dialog open={!!viewingPatient} onOpenChange={() => setViewingPatient(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detalhes do Paciente</DialogTitle>
+              <DialogDescription>
+                Informações detalhadas de {viewingPatient.nome}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Nome</Label>
+                <span className="col-span-3 font-medium">{viewingPatient.nome}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">CPF</Label>
+                <span className="col-span-3">{viewingPatient.cpf}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Telefone</Label>
+                <span className="col-span-3">{viewingPatient.telefone}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Endereço</Label>
+                <span className="col-span-3">
+                  {`${viewingPatient.endereco.logradouro}, ${viewingPatient.endereco.numero} - ${viewingPatient.endereco.bairro}, ${viewingPatient.endereco.cidade} - ${viewingPatient.endereco.estado}`}
+                </span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Observações</Label>
+                <span className="col-span-3">{viewingPatient.observacoes || "Nenhuma"}</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setViewingPatient(null)}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <div className="text-sm text-muted-foreground">Mostrando {filtered.length} de {patients.length}</div>
     </div>

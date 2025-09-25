@@ -60,6 +60,7 @@
     "react-hook-form": "latest",
     "react-quill": "^2.0.0",
     "react-resizable-panels": "latest",
+    "react-signature-canvas": "^1.1.0-alpha.2",
     "recharts": "latest",
     "sonner": "latest",
     "tailwind-merge": "^2.5.5",

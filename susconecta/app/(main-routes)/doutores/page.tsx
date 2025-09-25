@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
@@ -18,6 +20,7 @@ export default function DoutoresPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingDoctor, setViewingDoctor] = useState<Medico | null>(null);
 
   // Carrega da API
   async function load() {
@@ -55,6 +58,10 @@ export default function DoutoresPage() {
     setShowForm(true);
   }
 
+  function handleView(doctor: Medico) {
+    setViewingDoctor(doctor);
+  }
+
   // Excluir via API e recarregar
   async function handleDelete(id: string) {
     if (!confirm("Excluir este médico?")) return;
@@ -70,7 +77,7 @@ export default function DoutoresPage() {
 
   if (showForm) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}>
             <ArrowLeft className="h-4 w-4" />
@@ -90,7 +97,7 @@ export default function DoutoresPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Médicos</h1>
@@ -155,7 +162,7 @@ export default function DoutoresPage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => alert(JSON.stringify(doctor, null, 2))}>
+                        <DropdownMenuItem onClick={() => handleView(doctor)}>
                           <Eye className="mr-2 h-4 w-4" />
                           Ver
                         </DropdownMenuItem>
@@ -182,6 +189,47 @@ export default function DoutoresPage() {
           </TableBody>
         </Table>
       </div>
+
+      {viewingDoctor && (
+        <Dialog open={!!viewingDoctor} onOpenChange={() => setViewingDoctor(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Detalhes do Médico</DialogTitle>
+              <DialogDescription>
+                Informações detalhadas de {viewingDoctor?.nome}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Nome</Label>
+                <span className="col-span-3 font-medium">{viewingDoctor?.nome}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Especialidade</Label>
+                <span className="col-span-3">
+                  <Badge variant="outline">{viewingDoctor?.especialidade}</Badge>
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">CRM</Label>
+                <span className="col-span-3">{viewingDoctor?.crm}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Email</Label>
+                <span className="col-span-3">{viewingDoctor?.email}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Telefone</Label>
+                <span className="col-span-3">{viewingDoctor?.telefone}</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setViewingDoctor(null)}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       <div className="text-sm text-muted-foreground">
         Mostrando {filtered.length} de {doctors.length}
       </div>

@@ -22,6 +22,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -49,6 +58,7 @@ import { CalendarRegistrationForm } from "@/components/forms/calendar-registrati
 
 // --- Helper Functions ---
 const formatDate = (date: string | Date) => {
+  if (!date) return "";
   return new Date(date).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -58,13 +68,17 @@ const formatDate = (date: string | Date) => {
   });
 };
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const capitalize = (s: string) => {
+    if (typeof s !== 'string' || s.length === 0) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 // --- Main Page Component ---
 export default function ConsultasPage() {
   const [appointments, setAppointments] = useState(mockAppointments);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
+  const [viewingAppointment, setViewingAppointment] = useState<any | null>(null);
 
   // Converte o objeto da consulta para o formato esperado pelo formulário
   const mapAppointmentToFormData = (appointment: any) => {
@@ -104,6 +118,10 @@ export default function ConsultasPage() {
     setEditingAppointment(formData);
     setShowForm(true);
   };
+  
+  const handleView = (appointment: any) => {
+    setViewingAppointment(appointment);
+  };
 
   const handleCancel = () => {
     setEditingAppointment(null);
@@ -133,7 +151,7 @@ export default function ConsultasPage() {
 
   if (showForm && editingAppointment) {
     return (
-        <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <div className="space-y-6 p-6">
             <div className="flex items-center gap-4">
                 <Button type="button" variant="ghost" size="icon" onClick={handleCancel}> 
                     <ArrowLeft className="h-4 w-4" />
@@ -150,12 +168,13 @@ export default function ConsultasPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex items-center">
-        <h1 className="text-lg font-semibold md:text-2xl">
-          Gerenciamento de Consultas
-        </h1>
-        <div className="ml-auto flex items-center gap-2">
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Gerenciamento de Consultas</h1>
+          <p className="text-muted-foreground">Visualize, filtre e gerencie todas as consultas da clínica.</p>
+        </div>
+        <div className="flex items-center gap-2">
           <Link href="/agenda">
             <Button size="sm" className="h-8 gap-1">
               <PlusCircle className="h-3.5 w-3.5" />
@@ -204,9 +223,7 @@ export default function ConsultasPage() {
                 <TableHead>Médico</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Data e Hora</TableHead>
-                <TableHead>
-                  <span className="sr-only">Ações</span>
-                </TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -249,9 +266,7 @@ export default function ConsultasPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            onClick={() =>
-                              alert(`Visualizando: ${appointment.patient}`)
-                            }
+                            onClick={() => handleView(appointment)}
                           >
                             <Eye className="mr-2 h-4 w-4" />
                             Ver
@@ -277,6 +292,77 @@ export default function ConsultasPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {viewingAppointment && (
+        <Dialog open={!!viewingAppointment} onOpenChange={() => setViewingAppointment(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Detalhes da Consulta</DialogTitle>
+              <DialogDescription>
+                Informações detalhadas da consulta de {viewingAppointment?.patient}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Paciente
+                </Label>
+                <span className="col-span-3">{viewingAppointment?.patient}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Médico
+                </Label>
+                <span className="col-span-3">
+                    {mockProfessionals.find(p => p.id === viewingAppointment?.professional)?.name || "Não encontrado"}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Data e Hora
+                </Label>
+                <span className="col-span-3">{viewingAppointment?.time ? formatDate(viewingAppointment.time) : ''}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Status
+                </Label>
+                <span className="col-span-3">
+                    <Badge
+                        variant={
+                          viewingAppointment?.status === "confirmed"
+                            ? "default"
+                            : viewingAppointment?.status === "pending"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                        className={
+                          viewingAppointment?.status === "confirmed" ? "bg-green-600" : ""
+                        }
+                    >
+                        {capitalize(viewingAppointment?.status || '')}
+                    </Badge>
+                </span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Tipo
+                </Label>
+                <span className="col-span-3">{capitalize(viewingAppointment?.type || '')}</span>
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Observações
+                </Label>
+                <span className="col-span-3">{viewingAppointment?.notes || "Nenhuma"}</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setViewingAppointment(null)}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

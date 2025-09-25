@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/select";
 
 import { mockAppointments, mockProfessionals } from "@/lib/mocks/appointment-mocks";
-import { AppointmentForm } from "@/components/forms/appointment-form";
+import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 
 // --- Helper Functions ---
 const formatDate = (date: string | Date) => {
@@ -140,7 +140,7 @@ export default function ConsultasPage() {
                 </Button>
                 <h1 className="text-lg font-semibold md:text-2xl">Editar Consulta</h1>
             </div>
-            <AppointmentForm 
+            <CalendarRegistrationForm 
                 initialData={editingAppointment} 
                 onSave={handleSave} 
                 onCancel={handleCancel} 

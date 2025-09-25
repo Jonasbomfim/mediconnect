@@ -10,7 +10,7 @@ import { Calendar, Search, ChevronDown, Upload, FileDown, Tag } from "lucide-rea
 // Este é um formulário genérico para Criar e Editar um agendamento.
 // Ele não tem Header ou Footer, apenas o conteúdo do formulário em si.
 
-export function AppointmentForm({ initialData, onSave, onCancel }: any) {
+export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any) {
   const [formData, setFormData] = useState(initialData || {});
 
   useEffect(() => {

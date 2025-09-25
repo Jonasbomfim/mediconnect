@@ -56,7 +56,7 @@ import {
 import { mockAppointments, mockProfessionals } from "@/lib/mocks/appointment-mocks";
 import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 
-// --- Helper Functions ---
+
 const formatDate = (date: string | Date) => {
   if (!date) return "";
   return new Date(date).toLocaleDateString("pt-BR", {
@@ -73,14 +73,12 @@ const capitalize = (s: string) => {
     return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-// --- Main Page Component ---
 export default function ConsultasPage() {
   const [appointments, setAppointments] = useState(mockAppointments);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
   const [viewingAppointment, setViewingAppointment] = useState<any | null>(null);
 
-  // Converte o objeto da consulta para o formato esperado pelo formulário
   const mapAppointmentToFormData = (appointment: any) => {
     const professional = mockProfessionals.find(p => p.id === appointment.professional);
     const appointmentDate = new Date(appointment.time);
@@ -89,14 +87,12 @@ export default function ConsultasPage() {
         id: appointment.id,
         patientName: appointment.patient,
         professionalName: professional ? professional.name : '',
-        appointmentDate: appointmentDate.toISOString().split('T')[0], // Formato YYYY-MM-DD
-        startTime: appointmentDate.toTimeString().split(' ')[0].substring(0, 5), // Formato HH:MM
+        appointmentDate: appointmentDate.toISOString().split('T')[0], 
+        startTime: appointmentDate.toTimeString().split(' ')[0].substring(0, 5), 
         endTime: new Date(appointmentDate.getTime() + appointment.duration * 60000).toTimeString().split(' ')[0].substring(0, 5),
         status: appointment.status,
         appointmentType: appointment.type,
         notes: appointment.notes,
-        // Adicione outros campos do paciente aqui se necessário (cpf, rg, etc.)
-        // Eles não existem no mock de agendamento, então virão vazios
         cpf: '',
         rg: '',
         birthDate: '',
@@ -129,24 +125,22 @@ export default function ConsultasPage() {
   };
 
   const handleSave = (formData: any) => {
-    // Como o formulário edita campos que não estão na tabela,
-    // precisamos mapear de volta para o formato original do agendamento.
-    // Para a simulação, vamos atualizar apenas os campos que existem no mock.
+    
     const updatedAppointment = {
         id: formData.id,
         patient: formData.patientName,
         time: new Date(`${formData.appointmentDate}T${formData.startTime}`).toISOString(),
-        duration: 30, // Duração não está no form, então mantemos um valor fixo
+        duration: 30, 
         type: formData.appointmentType as any,
         status: formData.status as any,
-        professional: appointments.find(a => a.id === formData.id)?.professional || '', // Mantém o ID do profissional
+        professional: appointments.find(a => a.id === formData.id)?.professional || '', 
         notes: formData.notes,
     };
 
     setAppointments(prev => 
         prev.map(a => a.id === updatedAppointment.id ? updatedAppointment : a)
     );
-    handleCancel(); // Fecha o formulário
+    handleCancel(); 
   };
 
   if (showForm && editingAppointment) {

@@ -24,9 +24,7 @@ import {
   MedicoInput,
 } from "@/lib/api";
 
-import { buscarCepAPI } from "@/lib/api"; // use o seu já existente
-
-// Mock data and types since API is not used for now
+import { buscarCepAPI } from "@/lib/api"; 
 
 type FormacaoAcademica = {
   instituicao: string;
@@ -179,7 +177,6 @@ export function DoctorRegistrationForm({
     if (mode === "edit" && doctorId) {
       const medico = await buscarMedicoPorId(doctorId);
       if (!alive) return;
-      // mapeia API -> estado do formulário
       setForm({
         photo: null,
         nome: medico.nome ?? "",
@@ -188,7 +185,7 @@ export function DoctorRegistrationForm({
         estado_crm: medico.estado_crm ?? "",
         rqe: medico.rqe ?? "",
         formacao_academica: medico.formacao_academica ?? [],
-        curriculo: null, // se a API devolver URL, você pode exibir ao lado
+        curriculo: null, 
         especialidade: medico.especialidade ?? "",
         cpf: medico.cpf ?? "",
         rg: medico.rg ?? "",
@@ -213,7 +210,7 @@ export function DoctorRegistrationForm({
         valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
       });
 
-      // (Opcional) listar anexos que já existem no servidor
+     
       try {
         const list = await listarAnexosMedico(doctorId);
         setServerAnexos(list ?? []);
@@ -320,7 +317,6 @@ export function DoctorRegistrationForm({
   setErrors((e) => ({ ...e, submit: "" }));
 
   try {
-    // monta o payload esperado pela API
     const payload: MedicoInput = {
       nome: form.nome,
       nome_social: form.nome_social || null,
@@ -336,7 +332,7 @@ export function DoctorRegistrationForm({
       estado_crm: form.estado_crm || null,
       rqe: form.rqe || null,
       formacao_academica: form.formacao_academica ?? [],
-      curriculo_url: null, // se quiser, suba arquivo do currículo num endpoint próprio e salve a URL aqui
+      curriculo_url: null, 
       especialidade: form.especialidade,
       observacoes: form.observacoes || null,
       tipo_vinculo: form.tipo_vinculo || null,
@@ -345,14 +341,12 @@ export function DoctorRegistrationForm({
       valor_consulta: form.valor_consulta || null,
     };
 
-    // cria ou atualiza
     const saved = mode === "create"
       ? await criarMedico(payload)
       : await atualizarMedico(doctorId as number, payload);
 
     const medicoId = saved.id;
 
-    // foto (opcional)
     if (form.photo) {
       try {
         await uploadFotoMedico(medicoId, form.photo);
@@ -361,7 +355,6 @@ export function DoctorRegistrationForm({
       }
     }
 
-    // anexos locais (opcional)
     if (form.anexos?.length) {
       for (const f of form.anexos) {
         try {

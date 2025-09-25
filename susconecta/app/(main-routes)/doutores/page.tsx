@@ -11,7 +11,7 @@ import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye } from "luci
 import { Badge } from "@/components/ui/badge";
 import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
 
-// >>> IMPORTES DA API <<<
+
 import { listarMedicos, excluirMedico, Medico } from "@/lib/api";
 
 export default function DoutoresPage() {
@@ -22,7 +22,7 @@ export default function DoutoresPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingDoctor, setViewingDoctor] = useState<Medico | null>(null);
 
-  // Carrega da API
+ 
   async function load() {
     setLoading(true);
     try {
@@ -62,14 +62,14 @@ export default function DoutoresPage() {
     setViewingDoctor(doctor);
   }
 
-  // Excluir via API e recarregar
+  
   async function handleDelete(id: string) {
     if (!confirm("Excluir este médico?")) return;
     await excluirMedico(id);
     await load();
   }
 
-  // Após salvar/criar/editar no form, fecha e recarrega
+  
   async function handleSaved() {
     setShowForm(false);
     await load();

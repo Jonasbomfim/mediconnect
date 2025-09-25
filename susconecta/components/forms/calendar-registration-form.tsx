@@ -7,15 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Search, ChevronDown, Upload, FileDown, Tag } from "lucide-react";
 
-// Este é um formulário genérico para Criar e Editar um agendamento.
-// Ele não tem Header ou Footer, apenas o conteúdo do formulário em si.
-
 export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any) {
   const [formData, setFormData] = useState(initialData || {});
 
   useEffect(() => {
-    // Se os dados iniciais mudarem (ex: usuário clica em outro item para editar),
-    // atualizamos o estado do formulário.
     setFormData(initialData || {});
   }, [initialData]);
 
@@ -31,7 +26,6 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* ==== INFORMAÇÕES DO PACIENTE ==== */}
       <div className="border rounded-md p-6 space-y-4 bg-white">
         <h2 className="font-medium">Informações do paciente</h2>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -40,7 +34,7 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  name="patientName" // Nome do campo para o estado
+                  name="patientName" 
                   placeholder="Digite o nome do paciente"
                   className="h-10 pl-8"
                   value={formData.patientName || ''}
@@ -82,7 +76,7 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
         </div>
       </div>
 
-      {/* ==== INFORMAÇÕES DO ATENDIMENTO ==== */}
+      {}
       <div className="border rounded-md p-6 space-y-4 bg-white">
         <h2 className="font-medium">Informações do atendimento</h2>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -137,7 +131,6 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
         </div>
       </div>
 
-      {/* Botões de Ação */}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
         <Button type="submit">Salvar</Button>

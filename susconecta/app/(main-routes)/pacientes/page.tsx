@@ -276,7 +276,7 @@ export default function PacientesPage() {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Endereço</Label>
                 <span className="col-span-3">
-                  {`${viewingPatient.endereco.logradouro}, ${viewingPatient.endereco.numero} - ${viewingPatient.endereco.bairro}, ${viewingPatient.endereco.cidade} - ${viewingPatient.endereco.estado}`}
+                  {`${viewingPatient.endereco?.logradouro || ''}, ${viewingPatient.endereco?.numero || ''} - ${viewingPatient.endereco?.bairro || ''}, ${viewingPatient.endereco?.cidade || ''} - ${viewingPatient.endereco?.estado || ''}`}
                 </span>
               </div>
                <div className="grid grid-cols-4 items-center gap-4">

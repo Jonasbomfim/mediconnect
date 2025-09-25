@@ -13,7 +13,7 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
+  SidebarMenuButton,  
   SidebarRail,
 } from "@/components/ui/sidebar"
 
@@ -32,11 +32,11 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Calendario", href: "/calendar", icon: Calendar },
-  { name: "Pacientes", href: "/pacientes", icon: Users },
-  { name: "Médicos", href: "/doutores", icon: User },
-  { name: "Consultas", href: "/consultas", icon: UserCheck },
+  { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
+  { name: "Médicos", href: "/dashboard/doutores", icon: User },
+  { name: "Consultas", href: "/dashboard/consultas", icon: UserCheck },
   { name: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
-  { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
+  { name: "Configurações", href: "/configuracao", icon: Settings }, // 👈 corrigido
 ]
 
 export function Sidebar() {
@@ -74,21 +74,23 @@ export function Sidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation.map((item) => {
-                const isActive = pathname === item.href
-                return (
-                  <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.href} className="flex items-center">
-                        <item.icon className="mr-3 h-4 w-4 shrink-0" />
-                        {/* o texto esconde quando colapsa */}
-                        <span className="truncate group-data-[collapsible=icon]:hidden">
-                          {item.name}
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
+  const isActive =
+    pathname === item.href || pathname.startsWith(item.href + "/")
+
+  return (
+    <SidebarMenuItem key={item.name}>
+      <SidebarMenuButton asChild isActive={isActive}>
+        <Link href={item.href} className="flex items-center">
+          <item.icon className="mr-3 h-4 w-4 shrink-0" />
+          <span className="truncate group-data-[collapsible=icon]:hidden">
+            {item.name}
+          </span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+})}
+
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -1,0 +1,45 @@
+[33ma0d527c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/settings[m[33m)[m ajuste no package.json da raiz
+[33m23fad33[m[33m ([m[1;31morigin/feature/settings[m[33m)[m feat: implement settings module
+[33mc36a16b[m[33m ([m[1;32mdevelop[m[33m)[m feat: ajustes na seção de laudos, cpf, imagem e assinatura digital
+[33m913fd6a[m[33m ([m[1;31morigin/feature/doctor-laudo[m[33m, [m[1;32mfeature/api-medic[m[33m)[m Merge pull request 'feat(api): implementação e integração das APIs de médicos' (#12) from feature/api-medicos into develop
+[33m791d31a[m[33m ([m[1;31morigin/feature/api-medicos[m[33m, [m[1;32mfeature/api-medicos[m[33m)[m feat(api): implementação e integração das APIs de médicos
+[33me53d7fb[m[33m ([m[1;32mfeature/crud-medi-api[m[33m)[m Merge pull request 'feature/scheduling' (#11) from feature/scheduling into develop
+[33m7aadcef[m Fix: folder organization
+[33mc6b18b7[m Merge branch 'develop' of https://git.popcode.com.br/RiseUP/riseup-squad20 into feature/scheduling
+[33m945c6ea[m fix: Calendar and sidebar
+[33mdfb70c6[m Merge pull request 'feature/doctor-register' (#10) from feature/doctor-register into develop
+[33m30b5609[m feat: adds new fields and cards to the physician registry
+[33m9dfba10[m Merge branch 'develop' into feature/scheduling
+[33mf435ade[m Ajuste no .gitignore
+[33m9c7ce7d[m Finalizando merge da branch develop com origin/develop
+[33m76feb4b[m feat:implements CRUD for doctors
+[33m70c67e4[m Merge pull request 'change doctors page' (#8) from feature/changes-doctors-painel into develop
+[33mba64fde[m add: new doctor page
+[33ma7c9c90[m chore: update components config
+[33ma5d89b3[m Merge pull request 'feature/image-doctor' (#7) from feature/image-doctor into develop
+[33m0d416ca[m[33m ([m[1;31morigin/feature/image-doctor[m[33m)[m resolvendo erro de imagens
+[33me405cc5[m WIP: alterações locais
+[33mbb4cc38[m Ajustes no .gitignore
+[33m953a4e7[m WIP: alterações locais
+[33mdebc92d[m chore(calendar): adjust naming for calendar component consistency
+[33mae637c4[m fix/errors-medical-page
+[33mdf530f7[m Merge pull request 'Adicionando calendario interativo do medico' (#6) from feature/crud-medico into develop
+[33m94839cc[m[33m ([m[1;31morigin/feature/crud-medico[m[33m, [m[1;32mfeature/crud-medico[m[33m)[m Adicionando calendario interativo do medico
+[33m93a4389[m fix(merge): prefer feature versions (layout.tsx, package-lock.json)
+[33mf2db866[m[33m ([m[1;32mfeature/patient-register[m[33m)[m fix(merge): resolve conflicts between develop and feature/patient-register
+[33mcdd44da[m chore: save changes before switching branch
+[33mb2a9ea0[m[33m ([m[1;31morigin/feature/patient-register[m[33m)[m feat(api): add and wire all mock endpoints
+[33ma1ba4e5[m Merge pull request 'feature/scheduling' (#5) from feature/scheduling into develop
+[33m40f05ca[m[33m ([m[1;31morigin/feature/scheduling[m[33m)[m ajeitando erro dos botões
+[33ma9d093e[m  adicionando agendamento-incompleto
+[33m6ca8524[m Merge pull request 'feat: add medical page' (#4) from feature/crud-medico into develop
+[33m7385e64[m feat: add medical page
+[33ma44e9bc[m Merge branch 'feature/patient-register' of https://git.popcode.com.br/RiseUP/riseup-squad20 into feature/patient-register
+[33m372383f[m feat: connect patient registration form to create patient API
+[33m3cce8a9[m fix: fix ref error in actions menu
+[33m91c84b6[m fix: secure setting of onOpenChange on the patient form
+[33m8258fac[m feat: implement patient recorder
+[33m20d070e[m[33m ([m[1;31morigin/feature/patient-list[m[33m, [m[1;32mfeature/patient-list[m[33m)[m chore: remove Website folderfrom repository
+[33m0ba1590[m feat: add initial project files and patient list
+[33m631f7f2[m[33m ([m[1;31morigin/feature/cadastro-pacientes[m[33m, [m[1;31morigin/developer[m[33m, [m[1;32mfeature/cadastro-pacientes[m[33m)[m feat: add initial structure
+[33m6414f69[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Initial commit

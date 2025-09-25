@@ -35,7 +35,6 @@ const navigation = [
   { name: "Pacientes", href: "/pacientes", icon: Users },
   { name: "Médicos", href: "/doutores", icon: User },
   { name: "Consultas", href: "/consultas", icon: UserCheck },
-  { name: "Prontuários", href: "/dashboard/prontuarios", icon: FileText },
   { name: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ]

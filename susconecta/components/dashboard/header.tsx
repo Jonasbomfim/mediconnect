@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from "react"
 import { SidebarTrigger } from "../ui/sidebar"
 
 export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
-  const { logout, userEmail, userType } = useAuth();
+  const { logout, user } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -69,15 +69,15 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
               <div className="p-4 border-b border-gray-100">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-semibold leading-none">
-                    {userType === 'administrador' ? 'Administrador da Clínica' : 'Usuário do Sistema'}
+                    {user?.userType === 'administrador' ? 'Administrador da Clínica' : 'Usuário do Sistema'}
                   </p>
-                  {userEmail ? (
-                    <p className="text-xs leading-none text-gray-600">{userEmail}</p>
+                  {user?.email ? (
+                    <p className="text-xs leading-none text-gray-600">{user.email}</p>
                   ) : (
                     <p className="text-xs leading-none text-gray-600">Email não disponível</p>
                   )}
                   <p className="text-xs leading-none text-blue-600 font-medium">
-                    Tipo: {userType === 'administrador' ? 'Administrador' : userType || 'Não definido'}
+                    Tipo: {user?.userType === 'administrador' ? 'Administrador' : user?.userType || 'Não definido'}
                   </p>
                 </div>
               </div>
@@ -95,15 +95,8 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
                     e.preventDefault();
                     setDropdownOpen(false);
                     
-                    // Logout específico para administrador
-                    if (userType === 'administrador') {
-                      localStorage.removeItem('isAuthenticated');
-                      localStorage.removeItem('userEmail');
-                      localStorage.removeItem('userType');
-                      window.location.href = '/login-admin';
-                    } else {
-                      logout();
-                    }
+                    // Usar sempre o logout do hook useAuth (ele já redireciona corretamente)
+                    logout();
                   }}
                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
                 >

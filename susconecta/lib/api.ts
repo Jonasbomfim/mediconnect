@@ -82,10 +82,24 @@ export const PATHS = {
 } as const;
 
 
+// Função para obter o token JWT do localStorage
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('auth_token');
+}
+
 function headers(kind: "json" | "form" = "json"): Record<string, string> {
   const h: Record<string, string> = {};
-  const token = process.env.NEXT_PUBLIC_API_TOKEN?.trim();
-  if (token) h.Authorization = `Bearer ${token}`;
+  
+  // API Key da Supabase sempre necessária
+  h.apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ";
+  
+  // Bearer Token quando usuário está logado
+  const jwtToken = getAuthToken();
+  if (jwtToken) {
+    h.Authorization = `Bearer ${jwtToken}`;
+  }
+  
   if (kind === "json") h["Content-Type"] = "application/json";
   return h;
 }

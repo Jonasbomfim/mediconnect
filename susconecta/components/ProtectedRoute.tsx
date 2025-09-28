@@ -1,43 +1,137 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import type { UserType } from '@/types/auth'
+import { USER_TYPE_ROUTES, LOGIN_ROUTES, AUTH_STORAGE_KEYS } from '@/types/auth'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredUserType?: string
+  requiredUserType?: UserType[]
 }
 
-export default function ProtectedRoute({ children, requiredUserType }: ProtectedRouteProps) {
-  const { isAuthenticated, userType, checkAuth } = useAuth()
+export default function ProtectedRoute({ 
+  children, 
+  requiredUserType 
+}: ProtectedRouteProps) {
+  const { authStatus, user } = useAuth()
   const router = useRouter()
+  const isRedirecting = useRef(false)
 
   useEffect(() => {
-    checkAuth()
-  }, [checkAuth])
+    // Evitar múltiplos redirects
+    if (isRedirecting.current) return
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      console.log('Usuário não autenticado, redirecionando para login...')
-      router.push('/login')
-    } else if (requiredUserType && userType !== requiredUserType) {
-      console.log(`Tipo de usuário incorreto. Esperado: ${requiredUserType}, Atual: ${userType}`)
-      router.push('/login')
-    } else {
-      console.log('Usuário autenticado!')
+    // Durante loading, não fazer nada
+    if (authStatus === 'loading') return
+
+    // Se não autenticado, redirecionar para login
+    if (authStatus === 'unauthenticated') {
+      isRedirecting.current = true
+      
+      console.log('[PROTECTED-ROUTE] Usuário NÃO autenticado - redirecionando...')
+      
+      // Determinar página de login baseada no histórico
+      let userType: UserType = 'profissional'
+      
+      if (typeof window !== 'undefined') {
+        try {
+          const storedUserType = localStorage.getItem(AUTH_STORAGE_KEYS.USER_TYPE)
+          if (storedUserType && ['profissional', 'paciente', 'administrador'].includes(storedUserType)) {
+            userType = storedUserType as UserType
+          }
+        } catch (error) {
+          console.warn('[PROTECTED-ROUTE] Erro ao ler localStorage:', error)
+        }
+      }
+      
+      const loginRoute = LOGIN_ROUTES[userType]
+      console.log('[PROTECTED-ROUTE] Redirecionando para login:', {
+        userType,
+        loginRoute,
+        timestamp: new Date().toLocaleTimeString()
+      })
+      
+      router.push(loginRoute)
+      return
     }
-  }, [isAuthenticated, userType, requiredUserType, router])
 
-  if (!isAuthenticated || (requiredUserType && userType !== requiredUserType)) {
+    // Se autenticado mas não tem permissão para esta página
+    if (authStatus === 'authenticated' && user && requiredUserType && !requiredUserType.includes(user.userType)) {
+      isRedirecting.current = true
+      
+      console.log('[PROTECTED-ROUTE] Usuário SEM permissão para esta página', {
+        userType: user.userType,
+        requiredTypes: requiredUserType
+      })
+      
+      const correctRoute = USER_TYPE_ROUTES[user.userType]
+      console.log('[PROTECTED-ROUTE] Redirecionando para área correta:', correctRoute)
+      
+      router.push(correctRoute)
+      return
+    }
+
+    // Se chegou aqui, acesso está autorizado
+    if (authStatus === 'authenticated') {
+      console.log('[PROTECTED-ROUTE] ACESSO AUTORIZADO!', {
+        userType: user?.userType,
+        email: user?.email,
+        timestamp: new Date().toLocaleTimeString()
+      })
+      isRedirecting.current = false
+    }
+  }, [authStatus, user, requiredUserType, router])
+
+  // Durante loading, mostrar spinner
+  if (authStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Redirecionando para login...</p>
+          <p className="mt-4 text-gray-600">Verificando autenticação...</p>
         </div>
       </div>
     )
   }
 
+  // Se não autenticado ou redirecionando, mostrar spinner
+  if (authStatus === 'unauthenticated' || isRedirecting.current) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Redirecionando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Se usuário não tem permissão, mostrar fallback (não deveria chegar aqui devido ao useEffect)
+  if (requiredUserType && user && !requiredUserType.includes(user.userType)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Acesso Negado</h2>
+          <p className="text-gray-600 mb-4">
+            Você não tem permissão para acessar esta página.
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Tipo de acesso necessário: {requiredUserType.join(' ou ')}
+            <br />
+            Seu tipo de acesso: {user.userType}
+          </p>
+          <button
+            onClick={() => router.push(USER_TYPE_ROUTES[user.userType])}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
+          >
+            Ir para minha área
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Finalmente, renderizar conteúdo protegido
   return <>{children}</>
 }

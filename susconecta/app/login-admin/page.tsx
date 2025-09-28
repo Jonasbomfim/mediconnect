@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AuthenticationError } from '@/lib/auth'
 
 export default function LoginAdminPage() {
   const [credentials, setCredentials] = useState({ email: '', password: '' })
@@ -20,29 +21,27 @@ export default function LoginAdminPage() {
     setLoading(true)
     setError('')
 
-    // Simular delay de autenticação
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Tentar fazer login usando o contexto com tipo administrador
-    const success = login(credentials.email, credentials.password, 'administrador')
-    
-    if (success) {
-      // Redirecionar para o dashboard do administrador
-      setTimeout(() => {
-        router.push('/dashboard')
+    try {
+      // Tentar fazer login usando o contexto com tipo administrador
+      const success = await login(credentials.email, credentials.password, 'administrador')
+      
+      if (success) {
+        console.log('[LOGIN-ADMIN] Login bem-sucedido, redirecionando...')
         
-        // Fallback: usar window.location se router.push não funcionar
-        setTimeout(() => {
-          if (window.location.pathname === '/login-admin') {
-            window.location.href = '/dashboard'
-          }
-        }, 100)
-      }, 100)
-    } else {
-      setError('Email ou senha incorretos')
+        // Redirecionamento direto - solução que funcionou
+        window.location.href = '/dashboard'
+      }
+    } catch (err) {
+      console.error('[LOGIN-ADMIN] Erro no login:', err)
+      
+      if (err instanceof AuthenticationError) {
+        setError(err.message)
+      } else {
+        setError('Erro inesperado. Tente novamente.')
+      }
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   return (
@@ -75,6 +74,7 @@ export default function LoginAdminPage() {
                   onChange={(e) => setCredentials({...credentials, email: e.target.value})}
                   required
                   className="mt-1"
+                  disabled={loading}
                 />
               </div>
               
@@ -90,6 +90,7 @@ export default function LoginAdminPage() {
                   onChange={(e) => setCredentials({...credentials, password: e.target.value})}
                   required
                   className="mt-1"
+                  disabled={loading}
                 />
               </div>
 

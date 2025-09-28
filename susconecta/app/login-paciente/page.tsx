@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AuthenticationError } from '@/lib/auth'
 
-export default function LoginPage() {
+export default function LoginPacientePage() {
   const [credentials, setCredentials] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,17 +22,15 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // Tentar fazer login usando o contexto com tipo profissional
-      const success = await login(credentials.email, credentials.password, 'profissional')
+      // Tentar fazer login usando o contexto com tipo paciente
+      const success = await login(credentials.email, credentials.password, 'paciente')
       
       if (success) {
-        console.log('[LOGIN-PROFISSIONAL] Login bem-sucedido, redirecionando...')
-        
-        // Redirecionamento direto - solução que funcionou
-        window.location.href = '/profissional'
+        // Redirecionar para a página do paciente
+        router.push('/paciente')
       }
     } catch (err) {
-      console.error('[LOGIN-PROFISSIONAL] Erro no login:', err)
+      console.error('[LOGIN-PACIENTE] Erro no login:', err)
       
       if (err instanceof AuthenticationError) {
         setError(err.message)
@@ -49,16 +47,16 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Login Profissional de Saúde
+            Portal do Paciente
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Entre com suas credenciais para acessar o sistema
+            Acesse sua área pessoal e gerencie suas consultas
           </p>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Acesso ao Sistema</CardTitle>
+            <CardTitle className="text-center">Entrar como Paciente</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
@@ -105,7 +103,7 @@ export default function LoginPage() {
                 className="w-full cursor-pointer" 
                 disabled={loading}
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                {loading ? 'Entrando...' : 'Entrar na Minha Área'}
               </Button>
             </form>
             

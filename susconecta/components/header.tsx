@@ -46,8 +46,9 @@ export function Header() {
             <Button
               variant="outline"
               className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+              asChild
             >
-              Sou Paciente
+              <Link href="/login-paciente">Sou Paciente</Link>
             </Button>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Link href="/login">Sou Profissional de Saúde</Link>
@@ -94,8 +95,9 @@ export function Header() {
                 <Button
                   variant="outline"
                   className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+                  asChild
                 >
-                  Sou Paciente
+                  <Link href="/login-paciente">Sou Paciente</Link>
                 </Button>
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
                   <Link href="/login">Sou Profissional de Saúde</Link>

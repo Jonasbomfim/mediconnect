@@ -9,8 +9,10 @@ export default function MainRoutesLayout({
 }: {
   children: React.ReactNode;
 }) {
+  console.log('[MAIN-ROUTES-LAYOUT] Layout do administrador carregado')
+  
   return (
-    <ProtectedRoute requiredUserType="administrador">
+    <ProtectedRoute requiredUserType={["administrador"]}>
       <div className="min-h-screen bg-background flex">
         <SidebarProvider>
           <Sidebar />

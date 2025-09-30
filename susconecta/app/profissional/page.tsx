@@ -1514,24 +1514,39 @@ const ProfissionalPage = () => {
   );
 // --- LaudoEditor COMPONENT ---
 function LaudoEditor() {
+  
+  const pacientes = [
+    { nome: "Ana Souza", cpf: "123.456.789-00", idade: 32, sexo: "Feminino" },
+    { nome: "Bruno Lima", cpf: "987.654.321-00", idade: 45, sexo: "Masculino" },
+    { nome: "Carla Menezes", cpf: "111.222.333-44", idade: 28, sexo: "Feminino" },
+  ];
+
   const [conteudo, setConteudo] = useState("");
-  const [paciente, setPaciente] = useState("");
-  const [cpf, setCpf] = useState("");
+  const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
+  const [cid, setCid] = useState("");
   const [imagem, setImagem] = useState<string | null>(null);
   const [assinatura, setAssinatura] = useState<string | null>(null);
   const sigCanvasRef = useRef<any>(null);
-  const [idade, setIdade] = useState("");
-  const [sexo, setSexo] = useState("");
-  const [cid, setCid] = useState("");
   const [laudos, setLaudos] = useState<any[]>([]);
   const [preview, setPreview] = useState(false);
 
+  
+  const handleSelectPaciente = (paciente: any) => {
+    setPacienteSelecionado(paciente);
+  };
+
+  const limparPaciente = () => setPacienteSelecionado(null);
+
   const salvarLaudo = (status: string) => {
+    if (!pacienteSelecionado) {
+      alert('Selecione um paciente.');
+      return;
+    }
     const novoLaudo = {
-      paciente,
-      cpf,
-      idade,
-      sexo,
+      paciente: pacienteSelecionado.nome,
+      cpf: pacienteSelecionado.cpf,
+      idade: pacienteSelecionado.idade,
+      sexo: pacienteSelecionado.sexo,
       cid,
       conteudo,
       imagem,
@@ -1540,120 +1555,205 @@ function LaudoEditor() {
       status
     };
     setLaudos(prev => [novoLaudo, ...prev]);
-    setPaciente(""); setCpf(""); setIdade(""); setSexo(""); setCid(""); setConteudo(""); setImagem(null); setAssinatura(null);
+    setPacienteSelecionado(null); setCid(""); setConteudo(""); setImagem(null); setAssinatura(null);
     if (sigCanvasRef.current) sigCanvasRef.current.clear();
   };
 
   return (
-    <div className="min-h-screen bg-muted p-6">
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md w-full md:w-1/3 flex flex-col gap-4">
-          <h2 className="text-2xl font-bold text-primary text-center mb-4">Informações do Paciente</h2>
-          <input type="text" placeholder="Nome do paciente" value={paciente} onChange={e => setPaciente(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
-          <input type="text" placeholder="CPF" value={cpf} onChange={e => setCpf(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
-          <input type="number" placeholder="Idade" value={idade} onChange={e => setIdade(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
-          <select value={sexo} onChange={e => setSexo(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none">
-            <option value="">Sexo</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Feminino">Feminino</option>
-            <option value="Outro">Outro</option>
-          </select>
-          <input type="text" placeholder="CID" value={cid} onChange={e => setCid(e.target.value)} className="p-3 border rounded-md focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
-          <div>
-            <label className="block mb-1 font-medium text-primary">Imagem (opcional)</label>
-            <input type="file" accept="image/*" onChange={e => {
-              const file = e.target.files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => setImagem(reader.result as string);
-                reader.readAsDataURL(file);
-              } else {
-                setImagem(null);
-              }
-            }} className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
-            {imagem && (
-              <img src={imagem} alt="Pré-visualização" className="mt-2 rounded-md max-h-32 border" />
-            )}
-          </div>
-          <div>
-            <label className="block mb-1 font-medium text-primary">Assinatura Digital</label>
-            <div className="bg-muted rounded-md border p-2 flex flex-col items-center">
-              <SignatureCanvas
-                ref={sigCanvasRef}
-                penColor="#0f172a"
-                backgroundColor="#fff"
-                canvasProps={{ width: 300, height: 100, className: "rounded border bg-white" }}
-                onEnd={() => setAssinatura(sigCanvasRef.current?.isEmpty() ? null : sigCanvasRef.current?.toDataURL())}
-              />
-              <div className="flex gap-2 mt-2">
-                <button type="button" onClick={() => { sigCanvasRef.current?.clear(); setAssinatura(null); }} className="px-3 py-1 text-xs rounded bg-muted-foreground text-white hover:bg-muted">Limpar</button>
-                <button type="button" onClick={() => setAssinatura(sigCanvasRef.current?.toDataURL())} className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90">Salvar Assinatura</button>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-white p-2 md:p-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6 mb-6">
+          <h2 className="text-2xl font-bold text-primary mb-4 text-center tracking-tight">Laudo Médico</h2>
+          
+          {!pacienteSelecionado ? (
+            <div className="flex flex-col items-center justify-center py-8 px-1 bg-white rounded-xl shadow-sm">
+              <div className="mb-2">
+                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="mx-auto text-gray-400">
+                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M4 20c0-2.5 3.5-4.5 8-4.5s8 2 8 4.5" stroke="currentColor" strokeWidth="2"/>
+                </svg>
               </div>
-              {assinatura && (
-                <img src={assinatura} alt="Assinatura" className="mt-2 max-h-16 border rounded bg-white" />
-              )}
+              <h2 className="text-lg font-bold text-center text-gray-800 mb-1">Selecionar Paciente</h2>
+              <p className="text-gray-500 text-center mb-4 max-w-xs text-sm">Escolha um paciente para visualizar o prontuário completo</p>
+              <div className="w-full max-w-xs">
+                <label htmlFor="select-paciente" className="block text-sm font-medium text-gray-700 mb-1">Escolha o paciente:</label>
+                <div className="relative">
+                  <select
+                    id="select-paciente"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-300 focus:outline-none bg-white text-sm text-gray-900 shadow-sm transition-all appearance-none"
+                    onChange={e => {
+                      const p = pacientes.find(p => p.cpf === e.target.value);
+                      if (p) handleSelectPaciente(p);
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" className="text-gray-400">Selecione um paciente...</option>
+                    {pacientes.map(p => (
+                      <option key={p.cpf} value={p.cpf}>{p.nome} - {p.cpf}</option>
+                    ))}
+                  </select>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 14l-4-4h8l-4 4z" fill="currentColor"/></svg>
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button type="button" onClick={() => salvarLaudo("Rascunho")} className="w-1/2 bg-muted-foreground text-white py-2 rounded-md hover:bg-muted">Salvar Rascunho</button>
-            <button type="button" onClick={() => salvarLaudo("Entregue")} className="w-1/2 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90">Liberar Laudo</button>
-          </div>
-          <button type="button" onClick={() => setPreview(!preview)} className="mt-2 w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90">Pré-visualizar Laudo</button>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md w-full md:w-2/3 flex flex-col gap-4">
-          <h2 className="text-2xl font-bold text-primary text-center mb-4">Editor de Laudo</h2>
-          {!preview ? (
-            <ReactQuill value={conteudo} onChange={setConteudo} modules={{
-              toolbar: [
-                ['bold', 'italic', 'underline'],
-                [{'list': 'ordered'}, {'list': 'bullet'}],
-                [{'align': []}],
-                [{'size': ['small', false, 'large', 'huge']}],
-                ['clean']
-              ]
-            }} className="h-64"/>
           ) : (
-            <div className="border p-4 rounded-md bg-muted overflow-auto">
-              <h3 className="text-lg font-semibold mb-2">Pré-visualização:</h3>
-              <div dangerouslySetInnerHTML={{__html: conteudo}} />
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <div className="font-bold text-primary text-base mb-0.5">{pacienteSelecionado.nome}</div>
+                <div className="text-xs text-gray-700">CPF: {pacienteSelecionado.cpf}</div>
+                <div className="text-xs text-gray-700">Idade: {pacienteSelecionado.idade}</div>
+                <div className="text-xs text-gray-700">Sexo: {pacienteSelecionado.sexo}</div>
+              </div>
+              <button type="button" onClick={limparPaciente} className="px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold shadow text-xs">Trocar paciente</button>
             </div>
           )}
-          <div className="mt-6">
-            <h3 className="text-xl font-bold text-primary mb-4 text-center">Histórico de Laudos</h3>
-            {laudos.length === 0 ? (
-              <p className="text-muted-foreground text-center">Nenhum laudo registrado.</p>
-            ) : (
-              laudos.map((laudo: any, idx: number) => (
-                <div key={idx} className="border border-primary/20 rounded-lg p-4 mb-4 bg-muted shadow-sm">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                    <p className="font-semibold text-primary-foreground">{laudo.paciente}</p>
-                    <p className="text-muted-foreground">CPF: {laudo.cpf}</p>
-                    <p className="text-muted-foreground">Idade: {laudo.idade}</p>
-                    <p className="text-muted-foreground">Sexo: {laudo.sexo}</p>
-                    <p className="text-muted-foreground">CID: {laudo.cid}</p>
-                    <p className="text-muted-foreground">Status: {laudo.status}</p>
-                    <p className="text-muted-foreground">Data: {laudo.data}</p>
-                  </div>
-                  {laudo.imagem && (
-                    <div className="mb-2">
-                      <p className="font-semibold text-primary">Imagem:</p>
-                      <img src={laudo.imagem} alt="Imagem do laudo" className="rounded-md max-h-32 border mb-2" />
-                    </div>
-                  )}
-                  {laudo.assinatura && (
-                    <div className="mb-2">
-                      <p className="font-semibold text-primary">Assinatura Digital:</p>
-                      <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-md max-h-16 border bg-white" />
-                    </div>
-                  )}
-                  <div className="mb-2">
-                    <p className="font-semibold text-primary">Conteúdo:</p>
-                    <div dangerouslySetInnerHTML={{__html: laudo.conteudo}}/>
-                  </div>
+          
+          <form className="space-y-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-primary">CID</label>
+              <input
+                type="text"
+                value={cid}
+                onChange={e => setCid(e.target.value)}
+                placeholder="Ex: I10, E11, etc."
+                className="w-full p-2 border border-primary/20 rounded-md focus:ring-2 focus:ring-primary/30 focus:outline-none text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-primary">Conteúdo do Laudo *</label>
+              {!preview ? (
+                <ReactQuill
+                  value={conteudo}
+                  onChange={setConteudo}
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                      [{ 'align': [] }],
+                      [{ 'size': ['small', false, 'large', 'huge'] }],
+                      ['clean']
+                    ]
+                  }}
+                  className="h-40 border border-primary/20 rounded-md text-sm"
+                />
+              ) : (
+                <div className="border border-primary/20 p-2 rounded-md bg-muted overflow-auto">
+                  <h3 className="text-base font-semibold mb-1 text-primary">Pré-visualização:</h3>
+                  <div dangerouslySetInnerHTML={{ __html: conteudo }} />
                 </div>
-              ))
-            )}
-          </div>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-primary mb-2">Imagem (opcional)</label>
+              <div className="mb-2"></div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setImagem(reader.result as string);
+                    reader.readAsDataURL(file);
+                  } else {
+                    setImagem(null);
+                  }
+                }}
+                className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              />
+              {imagem && (
+                <img src={imagem} alt="Pré-visualização" className="mt-1 rounded-md max-h-20 border border-primary/20" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-primary">Assinatura Digital</label>
+              <div className="bg-muted rounded-md border border-primary/20 p-2 flex flex-col items-center">
+                <SignatureCanvas
+                  ref={sigCanvasRef}
+                  penColor="#0f172a"
+                  backgroundColor="#fff"
+                  canvasProps={{ width: 220, height: 60, className: "rounded-md border bg-white shadow" }}
+                  onEnd={() => setAssinatura(sigCanvasRef.current?.isEmpty() ? null : sigCanvasRef.current?.toDataURL())}
+                />
+                <div className="flex gap-2 mt-2">
+                  <button type="button" onClick={() => { sigCanvasRef.current?.clear(); setAssinatura(null); }} className="px-2 py-1 text-xs rounded-md bg-muted-foreground text-white hover:bg-muted font-semibold shadow">Limpar</button>
+                </div>
+                {assinatura && (
+                  <img src={assinatura} alt="Assinatura" className="mt-2 max-h-10 border rounded-md bg-white shadow" />
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col md:flex-row gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => salvarLaudo("Rascunho")}
+                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-gray-200 transition-all border border-gray-200"
+              >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Salvar Rascunho
+              </button>
+              <button
+                type="button"
+                onClick={() => salvarLaudo("Entregue")}
+                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-primary text-white py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/90 transition-all border border-primary/20"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2l4-4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Liberar Laudo
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreview(!preview)}
+                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-white text-primary py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/10 transition-all border border-primary/20"
+              >
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 10l4.553 2.276A2 2 0 0121 14.09V17a2 2 0 01-2 2H5a2 2 0 01-2-2v-2.91a2 2 0 01.447-1.814L8 10m7-4v4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Pré-visualizar Laudo
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6">
+          <h3 className="text-xl font-bold text-primary mb-3 text-center">Histórico de Laudos</h3>
+          {laudos.length === 0 ? (
+            <p className="text-muted-foreground text-center text-sm">Nenhum laudo registrado.</p>
+          ) : (
+            laudos.map((laudo: any, idx: number) => (
+              <div key={idx} className="border border-primary/20 rounded-2xl p-4 mb-6 bg-primary/5 shadow-sm">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3 gap-2">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 20c0-2.5 3.5-4.5 8-4.5s8 2 8 4.5" stroke="currentColor" strokeWidth="2"/></svg>
+                    <span className="font-bold text-lg md:text-xl text-primary drop-shadow-sm">{laudo.paciente}</span>
+                  </div>
+                  <span className="text-base text-gray-500 font-medium">CPF: {laudo.cpf}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 text-sm text-gray-700">
+                  <div>Idade: <span className="font-medium">{laudo.idade}</span></div>
+                  <div>Sexo: <span className="font-medium">{laudo.sexo}</span></div>
+                  <div>Status: <span className="font-medium">{laudo.status}</span></div>
+                  <div>CID: <span className="font-medium">{laudo.cid}</span></div>
+                  <div>Data: <span className="font-medium">{laudo.data}</span></div>
+                </div>
+                {laudo.assinatura && (
+                  <div className="mb-2">
+                    <p className="font-semibold text-primary text-sm mb-1">Assinatura Digital:</p>
+                    <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-lg max-h-16 border bg-white shadow" />
+                  </div>
+                )}
+                {laudo.imagem && (
+                  <div className="mb-2">
+                    <p className="font-semibold text-primary text-sm mb-1">Imagem:</p>
+                    <img src={laudo.imagem} alt="Imagem do laudo" className="rounded-lg max-h-20 border border-primary/20 mb-1" />
+                  </div>
+                )}
+                <div className="mb-1">
+                  <p className="font-semibold text-primary text-sm mb-1">Conteúdo:</p>
+                  <div className="text-sm text-gray-800" dangerouslySetInnerHTML={{ __html: laudo.conteudo }} />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

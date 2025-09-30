@@ -61,7 +61,7 @@ export function Sidebar() {
 
           {/* este span some no modo ícone */}
           <span className="text-lg font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-            MediConecta
+            MediConnect
           </span>
         </Link>
       </SidebarHeader>

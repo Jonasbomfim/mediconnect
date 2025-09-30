@@ -4,9 +4,9 @@ import { AuthProvider } from "@/hooks/useAuth"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "MediConecta - Conectando Pacientes e Profissionais de Saúde",
+  title: "MediConnect - Conectando Pacientes e Profissionais de Saúde",
   description:
-    "Plataforma inovadora que conecta pacientes e médicos de forma prática, segura e humanizada. Experimente o futuro dos agendamentos médicos.",
+    "Plataforma inovadora que conecta pacientes, clínicas, e médicos de forma prática, segura e humanizada. Experimente o futuro dos agendamentos médicos.",
   keywords: "saúde, médicos, pacientes, agendamento, telemedicina, SUS",
   generator: 'v0.app'
 }

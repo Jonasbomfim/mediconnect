@@ -17,29 +17,30 @@ import { PatientRegistrationForm } from "@/components/forms/patient-registration
 function normalizePaciente(p: any): Paciente {
   const endereco: Endereco = {
     cep: p.endereco?.cep ?? p.cep ?? "",
-    logradouro: p.endereco?.logradouro ?? p.logradouro ?? "",
-    numero: p.endereco?.numero ?? p.numero ?? "",
-    complemento: p.endereco?.complemento ?? p.complemento ?? "",
-    bairro: p.endereco?.bairro ?? p.bairro ?? "",
-    cidade: p.endereco?.cidade ?? p.cidade ?? "",
-    estado: p.endereco?.estado ?? p.estado ?? "",
+    logradouro: p.endereco?.logradouro ?? p.street ?? "",
+    numero: p.endereco?.numero ?? p.number ?? "",
+    complemento: p.endereco?.complemento ?? p.complement ?? "",
+    bairro: p.endereco?.bairro ?? p.neighborhood ?? "",
+    cidade: p.endereco?.cidade ?? p.city ?? "",
+    estado: p.endereco?.estado ?? p.state ?? "",
   };
 
   return {
     id: String(p.id ?? p.uuid ?? p.paciente_id ?? ""),
-    nome: p.nome ?? "",
-    nome_social: p.nome_social ?? null,
+    nome: p.full_name ?? "",          // 👈 troca nome → full_name
+    nome_social: p.social_name ?? null, // 👈 Supabase usa social_name
     cpf: p.cpf ?? "",
-    rg: p.rg ?? null,
-    sexo: p.sexo ?? null,
-    data_nascimento: p.data_nascimento ?? null,
-    telefone: p.telefone ?? "",
+    rg: p.rg ?? p.document_number ?? null, // 👈 às vezes vem como document_number
+    sexo: p.sexo ?? p.sex ?? null,    // 👈 Supabase usa sex
+    data_nascimento: p.data_nascimento ?? p.birth_date ?? null,
+    telefone: p.telefone ?? p.phone_mobile ?? "",
     email: p.email ?? "",
     endereco,
-    observacoes: p.observacoes ?? null,
+    observacoes: p.observacoes ?? p.notes ?? null,
     foto_url: p.foto_url ?? null,
   };
 }
+
 
 export default function PacientesPage() {
   const [patients, setPatients] = useState<Paciente[]>([]);

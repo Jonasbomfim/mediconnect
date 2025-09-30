@@ -14,6 +14,35 @@ import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-f
 
 import { listarMedicos, excluirMedico, Medico } from "@/lib/api";
 
+function normalizeMedico(m: any): Medico {
+  return {
+    id: String(m.id ?? m.uuid ?? ""),
+    nome: m.nome ?? m.full_name ?? "",        // 👈 Supabase usa full_name
+    nome_social: m.nome_social ?? m.social_name ?? null,
+    cpf: m.cpf ?? "",
+    rg: m.rg ?? m.document_number ?? null,
+    sexo: m.sexo ?? m.sex ?? null,
+    data_nascimento: m.data_nascimento ?? m.birth_date ?? null,
+    telefone: m.telefone ?? m.phone_mobile ?? "",
+    celular: m.celular ?? m.phone2 ?? null,
+    contato_emergencia: m.contato_emergencia ?? null,
+    email: m.email ?? "",
+    crm: m.crm ?? "",
+    estado_crm: m.estado_crm ?? m.crm_state ?? null,
+    rqe: m.rqe ?? null,
+    formacao_academica: m.formacao_academica ?? [],
+    curriculo_url: m.curriculo_url ?? null,
+    especialidade: m.especialidade ?? m.specialty ?? "",
+    observacoes: m.observacoes ?? m.notes ?? null,
+    foto_url: m.foto_url ?? null,
+    tipo_vinculo: m.tipo_vinculo ?? null,
+    dados_bancarios: m.dados_bancarios ?? null,
+    agenda_horario: m.agenda_horario ?? null,
+    valor_consulta: m.valor_consulta ?? null,
+  };
+}
+
+
 export default function DoutoresPage() {
   const [doctors, setDoctors] = useState<Medico[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,8 +55,9 @@ export default function DoutoresPage() {
   async function load() {
     setLoading(true);
     try {
-      const list = await listarMedicos({ limit: 50 });
-      setDoctors(list ?? []);
+     const list = await listarMedicos({ limit: 50 });
+setDoctors((list ?? []).map(normalizeMedico));
+
     } finally {
       setLoading(false);
     }
@@ -53,6 +83,8 @@ export default function DoutoresPage() {
     setShowForm(true);
   }
 
+    
+
   function handleEdit(id: string) {
     setEditingId(id);
     setShowForm(true);
@@ -70,10 +102,29 @@ export default function DoutoresPage() {
   }
 
   
-  async function handleSaved() {
-    setShowForm(false);
-    await load();
+  function handleSaved(savedDoctor?: Medico) {
+  setShowForm(false);
+
+  if (savedDoctor) {
+    const normalized = normalizeMedico(savedDoctor);
+    setDoctors((prev) => {
+      const i = prev.findIndex((d) => String(d.id) === String(normalized.id));
+      if (i < 0) {
+        // Novo médico → adiciona no topo
+        return [normalized, ...prev];
+      } else {
+        // Médico editado → substitui na lista
+        const clone = [...prev];
+        clone[i] = normalized;
+        return clone;
+      }
+    });
+  } else {
+    // fallback → recarrega tudo
+    load();
   }
+}
+
 
   if (showForm) {
     return (

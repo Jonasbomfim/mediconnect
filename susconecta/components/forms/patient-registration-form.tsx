@@ -17,7 +17,6 @@ import {
   Paciente,
   PacienteInput,
   buscarCepAPI,
-  validarCPF,
   criarPaciente,
   atualizarPaciente,
   uploadFotoPaciente,
@@ -27,6 +26,11 @@ import {
   removerAnexo,
   buscarPacientePorId,
 } from "@/lib/api";
+
+import { validarCPFLocal } from "@/lib/utils";
+import { verificarCpfDuplicado } from "@/lib/api"; 
+
+
 
 type Mode = "create" | "edit";
 
@@ -192,13 +196,13 @@ export function PatientRegistrationForm({
       telefone: form.telefone || null,
       email: form.email || null,
       endereco: {
-        cep: form.cep || null,
-        logradouro: form.logradouro || null,
-        numero: form.numero || null,
-        complemento: form.complemento || null,
-        bairro: form.bairro || null,
-        cidade: form.cidade || null,
-        estado: form.estado || null,
+        cep: form.cep || undefined,
+        logradouro: form.logradouro || undefined,
+        numero: form.numero || undefined,
+        complemento: form.complemento || undefined,
+        bairro: form.bairro || undefined,
+        cidade: form.cidade || undefined,
+        estado: form.estado || undefined,
       },
       observacoes: form.observacoes || null,
     };
@@ -210,18 +214,24 @@ export function PatientRegistrationForm({
 
     
     try {
-      const { valido, existe } = await validarCPF(form.cpf);
-      if (!valido) {
-        setErrors((e) => ({ ...e, cpf: "CPF inválido (validação externa)" }));
-        return;
-      }
-      if (existe && mode === "create") {
-        setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" }));
-        return;
-      }
-    } catch {
-      
+  // 1) validação local
+  if (!validarCPFLocal(form.cpf)) {
+    setErrors((e) => ({ ...e, cpf: "CPF inválido" }));
+    return;
+  }
+
+  // 2) checar duplicidade no banco (apenas se criando novo paciente)
+  if (mode === "create") {
+    const existe = await verificarCpfDuplicado(form.cpf);
+    if (existe) {
+      setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" }));
+      return;
     }
+  }
+} catch (err) {
+  console.error("Erro ao validar CPF", err);
+}
+
 
     setSubmitting(true);
     try {

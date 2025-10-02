@@ -2,6 +2,7 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
@@ -53,7 +54,6 @@
     "input-otp": "latest",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.454.0",
-    "next": "14.2.16",
     "next-themes": "latest",
     "react": "^18",
     "react-day-picker": "latest",
@@ -70,13 +70,22 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@eslint/js": "^9.36.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "^15.5.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-unicorn": "^61.0.2",
+    "next": "^15.5.4",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.45.0"
   }
 }

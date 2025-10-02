@@ -121,44 +121,30 @@ export type Medico = {
 
 
 // ===== MÉDICOS =====
+// ...existing code...
 export type MedicoInput = {
-  full_name: string;
-  nome_social?: string | null;
-  cpf: string;
-  rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string;
-  celular?: string;  // Este é o celular no seu código, mas talvez tenha que ser 'phone_mobile'
-  contato_emergencia?: string;
-  email?: string;
-  crm: string;
-  crm_uf?: string | null;
-  rqe?: string | null;
-  formacao_academica?: FormacaoAcademica[];
-  curriculo_url?: string | null;
-  especialidade: string;
-  observacoes?: string | null;
-  tipo_vinculo?: string | null;
-  dados_bancarios?: DadosBancarios | null;
-  agenda_horario?: string | null;
-  valor_consulta?: number | string | null;
-  active?: boolean;
-  cep?: string | null;
-  city?: string | null;
-  complement?: string | null;
-  neighborhood?: string | null;
-  number?: string | null;
-  phone2?: string | null;  // Talvez seja o campo correto para o segundo telefone
-  state?: string | null;
-  street?: string | null;
-  created_at?: string;
-  created_by?: string | null;
-  updated_at?: string;
-  updated_by?: string | null;
   user_id?: string | null;
+  crm: string;
+  crm_uf: string;
+  specialty: string;
+  full_name: string;
+  cpf: string;
+  email: string;
+  phone_mobile: string;
+  phone2?: string | null;
+  cep: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  birth_date: string | null;
+  rg?: string | null;
+  active?: boolean;
+  created_by?: string | null;
+  updated_by?: string | null;
 };
-
 
 
 

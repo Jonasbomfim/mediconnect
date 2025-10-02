@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { buscarPacientePorId } from "@/lib/api"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -154,7 +155,7 @@ export function DoctorRegistrationForm({
   let alive = true;
   async function load() {
     if (mode === "edit" && doctorId) {
-      const medico = await buscarMedicoPorId(doctorId);
+      const medico = await buscarMedicoPorId(String(doctorId));
       if (!alive) return;
       setForm({
         photo: null,
@@ -309,34 +310,27 @@ async function handleSubmit(ev: React.FormEvent) {
   setErrors((e) => ({ ...e, submit: "" }));
 
 const payload: MedicoInput = {
-  full_name: form.full_name,
-  nome_social: form.nome_social || null,
-  cpf: form.cpf || "",
-  rg: form.rg || null,
-  sexo: form.sexo || null,
-  data_nascimento: form.data_nascimento || null,
-  celular: form.celular || "",
-  email: form.email || undefined,
+  user_id: null, // ou o UUID real
   crm: form.crm,
-  crm_uf: form.estado_crm || null,
-  rqe: form.rqe || null,
-  formacao_academica: form.formacao_academica,
-  especialidade: form.especialidade || "",
-  observacoes: form.observacoes || null,
-  tipo_vinculo: form.tipo_vinculo || null,
-  dados_bancarios: form.dados_bancarios || null, // Remova se não for necessário
-  valor_consulta: form.valor_consulta || null,
-  active: true, 
-  cep: form.cep || null,
-  city: form.cidade || null,
-  complement: form.complemento || null,
-  neighborhood: form.bairro || null,
-  number: form.numero || null,
-  phone2: form.telefone || null, // Ajustar conforme necessário
-  state: form.estado || null,
-  street: form.logradouro || null,
-  created_by: 'user_id',
-  updated_by: 'user_id',
+  crm_uf: form.estado_crm,
+  specialty: form.especialidade,
+  full_name: form.full_name,
+  cpf: form.cpf,
+  email: form.email,
+  phone_mobile: form.celular,
+  phone2: form.telefone || null,
+  cep: form.cep,
+  street: form.logradouro,
+  number: form.numero,
+  complement: form.complemento,
+  neighborhood: form.bairro,
+  city: form.cidade,
+  state: form.estado,
+  birth_date: form.data_nascimento || null,
+  rg: form.rg || null,
+  active: true,
+  created_by: null, // ou o UUID real
+  updated_by: null, // ou o UUID real
 };
 
 

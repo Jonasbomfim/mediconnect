@@ -567,12 +567,13 @@ const ProfissionalPage = () => {
   };
 
   
-  const renderPacientesSection = () => {
+  function PacientesSection({ handleAbrirProntuario, setActiveSection }) {
     // Estados para busca de pacientes
-    const [buscaPaciente, setBuscaPaciente] = useState("");
-    const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
-    const [carregandoBusca, setCarregandoBusca] = useState(false);
-    const [erroBusca, setErroBusca] = useState<string | null>(null);
+     const [buscaPaciente, setBuscaPaciente] = useState("");
+  const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
+  const [carregandoBusca, setCarregandoBusca] = useState(false);
+  const [erroBusca, setErroBusca] = useState<string | null>(null);
+
 
     // Função para buscar pacientes
     const handleBuscarPaciente = async () => {
@@ -2428,7 +2429,7 @@ function LaudoEditor() {
       case 'calendario':
         return renderCalendarioSection();
       case 'pacientes':
-        return renderPacientesSection();
+  return <PacientesSection handleAbrirProntuario={handleAbrirProntuario} setActiveSection={setActiveSection} />;
       case 'prontuario':
         return renderProntuarioSection();
       case 'laudos':

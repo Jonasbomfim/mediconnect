@@ -182,17 +182,16 @@ function withPrefer(h: Record<string, string>, prefer: string) {
 }
 
 // Parse genérico
-// Dentro de lib/api.ts
 async function parse<T>(res: Response): Promise<T> {
   let json: any = null;
   try {
     json = await res.json();
   } catch (err) {
-    console.error("Erro ao parsear a resposta:", err);  // Coloque esse log aqui
+    console.error("Erro ao parsear a resposta:", err);
   }
 
   if (!res.ok) {
-    console.error("[API ERROR]", res.url, res.status, json);  // Coloque esse log aqui
+    console.error("[API ERROR]", res.url, res.status, json);
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message)) ?? res.statusText;
     throw new Error(`${code}: ${msg}`);
@@ -228,6 +227,68 @@ export async function listarPacientes(params?: {
     },
   });
   return await parse<Paciente[]>(res);
+}
+
+
+// Nova função para busca avançada de pacientes
+export async function buscarPacientes(termo: string): Promise<Paciente[]> {
+  if (!termo || termo.trim().length < 2) {
+    return [];
+  }
+  
+  const searchTerm = termo.toLowerCase().trim();
+  const digitsOnly = searchTerm.replace(/\D/g, '');
+  
+  // Monta queries para buscar em múltiplos campos
+  const queries = [];
+  
+  // Busca por ID se parece com UUID
+  if (searchTerm.includes('-') && searchTerm.length > 10) {
+    queries.push(`id=eq.${searchTerm}`);
+  }
+  
+  // Busca por CPF (com e sem formatação)
+  if (digitsOnly.length >= 11) {
+    queries.push(`cpf=eq.${digitsOnly}`);
+  } else if (digitsOnly.length >= 3) {
+    queries.push(`cpf=ilike.*${digitsOnly}*`);
+  }
+  
+  // Busca por nome (usando ilike para busca case-insensitive)
+  if (searchTerm.length >= 2) {
+    queries.push(`full_name=ilike.*${searchTerm}*`);
+    queries.push(`social_name=ilike.*${searchTerm}*`);
+  }
+  
+  // Busca por email se contém @
+  if (searchTerm.includes('@')) {
+    queries.push(`email=ilike.*${searchTerm}*`);
+  }
+  
+  const results: Paciente[] = [];
+  const seenIds = new Set<string>();
+  
+  // Executa as buscas e combina resultados únicos
+  for (const query of queries) {
+    try {
+      const url = `${REST}/patients?${query}&limit=10`;
+      const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+      const arr = await parse<Paciente[]>(res);
+      
+      if (arr?.length > 0) {
+        for (const paciente of arr) {
+          if (!seenIds.has(paciente.id)) {
+            seenIds.add(paciente.id);
+            results.push(paciente);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Erro na busca com query: ${query}`, error);
+    }
+  }
+  
+  return results.slice(0, 20); // Limita a 20 resultados
 }
 
 export async function buscarPacientePorId(id: string | number): Promise<Paciente> {

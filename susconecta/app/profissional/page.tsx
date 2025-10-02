@@ -7,6 +7,8 @@ import "react-quill/dist/quill.snow.css";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { buscarPacientes } from "@/lib/api";
+import { ApiTest } from "@/components/debug/ApiTest";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -566,53 +568,189 @@ const ProfissionalPage = () => {
   };
 
   
-  const renderPacientesSection = () => (
-    <div className="bg-white shadow-md rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Paciente</TableHead>
-            <TableHead>CPF</TableHead>
-            <TableHead>Idade</TableHead>
-            <TableHead>Status do laudo</TableHead>
-            <TableHead>Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pacientes.map((paciente) => (
-            <TableRow key={paciente.cpf}>
-              <TableCell className="font-medium">{paciente.nome}</TableCell>
-              <TableCell>{paciente.cpf}</TableCell>
-              <TableCell>{paciente.idade}</TableCell>
-              <TableCell>{paciente.statusLaudo}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <div className="relative group">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+  const renderPacientesSection = () => {
+    // Estados para busca de pacientes
+    const [buscaPaciente, setBuscaPaciente] = useState("");
+    const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
+    const [carregandoBusca, setCarregandoBusca] = useState(false);
+    const [erroBusca, setErroBusca] = useState<string | null>(null);
+
+    // Função para buscar pacientes
+    const handleBuscarPaciente = async () => {
+      if (!buscaPaciente.trim()) {
+        setPacientesBusca([]);
+        setErroBusca(null);
+        return;
+      }
+
+      setCarregandoBusca(true);
+      setErroBusca(null);
+
+      try {
+        // Importa a função de busca
+        const { buscarPacientes } = await import("@/lib/api");
+        const resultados = await buscarPacientes(buscaPaciente.trim());
+        
+        if (resultados.length === 0) {
+          setErroBusca("Nenhum paciente encontrado com os critérios informados.");
+          setPacientesBusca([]);
+        } else {
+          // Transforma os dados da API para o formato usado no componente
+          const pacientesFormatados = resultados.map(p => ({
+            nome: p.full_name || "Nome não informado",
+            cpf: p.cpf || "CPF não informado",
+            idade: p.birth_date ? new Date().getFullYear() - new Date(p.birth_date).getFullYear() : "N/A",
+            statusLaudo: "Pendente", // Status padrão
+            id: p.id
+          }));
+          setPacientesBusca(pacientesFormatados);
+          setErroBusca(null);
+        }
+      } catch (error: any) {
+        console.error("Erro ao buscar pacientes:", error);
+        setErroBusca(error.message || "Erro ao buscar pacientes. Tente novamente.");
+        setPacientesBusca([]);
+      } finally {
+        setCarregandoBusca(false);
+      }
+    };
+
+    const handleLimparBusca = () => {
+      setBuscaPaciente("");
+      setPacientesBusca([]);
+      setErroBusca(null);
+    };
+
+    return (
+      <div className="bg-white shadow-md rounded-lg p-6">
+        <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
+        
+        {/* Campo de busca */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3">Buscar Paciente</h3>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Digite ID, CPF, nome ou email do paciente..."
+                value={buscaPaciente}
+                onChange={(e) => setBuscaPaciente(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleBuscarPaciente()}
+                className="w-full"
+              />
+            </div>
+            <Button 
+              onClick={handleBuscarPaciente} 
+              disabled={carregandoBusca}
+              className="flex items-center gap-2"
+            >
+              {carregandoBusca ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  Buscando...
+                </>
+              ) : (
+                <>
+                  <User className="h-4 w-4" />
+                  Buscar
+                </>
+              )}
+            </Button>
+            {(buscaPaciente || pacientesBusca.length > 0 || erroBusca) && (
+              <Button 
+                variant="outline" 
+                onClick={handleLimparBusca}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Limpar
+              </Button>
+            )}
+          </div>
+          
+          {/* Resultados da busca */}
+          {erroBusca && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-700 text-sm">{erroBusca}</p>
+            </div>
+          )}
+          
+          {pacientesBusca.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-md font-medium mb-2">Resultados da busca ({pacientesBusca.length}):</h4>
+              <div className="space-y-2">
+                {pacientesBusca.map((paciente, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-white border rounded-lg hover:shadow-sm">
+                    <div>
+                      <p className="font-medium">{paciente.nome}</p>
+                      <p className="text-sm text-gray-600">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
+                    </div>
+                    <Button
+                      size="sm"
                       onClick={() => {
                         handleAbrirProntuario(paciente);
                         setActiveSection('prontuario');
                       }}
+                      className="flex items-center gap-2"
                     >
                       <FolderOpen className="h-4 w-4" />
+                      Abrir Prontuário
                     </Button>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                      Ver informações do paciente
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                    </div>
                   </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabela de pacientes padrão */}
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Pacientes Recentes</h3>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Paciente</TableHead>
+                <TableHead>CPF</TableHead>
+                <TableHead>Idade</TableHead>
+                <TableHead>Status do laudo</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pacientes.map((paciente) => (
+                <TableRow key={paciente.cpf}>
+                  <TableCell className="font-medium">{paciente.nome}</TableCell>
+                  <TableCell>{paciente.cpf}</TableCell>
+                  <TableCell>{paciente.idade}</TableCell>
+                  <TableCell>{paciente.statusLaudo}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="relative group">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+                          onClick={() => {
+                            handleAbrirProntuario(paciente);
+                            setActiveSection('prontuario');
+                          }}
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          Ver informações do paciente
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  };
 
   
   const renderProntuarioSection = () => (
@@ -2286,6 +2424,18 @@ function LaudoEditor() {
   );
 
   
+  const renderDebugSection = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Debug da API</h2>
+        <p className="text-gray-600 mb-6">
+          Use esta seção para testar a conectividade com a API e debugar problemas de busca de pacientes.
+        </p>
+      </div>
+      <ApiTest />
+    </div>
+  );
+
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'calendario':
@@ -2302,6 +2452,8 @@ function LaudoEditor() {
         return renderRelatoriosMedicosSection();
       case 'perfil':
         return renderPerfilSection();
+      case 'debug':
+        return renderDebugSection();
       default:
         return renderCalendarioSection();
     }
@@ -2395,6 +2547,14 @@ function LaudoEditor() {
             >
               <Settings className="mr-2 h-4 w-4" />
               Meu Perfil
+            </Button>
+            <Button 
+              variant={activeSection === 'debug' ? 'default' : 'ghost'} 
+              className="w-full justify-start cursor-pointer hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              onClick={() => setActiveSection('debug')}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Debug API
             </Button>
           </nav>
         </aside>

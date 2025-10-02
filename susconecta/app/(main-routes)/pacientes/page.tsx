@@ -10,34 +10,29 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Eye, Edit, Trash2, ArrowLeft } from "lucide-react";
 
-import { Paciente, Endereco, listarPacientes, buscarPacientePorId, excluirPaciente } from "@/lib/api";
+import { Paciente, Endereco, listarPacientes, buscarPacientes, buscarPacientePorId, excluirPaciente } from "@/lib/api";
 import { PatientRegistrationForm } from "@/components/forms/patient-registration-form";
 
 
 function normalizePaciente(p: any): Paciente {
-  const endereco: Endereco = {
-    cep: p.endereco?.cep ?? p.cep ?? "",
-    logradouro: p.endereco?.logradouro ?? p.street ?? "",
-    numero: p.endereco?.numero ?? p.number ?? "",
-    complemento: p.endereco?.complemento ?? p.complement ?? "",
-    bairro: p.endereco?.bairro ?? p.neighborhood ?? "",
-    cidade: p.endereco?.cidade ?? p.city ?? "",
-    estado: p.endereco?.estado ?? p.state ?? "",
-  };
-
   return {
     id: String(p.id ?? p.uuid ?? p.paciente_id ?? ""),
-    nome: p.full_name ?? "",          // 👈 troca nome → full_name
-    nome_social: p.social_name ?? null, // 👈 Supabase usa social_name
+    full_name: p.full_name ?? p.name ?? p.nome ?? "",
+    social_name: p.social_name ?? p.nome_social ?? null,
     cpf: p.cpf ?? "",
-    rg: p.rg ?? p.document_number ?? null, // 👈 às vezes vem como document_number
-    sexo: p.sexo ?? p.sex ?? null,    // 👈 Supabase usa sex
-    data_nascimento: p.data_nascimento ?? p.birth_date ?? null,
-    telefone: p.telefone ?? p.phone_mobile ?? "",
+    rg: p.rg ?? p.document_number ?? null,
+    sex: p.sex ?? p.sexo ?? null,
+    birth_date: p.birth_date ?? p.data_nascimento ?? null,
+    phone_mobile: p.phone_mobile ?? p.telefone ?? "",
     email: p.email ?? "",
-    endereco,
-    observacoes: p.observacoes ?? p.notes ?? null,
-    foto_url: p.foto_url ?? null,
+    cep: p.cep ?? "",
+    street: p.street ?? p.logradouro ?? "",
+    number: p.number ?? p.numero ?? "",
+    complement: p.complement ?? p.complemento ?? "",
+    neighborhood: p.neighborhood ?? p.bairro ?? "",
+    city: p.city ?? p.cidade ?? "",
+    state: p.state ?? p.estado ?? "",
+    notes: p.notes ?? p.observacoes ?? null,
   };
 }
 
@@ -56,7 +51,12 @@ export default function PacientesPage() {
     try {
       setLoading(true);
       const data = await listarPacientes({ page: 1, limit: 20 });
-      setPatients((data ?? []).map(normalizePaciente));
+      
+      if (Array.isArray(data)) {
+        setPatients(data.map(normalizePaciente));
+      } else {
+        setPatients([]);
+      }
       setError(null);
     } catch (e: any) {
       setPatients([]);
@@ -72,13 +72,23 @@ export default function PacientesPage() {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return patients;
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     const qDigits = q.replace(/\D/g, "");
+    
     return patients.filter((p) => {
-      const byName = (p.nome || "").toLowerCase().includes(q);
-      const byCPF = (p.cpf || "").replace(/\D/g, "").includes(qDigits);
-      const byId = String(p.id || "").includes(qDigits);
-      return byName || byCPF || byId;
+      // Busca por nome
+      const byName = (p.full_name || "").toLowerCase().includes(q);
+      
+      // Busca por CPF (remove formatação)
+      const byCPF = qDigits.length >= 3 && (p.cpf || "").replace(/\D/g, "").includes(qDigits);
+      
+      // Busca por ID (UUID completo ou parcial)
+      const byId = (p.id || "").toLowerCase().includes(q);
+      
+      // Busca por email
+      const byEmail = (p.email || "").toLowerCase().includes(q);
+      
+      return byName || byCPF || byId || byEmail;
     });
   }, [patients, search]);
 
@@ -122,25 +132,33 @@ export default function PacientesPage() {
     const q = search.trim();
     if (!q) return loadAll();
 
-    
-    if (/^\d+$/.test(q)) {
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Se parece com ID (UUID), busca diretamente
+      if (q.includes('-') && q.length > 10) {
         const one = await buscarPacientePorId(q);
         setPatients(one ? [normalizePaciente(one)] : []);
         setError(one ? null : "Paciente não encontrado.");
-      } catch (e: any) {
-        setPatients([]);
-        setError(e?.message || "Paciente não encontrado.");
-      } finally {
-        setLoading(false);
+        // Limpa o campo de busca para que o filtro não interfira
+        setSearch("");
+        return;
       }
-      return;
-    }
 
-    
-    await loadAll();
-    setTimeout(() => setSearch(q), 0);
+      // Para outros termos, usa busca avançada
+      const results = await buscarPacientes(q);
+      setPatients(results.map(normalizePaciente));
+      setError(results.length === 0 ? "Nenhum paciente encontrado." : null);
+      // Limpa o campo de busca para que o filtro não interfira
+      setSearch("");
+      
+    } catch (e: any) {
+      setPatients([]);
+      setError(e?.message || "Erro na busca.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (loading) return <p>Carregando pacientes...</p>;
@@ -210,11 +228,11 @@ export default function PacientesPage() {
             {filtered.length > 0 ? (
               filtered.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.nome || "(sem nome)"}</TableCell>
+                  <TableCell className="font-medium">{p.full_name || "(sem nome)"}</TableCell>
                   <TableCell>{p.cpf || "-"}</TableCell>
-                  <TableCell>{p.telefone || "-"}</TableCell>
-                  <TableCell>{p.endereco?.cidade || "-"}</TableCell>
-                  <TableCell>{p.endereco?.estado || "-"}</TableCell>
+                  <TableCell>{p.phone_mobile || "-"}</TableCell>
+                  <TableCell>{p.city || "-"}</TableCell>
+                  <TableCell>{p.state || "-"}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -258,13 +276,13 @@ export default function PacientesPage() {
             <DialogHeader>
               <DialogTitle>Detalhes do Paciente</DialogTitle>
               <DialogDescription>
-                Informações detalhadas de {viewingPatient.nome}.
+                Informações detalhadas de {viewingPatient.full_name}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Nome</Label>
-                <span className="col-span-3 font-medium">{viewingPatient.nome}</span>
+                <span className="col-span-3 font-medium">{viewingPatient.full_name}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">CPF</Label>
@@ -272,17 +290,17 @@ export default function PacientesPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Telefone</Label>
-                <span className="col-span-3">{viewingPatient.telefone}</span>
+                <span className="col-span-3">{viewingPatient.phone_mobile}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Endereço</Label>
                 <span className="col-span-3">
-                  {`${viewingPatient.endereco?.logradouro || ''}, ${viewingPatient.endereco?.numero || ''} - ${viewingPatient.endereco?.bairro || ''}, ${viewingPatient.endereco?.cidade || ''} - ${viewingPatient.endereco?.estado || ''}`}
+                  {`${viewingPatient.street || ''}, ${viewingPatient.number || ''} - ${viewingPatient.neighborhood || ''}, ${viewingPatient.city || ''} - ${viewingPatient.state || ''}`}
                 </span>
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Observações</Label>
-                <span className="col-span-3">{viewingPatient.observacoes || "Nenhuma"}</span>
+                <span className="col-span-3">{viewingPatient.notes || "Nenhuma"}</span>
               </div>
             </div>
             <DialogFooter>

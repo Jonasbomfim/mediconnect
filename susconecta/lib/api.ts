@@ -426,11 +426,49 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
 }
 
 export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
-  const url = `${REST}/doctors?id=eq.${id}`;
-  const res = await fetch(url, { method: "GET", headers: baseHeaders() });
-  const arr = await parse<Medico[]>(res);
-  if (!arr?.length) throw new Error("404: Médico não encontrado");
-  return arr[0];
+  // Primeiro tenta buscar no Supabase (dados reais)
+  try {
+    const url = `${REST}/doctors?id=eq.${id}`;
+    const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+    const arr = await parse<Medico[]>(res);
+    if (arr && arr.length > 0) {
+      console.log('✅ Médico encontrado no Supabase:', arr[0]);
+      console.log('🔍 Campo especialidade no médico:', {
+        especialidade: arr[0].especialidade,
+        specialty: (arr[0] as any).specialty,
+        hasEspecialidade: !!arr[0].especialidade,
+        hasSpecialty: !!((arr[0] as any).specialty)
+      });
+      return arr[0];
+    }
+  } catch (error) {
+    console.warn('⚠️ Erro ao buscar no Supabase, tentando mock API:', error);
+  }
+  
+  // Se não encontrar no Supabase, tenta o mock API
+  try {
+    const url = `https://mock.apidog.com/m1/1053378-0-default/rest/v1/doctors/${id}`;
+    const res = await fetch(url, { 
+      method: "GET", 
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+    
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("404: Médico não encontrado");
+      }
+      throw new Error(`Erro ao buscar médico: ${res.status} ${res.statusText}`);
+    }
+    
+    const medico = await res.json();
+    console.log('✅ Médico encontrado no Mock API:', medico);
+    return medico as Medico;
+  } catch (error) {
+    console.error('❌ Erro ao buscar médico em ambas as APIs:', error);
+    throw new Error("404: Médico não encontrado");
+  }
 }
 
 // Dentro de lib/api.ts
@@ -452,14 +490,60 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
 
 
 export async function atualizarMedico(id: string | number, input: MedicoInput): Promise<Medico> {
-  const url = `${REST}/doctors?id=eq.${id}`;
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input),
-  });
-  const arr = await parse<Medico[] | Medico>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Medico);
+  console.log(`🔄 Tentando atualizar médico ID: ${id}`);
+  console.log(`📤 Payload original:`, input);
+  
+  // Criar um payload limpo apenas com campos básicos que sabemos que existem
+  const cleanPayload = {
+    full_name: input.full_name,
+    crm: input.crm,
+    specialty: input.specialty,
+    email: input.email,
+    phone_mobile: input.phone_mobile,
+    cpf: input.cpf,
+    cep: input.cep,
+    street: input.street,
+    number: input.number,
+    city: input.city,
+    state: input.state,
+    active: input.active ?? true
+  };
+  
+  console.log(`📤 Payload limpo:`, cleanPayload);
+  
+  // Atualizar apenas no Supabase (dados reais)
+  try {
+    const url = `${REST}/doctors?id=eq.${id}`;
+    console.log(`🌐 URL de atualização: ${url}`);
+    
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
+      body: JSON.stringify(cleanPayload),
+    });
+    
+    console.log(`📡 Resposta do servidor: ${res.status} ${res.statusText}`);
+    
+    if (res.ok) {
+      const arr = await parse<Medico[] | Medico>(res);
+      const result = Array.isArray(arr) ? arr[0] : (arr as Medico);
+      console.log('✅ Médico atualizado no Supabase:', result);
+      return result;
+    } else {
+      // Vamos tentar ver o erro detalhado
+      const errorText = await res.text();
+      console.error(`❌ Erro detalhado do Supabase:`, {
+        status: res.status,
+        statusText: res.statusText,
+        response: errorText,
+        headers: Object.fromEntries(res.headers.entries())
+      });
+      throw new Error(`Supabase error: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao atualizar médico:', error);
+    throw error;
+  }
 }
 
 export async function excluirMedico(id: string | number): Promise<void> {

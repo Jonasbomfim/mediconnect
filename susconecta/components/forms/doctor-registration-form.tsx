@@ -158,40 +158,65 @@ export function DoctorRegistrationForm({
       try {
         console.log("[DoctorForm] Carregando médico ID:", doctorId);
         const medico = await buscarMedicoPorId(String(doctorId));
-        console.log("[DoctorForm] Dados recebidos:", medico);
-        if (!alive) return;
-        setForm({
-          photo: null,
-          full_name: medico.full_name ?? "",
-          nome_social: medico.nome_social ?? "",
-          crm: medico.crm ?? "",
-          estado_crm: medico.estado_crm ?? "",
-          rqe: medico.rqe ?? "",
-          formacao_academica: medico.formacao_academica ?? [],
-          curriculo: null, 
-          especialidade: medico.especialidade ?? "",
-          cpf: medico.cpf ?? "",
-          rg: medico.rg ?? "",
-          sexo: medico.sexo ?? "",
-          data_nascimento: medico.data_nascimento ?? "",
-          email: medico.email ?? "",
-          telefone: medico.telefone ?? "",
-          celular: medico.celular ?? "",
-          contato_emergencia: medico.contato_emergencia ?? "",
-          cep: "",
-          logradouro: "",
-          numero: "",
-          complemento: "",
-          bairro: "",
-          cidade: "",
-          estado: "",
-          observacoes: medico.observacoes ?? "",
-          anexos: [],
-          tipo_vinculo: medico.tipo_vinculo ?? "",
-          dados_bancarios: medico.dados_bancarios ?? { banco: "", agencia: "", conta: "", tipo_conta: "" },
-          agenda_horario: medico.agenda_horario ?? "",
-          valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
+        console.log("[DoctorForm] Dados recebidos do API:", medico);
+        console.log("[DoctorForm] Campos principais:", {
+          full_name: medico.full_name,
+          crm: medico.crm,
+          especialidade: medico.especialidade,
+          specialty: (medico as any).specialty,
+          cpf: medico.cpf,
+          email: medico.email
         });
+        console.log("[DoctorForm] Verificando especialidade:", {
+          'medico.especialidade': medico.especialidade,
+          'medico.specialty': (medico as any).specialty,
+          'typeof especialidade': typeof medico.especialidade,
+          'especialidade length': medico.especialidade?.length
+        });
+        if (!alive) return;
+        
+        // Busca a especialidade em diferentes campos possíveis
+        const especialidade = medico.especialidade || 
+                              (medico as any).specialty || 
+                              (medico as any).speciality || 
+                              "";
+        console.log('🎯 Especialidade encontrada:', especialidade);
+        
+        const formData = {
+          photo: null,
+          full_name: String(medico.full_name || ""),
+          nome_social: String(medico.nome_social || ""),
+          crm: String(medico.crm || ""),
+          estado_crm: String(medico.estado_crm || ""),
+          rqe: String(medico.rqe || ""),
+          formacao_academica: Array.isArray(medico.formacao_academica) ? medico.formacao_academica : [],
+          curriculo: null, 
+          especialidade: String(especialidade),
+          cpf: String(medico.cpf || ""),
+          rg: String(medico.rg || ""),
+          sexo: String(medico.sexo || ""),
+          data_nascimento: String(medico.data_nascimento || ""),
+          email: String(medico.email || ""),
+          telefone: String(medico.telefone || ""),
+          celular: String(medico.celular || ""),
+          contato_emergencia: String(medico.contato_emergencia || ""),
+          cep: String(medico.cep || ""),
+          logradouro: String(medico.street || ""),
+          numero: String(medico.number || ""),
+          complemento: String(medico.complement || ""),
+          bairro: String(medico.neighborhood || ""),
+          cidade: String(medico.city || ""),
+          estado: String(medico.state || ""),
+          observacoes: String(medico.observacoes || ""),
+          anexos: [],
+          tipo_vinculo: String(medico.tipo_vinculo || ""),
+          dados_bancarios: medico.dados_bancarios || { banco: "", agencia: "", conta: "", tipo_conta: "" },
+          agenda_horario: String(medico.agenda_horario || ""),
+          valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
+        };
+        
+        console.log("[DoctorForm] Dados do formulário preparados:", formData);
+        setForm(formData);
 
         try {
           const list = await listarAnexosMedico(String(doctorId));
@@ -317,44 +342,62 @@ async function handleSubmit(ev: React.FormEvent) {
   setErrors((e) => ({ ...e, submit: "" }));
 
 const payload: MedicoInput = {
-  user_id: null, // ou o UUID real
-  crm: form.crm,
-  crm_uf: form.estado_crm,
-  specialty: form.especialidade,
-  full_name: form.full_name,
-  cpf: form.cpf,
-  email: form.email,
-  phone_mobile: form.celular,
+  user_id: null,
+  crm: form.crm || "",
+  crm_uf: form.estado_crm || "",
+  specialty: form.especialidade || "",
+  full_name: form.full_name || "",
+  cpf: form.cpf || "",
+  email: form.email || "",
+  phone_mobile: form.celular || "",
   phone2: form.telefone || null,
-  cep: form.cep,
-  street: form.logradouro,
-  number: form.numero,
-  complement: form.complemento,
-  neighborhood: form.bairro,
-  city: form.cidade,
-  state: form.estado,
+  cep: form.cep || "",
+  street: form.logradouro || "",
+  number: form.numero || "",
+  complement: form.complemento || undefined,
+  neighborhood: form.bairro || undefined,
+  city: form.cidade || "",
+  state: form.estado || "",
   birth_date: form.data_nascimento || null,
   rg: form.rg || null,
   active: true,
-  created_by: null, // ou o UUID real
-  updated_by: null, // ou o UUID real
+  created_by: null,
+  updated_by: null,
 };
 
+// Validação dos campos obrigatórios
+const requiredFields = ['crm', 'crm_uf', 'specialty', 'full_name', 'cpf', 'email', 'phone_mobile', 'cep', 'street', 'number', 'city', 'state'];
+const missingFields = requiredFields.filter(field => !payload[field as keyof MedicoInput]);
+
+if (missingFields.length > 0) {
+  console.warn('⚠️ Campos obrigatórios vazios:', missingFields);
+}
 
 
-  console.log("Payload being sent:", payload); // Verifique se o payload está correto
+
+  console.log("📤 Payload being sent:", payload);
+  console.log("🔧 Mode:", mode, "DoctorId:", doctorId);
 
   try {
+    if (mode === "edit" && !doctorId) {
+      throw new Error("ID do médico não fornecido para edição");
+    }
+    
     const saved = mode === "create"
       ? await criarMedico(payload)
-      : await atualizarMedico(doctorId as number, payload);
+      : await atualizarMedico(String(doctorId), payload);
 
-    console.log("Médico salvo com sucesso", saved);  // Verifique se o médico foi salvo
+    console.log("✅ Médico salvo com sucesso:", saved);
 
     onSaved?.(saved);
     setSubmitting(false);
   } catch (err: any) {
-    console.error("Erro ao salvar médico:", err);
+    console.error("❌ Erro ao salvar médico:", err);
+    console.error("❌ Detalhes do erro:", {
+      message: err?.message,
+      status: err?.status,
+      stack: err?.stack
+    });
     setErrors((e) => ({ ...e, submit: err?.message || "Erro ao salvar médico" }));
   } finally {
     setSubmitting(false);

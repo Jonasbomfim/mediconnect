@@ -361,6 +361,70 @@ export async function listarMedicos(params?: {
   return await parse<Medico[]>(res);
 }
 
+// Nova função para busca avançada de médicos
+export async function buscarMedicos(termo: string): Promise<Medico[]> {
+  if (!termo || termo.trim().length < 2) {
+    return [];
+  }
+  
+  const searchTerm = termo.toLowerCase().trim();
+  const digitsOnly = searchTerm.replace(/\D/g, '');
+  
+  // Monta queries para buscar em múltiplos campos
+  const queries = [];
+  
+  // Busca por ID se parece com UUID
+  if (searchTerm.includes('-') && searchTerm.length > 10) {
+    queries.push(`id=eq.${searchTerm}`);
+  }
+  
+  // Busca por CRM (com e sem formatação)
+  if (digitsOnly.length >= 3) {
+    queries.push(`crm=ilike.*${digitsOnly}*`);
+  }
+  
+  // Busca por nome (usando ilike para busca case-insensitive)
+  if (searchTerm.length >= 2) {
+    queries.push(`full_name=ilike.*${searchTerm}*`);
+    queries.push(`nome_social=ilike.*${searchTerm}*`);
+  }
+  
+  // Busca por email se contém @
+  if (searchTerm.includes('@')) {
+    queries.push(`email=ilike.*${searchTerm}*`);
+  }
+  
+  // Busca por especialidade
+  if (searchTerm.length >= 2) {
+    queries.push(`specialty=ilike.*${searchTerm}*`);
+  }
+  
+  const results: Medico[] = [];
+  const seenIds = new Set<string>();
+  
+  // Executa as buscas e combina resultados únicos
+  for (const query of queries) {
+    try {
+      const url = `${REST}/doctors?${query}&limit=10`;
+      const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+      const arr = await parse<Medico[]>(res);
+      
+      if (arr?.length > 0) {
+        for (const medico of arr) {
+          if (!seenIds.has(medico.id)) {
+            seenIds.add(medico.id);
+            results.push(medico);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Erro na busca com query: ${query}`, error);
+    }
+  }
+  
+  return results.slice(0, 20); // Limita a 20 resultados
+}
+
 export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
   const url = `${REST}/doctors?id=eq.${id}`;
   const res = await fetch(url, { method: "GET", headers: baseHeaders() });

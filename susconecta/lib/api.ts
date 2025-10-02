@@ -26,31 +26,43 @@ export type Endereco = {
 // ===== PACIENTES =====
 export type Paciente = {
   id: string;
-  nome?: string;
-  nome_social?: string | null;
+  full_name: string;
+  social_name?: string | null;
   cpf?: string;
   rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string;
+  sex?: string | null;
+  birth_date?: string | null;
+  phone_mobile?: string;
   email?: string;
-  endereco?: Endereco;
-  observacoes?: string | null;
-  foto_url?: string | null;
+  cep?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
 };
 
 export type PacienteInput = {
-  nome: string;
-  nome_social?: string | null;
+  full_name: string;
+  social_name?: string | null;
   cpf: string;
   rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string | null;
+  sex?: string | null;
+  birth_date?: string | null;
+  phone_mobile?: string | null;
   email?: string | null;
-  endereco?: Endereco;
-  observacoes?: string | null;
+  cep?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
 };
+
 
 // ===== MÉDICOS =====
 export type FormacaoAcademica = {
@@ -66,9 +78,10 @@ export type DadosBancarios = {
   tipo_conta: string;
 };
 
+// ===== MÉDICOS =====
 export type Medico = {
   id: string;
-  nome?: string;
+  full_name: string;  // Altere 'nome' para 'full_name'
   nome_social?: string | null;
   cpf?: string;
   rg?: string | null;
@@ -90,31 +103,50 @@ export type Medico = {
   dados_bancarios?: DadosBancarios;
   agenda_horario?: string;
   valor_consulta?: number | string;
+  active?: boolean;
+  cep?: string;
+  city?: string;
+  complement?: string;
+  neighborhood?: string;
+  number?: string;
+  phone2?: string;
+  state?: string;
+  street?: string;
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+  updated_by?: string;
+  user_id?: string;
 };
 
+
+// ===== MÉDICOS =====
+// ...existing code...
 export type MedicoInput = {
-  nome: string;
-  nome_social?: string | null;
-  cpf?: string | null;
-  rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string | null;
-  celular?: string | null;
-  contato_emergencia?: string | null;
-  email?: string | null;
+  user_id?: string | null;
   crm: string;
-  estado_crm?: string | null;
-  rqe?: string | null;
-  formacao_academica?: FormacaoAcademica[];
-  curriculo_url?: string | null;
-  especialidade: string;
-  observacoes?: string | null;
-  tipo_vinculo?: string | null;
-  dados_bancarios?: DadosBancarios | null;
-  agenda_horario?: string | null;
-  valor_consulta?: number | string | null;
+  crm_uf: string;
+  specialty: string;
+  full_name: string;
+  cpf: string;
+  email: string;
+  phone_mobile: string;
+  phone2?: string | null;
+  cep: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  birth_date: string | null;
+  rg?: string | null;
+  active?: boolean;
+  created_by?: string | null;
+  updated_by?: string | null;
 };
+
+
 
 // ===== CONFIG =====
 const API_BASE =
@@ -154,15 +186,20 @@ async function parse<T>(res: Response): Promise<T> {
   let json: any = null;
   try {
     json = await res.json();
-  } catch {}
+  } catch (err) {
+    console.error("Erro ao parsear a resposta:", err);
+  }
+
   if (!res.ok) {
     console.error("[API ERROR]", res.url, res.status, json);
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message)) ?? res.statusText;
     throw new Error(`${code}: ${msg}`);
   }
+
   return (json?.data ?? json) as T;
 }
+
 
 // Helper de paginação (Range/Range-Unit)
 function rangeHeaders(page?: number, limit?: number): Record<string, string> {
@@ -190,6 +227,68 @@ export async function listarPacientes(params?: {
     },
   });
   return await parse<Paciente[]>(res);
+}
+
+
+// Nova função para busca avançada de pacientes
+export async function buscarPacientes(termo: string): Promise<Paciente[]> {
+  if (!termo || termo.trim().length < 2) {
+    return [];
+  }
+  
+  const searchTerm = termo.toLowerCase().trim();
+  const digitsOnly = searchTerm.replace(/\D/g, '');
+  
+  // Monta queries para buscar em múltiplos campos
+  const queries = [];
+  
+  // Busca por ID se parece com UUID
+  if (searchTerm.includes('-') && searchTerm.length > 10) {
+    queries.push(`id=eq.${searchTerm}`);
+  }
+  
+  // Busca por CPF (com e sem formatação)
+  if (digitsOnly.length >= 11) {
+    queries.push(`cpf=eq.${digitsOnly}`);
+  } else if (digitsOnly.length >= 3) {
+    queries.push(`cpf=ilike.*${digitsOnly}*`);
+  }
+  
+  // Busca por nome (usando ilike para busca case-insensitive)
+  if (searchTerm.length >= 2) {
+    queries.push(`full_name=ilike.*${searchTerm}*`);
+    queries.push(`social_name=ilike.*${searchTerm}*`);
+  }
+  
+  // Busca por email se contém @
+  if (searchTerm.includes('@')) {
+    queries.push(`email=ilike.*${searchTerm}*`);
+  }
+  
+  const results: Paciente[] = [];
+  const seenIds = new Set<string>();
+  
+  // Executa as buscas e combina resultados únicos
+  for (const query of queries) {
+    try {
+      const url = `${REST}/patients?${query}&limit=10`;
+      const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+      const arr = await parse<Paciente[]>(res);
+      
+      if (arr?.length > 0) {
+        for (const paciente of arr) {
+          if (!seenIds.has(paciente.id)) {
+            seenIds.add(paciente.id);
+            results.push(paciente);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Erro na busca com query: ${query}`, error);
+    }
+  }
+  
+  return results.slice(0, 20); // Limita a 20 resultados
 }
 
 export async function buscarPacientePorId(id: string | number): Promise<Paciente> {
@@ -262,34 +361,189 @@ export async function listarMedicos(params?: {
   return await parse<Medico[]>(res);
 }
 
-export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
-  const url = `${REST}/doctors?id=eq.${id}`;
-  const res = await fetch(url, { method: "GET", headers: baseHeaders() });
-  const arr = await parse<Medico[]>(res);
-  if (!arr?.length) throw new Error("404: Médico não encontrado");
-  return arr[0];
+// Nova função para busca avançada de médicos
+export async function buscarMedicos(termo: string): Promise<Medico[]> {
+  if (!termo || termo.trim().length < 2) {
+    return [];
+  }
+  
+  const searchTerm = termo.toLowerCase().trim();
+  const digitsOnly = searchTerm.replace(/\D/g, '');
+  
+  // Monta queries para buscar em múltiplos campos
+  const queries = [];
+  
+  // Busca por ID se parece com UUID
+  if (searchTerm.includes('-') && searchTerm.length > 10) {
+    queries.push(`id=eq.${searchTerm}`);
+  }
+  
+  // Busca por CRM (com e sem formatação)
+  if (digitsOnly.length >= 3) {
+    queries.push(`crm=ilike.*${digitsOnly}*`);
+  }
+  
+  // Busca por nome (usando ilike para busca case-insensitive)
+  if (searchTerm.length >= 2) {
+    queries.push(`full_name=ilike.*${searchTerm}*`);
+    queries.push(`nome_social=ilike.*${searchTerm}*`);
+  }
+  
+  // Busca por email se contém @
+  if (searchTerm.includes('@')) {
+    queries.push(`email=ilike.*${searchTerm}*`);
+  }
+  
+  // Busca por especialidade
+  if (searchTerm.length >= 2) {
+    queries.push(`specialty=ilike.*${searchTerm}*`);
+  }
+  
+  const results: Medico[] = [];
+  const seenIds = new Set<string>();
+  
+  // Executa as buscas e combina resultados únicos
+  for (const query of queries) {
+    try {
+      const url = `${REST}/doctors?${query}&limit=10`;
+      const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+      const arr = await parse<Medico[]>(res);
+      
+      if (arr?.length > 0) {
+        for (const medico of arr) {
+          if (!seenIds.has(medico.id)) {
+            seenIds.add(medico.id);
+            results.push(medico);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Erro na busca com query: ${query}`, error);
+    }
+  }
+  
+  return results.slice(0, 20); // Limita a 20 resultados
 }
 
+export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
+  // Primeiro tenta buscar no Supabase (dados reais)
+  try {
+    const url = `${REST}/doctors?id=eq.${id}`;
+    const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+    const arr = await parse<Medico[]>(res);
+    if (arr && arr.length > 0) {
+      console.log('✅ Médico encontrado no Supabase:', arr[0]);
+      console.log('🔍 Campo especialidade no médico:', {
+        especialidade: arr[0].especialidade,
+        specialty: (arr[0] as any).specialty,
+        hasEspecialidade: !!arr[0].especialidade,
+        hasSpecialty: !!((arr[0] as any).specialty)
+      });
+      return arr[0];
+    }
+  } catch (error) {
+    console.warn('⚠️ Erro ao buscar no Supabase, tentando mock API:', error);
+  }
+  
+  // Se não encontrar no Supabase, tenta o mock API
+  try {
+    const url = `https://mock.apidog.com/m1/1053378-0-default/rest/v1/doctors/${id}`;
+    const res = await fetch(url, { 
+      method: "GET", 
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+    
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("404: Médico não encontrado");
+      }
+      throw new Error(`Erro ao buscar médico: ${res.status} ${res.statusText}`);
+    }
+    
+    const medico = await res.json();
+    console.log('✅ Médico encontrado no Mock API:', medico);
+    return medico as Medico;
+  } catch (error) {
+    console.error('❌ Erro ao buscar médico em ambas as APIs:', error);
+    throw new Error("404: Médico não encontrado");
+  }
+}
+
+// Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
-  const url = `${REST}/doctors`;
+  console.log("Enviando os dados para a API:", input);  // Log para depuração
+  
+  const url = `${REST}/doctors`;  // Endpoint de médicos
   const res = await fetch(url, {
     method: "POST",
     headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input),
+    body: JSON.stringify(input), // Enviando os dados padronizados
   });
-  const arr = await parse<Medico[] | Medico>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Medico);
+
+  const arr = await parse<Medico[] | Medico>(res); // Resposta da API
+  return Array.isArray(arr) ? arr[0] : (arr as Medico);  // Retorno do médico
 }
 
+
+
+
 export async function atualizarMedico(id: string | number, input: MedicoInput): Promise<Medico> {
-  const url = `${REST}/doctors?id=eq.${id}`;
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input),
-  });
-  const arr = await parse<Medico[] | Medico>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Medico);
+  console.log(`🔄 Tentando atualizar médico ID: ${id}`);
+  console.log(`📤 Payload original:`, input);
+  
+  // Criar um payload limpo apenas com campos básicos que sabemos que existem
+  const cleanPayload = {
+    full_name: input.full_name,
+    crm: input.crm,
+    specialty: input.specialty,
+    email: input.email,
+    phone_mobile: input.phone_mobile,
+    cpf: input.cpf,
+    cep: input.cep,
+    street: input.street,
+    number: input.number,
+    city: input.city,
+    state: input.state,
+    active: input.active ?? true
+  };
+  
+  console.log(`📤 Payload limpo:`, cleanPayload);
+  
+  // Atualizar apenas no Supabase (dados reais)
+  try {
+    const url = `${REST}/doctors?id=eq.${id}`;
+    console.log(`🌐 URL de atualização: ${url}`);
+    
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
+      body: JSON.stringify(cleanPayload),
+    });
+    
+    console.log(`📡 Resposta do servidor: ${res.status} ${res.statusText}`);
+    
+    if (res.ok) {
+      const arr = await parse<Medico[] | Medico>(res);
+      const result = Array.isArray(arr) ? arr[0] : (arr as Medico);
+      console.log('✅ Médico atualizado no Supabase:', result);
+      return result;
+    } else {
+      // Vamos tentar ver o erro detalhado
+      const errorText = await res.text();
+      console.error(`❌ Erro detalhado do Supabase:`, {
+        status: res.status,
+        statusText: res.statusText,
+        response: errorText,
+        headers: Object.fromEntries(res.headers.entries())
+      });
+      throw new Error(`Supabase error: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao atualizar médico:', error);
+    throw error;
+  }
 }
 
 export async function excluirMedico(id: string | number): Promise<void> {

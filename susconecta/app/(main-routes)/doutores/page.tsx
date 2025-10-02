@@ -12,12 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
 
 
-import { listarMedicos, excluirMedico, Medico } from "@/lib/api";
+import { listarMedicos, excluirMedico, buscarMedicos, buscarMedicoPorId, Medico } from "@/lib/api";
 
 function normalizeMedico(m: any): Medico {
   return {
     id: String(m.id ?? m.uuid ?? ""),
-    nome: m.nome ?? m.full_name ?? "",        // 👈 Supabase usa full_name
+    full_name: m.full_name ?? m.nome ?? "",        // 👈 Correção: usar full_name como padrão
     nome_social: m.nome_social ?? m.social_name ?? null,
     cpf: m.cpf ?? "",
     rg: m.rg ?? m.document_number ?? null,
@@ -39,6 +39,20 @@ function normalizeMedico(m: any): Medico {
     dados_bancarios: m.dados_bancarios ?? null,
     agenda_horario: m.agenda_horario ?? null,
     valor_consulta: m.valor_consulta ?? null,
+    active: m.active ?? true,
+    cep: m.cep ?? "",
+    city: m.city ?? "",
+    complement: m.complement ?? null,
+    neighborhood: m.neighborhood ?? "",
+    number: m.number ?? "",
+    phone2: m.phone2 ?? null,
+    state: m.state ?? "",
+    street: m.street ?? "",
+    created_at: m.created_at ?? null,
+    created_by: m.created_by ?? null,
+    updated_at: m.updated_at ?? null,
+    updated_by: m.updated_by ?? null,
+    user_id: m.user_id ?? null,
   };
 }
 
@@ -50,33 +64,178 @@ export default function DoutoresPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingDoctor, setViewingDoctor] = useState<Medico | null>(null);
+  const [searchResults, setSearchResults] = useState<Medico[]>([]);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
  
   async function load() {
     setLoading(true);
     try {
      const list = await listarMedicos({ limit: 50 });
-setDoctors((list ?? []).map(normalizeMedico));
+     const normalized = (list ?? []).map(normalizeMedico);
+     console.log('🏥 Médicos carregados:', normalized);
+     setDoctors(normalized);
 
     } finally {
       setLoading(false);
     }
   }
 
+  // Função para detectar se é um UUID válido
+  function isValidUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  }
+
+  // Função para buscar médicos no servidor
+  async function handleBuscarServidor(termoBusca?: string) {
+    const termo = (termoBusca || search).trim();
+    
+    if (!termo) {
+      setSearchMode(false);
+      setSearchResults([]);
+      return;
+    }
+    console.log('🔍 Buscando médico por:', termo);
+    
+    setLoading(true);
+    try {
+      // Se parece com UUID, tenta busca direta por ID
+      if (isValidUUID(termo)) {
+        console.log('📋 Detectado UUID, buscando por ID...');
+        try {
+          const medico = await buscarMedicoPorId(termo);
+          const normalizado = normalizeMedico(medico);
+          console.log('✅ Médico encontrado por ID:', normalizado);
+          setSearchResults([normalizado]);
+          setSearchMode(true);
+          return;
+        } catch (error) {
+          console.log('❌ Não encontrado por ID, tentando busca geral...');
+        }
+      }
+
+      // Busca geral
+      const resultados = await buscarMedicos(termo);
+      const normalizados = resultados.map(normalizeMedico);
+      console.log('📋 Resultados da busca geral:', normalizados);
+      
+      setSearchResults(normalizados);
+      setSearchMode(true);
+    } catch (error) {
+      console.error('❌ Erro na busca:', error);
+      setSearchResults([]);
+      setSearchMode(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Handler para mudança no campo de busca com busca automática
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const valor = e.target.value;
+    setSearch(valor);
+    
+    // Limpa o timeout anterior se existir
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Se limpar a busca, volta ao modo normal
+    if (!valor.trim()) {
+      setSearchMode(false);
+      setSearchResults([]);
+      return;
+    }
+    
+    // Busca automática com debounce ajustável
+    // Para IDs (UUID) longos, faz busca no servidor
+    // Para busca parcial, usa apenas filtro local
+    const isLikeUUID = valor.includes('-') && valor.length > 10;
+    const shouldSearchServer = isLikeUUID || valor.length >= 3;
+    
+    if (shouldSearchServer) {
+      const debounceTime = isLikeUUID ? 300 : 500;
+      const newTimeout = setTimeout(() => {
+        handleBuscarServidor(valor);
+      }, debounceTime);
+      
+      setSearchTimeout(newTimeout);
+    } else {
+      // Para termos curtos, apenas usa filtro local
+      setSearchMode(false);
+      setSearchResults([]);
+    }
+  }
+
+  // Handler para Enter no campo de busca
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleBuscarServidor();
+    }
+  }
+
+  // Handler para o botão de busca
+  function handleClickBuscar() {
+    handleBuscarServidor();
+  }
+
   useEffect(() => {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
+  // Limpa o timeout quando o componente é desmontado
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  // Lista de médicos a exibir (busca ou filtro local)
+  const displayedDoctors = useMemo(() => {
+    console.log('🔍 Filtro - search:', search, 'searchMode:', searchMode, 'doctors:', doctors.length, 'searchResults:', searchResults.length);
+    
+    // Se não tem busca, mostra todos os médicos
     if (!search.trim()) return doctors;
-    const q = search.toLowerCase();
-    return doctors.filter((d) => {
-      const byName = (d.nome || "").toLowerCase().includes(q);
-      const byCrm = (d.crm || "").toLowerCase().includes(q);
+    
+    const q = search.toLowerCase().trim();
+    const qDigits = q.replace(/\D/g, "");
+    
+    // Se estamos em modo de busca (servidor), filtra os resultados da busca
+    const sourceList = searchMode ? searchResults : doctors;
+    console.log('🔍 Usando sourceList:', searchMode ? 'searchResults' : 'doctors', '- tamanho:', sourceList.length);
+    
+    const filtered = sourceList.filter((d) => {
+      // Busca por nome
+      const byName = (d.full_name || "").toLowerCase().includes(q);
+      
+      // Busca por CRM (remove formatação se necessário)
+      const byCrm = qDigits.length >= 3 && (d.crm || "").replace(/\D/g, "").includes(qDigits);
+      
+      // Busca por ID (UUID completo ou parcial)
+      const byId = (d.id || "").toLowerCase().includes(q);
+      
+      // Busca por email
+      const byEmail = (d.email || "").toLowerCase().includes(q);
+      
+      // Busca por especialidade
       const byEspecialidade = (d.especialidade || "").toLowerCase().includes(q);
-      return byName || byCrm || byEspecialidade;
+      
+      const match = byName || byCrm || byId || byEmail || byEspecialidade;
+      if (match) {
+        console.log('✅ Match encontrado:', d.full_name, d.id, 'por:', { byName, byCrm, byId, byEmail, byEspecialidade });
+      }
+      
+      return match;
     });
-  }, [doctors, search]);
+    
+    console.log('🔍 Resultados filtrados:', filtered.length);
+    return filtered;
+  }, [doctors, search, searchMode, searchResults]);
 
   function handleAdd() {
     setEditingId(null);
@@ -139,7 +298,7 @@ setDoctors((list ?? []).map(normalizeMedico));
         <DoctorRegistrationForm
           inline
           mode={editingId ? "edit" : "create"}
-          doctorId={editingId ? Number(editingId) : null}
+          doctorId={editingId}
           onSaved={handleSaved}
           onClose={() => setShowForm(false)}
         />
@@ -156,14 +315,36 @@ setDoctors((list ?? []).map(normalizeMedico));
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-8 w-80"
-              placeholder="Buscar por nome, CRM ou especialidade…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8 w-80"
+                placeholder="Digite para buscar por ID, nome, CRM ou especialidade…"
+                value={search}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyDown}
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleClickBuscar}
+              disabled={loading || !search.trim()}
+            >
+              Buscar
+            </Button>
+            {searchMode && (
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setSearch("");
+                  setSearchMode(false);
+                  setSearchResults([]);
+                }}
+              >
+                Limpar
+              </Button>
+            )}
           </div>
           <Button onClick={handleAdd} disabled={loading}>
             <Plus className="mr-2 h-4 w-4" />
@@ -190,10 +371,10 @@ setDoctors((list ?? []).map(normalizeMedico));
                   Carregando…
                 </TableCell>
               </TableRow>
-            ) : filtered.length > 0 ? (
-              filtered.map((doctor) => (
+            ) : displayedDoctors.length > 0 ? (
+              displayedDoctors.map((doctor) => (
                 <TableRow key={doctor.id}>
-                  <TableCell className="font-medium">{doctor.nome}</TableCell>
+                  <TableCell className="font-medium">{doctor.full_name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{doctor.especialidade}</Badge>
                   </TableCell>
@@ -247,13 +428,13 @@ setDoctors((list ?? []).map(normalizeMedico));
             <DialogHeader>
               <DialogTitle>Detalhes do Médico</DialogTitle>
               <DialogDescription>
-                Informações detalhadas de {viewingDoctor?.nome}.
+                Informações detalhadas de {viewingDoctor?.full_name}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Nome</Label>
-                <span className="col-span-3 font-medium">{viewingDoctor?.nome}</span>
+                <span className="col-span-3 font-medium">{viewingDoctor?.full_name}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Especialidade</Label>
@@ -282,7 +463,7 @@ setDoctors((list ?? []).map(normalizeMedico));
       )}
 
       <div className="text-sm text-muted-foreground">
-        Mostrando {filtered.length} de {doctors.length}
+        Mostrando {displayedDoctors.length} {searchMode ? 'resultado(s) da busca' : `de ${doctors.length}`}
       </div>
     </div>
   );

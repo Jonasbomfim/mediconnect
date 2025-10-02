@@ -37,7 +37,7 @@ type Mode = "create" | "edit";
 export interface PatientRegistrationFormProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  patientId?: number | null;
+  patientId?: string | number | null;
   inline?: boolean;
   mode?: Mode;
   onSaved?: (paciente: Paciente) => void;
@@ -112,7 +112,9 @@ export function PatientRegistrationForm({
     async function load() {
       if (mode !== "edit" || patientId == null) return;
       try {
+        console.log("[PatientForm] Carregando paciente ID:", patientId);
         const p = await buscarPacientePorId(String(patientId));
+        console.log("[PatientForm] Dados recebidos:", p);
         setForm((s) => ({
   ...s,
   nome: p.full_name || "",        // 👈 trocar nome → full_name
@@ -133,13 +135,10 @@ export function PatientRegistrationForm({
   observacoes: p.notes || "",
 }));
 
-
-
-
         const ax = await listarAnexos(String(patientId)).catch(() => []);
         setServerAnexos(Array.isArray(ax) ? ax : []);
-      } catch {
-        
+      } catch (err) {
+        console.error("[PatientForm] Erro ao carregar paciente:", err);
       }
     }
     load();

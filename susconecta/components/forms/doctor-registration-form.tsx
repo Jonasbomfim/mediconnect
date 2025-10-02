@@ -21,8 +21,10 @@ import {
   listarAnexosMedico,
   adicionarAnexoMedico,
   removerAnexoMedico,
-  MedicoInput,
+  MedicoInput,   // 👈 importado do lib/api
+  Medico,        // 👈 adicionado import do tipo Medico
 } from "@/lib/api";
+;
 
 import { buscarCepAPI } from "@/lib/api"; 
 
@@ -39,32 +41,9 @@ type DadosBancarios = {
   tipo_conta: string;
 };
 
-export type Medico = {
-  id: string;
-  nome?: string;
-  nome_social?: string | null;
-  cpf?: string;
-  rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string;
-  celular?: string;
-  contato_emergencia?: string;
-  email?: string;
-  crm?: string;
-  estado_crm?: string;
-  rqe?: string;
-  formacao_academica?: FormacaoAcademica[];
-  curriculo_url?: string | null;
-  especialidade?: string;
-  observacoes?: string | null;
-  foto_url?: string | null;
-  tipo_vinculo?: string;
-  dados_bancarios?: DadosBancarios;
-  
-  agenda_horario?: string;
-  valor_consulta?: number | string;
-};
+
+
+
 
 type Mode = "create" | "edit";
 
@@ -80,7 +59,7 @@ export interface DoctorRegistrationFormProps {
 
 type FormData = {
   photo: File | null;
-  nome: string;
+  full_name: string;  // Substitua 'nome' por 'full_name'
   nome_social: string;
   crm: string;
   estado_crm: string;
@@ -107,14 +86,13 @@ type FormData = {
   anexos: File[];
   tipo_vinculo: string;
   dados_bancarios: DadosBancarios;
-  
   agenda_horario: string;
   valor_consulta: string;
 };
 
 const initial: FormData = {
   photo: null,
-  nome: "",
+  full_name: "",
   nome_social: "",
   crm: "",
   estado_crm: "",
@@ -128,7 +106,7 @@ const initial: FormData = {
   data_nascimento: "",
   email: "",
   telefone: "",
-  celular: "",
+  celular: "",  // Aqui, 'celular' pode ser 'phone_mobile'
   contato_emergencia: "",
   cep: "",
   logradouro: "",
@@ -149,6 +127,7 @@ const initial: FormData = {
   agenda_horario: "",
   valor_consulta: "",
 };
+
 
 
 
@@ -179,7 +158,7 @@ export function DoctorRegistrationForm({
       if (!alive) return;
       setForm({
         photo: null,
-        nome: medico.nome ?? "",
+        full_name: medico.full_name ?? "",
         nome_social: medico.nome_social ?? "",
         crm: medico.crm ?? "",
         estado_crm: medico.estado_crm ?? "",
@@ -222,10 +201,11 @@ export function DoctorRegistrationForm({
 }, [mode, doctorId]);
 
 
-  function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
-    setForm((s) => ({ ...s, [k]: v }));
-    if (errors[k as string]) setErrors((e) => ({ ...e, [k]: "" }));
-  }
+function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
+  setForm((s) => ({ ...s, [k]: v }));
+  if (errors[k as string]) setErrors((e) => ({ ...e, [k]: "" }));
+}
+
 
 
   function addFormacao() {
@@ -299,81 +279,90 @@ export function DoctorRegistrationForm({
 }
 
 
-  function validateLocal(): boolean {
-    const e: Record<string, string> = {};
-    if (!form.nome.trim()) e.nome = "Nome é obrigatório";
-    if (!form.cpf.trim()) e.cpf = "CPF é obrigatório";
-    if (!form.crm.trim()) e.crm = "CRM é obrigatório";
-    if (!form.especialidade.trim()) e.especialidade = "Especialidade é obrigatória";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
+ function validateLocal(): boolean {
+  const e: Record<string, string> = {};
 
-  async function handleSubmit(ev: React.FormEvent) {
+  if (!form.full_name.trim()) e.full_name = "Nome é obrigatório";
+  if (!form.cpf.trim()) e.cpf = "CPF é obrigatório";
+  if (!form.crm.trim()) e.crm = "CRM é obrigatório";
+  if (!form.especialidade.trim()) e.especialidade = "Especialidade é obrigatória";
+  if (!form.cep.trim()) e.cep = "CEP é obrigatório";  // Verifique se o CEP está preenchido
+  if (!form.bairro.trim()) e.bairro = "Bairro é obrigatório";  // Verifique se o bairro está preenchido
+  if (!form.cidade.trim()) e.cidade = "Cidade é obrigatória";  // Verifique se a cidade está preenchida
+  
+  setErrors(e);
+  return Object.keys(e).length === 0;
+}
+
+
+
+async function handleSubmit(ev: React.FormEvent) {
   ev.preventDefault();
-  if (!validateLocal()) return;
+  console.log("Submitting the form...");  // Verifique se a função está sendo chamada
+
+  if (!validateLocal()) {
+    console.log("Validation failed");
+    return; // Se a validação falhar, saia da função.
+  }
 
   setSubmitting(true);
   setErrors((e) => ({ ...e, submit: "" }));
 
-  try {
-    const payload: MedicoInput = {
-      nome: form.nome,
-      nome_social: form.nome_social || null,
-      cpf: form.cpf || null,
-      rg: form.rg || null,
-      sexo: form.sexo || null,
-      data_nascimento: form.data_nascimento || null,
-      telefone: form.telefone || null,
-      celular: form.celular || null,
-      contato_emergencia: form.contato_emergencia || null,
-      email: form.email || null,
-      crm: form.crm,
-      estado_crm: form.estado_crm || null,
-      rqe: form.rqe || null,
-      formacao_academica: form.formacao_academica ?? [],
-      curriculo_url: null, 
-      especialidade: form.especialidade,
-      observacoes: form.observacoes || null,
-      tipo_vinculo: form.tipo_vinculo || null,
-      dados_bancarios: form.dados_bancarios ?? null,
-      agenda_horario: form.agenda_horario || null,
-      valor_consulta: form.valor_consulta || null,
-    };
+const payload: MedicoInput = {
+  full_name: form.full_name,
+  nome_social: form.nome_social || null,
+  cpf: form.cpf || "",
+  rg: form.rg || null,
+  sexo: form.sexo || null,
+  data_nascimento: form.data_nascimento || null,
+  celular: form.celular || "",
+  email: form.email || undefined,
+  crm: form.crm,
+  crm_uf: form.estado_crm || null,
+  rqe: form.rqe || null,
+  formacao_academica: form.formacao_academica,
+  especialidade: form.especialidade || "",
+  observacoes: form.observacoes || null,
+  tipo_vinculo: form.tipo_vinculo || null,
+  dados_bancarios: form.dados_bancarios || null, // Remova se não for necessário
+  valor_consulta: form.valor_consulta || null,
+  active: true, 
+  cep: form.cep || null,
+  city: form.cidade || null,
+  complement: form.complemento || null,
+  neighborhood: form.bairro || null,
+  number: form.numero || null,
+  phone2: form.telefone || null, // Ajustar conforme necessário
+  state: form.estado || null,
+  street: form.logradouro || null,
+  created_by: 'user_id',
+  updated_by: 'user_id',
+};
 
+
+
+  console.log("Payload being sent:", payload); // Verifique se o payload está correto
+
+  try {
     const saved = mode === "create"
       ? await criarMedico(payload)
       : await atualizarMedico(doctorId as number, payload);
 
-    const medicoId = saved.id;
-
-    if (form.photo) {
-      try {
-        await uploadFotoMedico(medicoId, form.photo);
-      } catch (e) {
-        console.warn("Falha ao enviar foto:", e);
-      }
-    }
-
-    if (form.anexos?.length) {
-      for (const f of form.anexos) {
-        try {
-          await adicionarAnexoMedico(medicoId, f);
-        } catch (e) {
-          console.warn("Falha ao enviar anexo:", f.name, e);
-        }
-      }
-    }
+    console.log("Médico salvo com sucesso", saved);  // Verifique se o médico foi salvo
 
     onSaved?.(saved);
-    if (inline) onClose?.();
-    else onOpenChange?.(false);
+    setSubmitting(false);
   } catch (err: any) {
+    console.error("Erro ao salvar médico:", err);
     setErrors((e) => ({ ...e, submit: err?.message || "Erro ao salvar médico" }));
   } finally {
     setSubmitting(false);
   }
 }
+
+
+
+
 
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -449,8 +438,10 @@ export function DoctorRegistrationForm({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Nome *</Label>
-                    <Input value={form.nome} onChange={(e) => setField("nome", e.target.value)} className={errors.nome ? "border-destructive" : ""} />
-                    {errors.nome && <p className="text-sm text-destructive">{errors.nome}</p>}
+                  <Input value={form.full_name} onChange={(e) => setField("full_name", e.target.value)} />
+
+
+                    {errors.full_name && <p className="text-sm text-destructive">{errors.full_name}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Nome Social</Label>
@@ -471,16 +462,21 @@ export function DoctorRegistrationForm({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Especialidade *</Label>
-                        <Input value={form.especialidade} onChange={(e) => setField("especialidade", e.target.value)} className={errors.especialidade ? "border-destructive" : ""} />
-                        {errors.especialidade && <p className="text-sm text-destructive">{errors.especialidade}</p>}
-                    </div>
-                    <div className="space-y-2">
-                        <Label>RQE</Label>
-                        <Input value={form.rqe} onChange={(e) => setField("rqe", e.target.value)} />
-                    </div>
-                </div>
+  <div className="space-y-2">
+    <Label>Especialidade *</Label>
+    <Input 
+      value={form.especialidade} // Mantenha o nome no form como 'especialidade'
+      onChange={(e) => setField("especialidade", e.target.value)} // Envia o valor correto
+      className={errors.especialidade ? "border-destructive" : ""}
+    />
+    {errors.especialidade && <p className="text-sm text-destructive">{errors.especialidade}</p>}
+  </div>
+  <div className="space-y-2">
+    <Label>RQE</Label>
+    <Input value={form.rqe} onChange={(e) => setField("rqe", e.target.value)} />
+  </div>
+</div>
+
 
                 <div className="space-y-2">
                     <Label>Currículo</Label>
@@ -629,14 +625,25 @@ export function DoctorRegistrationForm({
                     <Label>E-mail</Label>
                     <Input value={form.email} onChange={(e) => setField("email", e.target.value)} />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Telefone</Label>
-                    <Input 
-                      value={form.telefone} 
-                      onChange={(e) => setField("telefone", formatPhone(e.target.value))}
-                      placeholder="(XX) XXXXX-XXXX"
-                    />
-                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+  <div className="space-y-2">
+    <Label>Telefone</Label>
+    <Input
+      value={form.telefone}
+      onChange={(e) => setField("telefone", formatPhone(e.target.value))}
+      placeholder="(XX) XXXXX-XXXX"
+    />
+  </div>
+  <div className="space-y-2">
+    <Label>Celular</Label>
+    <Input
+      value={form.celular} 
+      onChange={(e) => setField("celular", formatPhone(e.target.value))}
+      placeholder="(XX) XXXXX-XXXX"
+    />
+  </div>
+</div>
+
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -703,11 +710,14 @@ export function DoctorRegistrationForm({
 
                 <div className="space-y-2">
                   <Label>Agenda/Horário</Label>
-                  <Textarea
-                    value={form.agenda_horario}
-                    onChange={(e) => setField("agenda_horario", e.target.value)}
-                    placeholder="Descreva os dias e horários de atendimento"
-                  />
+                  // Dentro do form, apenas exiba o campo se precisar dele visualmente, mas não envie
+<textarea
+  value={form.agenda_horario}
+  onChange={(e) => setField("agenda_horario", e.target.value)}
+  placeholder="Descreva os dias e horários de atendimento"
+  disabled={true}  // Torne o campo apenas visual, sem enviar
+/>
+
                 </div>
 
                 <div className="space-y-4">

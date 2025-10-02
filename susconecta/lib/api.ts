@@ -26,31 +26,43 @@ export type Endereco = {
 // ===== PACIENTES =====
 export type Paciente = {
   id: string;
-  nome?: string;
-  nome_social?: string | null;
+  full_name: string;
+  social_name?: string | null;
   cpf?: string;
   rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string;
+  sex?: string | null;
+  birth_date?: string | null;
+  phone_mobile?: string;
   email?: string;
-  endereco?: Endereco;
-  observacoes?: string | null;
-  foto_url?: string | null;
+  cep?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
 };
 
 export type PacienteInput = {
-  nome: string;
-  nome_social?: string | null;
+  full_name: string;
+  social_name?: string | null;
   cpf: string;
   rg?: string | null;
-  sexo?: string | null;
-  data_nascimento?: string | null;
-  telefone?: string | null;
+  sex?: string | null;
+  birth_date?: string | null;
+  phone_mobile?: string | null;
   email?: string | null;
-  endereco?: Endereco;
-  observacoes?: string | null;
+  cep?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
 };
+
 
 // ===== MÉDICOS =====
 export type FormacaoAcademica = {
@@ -66,9 +78,10 @@ export type DadosBancarios = {
   tipo_conta: string;
 };
 
+// ===== MÉDICOS =====
 export type Medico = {
   id: string;
-  nome?: string;
+  full_name: string;  // Altere 'nome' para 'full_name'
   nome_social?: string | null;
   cpf?: string;
   rg?: string | null;
@@ -90,21 +103,37 @@ export type Medico = {
   dados_bancarios?: DadosBancarios;
   agenda_horario?: string;
   valor_consulta?: number | string;
+  active?: boolean;
+  cep?: string;
+  city?: string;
+  complement?: string;
+  neighborhood?: string;
+  number?: string;
+  phone2?: string;
+  state?: string;
+  street?: string;
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+  updated_by?: string;
+  user_id?: string;
 };
 
+
+// ===== MÉDICOS =====
 export type MedicoInput = {
-  nome: string;
+  full_name: string;
   nome_social?: string | null;
-  cpf?: string | null;
+  cpf: string;
   rg?: string | null;
   sexo?: string | null;
   data_nascimento?: string | null;
-  telefone?: string | null;
-  celular?: string | null;
-  contato_emergencia?: string | null;
-  email?: string | null;
+  telefone?: string;
+  celular?: string;  // Este é o celular no seu código, mas talvez tenha que ser 'phone_mobile'
+  contato_emergencia?: string;
+  email?: string;
   crm: string;
-  estado_crm?: string | null;
+  crm_uf?: string | null;
   rqe?: string | null;
   formacao_academica?: FormacaoAcademica[];
   curriculo_url?: string | null;
@@ -114,7 +143,24 @@ export type MedicoInput = {
   dados_bancarios?: DadosBancarios | null;
   agenda_horario?: string | null;
   valor_consulta?: number | string | null;
+  active?: boolean;
+  cep?: string | null;
+  city?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  number?: string | null;
+  phone2?: string | null;  // Talvez seja o campo correto para o segundo telefone
+  state?: string | null;
+  street?: string | null;
+  created_at?: string;
+  created_by?: string | null;
+  updated_at?: string;
+  updated_by?: string | null;
+  user_id?: string | null;
 };
+
+
+
 
 // ===== CONFIG =====
 const API_BASE =
@@ -150,19 +196,25 @@ function withPrefer(h: Record<string, string>, prefer: string) {
 }
 
 // Parse genérico
+// Dentro de lib/api.ts
 async function parse<T>(res: Response): Promise<T> {
   let json: any = null;
   try {
     json = await res.json();
-  } catch {}
+  } catch (err) {
+    console.error("Erro ao parsear a resposta:", err);  // Coloque esse log aqui
+  }
+
   if (!res.ok) {
-    console.error("[API ERROR]", res.url, res.status, json);
+    console.error("[API ERROR]", res.url, res.status, json);  // Coloque esse log aqui
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message)) ?? res.statusText;
     throw new Error(`${code}: ${msg}`);
   }
+
   return (json?.data ?? json) as T;
 }
+
 
 // Helper de paginação (Range/Range-Unit)
 function rangeHeaders(page?: number, limit?: number): Record<string, string> {
@@ -270,16 +322,23 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
   return arr[0];
 }
 
+// Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
-  const url = `${REST}/doctors`;
+  console.log("Enviando os dados para a API:", input);  // Log para depuração
+  
+  const url = `${REST}/doctors`;  // Endpoint de médicos
   const res = await fetch(url, {
     method: "POST",
     headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input),
+    body: JSON.stringify(input), // Enviando os dados padronizados
   });
-  const arr = await parse<Medico[] | Medico>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Medico);
+
+  const arr = await parse<Medico[] | Medico>(res); // Resposta da API
+  return Array.isArray(arr) ? arr[0] : (arr as Medico);  // Retorno do médico
 }
+
+
+
 
 export async function atualizarMedico(id: string | number, input: MedicoInput): Promise<Medico> {
   const url = `${REST}/doctors?id=eq.${id}`;

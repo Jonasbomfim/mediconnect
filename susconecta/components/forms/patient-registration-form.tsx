@@ -51,7 +51,7 @@ type FormData = {
   cpf: string;
   rg: string;
   sexo: string;
-  data_nascimento: string;
+  birth_date: string;   // 👈 corrigido
   email: string;
   telefone: string;
   cep: string;
@@ -72,7 +72,7 @@ const initial: FormData = {
   cpf: "",
   rg: "",
   sexo: "",
-  data_nascimento: "",
+  birth_date: "",   // 👈 corrigido
   email: "",
   telefone: "",
   cep: "",
@@ -85,6 +85,8 @@ const initial: FormData = {
   observacoes: "",
   anexos: [],
 };
+
+
 
 export function PatientRegistrationForm({
   open = true,
@@ -112,24 +114,28 @@ export function PatientRegistrationForm({
       try {
         const p = await buscarPacientePorId(String(patientId));
         setForm((s) => ({
-          ...s,
-          nome: p.nome || "",
-          nome_social: p.nome_social || "",
-          cpf: p.cpf || "",
-          rg: p.rg || "",
-          sexo: p.sexo || "",
-          data_nascimento: (p.data_nascimento as string) || "",
-          telefone: p.telefone || "",
-          email: p.email || "",
-          cep: p.endereco?.cep || "",
-          logradouro: p.endereco?.logradouro || "",
-          numero: p.endereco?.numero || "",
-          complemento: p.endereco?.complemento || "",
-          bairro: p.endereco?.bairro || "",
-          cidade: p.endereco?.cidade || "",
-          estado: p.endereco?.estado || "",
-          observacoes: p.observacoes || "",
-        }));
+  ...s,
+  nome: p.full_name || "",        // 👈 trocar nome → full_name
+  nome_social: p.social_name || "",
+  cpf: p.cpf || "",
+  rg: p.rg || "",
+  sexo: p.sex || "",
+  birth_date: p.birth_date || "", // 👈 trocar data_nascimento → birth_date
+  telefone: p.phone_mobile || "",
+  email: p.email || "",
+  cep: p.cep || "",
+  logradouro: p.street || "",
+  numero: p.number || "",
+  complemento: p.complement || "",
+  bairro: p.neighborhood || "",
+  cidade: p.city || "",
+  estado: p.state || "",
+  observacoes: p.notes || "",
+}));
+
+
+
+
         const ax = await listarAnexos(String(patientId)).catch(() => []);
         setServerAnexos(Array.isArray(ax) ? ax : []);
       } catch {
@@ -186,27 +192,27 @@ export function PatientRegistrationForm({
   }
 
   function toPayload(): PacienteInput {
-    return {
-      nome: form.nome,
-      nome_social: form.nome_social || null,
-      cpf: form.cpf,
-      rg: form.rg || null,
-      sexo: form.sexo || null,
-      data_nascimento: form.data_nascimento || null,
-      telefone: form.telefone || null,
-      email: form.email || null,
-      endereco: {
-        cep: form.cep || undefined,
-        logradouro: form.logradouro || undefined,
-        numero: form.numero || undefined,
-        complemento: form.complemento || undefined,
-        bairro: form.bairro || undefined,
-        cidade: form.cidade || undefined,
-        estado: form.estado || undefined,
-      },
-      observacoes: form.observacoes || null,
-    };
-  }
+  return {
+    full_name: form.nome,   // 👈 troca 'nome' por 'full_name'
+    social_name: form.nome_social || null,
+    cpf: form.cpf,
+    rg: form.rg || null,
+    sex: form.sexo || null,
+    birth_date: form.birth_date || null,   // 👈 troca data_nascimento → birth_date
+    phone_mobile: form.telefone || null,
+    email: form.email || null,
+    cep: form.cep || null,
+    street: form.logradouro || null,
+    number: form.numero || null,
+    complement: form.complemento || null,
+    neighborhood: form.bairro || null,
+    city: form.cidade || null,
+    state: form.estado || null,
+    notes: form.observacoes || null,
+  };
+}
+
+
 
   async function handleSubmit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -418,7 +424,8 @@ export function PatientRegistrationForm({
                   </div>
                   <div className="space-y-2">
                     <Label>Data de Nascimento</Label>
-                    <Input type="date" value={form.data_nascimento} onChange={(e) => setField("data_nascimento", e.target.value)} />
+<Input type="date" value={form.birth_date} onChange={(e) => setField("birth_date", e.target.value)} />
+
                   </div>
                 </div>
               </CardContent>

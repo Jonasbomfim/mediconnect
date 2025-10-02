@@ -51,7 +51,7 @@ type Mode = "create" | "edit";
 export interface DoctorRegistrationFormProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  doctorId?: number | null;
+  doctorId?: string | number | null;
   inline?: boolean;
   mode?: Mode;
   onSaved?: (medico: Medico) => void;
@@ -155,46 +155,53 @@ export function DoctorRegistrationForm({
   let alive = true;
   async function load() {
     if (mode === "edit" && doctorId) {
-      const medico = await buscarMedicoPorId(String(doctorId));
-      if (!alive) return;
-      setForm({
-        photo: null,
-        full_name: medico.full_name ?? "",
-        nome_social: medico.nome_social ?? "",
-        crm: medico.crm ?? "",
-        estado_crm: medico.estado_crm ?? "",
-        rqe: medico.rqe ?? "",
-        formacao_academica: medico.formacao_academica ?? [],
-        curriculo: null, 
-        especialidade: medico.especialidade ?? "",
-        cpf: medico.cpf ?? "",
-        rg: medico.rg ?? "",
-        sexo: medico.sexo ?? "",
-        data_nascimento: medico.data_nascimento ?? "",
-        email: medico.email ?? "",
-        telefone: medico.telefone ?? "",
-        celular: medico.celular ?? "",
-        contato_emergencia: medico.contato_emergencia ?? "",
-        cep: "",
-        logradouro: "",
-        numero: "",
-        complemento: "",
-        bairro: "",
-        cidade: "",
-        estado: "",
-        observacoes: medico.observacoes ?? "",
-        anexos: [],
-        tipo_vinculo: medico.tipo_vinculo ?? "",
-        dados_bancarios: medico.dados_bancarios ?? { banco: "", agencia: "", conta: "", tipo_conta: "" },
-        agenda_horario: medico.agenda_horario ?? "",
-        valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
-      });
-
-     
       try {
-        const list = await listarAnexosMedico(doctorId);
-        setServerAnexos(list ?? []);
-      } catch {}
+        console.log("[DoctorForm] Carregando médico ID:", doctorId);
+        const medico = await buscarMedicoPorId(String(doctorId));
+        console.log("[DoctorForm] Dados recebidos:", medico);
+        if (!alive) return;
+        setForm({
+          photo: null,
+          full_name: medico.full_name ?? "",
+          nome_social: medico.nome_social ?? "",
+          crm: medico.crm ?? "",
+          estado_crm: medico.estado_crm ?? "",
+          rqe: medico.rqe ?? "",
+          formacao_academica: medico.formacao_academica ?? [],
+          curriculo: null, 
+          especialidade: medico.especialidade ?? "",
+          cpf: medico.cpf ?? "",
+          rg: medico.rg ?? "",
+          sexo: medico.sexo ?? "",
+          data_nascimento: medico.data_nascimento ?? "",
+          email: medico.email ?? "",
+          telefone: medico.telefone ?? "",
+          celular: medico.celular ?? "",
+          contato_emergencia: medico.contato_emergencia ?? "",
+          cep: "",
+          logradouro: "",
+          numero: "",
+          complemento: "",
+          bairro: "",
+          cidade: "",
+          estado: "",
+          observacoes: medico.observacoes ?? "",
+          anexos: [],
+          tipo_vinculo: medico.tipo_vinculo ?? "",
+          dados_bancarios: medico.dados_bancarios ?? { banco: "", agencia: "", conta: "", tipo_conta: "" },
+          agenda_horario: medico.agenda_horario ?? "",
+          valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
+        });
+
+        try {
+          const list = await listarAnexosMedico(String(doctorId));
+          setServerAnexos(list ?? []);
+        } catch (err) {
+          console.error("[DoctorForm] Erro ao carregar anexos:", err);
+        }
+      } catch (err) {
+        console.error("[DoctorForm] Erro ao carregar médico:", err);
+      }
     }
   }
   load();

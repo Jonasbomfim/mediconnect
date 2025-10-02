@@ -298,7 +298,7 @@ export default function DoutoresPage() {
         <DoctorRegistrationForm
           inline
           mode={editingId ? "edit" : "create"}
-          doctorId={editingId ? Number(editingId) : null}
+          doctorId={editingId}
           onSaved={handleSaved}
           onClose={() => setShowForm(false)}
         />

@@ -8,7 +8,6 @@ import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { buscarPacientes } from "@/lib/api";
-import { ApiTest } from "@/components/debug/ApiTest";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -2424,18 +2423,6 @@ function LaudoEditor() {
   );
 
   
-  const renderDebugSection = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Debug da API</h2>
-        <p className="text-gray-600 mb-6">
-          Use esta seção para testar a conectividade com a API e debugar problemas de busca de pacientes.
-        </p>
-      </div>
-      <ApiTest />
-    </div>
-  );
-
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'calendario':
@@ -2452,8 +2439,6 @@ function LaudoEditor() {
         return renderRelatoriosMedicosSection();
       case 'perfil':
         return renderPerfilSection();
-      case 'debug':
-        return renderDebugSection();
       default:
         return renderCalendarioSection();
     }
@@ -2547,14 +2532,6 @@ function LaudoEditor() {
             >
               <Settings className="mr-2 h-4 w-4" />
               Meu Perfil
-            </Button>
-            <Button 
-              variant={activeSection === 'debug' ? 'default' : 'ghost'} 
-              className="w-full justify-start cursor-pointer hover:bg-primary hover:text-primary-foreground cursor-pointer"
-              onClick={() => setActiveSection('debug')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Debug API
             </Button>
           </nav>
         </aside>

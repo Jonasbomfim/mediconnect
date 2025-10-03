@@ -45,12 +45,12 @@ export default function ConfiguracaoPage() {
   ]
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-background">
       {/* título */}
-      <h1 className="text-2xl font-bold">Configurações</h1>
+      <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
 
       {/* introdução */}
-      <p className="text-gray-600">
+      <p className="text-muted-foreground">
         Ajuste os principais parâmetros do sistema. Escolha uma das seções abaixo
         para configurar horários, mensagens, notificações internas, permissões de usuários
         e regras de segurança da clínica.
@@ -66,7 +66,7 @@ export default function ConfiguracaoPage() {
                 <CardTitle>{item.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">{item.desc}</p>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
               </CardContent>
             </Card>
           </Link>

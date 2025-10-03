@@ -446,13 +446,13 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-white shadow-md rounded-lg p-6">
+      <section className="bg-card shadow-md rounded-lg p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
         </div>
         
         {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between mb-6 p-4 bg-muted rounded-lg">
           <div className="flex items-center space-x-4">
             <Button 
               variant="outline"
@@ -462,7 +462,7 @@ const ProfissionalPage = () => {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-foreground">
               {formatDate(currentCalendarDate)}
             </h3>
             <Button 
@@ -482,7 +482,7 @@ const ProfissionalPage = () => {
               Hoje
             </Button>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''} agendada{todayEvents.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -490,8 +490,8 @@ const ProfissionalPage = () => {
         {/* Lista de Pacientes do Dia */}
         <div className="space-y-4">
           {todayEvents.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-muted-foreground">
+              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
               <p className="text-lg mb-2">Nenhuma consulta agendada para este dia</p>
               <p className="text-sm">Agenda livre para este dia</p>
             </div>
@@ -501,7 +501,7 @@ const ProfissionalPage = () => {
               return (
                 <div
                   key={appointment.id}
-                  className="border-l-4 p-4 rounded-lg shadow-sm bg-white border-gray-200"
+                  className="border-l-4 p-4 rounded-lg shadow-sm bg-card border-border"
                   style={{ borderLeftColor: getStatusColor(appointment.type) }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
@@ -512,18 +512,18 @@ const ProfissionalPage = () => {
                       ></div>
                       <div>
                         <div className="font-medium flex items-center">
-                          <User className="h-4 w-4 mr-2 text-gray-500" />
+                          <User className="h-4 w-4 mr-2 text-muted-foreground" />
                           {appointment.title}
                         </div>
                         {paciente && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             CPF: {paciente.cpf} • {paciente.idade} anos
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                      <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
                       <span className="font-medium">{appointment.time}</span>
                     </div>
                     <div className="flex items-center">
@@ -550,9 +550,9 @@ const ProfissionalPage = () => {
                         >
                           <FolderOpen className="h-4 w-4" />
                         </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
                     </div>
@@ -567,7 +567,13 @@ const ProfissionalPage = () => {
   };
 
   
-  function PacientesSection({ handleAbrirProntuario, setActiveSection }) {
+  function PacientesSection({
+    handleAbrirProntuario,
+    setActiveSection,
+  }: {
+    handleAbrirProntuario: (paciente: any) => void;
+    setActiveSection: (section: string) => void;
+  }) {
     // Estados para busca de pacientes
      const [buscaPaciente, setBuscaPaciente] = useState("");
   const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
@@ -622,11 +628,11 @@ const ProfissionalPage = () => {
     };
 
     return (
-      <div className="bg-white shadow-md rounded-lg p-6">
+      <div className="bg-card shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
         
         {/* Campo de busca */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+        <div className="mb-6 p-4 bg-muted rounded-lg">
           <h3 className="text-lg font-semibold mb-3">Buscar Paciente</h3>
           <div className="flex gap-2">
             <div className="flex-1">
@@ -669,8 +675,8 @@ const ProfissionalPage = () => {
           
           {/* Resultados da busca */}
           {erroBusca && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-700 text-sm">{erroBusca}</p>
+            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-red-700 dark:text-red-300 text-sm">{erroBusca}</p>
             </div>
           )}
           
@@ -679,10 +685,10 @@ const ProfissionalPage = () => {
               <h4 className="text-md font-medium mb-2">Resultados da busca ({pacientesBusca.length}):</h4>
               <div className="space-y-2">
                 {pacientesBusca.map((paciente, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white border rounded-lg hover:shadow-sm">
+                  <div key={index} className="flex items-center justify-between p-3 bg-card border rounded-lg hover:shadow-sm">
                     <div>
                       <p className="font-medium">{paciente.nome}</p>
-                      <p className="text-sm text-gray-600">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
+                      <p className="text-sm text-muted-foreground">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
                     </div>
                     <Button
                       size="sm"
@@ -736,9 +742,9 @@ const ProfissionalPage = () => {
                         >
                           <FolderOpen className="h-4 w-4" />
                         </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
                     </div>
@@ -755,7 +761,7 @@ const ProfissionalPage = () => {
   
   const renderProntuarioSection = () => (
     <div className="space-y-6">
-      <div className="bg-white shadow-md rounded-lg p-6">
+      <div className="bg-card shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Prontuário do Paciente</h2>
         
         {/* Informações do Paciente Selecionado */}
@@ -773,7 +779,7 @@ const ProfissionalPage = () => {
                     }
                   }}
                 >
-                  <SelectTrigger className="w-48 h-8 text-xs bg-white border-primary/30 cursor-pointer">
+                  <SelectTrigger className="w-48 h-8 text-xs bg-card border-primary/30 cursor-pointer">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -817,15 +823,15 @@ const ProfissionalPage = () => {
         {/* Seletor de Paciente */}
         {!pacienteSelecionado && (
           <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <div className="bg-muted border rounded-lg p-6">
               <div className="text-center mb-6">
-                <User className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Selecionar Paciente</h3>
-                <p className="text-sm text-gray-600">Escolha um paciente para visualizar o prontuário completo</p>
+                <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Selecionar Paciente</h3>
+                <p className="text-sm text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
               </div>
               
               <div className="max-w-md mx-auto">
-                <Label htmlFor="seletorPaciente" className="block text-sm font-medium text-gray-700 mb-2">
+                <Label htmlFor="seletorPaciente" className="block text-sm font-medium text-foreground mb-2">
                   Escolha o paciente:
                 </Label>
                 <Select
@@ -857,31 +863,31 @@ const ProfissionalPage = () => {
             
             {/* Cards de pacientes para seleção rápida */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Ou selecione rapidamente:</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">Ou selecione rapidamente:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pacientes.map((paciente) => (
                   <div
                     key={paciente.cpf}
                     onClick={() => setPacienteSelecionado(paciente)}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-primary transition-all cursor-pointer group"
+                    className="border rounded-lg p-4 hover:shadow-md hover:border-primary transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                         <User className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{paciente.nome}</p>
-                        <p className="text-sm text-gray-500">CPF: {paciente.cpf}</p>
-                        <p className="text-sm text-gray-500">{paciente.idade} anos</p>
+                        <p className="font-medium text-foreground truncate">{paciente.nome}</p>
+                        <p className="text-sm text-muted-foreground">CPF: {paciente.cpf}</p>
+                        <p className="text-sm text-muted-foreground">{paciente.idade} anos</p>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         paciente.statusLaudo === 'Finalizado' 
-                          ? 'bg-green-100 text-green-800' 
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
                           : paciente.statusLaudo === 'Pendente'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                          : 'bg-muted text-muted-foreground'
                       }`}>
                         {paciente.statusLaudo}
                       </span>
@@ -902,7 +908,7 @@ const ProfissionalPage = () => {
 
         {/* Tabs de Navegação do Prontuário */}
         {pacienteSelecionado && (
-          <div className="border-b border-gray-200 mb-6">
+          <div className="border-b border-border mb-6">
             <nav className="flex space-x-8">
               {[
                 { id: 'nova-consulta',nome: 'Nova Consulta', icone: Plus },
@@ -922,7 +928,7 @@ const ProfissionalPage = () => {
                     className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors cursor-pointer ${
                       abaProntuarioAtiva === aba.id
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                     }`}
                   >
                     <Icone className="h-4 w-4" />
@@ -1017,11 +1023,11 @@ const ProfissionalPage = () => {
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg p-6 space-y-6">
+      <div className="bg-card border rounded-lg p-6 space-y-6">
         {/* Data da Consulta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="dataConsulta" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="dataConsulta" className="text-sm font-medium text-foreground">
               Data da Consulta *
             </Label>
             <Input
@@ -1034,7 +1040,7 @@ const ProfissionalPage = () => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="cid10" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="cid10" className="text-sm font-medium text-foreground">
               CID-10
             </Label>
             <Input
@@ -1049,7 +1055,7 @@ const ProfissionalPage = () => {
 
         {/* Anamnese */}
         <div className="space-y-2">
-          <Label htmlFor="anamnese" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="anamnese" className="text-sm font-medium text-foreground">
             Anamnese *
           </Label>
           <Textarea
@@ -1064,7 +1070,7 @@ const ProfissionalPage = () => {
 
         {/* Exame Físico */}
         <div className="space-y-2">
-          <Label htmlFor="exameFisico" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="exameFisico" className="text-sm font-medium text-foreground">
             Exame Físico *
           </Label>
           <Textarea
@@ -1079,7 +1085,7 @@ const ProfissionalPage = () => {
 
         {/* Hipóteses Diagnósticas */}
         <div className="space-y-2">
-          <Label htmlFor="hipotesesDiagnosticas" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="hipotesesDiagnosticas" className="text-sm font-medium text-foreground">
             Hipóteses Diagnósticas
           </Label>
           <Textarea
@@ -1094,7 +1100,7 @@ const ProfissionalPage = () => {
 
         {/* Conduta Médica */}
         <div className="space-y-2">
-          <Label htmlFor="condutaMedica" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="condutaMedica" className="text-sm font-medium text-foreground">
             Conduta Médica
           </Label>
           <Textarea
@@ -1109,7 +1115,7 @@ const ProfissionalPage = () => {
 
         {/* Prescrições */}
         <div className="space-y-2">
-          <Label htmlFor="prescricoes" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="prescricoes" className="text-sm font-medium text-foreground">
             Prescrições
           </Label>
           <Textarea
@@ -1124,7 +1130,7 @@ const ProfissionalPage = () => {
 
         {/* Retorno Agendado */}
         <div className="space-y-2">
-          <Label htmlFor="retornoAgendado" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="retornoAgendado" className="text-sm font-medium text-foreground">
             Retorno Agendado
           </Label>
           <Input
@@ -1138,7 +1144,7 @@ const ProfissionalPage = () => {
 
         {/* Informações do Registro */}
         <div className="border-t pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
             <div>
               <span className="font-medium">Paciente:</span>
               <p>{pacienteSelecionado?.nome}</p>
@@ -1157,7 +1163,7 @@ const ProfissionalPage = () => {
 
       {/* Consultas Anteriores do Paciente */}
       {consultasRegistradas.length > 0 && (
-        <div className="bg-white border rounded-lg p-6">
+        <div className="bg-card border rounded-lg p-6">
           <h4 className="text-lg font-medium mb-4">Consultas Anteriores</h4>
           <div className="space-y-3">
             {consultasRegistradas
@@ -1170,17 +1176,17 @@ const ProfissionalPage = () => {
                       <p className="font-medium text-sm">
                         Consulta de {new Date(consulta.dataConsulta).toLocaleDateString('pt-BR')}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         Registrada em: {consulta.dataCriacao}
                       </p>
                     </div>
                     {consulta.cid10 && (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
                         {consulta.cid10}
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-foreground">
                     <p><strong>Anamnese:</strong> {consulta.anamnese.substring(0, 100)}...</p>
                     {consulta.hipotesesDiagnosticas && (
                       <p><strong>Diagnóstico:</strong> {consulta.hipotesesDiagnosticas.substring(0, 80)}...</p>
@@ -1205,9 +1211,9 @@ const ProfissionalPage = () => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h4 className="font-medium">Consulta Cardiológica</h4>
-              <p className="text-sm text-gray-600">27/09/2025 - 09:00</p>
+              <p className="text-sm text-muted-foreground">27/09/2025 - 09:00</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Finalizada</span>
+            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">Finalizada</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1229,9 +1235,9 @@ const ProfissionalPage = () => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h4 className="font-medium">Consulta Dermatológica</h4>
-              <p className="text-sm text-gray-600">15/09/2025 - 14:30</p>
+              <p className="text-sm text-muted-foreground">15/09/2025 - 14:30</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Retorno Agendado</span>
+            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">Retorno Agendado</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1273,11 +1279,11 @@ const ProfissionalPage = () => {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Apendicectomia</span>
-              <span className="text-gray-600">15/03/2010</span>
+              <span className="text-muted-foreground">15/03/2010</span>
             </div>
             <div className="flex justify-between">
               <span>Colecistectomia laparoscópica</span>
-              <span className="text-gray-600">22/08/2019</span>
+              <span className="text-muted-foreground">22/08/2019</span>
             </div>
           </div>
         </div>
@@ -1286,11 +1292,11 @@ const ProfissionalPage = () => {
           <h4 className="font-medium mb-2">Alergias e Reações Adversas</h4>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded">Alergia</span>
+              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded">Alergia</span>
               <span>Penicilina - reação cutânea</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Intolerância</span>
+              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded">Intolerância</span>
               <span>Lactose - sintomas gastrintestinais</span>
             </div>
           </div>
@@ -1302,7 +1308,7 @@ const ProfissionalPage = () => {
   const renderPrescricoesTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Prescrições Médicas</h3>
+        <h3 className="text-lg font-semibold text-foreground">Prescrições Médicas</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Nova Prescrição
@@ -1313,18 +1319,18 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Prescrição Atual</h4>
-              <p className="text-sm text-gray-600">Prescrita em 27/09/2025</p>
+              <h4 className="font-medium text-foreground">Prescrição Atual</h4>
+              <p className="text-sm text-muted-foreground">Prescrita em 27/09/2025</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Ativa</span>
+            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">Ativa</span>
           </div>
           <div className="space-y-3">
             <div className="border-l-4 border-blue-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Losartana 50mg</p>
-                  <p className="text-sm text-gray-600">1 comprimido pela manhã</p>
-                  <p className="text-sm text-gray-500">Duração: 30 dias</p>
+                  <p className="font-medium text-foreground">Losartana 50mg</p>
+                  <p className="text-sm text-muted-foreground">1 comprimido pela manhã</p>
+                  <p className="text-sm text-muted-foreground">Duração: 30 dias</p>
                 </div>
                 <Button variant="outline" size="sm" className="cursor-pointer">
                   <Eye className="h-4 w-4" />
@@ -1334,9 +1340,9 @@ const ProfissionalPage = () => {
             <div className="border-l-4 border-green-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Metformina 850mg</p>
-                  <p className="text-sm text-gray-600">1 comprimido após café e jantar</p>
-                  <p className="text-sm text-gray-500">Duração: 60 dias</p>
+                  <p className="font-medium text-foreground">Metformina 850mg</p>
+                  <p className="text-sm text-muted-foreground">1 comprimido após café e jantar</p>
+                  <p className="text-sm text-muted-foreground">Duração: 60 dias</p>
                 </div>
                 <Button variant="outline" size="sm" className="cursor-pointer">
                   <Eye className="h-4 w-4" />
@@ -1349,15 +1355,15 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Prescrições Anteriores</h4>
-              <p className="text-sm text-gray-600">Histórico de medicamentos</p>
+              <h4 className="font-medium text-foreground">Prescrições Anteriores</h4>
+              <p className="text-sm text-muted-foreground">Histórico de medicamentos</p>
             </div>
           </div>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center py-2 border-b">
+            <div className="flex justify-between items-center py-2 border-b border-border">
               <div>
-                <p className="font-medium">Sinvastatina 20mg</p>
-                <p className="text-gray-600">Prescrita em 15/08/2025 - Finalizada</p>
+                <p className="font-medium text-foreground">Sinvastatina 20mg</p>
+                <p className="text-muted-foreground">Prescrita em 15/08/2025 - Finalizada</p>
               </div>
               <Button variant="ghost" size="sm" className="cursor-pointer">
                 <History className="h-4 w-4" />
@@ -1372,7 +1378,7 @@ const ProfissionalPage = () => {
   const renderExamesTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Exames Solicitados</h3>
+        <h3 className="text-lg font-semibold text-foreground">Exames Solicitados</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Solicitar Exame
@@ -1383,26 +1389,26 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Exames Pendentes</h4>
+              <h4 className="font-medium text-foreground">Exames Pendentes</h4>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-yellow-50 border border-yellow-200 rounded">
+            <div className="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded">
               <div>
-                <p className="font-medium">Ecocardiograma</p>
-                <p className="text-sm text-gray-600">Solicitado em 25/09/2025</p>
-                <p className="text-sm text-gray-500">Urgência: Normal</p>
+                <p className="font-medium text-foreground">Ecocardiograma</p>
+                <p className="text-sm text-muted-foreground">Solicitado em 25/09/2025</p>
+                <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pendente</span>
+              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 text-xs rounded-full">Pendente</span>
             </div>
             
-            <div className="flex justify-between items-center p-3 bg-blue-50 border border-blue-200 rounded">
+            <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
               <div>
-                <p className="font-medium">Hemograma Completo</p>
-                <p className="text-sm text-gray-600">Solicitado em 27/09/2025</p>
-                <p className="text-sm text-gray-500">Urgência: Normal</p>
+                <p className="font-medium text-foreground">Hemograma Completo</p>
+                <p className="text-sm text-muted-foreground">Solicitado em 27/09/2025</p>
+                <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Agendado</span>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100 text-xs rounded-full">Agendado</span>
             </div>
           </div>
         </div>
@@ -1410,15 +1416,15 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Resultados Disponíveis</h4>
+              <h4 className="font-medium text-foreground">Resultados Disponíveis</h4>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded">
+            <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded">
               <div>
-                <p className="font-medium">Glicemia de Jejum</p>
-                <p className="text-sm text-gray-600">Realizado em 20/09/2025</p>
-                <p className="text-sm font-medium text-green-700">Resultado: 95 mg/dL (Normal)</p>
+                <p className="font-medium text-foreground">Glicemia de Jejum</p>
+                <p className="text-sm text-muted-foreground">Realizado em 20/09/2025</p>
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">Resultado: 95 mg/dL (Normal)</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="cursor-pointer">
@@ -1438,7 +1444,7 @@ const ProfissionalPage = () => {
   const renderDiagnosticosTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Diagnósticos</h3>
+        <h3 className="text-lg font-semibold text-foreground">Diagnósticos</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Novo Diagnóstico
@@ -1447,43 +1453,43 @@ const ProfissionalPage = () => {
       
       <div className="space-y-4">
         <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Diagnósticos Ativos</h4>
+          <h4 className="font-medium mb-3 text-foreground">Diagnósticos Ativos</h4>
           <div className="space-y-3">
             <div className="border-l-4 border-red-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Hipertensão Arterial Sistêmica</p>
-                  <p className="text-sm text-gray-600">CID-10: I10</p>
-                  <p className="text-sm text-gray-500">Diagnosticado em: 15/03/2020</p>
-                  <p className="text-sm mt-1">Status: Controlada com medicação</p>
+                  <p className="font-medium text-foreground">Hipertensão Arterial Sistêmica</p>
+                  <p className="text-sm text-muted-foreground">CID-10: I10</p>
+                  <p className="text-sm text-muted-foreground">Diagnosticado em: 15/03/2020</p>
+                  <p className="text-sm mt-1 text-foreground">Status: Controlada com medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded-full">Ativo</span>
               </div>
             </div>
             
             <div className="border-l-4 border-orange-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Diabetes Mellitus Tipo 2</p>
-                  <p className="text-sm text-gray-600">CID-10: E11</p>
-                  <p className="text-sm text-gray-500">Diagnosticado em: 10/08/2018</p>
-                  <p className="text-sm mt-1">Status: Controlada com dieta e medicação</p>
+                  <p className="font-medium text-foreground">Diabetes Mellitus Tipo 2</p>
+                  <p className="text-sm text-muted-foreground">CID-10: E11</p>
+                  <p className="text-sm text-muted-foreground">Diagnosticado em: 10/08/2018</p>
+                  <p className="text-sm mt-1 text-foreground">Status: Controlada com dieta e medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 text-xs rounded-full">Ativo</span>
               </div>
             </div>
           </div>
         </div>
 
         <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Histórico de Diagnósticos</h4>
+          <h4 className="font-medium mb-3 text-foreground">Histórico de Diagnósticos</h4>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center py-2 border-b">
               <div>
-                <p className="font-medium">Gastrite Aguda</p>
-                <p className="text-gray-600">CID-10: K29.0 - Resolvido em 2023</p>
+                <p className="font-medium text-foreground">Gastrite Aguda</p>
+                <p className="text-muted-foreground">CID-10: K29.0 - Resolvido em 2023</p>
               </div>
-              <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">Resolvido</span>
+              <span className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded-full">Resolvido</span>
             </div>
           </div>
         </div>
@@ -1494,7 +1500,7 @@ const ProfissionalPage = () => {
   const renderEvolucaoTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Evolução do Quadro</h3>
+        <h3 className="text-lg font-semibold text-foreground">Evolução do Quadro</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Nova Evolução
@@ -1505,26 +1511,26 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Evolução Recente</h4>
-              <p className="text-sm text-gray-600">27/09/2025 - 09:15</p>
+              <h4 className="font-medium text-foreground">Evolução Recente</h4>
+              <p className="text-sm text-muted-foreground">27/09/2025 - 09:15</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Melhora</span>
+            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">Melhora</span>
           </div>
           <div className="space-y-2">
-            <p className="text-sm"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
-            <p className="text-sm"><strong>Objetivo:</strong> PA: 130/80 mmHg, FC: 72 bpm, ausculta cardíaca sem alterações.</p>
-            <p className="text-sm"><strong>Avaliação:</strong> Resposta positiva ao tratamento iniciado, pressão arterial em níveis aceitáveis.</p>
-            <p className="text-sm"><strong>Plano:</strong> Manter medicação atual, retorno em 30 dias.</p>
+            <p className="text-sm text-foreground"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
+            <p className="text-sm text-foreground"><strong>Objetivo:</strong> PA: 130/80 mmHg, FC: 72 bpm, ausculta cardíaca sem alterações.</p>
+            <p className="text-sm text-foreground"><strong>Avaliação:</strong> Resposta positiva ao tratamento iniciado, pressão arterial em níveis aceitáveis.</p>
+            <p className="text-sm text-foreground"><strong>Plano:</strong> Manter medicação atual, retorno em 30 dias.</p>
           </div>
         </div>
 
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Evolução Anterior</h4>
-              <p className="text-sm text-gray-600">15/09/2025 - 14:45</p>
+              <h4 className="font-medium text-foreground">Evolução Anterior</h4>
+              <p className="text-sm text-muted-foreground">15/09/2025 - 14:45</p>
             </div>
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Estável</span>
+            <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">Estável</span>
           </div>
           <div className="space-y-2">
             <p className="text-sm"><strong>Subjetivo:</strong> Paciente apresentou episódios esporádicos de dor torácica leve.</p>
@@ -1539,7 +1545,7 @@ const ProfissionalPage = () => {
   const renderAnexosTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Anexos (Exames, Imagens)</h3>
+        <h3 className="text-lg font-semibold text-foreground">Anexos (Exames, Imagens)</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Upload className="h-4 w-4" />
           Adicionar Anexo
@@ -1557,7 +1563,7 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Radiografia de Tórax</p>
-                  <p className="text-xs text-gray-600">20/09/2025</p>
+                  <p className="text-xs text-muted-foreground">20/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1579,7 +1585,7 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">ECG</p>
-                  <p className="text-xs text-gray-600">15/09/2025</p>
+                  <p className="text-xs text-muted-foreground">15/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1599,14 +1605,14 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <h4 className="font-medium mb-3">Laudos e Documentos</h4>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
                   <FileText className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">Laudo de Ecocardiograma</p>
-                  <p className="text-xs text-gray-600">10/08/2025 - Dr. Carlos Andrade</p>
+                  <p className="text-xs text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1619,7 +1625,7 @@ const ProfissionalPage = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
                   <FileText className="h-4 w-4 text-orange-600" />
@@ -1700,11 +1706,11 @@ function LaudoEditor() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-white p-2 md:p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6 mb-6">
+        <div className="bg-card border border-primary/10 shadow-lg rounded-xl p-4 md:p-6 mb-6">
           <h2 className="text-2xl font-bold text-primary mb-4 text-center tracking-tight">Laudo Médico</h2>
           
           {!pacienteSelecionado ? (
-            <div className="flex flex-col items-center justify-center py-8 px-1 bg-white rounded-xl shadow-sm">
+            <div className="flex flex-col items-center justify-center py-8 px-1 bg-card rounded-xl shadow-sm">
               <div className="mb-2">
                 <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="mx-auto text-gray-400">
                   <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/>
@@ -1714,11 +1720,11 @@ function LaudoEditor() {
               <h2 className="text-lg font-bold text-center text-gray-800 mb-1">Selecionar Paciente</h2>
               <p className="text-gray-500 text-center mb-4 max-w-xs text-sm">Escolha um paciente para visualizar o prontuário completo</p>
               <div className="w-full max-w-xs">
-                <label htmlFor="select-paciente" className="block text-sm font-medium text-gray-700 mb-1">Escolha o paciente:</label>
+                <label htmlFor="select-paciente" className="block text-sm font-medium text-foreground mb-1">Escolha o paciente:</label>
                 <div className="relative">
                   <select
                     id="select-paciente"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-300 focus:outline-none bg-white text-sm text-gray-900 shadow-sm transition-all appearance-none"
+                    className="w-full p-2 border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-ring focus:outline-none bg-background text-sm text-foreground shadow-sm transition-all appearance-none"
                     onChange={e => {
                       const p = pacientes.find(p => p.cpf === e.target.value);
                       if (p) handleSelectPaciente(p);
@@ -1740,9 +1746,9 @@ function LaudoEditor() {
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div>
                 <div className="font-bold text-primary text-base mb-0.5">{pacienteSelecionado.nome}</div>
-                <div className="text-xs text-gray-700">CPF: {pacienteSelecionado.cpf}</div>
-                <div className="text-xs text-gray-700">Idade: {pacienteSelecionado.idade}</div>
-                <div className="text-xs text-gray-700">Sexo: {pacienteSelecionado.sexo}</div>
+                <div className="text-xs text-muted-foreground">CPF: {pacienteSelecionado.cpf}</div>
+                <div className="text-xs text-muted-foreground">Idade: {pacienteSelecionado.idade}</div>
+                <div className="text-xs text-muted-foreground">Sexo: {pacienteSelecionado.sexo}</div>
               </div>
               <button type="button" onClick={limparPaciente} className="px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold shadow text-xs">Trocar paciente</button>
             </div>
@@ -1812,14 +1818,14 @@ function LaudoEditor() {
                   ref={sigCanvasRef}
                   penColor="#0f172a"
                   backgroundColor="#fff"
-                  canvasProps={{ width: 220, height: 60, className: "rounded-md border bg-white shadow" }}
+                  canvasProps={{ width: 220, height: 60, className: "rounded-md border bg-card shadow" }}
                   onEnd={() => setAssinatura(sigCanvasRef.current?.isEmpty() ? null : sigCanvasRef.current?.toDataURL())}
                 />
                 <div className="flex gap-2 mt-2">
                   <button type="button" onClick={() => { sigCanvasRef.current?.clear(); setAssinatura(null); }} className="px-2 py-1 text-xs rounded-md bg-muted-foreground text-white hover:bg-muted font-semibold shadow">Limpar</button>
                 </div>
                 {assinatura && (
-                  <img src={assinatura} alt="Assinatura" className="mt-2 max-h-10 border rounded-md bg-white shadow" />
+                  <img src={assinatura} alt="Assinatura" className="mt-2 max-h-10 border rounded-md bg-card shadow" />
                 )}
               </div>
             </div>
@@ -1827,7 +1833,7 @@ function LaudoEditor() {
               <button
                 type="button"
                 onClick={() => salvarLaudo("Rascunho")}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-gray-200 transition-all border border-gray-200"
+                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-muted text-muted-foreground py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-muted/80 transition-all border"
               >
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Salvar Rascunho
@@ -1843,7 +1849,7 @@ function LaudoEditor() {
               <button
                 type="button"
                 onClick={() => setPreview(!preview)}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-white text-primary py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/10 transition-all border border-primary/20"
+                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-card text-primary py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/10 transition-all border border-primary/20"
               >
                 <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 10l4.553 2.276A2 2 0 0121 14.09V17a2 2 0 01-2 2H5a2 2 0 01-2-2v-2.91a2 2 0 01.447-1.814L8 10m7-4v4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Pré-visualizar Laudo
@@ -1852,7 +1858,7 @@ function LaudoEditor() {
           </form>
         </div>
         
-        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6">
+        <div className="bg-card border border-primary/10 shadow-lg rounded-xl p-4 md:p-6">
           <h3 className="text-xl font-bold text-primary mb-3 text-center">Histórico de Laudos</h3>
           {laudos.length === 0 ? (
             <p className="text-muted-foreground text-center text-sm">Nenhum laudo registrado.</p>
@@ -1876,7 +1882,7 @@ function LaudoEditor() {
                 {laudo.assinatura && (
                   <div className="mb-2">
                     <p className="font-semibold text-primary text-sm mb-1">Assinatura Digital:</p>
-                    <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-lg max-h-16 border bg-white shadow" />
+                    <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-lg max-h-16 border bg-card shadow" />
                   </div>
                 )}
                 {laudo.imagem && (
@@ -1900,8 +1906,8 @@ function LaudoEditor() {
 
   
   const renderComunicacaoSection = () => (
-    <div className="bg-white shadow-md rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-4">Comunicação com o Paciente</h2>
+    <div className="bg-card shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-4 text-foreground">Comunicação com o Paciente</h2>
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
@@ -1910,7 +1916,7 @@ function LaudoEditor() {
               id="destinatario" 
               placeholder="Nome do Paciente ou CPF" 
               disabled 
-              className="bg-muted cursor-not-allowed text-gray-700 disabled:text-gray-900"
+              className="bg-muted cursor-not-allowed text-muted-foreground disabled:text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -1919,7 +1925,7 @@ function LaudoEditor() {
               <SelectTrigger id="tipoMensagem" className="hover:border-primary focus:border-primary cursor-pointer">
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
-              <SelectContent className="bg-white border border-gray-200">
+              <SelectContent className="bg-popover border">
                 <SelectItem value="lembrete" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Lembrete de Consulta</SelectItem>
                 <SelectItem value="resultado" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Resultado de Exame</SelectItem>
                 <SelectItem value="instrucao" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Instruções Pós-Consulta</SelectItem>
@@ -1956,7 +1962,7 @@ function LaudoEditor() {
   const renderRelatoriosMedicosSection = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Relatórios Médicos</h2>
+        <h2 className="text-2xl font-bold text-foreground">Relatórios Médicos</h2>
         {editandoRelatorio && (
           <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
             Cancelar Edição
@@ -1965,8 +1971,8 @@ function LaudoEditor() {
       </div>
 
       {/* Formulário de Relatório Médico */}
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">
+      <div className="bg-card shadow-md rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">
           {editandoRelatorio ? 'Editar Relatório Médico' : 'Novo Relatório Médico'}
         </h3>
         
@@ -1981,7 +1987,7 @@ function LaudoEditor() {
                   id="profissionalNome"
                   value={relatorioMedico.profissionalNome}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
               <div className="space-y-2">
@@ -1990,7 +1996,7 @@ function LaudoEditor() {
                   id="profissionalCrm"
                   value={relatorioMedico.profissionalCrm}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
             </div>
@@ -2190,12 +2196,12 @@ function LaudoEditor() {
       </div>
 
       {/* Lista de Relatórios Existentes */}
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Relatórios Médicos Salvos</h3>
+      <div className="bg-card shadow-md rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Relatórios Médicos Salvos</h3>
         
         {relatoriosMedicos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <FileCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted-foreground">
+            <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
             <p className="text-lg mb-2">Nenhum relatório médico encontrado</p>
             <p className="text-sm">Os relatórios salvos aparecerão aqui</p>
           </div>
@@ -2206,9 +2212,9 @@ function LaudoEditor() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h4 className="font-semibold text-lg">{relatorio.pacienteNome}</h4>
-                    <p className="text-sm text-gray-600">CPF: {relatorio.pacienteCpf} • Idade: {relatorio.pacienteIdade} anos</p>
-                    <p className="text-sm text-gray-500">Data do relatório: {new Date(relatorio.dataRelatorio).toLocaleDateString('pt-BR')}</p>
-                    <p className="text-xs text-gray-400">Gerado em: {relatorio.dataGeracao}</p>
+                    <p className="text-sm text-muted-foreground">CPF: {relatorio.pacienteCpf} • Idade: {relatorio.pacienteIdade} anos</p>
+                    <p className="text-sm text-muted-foreground">Data do relatório: {new Date(relatorio.dataRelatorio).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs text-muted-foreground/70">Gerado em: {relatorio.dataGeracao}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -2235,20 +2241,20 @@ function LaudoEditor() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-primary">Motivo:</span>
-                    <p className="text-gray-700 mt-1">{relatorio.motivoRelatorio}</p>
+                    <p className="text-foreground mt-1">{relatorio.motivoRelatorio}</p>
                   </div>
                   
                   {relatorio.diagnosticos && (
                     <div>
                       <span className="font-medium text-primary">Diagnóstico(s):</span>
-                      <p className="text-gray-700 mt-1">{relatorio.diagnosticos}</p>
+                      <p className="text-foreground mt-1">{relatorio.diagnosticos}</p>
                     </div>
                   )}
                   
                   {relatorio.recomendacoes && (
                     <div className="md:col-span-2">
                       <span className="font-medium text-primary">Recomendações:</span>
-                      <p className="text-gray-700 mt-1">{relatorio.recomendacoes}</p>
+                      <p className="text-foreground mt-1">{relatorio.recomendacoes}</p>
                     </div>
                   )}
                 </div>
@@ -2263,7 +2269,7 @@ function LaudoEditor() {
   const renderPerfilSection = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Meu Perfil</h2>
+        <h2 className="text-2xl font-bold text-foreground">Meu Perfil</h2>
         {!isEditingProfile ? (
           <Button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2">
             <Edit className="h-4 w-4" />
@@ -2284,12 +2290,12 @@ function LaudoEditor() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Informações Pessoais */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b pb-2">Informações Pessoais</h3>
+          <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Informações Pessoais</h3>
           
           <div className="space-y-2">
             <Label htmlFor="nome">Nome Completo</Label>
-            <p className="p-2 bg-gray-100 rounded text-gray-600">{profileData.nome}</p>
-            <span className="text-xs text-gray-500">Este campo não pode ser alterado</span>
+            <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.nome}</p>
+            <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
           </div>
 
           <div className="space-y-2">
@@ -2302,7 +2308,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('email', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.email}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.email}</p>
             )}
           </div>
 
@@ -2315,14 +2321,14 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('telefone', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.telefone}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.telefone}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="crm">CRM</Label>
-            <p className="p-2 bg-gray-100 rounded text-gray-600">{profileData.crm}</p>
-            <span className="text-xs text-gray-500">Este campo não pode ser alterado</span>
+            <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.crm}</p>
+            <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
           </div>
 
           <div className="space-y-2">
@@ -2334,14 +2340,14 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('especialidade', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.especialidade}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.especialidade}</p>
             )}
           </div>
         </div>
 
         {/* Endereço e Contato */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b pb-2">Endereço e Contato</h3>
+          <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Endereço e Contato</h3>
           
           <div className="space-y-2">
             <Label htmlFor="endereco">Endereço</Label>
@@ -2352,7 +2358,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('endereco', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.endereco}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.endereco}</p>
             )}
           </div>
 
@@ -2365,7 +2371,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('cidade', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.cidade}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cidade}</p>
             )}
           </div>
 
@@ -2378,7 +2384,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('cep', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.cep}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
             )}
           </div>
 
@@ -2393,15 +2399,15 @@ function LaudoEditor() {
                 placeholder="Descreva sua experiência profissional..."
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded min-h-[100px]">{profileData.biografia}</p>
+              <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Foto do Perfil */}
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+      <div className="border-t border-border pt-6">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
             <AvatarFallback className="text-lg">
@@ -2413,7 +2419,7 @@ function LaudoEditor() {
               <Button variant="outline" size="sm">
                 Alterar Foto
               </Button>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Formatos aceitos: JPG, PNG (máx. 2MB)
               </p>
             </div>
@@ -2448,7 +2454,7 @@ function LaudoEditor() {
   return (
     <ProtectedRoute requiredUserType={["profissional"]}>
       <div className="container mx-auto px-4 py-8">
-        <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex items-center justify-between">
+        <header className="bg-card shadow-md rounded-lg p-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
               <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
@@ -2477,7 +2483,7 @@ function LaudoEditor() {
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         {}
         <aside className="md:sticky md:top-8 h-fit">
-          <nav className="bg-white shadow-md rounded-lg p-3 space-y-1">
+          <nav className="bg-card shadow-md rounded-lg p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
               className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
@@ -2555,7 +2561,7 @@ function LaudoEditor() {
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 
-          <div className="bg-white p-6 rounded-lg w-96 border border-black">
+          <div className="bg-card p-6 rounded-lg w-96 border">
 
             {step === 1 && (
               <>
@@ -2668,7 +2674,7 @@ function LaudoEditor() {
       {}
       {showActionModal && selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96">
+          <div className="bg-card p-6 rounded-lg w-96">
             <h3 className="text-lg font-semibold mb-2">
               Consulta de {selectedEvent.title}
             </h3>

@@ -8,16 +8,9 @@ export default function HeaderAgenda() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isAg = pathname?.startsWith("/agendamento");
+  const isAg = pathname?.startsWith("/agenda");
   const isPr = pathname?.startsWith("/procedimento");
   const isFi = pathname?.startsWith("/financeiro");
-
-  const tabCls = (active: boolean, extra = "") =>
-    `px-4 py-1.5 text-[13px] border ${
-      active
-        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
-        : "text-muted-foreground hover:bg-muted border-border"
-    } ${extra}`;
 
   return (
     <header className="border-b bg-background border-border">
@@ -33,24 +26,33 @@ export default function HeaderAgenda() {
             <Link
               href="/agenda"
               role="tab"
-              aria-selected={isAg}
-              className={tabCls(Boolean(isAg)) + " rounded-md"}
+              className={`px-4 py-1.5 text-[13px] font-medium border rounded-md ${
+                isAg 
+                  ? "bg-primary text-white border-primary dark:bg-primary dark:text-white" 
+                  : "text-foreground hover:bg-muted border-input"
+              }`}
             >
               Agendamento
             </Link>
             <Link
               href="/procedimento"
               role="tab"
-              aria-selected={isPr}
-              className={tabCls(Boolean(isPr)) + " rounded-md"}
+              className={`px-4 py-1.5 text-[13px] font-medium border rounded-md ${
+                isPr 
+                  ? "bg-primary text-white border-primary dark:bg-primary dark:text-white" 
+                  : "text-foreground hover:bg-muted border-input"
+              }`}
             >
               Procedimento
             </Link>
             <Link
               href="/financeiro"
               role="tab"
-              aria-selected={isFi}
-              className={tabCls(Boolean(isFi)) + " rounded-md"}
+              className={`px-4 py-1.5 text-[13px] font-medium border rounded-md ${
+                isFi 
+                  ? "bg-primary text-white border-primary dark:bg-primary dark:text-white" 
+                  : "text-foreground hover:bg-muted border-input"
+              }`}
             >
               Financeiro
             </Link>
@@ -60,7 +62,7 @@ export default function HeaderAgenda() {
             type="button"
             aria-label="Histórico"
             onClick={() => router.back()}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-primary hover:text-white hover:border-primary transition-colors"
           >
             <RotateCcw className="h-4 w-4" />
           </button>

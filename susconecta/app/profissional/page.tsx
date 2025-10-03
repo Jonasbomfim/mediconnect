@@ -1,9 +1,194 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import SignatureCanvas from "react-signature-canvas";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
+import React, { useState, useRef, useEffect } from "react";
+import dynamic from "next/dynamic";
+
+// Importações dinâmicas para evitar erros de SSR
+const SignatureCanvas = dynamic(() => import("react-signature-canvas"), {
+  ssr: false,
+});
+
+
+
+// Função para converter marcações em HTML
+const formatTextToHtml = (text: string): string => {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+    .replace(/\n/g, '<br>');
+};
+
+// Editor simples para laudos
+const QuillEditor = ({ value, onChange }: { value: string; onChange: (content: string) => void }) => {
+  const [showPreview, setShowPreview] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2 p-2 border-b justify-between">
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const textarea = document.querySelector('textarea[data-quill-temp]') as HTMLTextAreaElement;
+              if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                
+                if (selectedText) {
+                  const newText = textarea.value.substring(0, start) + `**${selectedText}**` + textarea.value.substring(end);
+                  onChange(newText);
+                  setTimeout(() => {
+                    textarea.setSelectionRange(start + 2, end + 2);
+                    textarea.focus();
+                  }, 0);
+                } else {
+                  const newText = textarea.value.substring(0, start) + `**texto em negrito**` + textarea.value.substring(end);
+                  onChange(newText);
+                  setTimeout(() => {
+                    textarea.setSelectionRange(start + 2, start + 18);
+                    textarea.focus();
+                  }, 0);
+                }
+              }
+            }}
+            title="Negrito"
+          >
+            <strong>B</strong>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const textarea = document.querySelector('textarea[data-quill-temp]') as HTMLTextAreaElement;
+              if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                
+                if (selectedText) {
+                  const newText = textarea.value.substring(0, start) + `*${selectedText}*` + textarea.value.substring(end);
+                  onChange(newText);
+                  setTimeout(() => {
+                    textarea.setSelectionRange(start + 1, end + 1);
+                    textarea.focus();
+                  }, 0);
+                } else {
+                  const newText = textarea.value.substring(0, start) + `*texto em itálico*` + textarea.value.substring(end);
+                  onChange(newText);
+                  setTimeout(() => {
+                    textarea.setSelectionRange(start + 1, start + 17);
+                    textarea.focus();
+                  }, 0);
+                }
+              }
+            }}
+            title="Itálico"
+          >
+            <em>I</em>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const textarea = document.querySelector('textarea[data-quill-temp]') as HTMLTextAreaElement;
+              if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                
+                if (selectedText) {
+                  const newText = textarea.value.substring(0, start) + `<u>${selectedText}</u>` + textarea.value.substring(end);
+                  onChange(newText);
+                  setTimeout(() => {
+                    textarea.setSelectionRange(start + 3, end + 3);
+                    textarea.focus();
+                  }, 0);
+                } else {
+                  const newText = textarea.value.substring(0, start) + `<u>texto sublinhado</u>` + textarea.value.substring(end);
+                  onChange(newText);
+                  setTimeout(() => {
+                    textarea.setSelectionRange(start + 3, start + 19);
+                    textarea.focus();
+                  }, 0);
+                }
+              }
+            }}
+            title="Sublinhado"
+          >
+            <u>U</u>
+          </Button>
+        </div>
+        
+        <Button
+          type="button"
+          variant={showPreview ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowPreview(!showPreview)}
+        >
+          {showPreview ? "Editar" : "Prévia"}
+        </Button>
+      </div>
+
+      {showPreview ? (
+        <div className="min-h-64 p-3 border rounded-md bg-white text-sm">
+          {value ? (
+            <div dangerouslySetInnerHTML={{ __html: formatTextToHtml(value) }} />
+          ) : (
+            <p className="text-gray-400">Nenhum conteúdo para prévia</p>
+          )}
+        </div>
+      ) : (
+        <Textarea
+          data-quill-temp="true"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Digite o conteúdo do laudo aqui..."
+          className="min-h-64 text-sm"
+          rows={12}
+        />
+      )}
+      
+      <div className="text-xs text-gray-500">
+        <strong>Dica:</strong> Selecione um texto e clique nos botões B, I, U para formatar. Use o botão "Prévia" para ver como ficará formatado.
+        <br />
+        <strong>Formatação:</strong> **negrito**, *itálico*, &lt;u&gt;sublinhado&lt;/u&gt;
+      </div>
+    </div>
+  );
+};
+
+// Wrapper para o SignatureCanvas para evitar erros
+const SignaturePad = ({ canvasRef, onEnd }: { canvasRef: any; onEnd: () => void }) => {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return <div className="h-32 border rounded bg-gray-50 flex items-center justify-center">Carregando área de assinatura...</div>;
+  }
+
+  return (
+    <SignatureCanvas
+      ref={canvasRef}
+      penColor="#000"
+      backgroundColor="#fff"
+      canvasProps={{ 
+        width: 400, 
+        height: 120, 
+        className: "border rounded bg-white w-full" 
+      }}
+      onEnd={onEnd}
+    />
+  );
+};
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,14 +216,18 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity } from "lucide-react"
 import { Calendar as CalendarIcon, FileText, Settings } from "lucide-react";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-
-import dynamic from "next/dynamic";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -175,6 +364,185 @@ const ProfissionalPage = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+
+  // Estados para o gerenciamento de laudos
+  const [laudosData, setLaudosData] = useState<any[]>([
+    {
+      id: "30648642",
+      data: "23/07/2025",
+      preco: "25/07/2025",
+      recipient: "Ana Souza",
+      execSolicitante: "Dr. Carlos Andrade",
+      exameTipo: "Avaliação Cardiológica Completa",
+      status: "Entregue",
+      cid: "I25.1",
+      diagnostico: "Doença aterosclerótica do coração com angina de peito",
+      conclusao: "Paciente apresenta quadro de doença arterial coronariana estável. Recomendado tratamento medicamentoso e acompanhamento regular.",
+      conteudo: `**HISTÓRIA CLÍNICA:**
+Paciente do sexo feminino, 42 anos, procurou atendimento devido a episódios de dor torácica aos esforços, com duração de aproximadamente 5 minutos, que melhora com repouso. Relata também dispneia aos médios esforços e palpitações ocasionais.
+
+**ANTECEDENTES:**
+- Hipertensão arterial sistêmica há 8 anos
+- Dislipidemia
+- Histórico familiar de doença arterial coronariana (pai)
+- Sedentarismo
+
+**EXAME FÍSICO:**
+- PA: 145/90 mmHg
+- FC: 76 bpm
+- Peso: 68 kg, Altura: 1,62 m, IMC: 25,9 kg/m²
+- Ausculta cardíaca: bulhas normofonéticas, sem sopros
+- Ausculta pulmonar: murmúrio vesicular presente bilateralmente
+
+**EXAMES COMPLEMENTARES:**
+- ECG: ritmo sinusal, sem alterações isquêmicas
+- Ecocardiograma: função sistólica preservada (FEVE: 65%), sem alterações segmentares
+- Teste ergométrico: positivo para isquemia miocárdica
+
+**CONDUTA:**
+- Otimização do tratamento anti-hipertensivo
+- Estatina para controle da dislipidemia  
+- Antiagregante plaquetário
+- Orientações sobre estilo de vida
+- Retorno em 30 dias`
+    },
+    {
+      id: "30645947",
+      data: "24/07/2025", 
+      preco: "25/07/2025",
+      recipient: "Bruno Lima",
+      execSolicitante: "Dr. Carlos Andrade",
+      exameTipo: "Avaliação Dermatológica - Lesões Pigmentadas",
+      status: "Entregue",
+      cid: "D22.9",
+      diagnostico: "Nevo melanocítico benigno",
+      conclusao: "Lesões pigmentadas benignas. Recomendado acompanhamento dermatológico anual e uso de protetor solar.",
+      conteudo: `**HISTÓRIA CLÍNICA:**
+Paciente masculino, 33 anos, comparece para avaliação de múltiplas lesões pigmentadas pelo corpo, algumas com crescimento recente. Nega sintomas como prurido, sangramento ou mudanças de coloração. Histórico de exposição solar intensa durante a infância e adolescência.
+
+**ANTECEDENTES:**
+- Fototipo II (pele clara, queima facilmente)
+- Múltiplas queimaduras solares na infância
+- Histórico familiar negativo para melanoma
+- Uso irregular de protetor solar
+
+**EXAME FÍSICO:**
+**Dermatoscopia realizada em 12 lesões:**
+
+*Lesão dorso (2cm superior ao ombro direito):*
+- Mácula acastanhada, 4mm, bordas regulares
+- Padrão dermatoscópico: rede pigmentar homogênea
+- Score ABCD: 2,5 (baixo risco)
+
+*Lesão região escapular esquerda:*
+- Pápula pigmentada, 3mm, simétrica
+- Padrão globular homogêneo
+- Sem sinais de malignidade
+
+*Demais lesões:*
+- Características benignas similares
+- Ausência de critérios de malignidade
+- Padrões dermatoscópicos típicos de nevos
+
+**CONDUTA:**
+- Mapeamento corporal documentado
+- Fotoproteção rigorosa (FPS 60+)
+- Autoexame mensal orientado
+- Reavaliação dermatoscópica em 12 meses
+- Biópsia desnecessária no momento atual`
+    },
+    {
+      id: "30649123",
+      data: "25/07/2025",
+      preco: "26/07/2025", 
+      recipient: "Carla Menezes",
+      execSolicitante: "Dr. Carlos Andrade",
+      exameTipo: "Avaliação Cardiológica - Insuficiência Cardíaca",
+      status: "Rascunho",
+      cid: "I50.9",
+      diagnostico: "Insuficiência cardíaca não especificada",
+      conclusao: "Insuficiência cardíaca classe funcional II. Necessário ajuste da medicação e monitorização rigorosa.",
+      conteudo: `**HISTÓRIA CLÍNICA:**
+Paciente feminina, 67 anos, com queixa de dispneia progressiva aos esforços há 6 meses, associada a edema de membros inferiores e fadiga. Nega dor torácica, palpitações ou síncope.
+
+**ANTECEDENTES:**
+- Hipertensão arterial há 15 anos
+- Diabetes mellitus tipo 2 há 10 anos
+- Infarto agudo do miocárdio há 3 anos
+- Tabagismo pregresso (parou há 5 anos)
+
+**EXAME FÍSICO:**
+- PA: 130/80 mmHg
+- FC: 88 bpm (irregular)
+- Edema ++/4+ em MMII
+- Estase jugular a 45°
+- Ausculta cardíaca: B3 audível, sopro sistólico 2+/6+
+- Crepitações bibasais
+
+**EXAMES:**
+- BNP: 850 pg/ml (elevado)
+- Ecocardiograma: FEVE 35%, dilatação de VE
+- RX tórax: cardiomegalia, congestão pulmonar
+
+**MEDICAÇÕES EM USO:**
+- Enalapril 10mg 2x/dia
+- Carvedilol 6,25mg 2x/dia  
+- Furosemida 40mg/dia
+- Metformina 850mg 2x/dia
+
+**CONDUTA PROPOSTA:**
+- Ajuste das medicações para IC
+- Restrição de sódio (<2g/dia)
+- Controle rigoroso de peso diário
+- Retorno em 15 dias`
+    }
+  ]);
+  
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [buscarTexto, setBuscarTexto] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [laudoAtivo, setLaudoAtivo] = useState<any>(null);
+  const [modoEdicao, setModoEdicao] = useState<'novo' | 'editar' | null>(null);
+
+  // Estados para o editor de laudo
+  const [editorLaudo, setEditorLaudo] = useState({
+    pacienteId: "",
+    pacienteNome: "",
+    pacienteCpf: "",
+    pacienteIdade: "",
+    cid: "",
+    diagnostico: "",
+    conclusao: "",
+    conteudo: "",
+    imagens: [] as string[],
+    pdfAnexos: [] as string[],
+    incluirData: true,
+    incluirAssinatura: true,
+    status: "Rascunho"
+  });
+  const [assinaturaLaudo, setAssinaturaLaudo] = useState<string | null>(null);
+  const [previewLaudo, setPreviewLaudo] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState<'editor' | 'imagens' | 'anexos' | 'preview'>('editor');
+  const [laudoVisualizacao, setLaudoVisualizacao] = useState<any>(null);
+  const sigCanvasLaudoRef = useRef<any>(null);
+
+  // Modelos e frases prontas
+  const modelosTexto = {
+    "Exame Normal": "O exame realizado apresentou parâmetros dentro da normalidade, sem alterações significativas detectadas.",
+    "Acompanhamento": "Recomenda-se acompanhamento médico regular para monitoramento da evolução do quadro clínico.",
+    "Alterações Leves": "Foram observadas alterações leves que requerem acompanhamento, sem indicação de intervenção imediata.",
+    "Urgente": "Os achados indicam necessidade de avaliação médica urgente e início de tratamento adequado."
+  };
+
+  const camposDinamicos = [
+    { label: "Nome do Paciente", value: "{NOME_PACIENTE}" },
+    { label: "Idade", value: "{IDADE}" },
+    { label: "CPF", value: "{CPF}" },
+    { label: "Data Atual", value: "{DATA_ATUAL}" },
+    { label: "CID", value: "{CID}" },
+    { label: "Médico", value: "{MEDICO}" }
+  ];
 
   const handleSave = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -568,143 +936,13 @@ const ProfissionalPage = () => {
 
   
   function PacientesSection({ handleAbrirProntuario, setActiveSection }) {
-    // Estados para busca de pacientes
-     const [buscaPaciente, setBuscaPaciente] = useState("");
-  const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
-  const [carregandoBusca, setCarregandoBusca] = useState(false);
-  const [erroBusca, setErroBusca] = useState<string | null>(null);
-
-
-    // Função para buscar pacientes
-    const handleBuscarPaciente = async () => {
-      if (!buscaPaciente.trim()) {
-        setPacientesBusca([]);
-        setErroBusca(null);
-        return;
-      }
-
-      setCarregandoBusca(true);
-      setErroBusca(null);
-
-      try {
-        // Importa a função de busca
-        const { buscarPacientes } = await import("@/lib/api");
-        const resultados = await buscarPacientes(buscaPaciente.trim());
-        
-        if (resultados.length === 0) {
-          setErroBusca("Nenhum paciente encontrado com os critérios informados.");
-          setPacientesBusca([]);
-        } else {
-          // Transforma os dados da API para o formato usado no componente
-          const pacientesFormatados = resultados.map(p => ({
-            nome: p.full_name || "Nome não informado",
-            cpf: p.cpf || "CPF não informado",
-            idade: p.birth_date ? new Date().getFullYear() - new Date(p.birth_date).getFullYear() : "N/A",
-            statusLaudo: "Pendente", // Status padrão
-            id: p.id
-          }));
-          setPacientesBusca(pacientesFormatados);
-          setErroBusca(null);
-        }
-      } catch (error: any) {
-        console.error("Erro ao buscar pacientes:", error);
-        setErroBusca(error.message || "Erro ao buscar pacientes. Tente novamente.");
-        setPacientesBusca([]);
-      } finally {
-        setCarregandoBusca(false);
-      }
-    };
-
-    const handleLimparBusca = () => {
-      setBuscaPaciente("");
-      setPacientesBusca([]);
-      setErroBusca(null);
-    };
-
     return (
       <div className="bg-white shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
         
-        {/* Campo de busca */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Buscar Paciente</h3>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="Digite ID, CPF, nome ou email do paciente..."
-                value={buscaPaciente}
-                onChange={(e) => setBuscaPaciente(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleBuscarPaciente()}
-                className="w-full"
-              />
-            </div>
-            <Button 
-              onClick={handleBuscarPaciente} 
-              disabled={carregandoBusca}
-              className="flex items-center gap-2"
-            >
-              {carregandoBusca ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Buscando...
-                </>
-              ) : (
-                <>
-                  <User className="h-4 w-4" />
-                  Buscar
-                </>
-              )}
-            </Button>
-            {(buscaPaciente || pacientesBusca.length > 0 || erroBusca) && (
-              <Button 
-                variant="outline" 
-                onClick={handleLimparBusca}
-                className="flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Limpar
-              </Button>
-            )}
-          </div>
-          
-          {/* Resultados da busca */}
-          {erroBusca && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-700 text-sm">{erroBusca}</p>
-            </div>
-          )}
-          
-          {pacientesBusca.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-md font-medium mb-2">Resultados da busca ({pacientesBusca.length}):</h4>
-              <div className="space-y-2">
-                {pacientesBusca.map((paciente, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white border rounded-lg hover:shadow-sm">
-                    <div>
-                      <p className="font-medium">{paciente.nome}</p>
-                      <p className="text-sm text-gray-600">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        handleAbrirProntuario(paciente);
-                        setActiveSection('prontuario');
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      Abrir Prontuário
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Tabela de pacientes padrão */}
+        {/* Tabela de pacientes */}
         <div>
-          <h3 className="text-lg font-semibold mb-3">Pacientes Recentes</h3>
+          <h3 className="text-lg font-semibold mb-3">Lista de Pacientes</h3>
           <Table>
             <TableHeader>
               <TableRow>
@@ -1644,259 +1882,716 @@ const ProfissionalPage = () => {
     </div>
   );
 
-  
-  const renderLaudosSection = () => (
-    <section>
-      <LaudoEditor />
-    </section>
-  );
-// --- LaudoEditor COMPONENT ---
-function LaudoEditor() {
-  
-  const pacientes = [
-    { nome: "Ana Souza", cpf: "123.456.789-00", idade: 32, sexo: "Feminino" },
-    { nome: "Bruno Lima", cpf: "987.654.321-00", idade: 45, sexo: "Masculino" },
-    { nome: "Carla Menezes", cpf: "111.222.333-44", idade: 28, sexo: "Feminino" },
-  ];
-
-  const [conteudo, setConteudo] = useState("");
-  const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
-  const [cid, setCid] = useState("");
-  const [imagem, setImagem] = useState<string | null>(null);
-  const [assinatura, setAssinatura] = useState<string | null>(null);
-  const sigCanvasRef = useRef<any>(null);
-  const [laudos, setLaudos] = useState<any[]>([]);
-  const [preview, setPreview] = useState(false);
-
-  
-  const handleSelectPaciente = (paciente: any) => {
-    setPacienteSelecionado(paciente);
-  };
-
-  const limparPaciente = () => setPacienteSelecionado(null);
-
-  const salvarLaudo = (status: string) => {
-    if (!pacienteSelecionado) {
-      alert('Selecione um paciente.');
-      return;
+  const renderLaudosSection = () => {
+    if (modoEdicao) {
+      return renderEditorLaudo();
     }
-    const novoLaudo = {
-      paciente: pacienteSelecionado.nome,
-      cpf: pacienteSelecionado.cpf,
-      idade: pacienteSelecionado.idade,
-      sexo: pacienteSelecionado.sexo,
-      cid,
-      conteudo,
-      imagem,
-      assinatura,
-      data: new Date().toLocaleString(),
-      status
-    };
-    setLaudos(prev => [novoLaudo, ...prev]);
-    setPacienteSelecionado(null); setCid(""); setConteudo(""); setImagem(null); setAssinatura(null);
-    if (sigCanvasRef.current) sigCanvasRef.current.clear();
+    
+    return (
+      <div className="space-y-6">
+        {/* Cabeçalho */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Gerenciamento de Laudos</h2>
+            <p className="text-gray-600 text-sm mt-1">
+              Nesta seção você pode gerenciar todos os laudos gerados através da integração.
+            </p>
+          </div>
+          <Button 
+            onClick={() => {
+              // Limpar dados ao criar novo laudo
+              setEditorLaudo({
+                pacienteId: "",
+                pacienteNome: "",
+                pacienteCpf: "",
+                pacienteIdade: "",
+                cid: "",
+                diagnostico: "",
+                conclusao: "",
+                conteudo: "",
+                imagens: [] as string[],
+                pdfAnexos: [] as string[],
+                incluirData: true,
+                incluirAssinatura: true,
+                status: "Rascunho"
+              });
+              setLaudoAtivo(null);
+              setModoEdicao('novo');
+            }}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar
+          </Button>
+        </div>
+
+        {/* Filtros e Busca */}
+        <div className="bg-white rounded-lg shadow-sm border p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="buscar">Buscar paciente/código</Label>
+              <Input
+                id="buscar"
+                placeholder="Digite para buscar..."
+                value={buscarTexto}
+                onChange={(e) => setBuscarTexto(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="dataInicio">Data Início</Label>
+              <Input
+                id="dataInicio"
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="dataFim">Data Fim</Label>
+              <Input
+                id="dataFim"
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="Rascunho">Rascunho</SelectItem>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Entregue">Entregue</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="cursor-pointer">
+              Hoje
+            </Button>
+            <Button variant="outline" size="sm" className="cursor-pointer">
+              Semana
+            </Button>
+            <Button variant="outline" size="sm" className="cursor-pointer">
+              Mês
+            </Button>
+            <Button variant="outline" size="sm" className="cursor-pointer">
+              <Download className="h-4 w-4 mr-1" />
+              Filtrar
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabela de Laudos */}
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50">
+                <TableHead className="font-semibold">Pedido</TableHead>
+                <TableHead className="font-semibold">Data</TableHead>
+                <TableHead className="font-semibold">Preço</TableHead>
+                <TableHead className="font-semibold">Paciente</TableHead>
+                <TableHead className="font-semibold">Executante/Solicitante</TableHead>
+                <TableHead className="font-semibold">Exame/Classificação</TableHead>
+                <TableHead className="font-semibold">Ação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {laudosData.map((laudo) => (
+                <TableRow key={laudo.id} className="hover:bg-gray-50">
+                  <TableCell className="font-medium">{laudo.id}</TableCell>
+                  <TableCell>{laudo.data}</TableCell>
+                  <TableCell>{laudo.preco}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className={`w-2 h-2 rounded-full ${
+                          laudo.status === 'Pendente' ? 'bg-red-500' : 
+                          laudo.status === 'Rascunho' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                      />
+                      <span className="truncate max-w-[200px]">{laudo.recipient}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="truncate max-w-[200px]">{laudo.execSolicitante}</TableCell>
+                  <TableCell className="truncate max-w-[200px]">{laudo.exameTipo}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setLaudoAtivo(laudo);
+                                // Buscar dados do paciente pelo nome no laudo
+                                const pacienteEncontrado = pacientes.find(p => p.nome === laudo.recipient);
+                                if (pacienteEncontrado) {
+                                  // Carregar TODOS os dados do laudo para edição
+                                  setEditorLaudo({
+                                    pacienteId: pacienteEncontrado.cpf,
+                                    pacienteNome: pacienteEncontrado.nome,
+                                    pacienteCpf: pacienteEncontrado.cpf,
+                                    pacienteIdade: pacienteEncontrado.idade.toString(),
+                                    cid: laudo.cid || "",
+                                    diagnostico: laudo.diagnostico || "",
+                                    conclusao: laudo.conclusao || "",
+                                    conteudo: laudo.conteudo || "",
+                                    imagens: [],
+                                    pdfAnexos: [],
+                                    incluirData: true,
+                                    incluirAssinatura: true,
+                                    status: laudo.status || "Rascunho"
+                                  });
+                                }
+                                setModoEdicao('editar');
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Editar laudo</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="cursor-pointer"
+                              onClick={() => setLaudoVisualizacao(laudo)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Visualizar laudo</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" className="cursor-pointer">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Download PDF</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-white p-2 md:p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6 mb-6">
-          <h2 className="text-2xl font-bold text-primary mb-4 text-center tracking-tight">Laudo Médico</h2>
+  const renderEditorLaudo = () => {
+    return (
+      <div className="space-y-6">
+        {/* Cabeçalho do Editor */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setModoEdicao(null)}
+              className="cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Voltar
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold">
+                {modoEdicao === 'novo' ? 'Novo Laudo' : 'Editar Laudo'}
+              </h2>
+              <p className="text-gray-600 text-sm">
+                Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
+              </p>
+            </div>
+          </div>
           
-          {!pacienteSelecionado ? (
-            <div className="flex flex-col items-center justify-center py-8 px-1 bg-white rounded-xl shadow-sm">
-              <div className="mb-2">
-                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="mx-auto text-gray-400">
-                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M4 20c0-2.5 3.5-4.5 8-4.5s8 2 8 4.5" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-              </div>
-              <h2 className="text-lg font-bold text-center text-gray-800 mb-1">Selecionar Paciente</h2>
-              <p className="text-gray-500 text-center mb-4 max-w-xs text-sm">Escolha um paciente para visualizar o prontuário completo</p>
-              <div className="w-full max-w-xs">
-                <label htmlFor="select-paciente" className="block text-sm font-medium text-gray-700 mb-1">Escolha o paciente:</label>
-                <div className="relative">
-                  <select
-                    id="select-paciente"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-300 focus:outline-none bg-white text-sm text-gray-900 shadow-sm transition-all appearance-none"
-                    onChange={e => {
-                      const p = pacientes.find(p => p.cpf === e.target.value);
-                      if (p) handleSelectPaciente(p);
-                    }}
-                    defaultValue=""
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setModoEdicao(null)}
+              className="cursor-pointer"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setEditorLaudo(prev => ({ ...prev, status: "Rascunho" }));
+                alert("Laudo salvo como rascunho!");
+              }}
+              className="cursor-pointer"
+            >
+              Salvar Rascunho
+            </Button>
+            <Button 
+              onClick={() => {
+                setEditorLaudo(prev => ({ ...prev, status: "Entregue" }));
+                alert("Laudo liberado com sucesso!");
+                setModoEdicao(null);
+              }}
+              className="cursor-pointer"
+            >
+              Liberar Laudo
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabs do Editor */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="border-b">
+            <nav className="flex space-x-8 px-6">
+              {[
+                { id: 'editor', nome: 'Editor', icone: FileText },
+                { id: 'imagens', nome: 'Imagens', icone: Upload },
+                { id: 'anexos', nome: 'Anexos PDF', icone: FileText },
+                { id: 'preview', nome: 'Pré-visualização', icone: Eye }
+              ].map((aba) => {
+                const Icone = aba.icone;
+                return (
+                  <button
+                    key={aba.id}
+                    onClick={() => setAbaAtiva(aba.id as any)}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors cursor-pointer ${
+                      abaAtiva === aba.id
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                   >
-                    <option value="" className="text-gray-400">Selecione um paciente...</option>
-                    {pacientes.map(p => (
-                      <option key={p.cpf} value={p.cpf}>{p.nome} - {p.cpf}</option>
-                    ))}
-                  </select>
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 14l-4-4h8l-4 4z" fill="currentColor"/></svg>
-                  </span>
-                </div>
+                    <Icone className="h-4 w-4" />
+                    {aba.nome}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {abaAtiva === 'editor' && renderAbaEditor()}
+            {abaAtiva === 'imagens' && renderAbaImagens()}
+            {abaAtiva === 'anexos' && renderAbaAnexos()}
+            {abaAtiva === 'preview' && renderAbaPreview()}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAbaEditor = () => (
+    <div className="space-y-6">
+      {/* Seleção de Paciente */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="paciente">Paciente *</Label>
+          {modoEdicao === 'editar' ? (
+            // Modo edição: mostrar dados fixos do paciente
+            <div className="flex items-center gap-2 p-3 border rounded-md bg-gray-50">
+              <User className="h-4 w-4 text-gray-500" />
+              <div>
+                <div className="font-medium">{editorLaudo.pacienteNome || laudoAtivo?.recipient}</div>
+                <div className="text-sm text-gray-500">{editorLaudo.pacienteCpf}</div>
               </div>
             </div>
           ) : (
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-              <div>
-                <div className="font-bold text-primary text-base mb-0.5">{pacienteSelecionado.nome}</div>
-                <div className="text-xs text-gray-700">CPF: {pacienteSelecionado.cpf}</div>
-                <div className="text-xs text-gray-700">Idade: {pacienteSelecionado.idade}</div>
-                <div className="text-xs text-gray-700">Sexo: {pacienteSelecionado.sexo}</div>
-              </div>
-              <button type="button" onClick={limparPaciente} className="px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold shadow text-xs">Trocar paciente</button>
-            </div>
+            // Modo novo: mostrar select de pacientes
+            <Select 
+              value={editorLaudo.pacienteId}
+              onValueChange={(value) => {
+                const pacienteSelecionado = pacientes.find(p => p.cpf === value);
+                if (pacienteSelecionado) {
+                  setEditorLaudo(prev => ({
+                    ...prev,
+                    pacienteId: value,
+                    pacienteNome: pacienteSelecionado.nome,
+                    pacienteCpf: pacienteSelecionado.cpf,
+                    pacienteIdade: pacienteSelecionado.idade.toString()
+                  }));
+                }
+              }}
+            >
+              <SelectTrigger className="cursor-pointer">
+                <SelectValue placeholder="Selecione o paciente" />
+              </SelectTrigger>
+              <SelectContent>
+                {pacientes.map((paciente) => (
+                  <SelectItem key={paciente.cpf} value={paciente.cpf}>
+                    {paciente.nome} - {paciente.cpf}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          
-          <form className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary">CID</label>
-              <input
-                type="text"
-                value={cid}
-                onChange={e => setCid(e.target.value)}
-                placeholder="Ex: I10, E11, etc."
-                className="w-full p-2 border border-primary/20 rounded-md focus:ring-2 focus:ring-primary/30 focus:outline-none text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary">Conteúdo do Laudo *</label>
-              {!preview ? (
-                <ReactQuill
-                  value={conteudo}
-                  onChange={setConteudo}
-                  modules={{
-                    toolbar: [
-                      ['bold', 'italic', 'underline'],
-                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                      [{ 'align': [] }],
-                      [{ 'size': ['small', false, 'large', 'huge'] }],
-                      ['clean']
-                    ]
-                  }}
-                  className="h-40 border border-primary/20 rounded-md text-sm"
-                />
-              ) : (
-                <div className="border border-primary/20 p-2 rounded-md bg-muted overflow-auto">
-                  <h3 className="text-base font-semibold mb-1 text-primary">Pré-visualização:</h3>
-                  <div dangerouslySetInnerHTML={{ __html: conteudo }} />
-                </div>
-              )}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary mb-2">Imagem (opcional)</label>
-              <div className="mb-2"></div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setImagem(reader.result as string);
-                    reader.readAsDataURL(file);
-                  } else {
-                    setImagem(null);
-                  }
-                }}
-                className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              />
-              {imagem && (
-                <img src={imagem} alt="Pré-visualização" className="mt-1 rounded-md max-h-20 border border-primary/20" />
-              )}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary">Assinatura Digital</label>
-              <div className="bg-muted rounded-md border border-primary/20 p-2 flex flex-col items-center">
-                <SignatureCanvas
-                  ref={sigCanvasRef}
-                  penColor="#0f172a"
-                  backgroundColor="#fff"
-                  canvasProps={{ width: 220, height: 60, className: "rounded-md border bg-white shadow" }}
-                  onEnd={() => setAssinatura(sigCanvasRef.current?.isEmpty() ? null : sigCanvasRef.current?.toDataURL())}
-                />
-                <div className="flex gap-2 mt-2">
-                  <button type="button" onClick={() => { sigCanvasRef.current?.clear(); setAssinatura(null); }} className="px-2 py-1 text-xs rounded-md bg-muted-foreground text-white hover:bg-muted font-semibold shadow">Limpar</button>
-                </div>
-                {assinatura && (
-                  <img src={assinatura} alt="Assinatura" className="mt-2 max-h-10 border rounded-md bg-white shadow" />
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col md:flex-row gap-2 mt-4">
-              <button
-                type="button"
-                onClick={() => salvarLaudo("Rascunho")}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-gray-200 transition-all border border-gray-200"
-              >
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Salvar Rascunho
-              </button>
-              <button
-                type="button"
-                onClick={() => salvarLaudo("Entregue")}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-primary text-white py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/90 transition-all border border-primary/20"
-              >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2l4-4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Liberar Laudo
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreview(!preview)}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-white text-primary py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/10 transition-all border border-primary/20"
-              >
-                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 10l4.553 2.276A2 2 0 0121 14.09V17a2 2 0 01-2 2H5a2 2 0 01-2-2v-2.91a2 2 0 01.447-1.814L8 10m7-4v4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Pré-visualizar Laudo
-              </button>
-            </div>
-          </form>
         </div>
         
-        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6">
-          <h3 className="text-xl font-bold text-primary mb-3 text-center">Histórico de Laudos</h3>
-          {laudos.length === 0 ? (
-            <p className="text-muted-foreground text-center text-sm">Nenhum laudo registrado.</p>
-          ) : (
-            laudos.map((laudo: any, idx: number) => (
-              <div key={idx} className="border border-primary/20 rounded-2xl p-4 mb-6 bg-primary/5 shadow-sm">
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 20c0-2.5 3.5-4.5 8-4.5s8 2 8 4.5" stroke="currentColor" strokeWidth="2"/></svg>
-                    <span className="font-bold text-lg md:text-xl text-primary drop-shadow-sm">{laudo.paciente}</span>
-                  </div>
-                  <span className="text-base text-gray-500 font-medium">CPF: {laudo.cpf}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 text-sm text-gray-700">
-                  <div>Idade: <span className="font-medium">{laudo.idade}</span></div>
-                  <div>Sexo: <span className="font-medium">{laudo.sexo}</span></div>
-                  <div>Status: <span className="font-medium">{laudo.status}</span></div>
-                  <div>CID: <span className="font-medium">{laudo.cid}</span></div>
-                  <div>Data: <span className="font-medium">{laudo.data}</span></div>
-                </div>
-                {laudo.assinatura && (
-                  <div className="mb-2">
-                    <p className="font-semibold text-primary text-sm mb-1">Assinatura Digital:</p>
-                    <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-lg max-h-16 border bg-white shadow" />
-                  </div>
-                )}
-                {laudo.imagem && (
-                  <div className="mb-2">
-                    <p className="font-semibold text-primary text-sm mb-1">Imagem:</p>
-                    <img src={laudo.imagem} alt="Imagem do laudo" className="rounded-lg max-h-20 border border-primary/20 mb-1" />
-                  </div>
-                )}
-                <div className="mb-1">
-                  <p className="font-semibold text-primary text-sm mb-1">Conteúdo:</p>
-                  <div className="text-sm text-gray-800" dangerouslySetInnerHTML={{ __html: laudo.conteudo }} />
-                </div>
-              </div>
-            ))
-          )}
+        <div className="space-y-2">
+          <Label htmlFor="cid">CID *</Label>
+          <Input
+            id="cid"
+            placeholder="Ex: I10, E11, etc."
+            value={editorLaudo.cid}
+            onChange={(e) => setEditorLaudo(prev => ({ ...prev, cid: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      {/* Campos Principais do Laudo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="diagnostico">Diagnóstico *</Label>
+          <Textarea
+            id="diagnostico"
+            placeholder="Insira o diagnóstico..."
+            value={editorLaudo.diagnostico}
+            onChange={(e) => setEditorLaudo(prev => ({ ...prev, diagnostico: e.target.value }))}
+            rows={4}
+            className="resize-none"
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="conclusao">Conclusão *</Label>
+          <Textarea
+            id="conclusao"
+            placeholder="Insira a conclusão..."
+            value={editorLaudo.conclusao}
+            onChange={(e) => setEditorLaudo(prev => ({ ...prev, conclusao: e.target.value }))}
+            rows={4}
+            className="resize-none"
+          />
+        </div>
+      </div>
+
+      {/* Modelos e Frases */}
+      <div className="space-y-3">
+        <h4 className="font-semibold text-sm">Modelos e Frases</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {Object.entries(modelosTexto).map(([nome, texto]) => (
+            <Button
+              key={nome}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditorLaudo(prev => ({
+                  ...prev,
+                  conteudo: prev.conteudo + (prev.conteudo ? '\n\n' : '') + texto
+                }));
+              }}
+              className="text-left justify-start cursor-pointer"
+            >
+              {nome}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Editor de Texto Rico */}
+      <div className="space-y-2">
+        <Label>Conteúdo do Laudo *</Label>
+        <QuillEditor
+          value={editorLaudo.conteudo}
+          onChange={(content: string) => setEditorLaudo(prev => ({ ...prev, conteudo: content }))}
+        />
+      </div>
+
+
+
+      {/* Assinatura Digital */}
+      <div className="space-y-4">
+        <h4 className="font-semibold">Assinatura Digital</h4>
+        <div className="border rounded-lg p-4 bg-gray-50">
+          <SignaturePad
+            canvasRef={sigCanvasLaudoRef}
+            onEnd={() => {
+              if (!sigCanvasLaudoRef.current?.isEmpty()) {
+                setAssinaturaLaudo(sigCanvasLaudoRef.current?.toDataURL());
+              }
+            }}
+          />
+          <div className="flex gap-2 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                sigCanvasLaudoRef.current?.clear();
+                setAssinaturaLaudo(null);
+              }}
+              className="cursor-pointer"
+            >
+              Limpar
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Opções Finais */}
+      <div className="space-y-4">
+        <h4 className="font-semibold">Opções do Laudo</h4>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="incluirData"
+              checked={editorLaudo.incluirData}
+              onChange={(e) => setEditorLaudo(prev => ({ ...prev, incluirData: e.target.checked }))}
+            />
+            <Label htmlFor="incluirData">Incluir data no laudo</Label>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="incluirAssinatura"
+              checked={editorLaudo.incluirAssinatura}
+              onChange={(e) => setEditorLaudo(prev => ({ ...prev, incluirAssinatura: e.target.checked }))}
+            />
+            <Label htmlFor="incluirAssinatura">Incluir assinatura no laudo</Label>
+          </div>
         </div>
       </div>
     </div>
   );
-}
+
+  const renderAbaImagens = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Imagens do Laudo</h3>
+        <Button className="cursor-pointer">
+          <Upload className="h-4 w-4 mr-2" />
+          Upload Imagem
+        </Button>
+      </div>
+      
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+        <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+        <p className="text-gray-600 mb-2">Arraste imagens aqui ou clique para selecionar</p>
+        <p className="text-sm text-gray-500">Formatos aceitos: JPG, PNG, DICOM (máx. 10MB por arquivo)</p>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            // Lógica para upload de imagens
+            console.log("Imagens selecionadas:", e.target.files);
+          }}
+        />
+      </div>
+      
+      {editorLaudo.imagens.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {editorLaudo.imagens.map((img, index) => (
+            <div key={index} className="relative border rounded-lg p-2">
+              <img src={img} alt={`Imagem ${index + 1}`} className="w-full h-24 object-cover rounded" />
+              <Button
+                variant="destructive"
+                size="sm"
+                className="absolute -top-2 -right-2 h-8 w-8 cursor-pointer"
+                onClick={() => {
+                  setEditorLaudo(prev => ({
+                    ...prev,
+                    imagens: prev.imagens.filter((_, i) => i !== index)
+                  }));
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAbaAnexos = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Anexos PDF</h3>
+        <Button className="cursor-pointer">
+          <Upload className="h-4 w-4 mr-2" />
+          Importar PDF
+        </Button>
+      </div>
+      
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+        <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+        <p className="text-gray-600 mb-2">Arraste PDFs aqui ou clique para selecionar</p>
+        <p className="text-sm text-gray-500">Anexar resultados de exames externos (máx. 25MB por arquivo)</p>
+      </div>
+      
+      {editorLaudo.pdfAnexos.length > 0 && (
+        <div className="space-y-3">
+          {editorLaudo.pdfAnexos.map((pdf, index) => (
+            <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <FileText className="h-8 w-8 text-red-500" />
+                <div>
+                  <p className="font-medium">Documento_{index + 1}.pdf</p>
+                  <p className="text-sm text-gray-500">2.4 MB</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="cursor-pointer">
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => {
+                    setEditorLaudo(prev => ({
+                      ...prev,
+                      pdfAnexos: prev.pdfAnexos.filter((_, i) => i !== index)
+                    }));
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAbaPreview = () => {
+    const pacienteSelecionado = pacientes.find(p => p.cpf === editorLaudo.pacienteId);
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Pré-visualização do Laudo</h3>
+          <Button className="cursor-pointer">
+            <Download className="h-4 w-4 mr-2" />
+            Gerar PDF
+          </Button>
+        </div>
+        
+        <div className="border rounded-lg p-8 bg-white shadow-sm max-w-4xl mx-auto">
+          {/* Cabeçalho do Laudo */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold mb-2">LAUDO MÉDICO</h1>
+            {editorLaudo.incluirData && (
+              <p className="text-gray-600">Data: {new Date().toLocaleDateString('pt-BR')}</p>
+            )}
+          </div>
+          
+          {/* Dados do Paciente */}
+          {pacienteSelecionado && (
+            <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded">
+              <div>
+                <strong>Paciente:</strong> {pacienteSelecionado.nome}
+              </div>
+              <div>
+                <strong>CPF:</strong> {pacienteSelecionado.cpf}
+              </div>
+              <div>
+                <strong>Idade:</strong> {pacienteSelecionado.idade} anos
+              </div>
+              {editorLaudo.cid && (
+                <div>
+                  <strong>CID:</strong> {editorLaudo.cid}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Conteúdo */}
+          <div className="mb-6">
+            {editorLaudo.conteudo ? (
+              <div 
+                className="prose max-w-none leading-relaxed"
+                dangerouslySetInnerHTML={{ 
+                  __html: formatTextToHtml(
+                    editorLaudo.conteudo
+                      .replace(/{NOME_PACIENTE}/g, pacienteSelecionado?.nome || '')
+                      .replace(/{IDADE}/g, pacienteSelecionado?.idade?.toString() || '')
+                      .replace(/{CPF}/g, pacienteSelecionado?.cpf || '')
+                      .replace(/{DATA_ATUAL}/g, new Date().toLocaleDateString('pt-BR'))
+                      .replace(/{CID}/g, editorLaudo.cid)
+                      .replace(/{MEDICO}/g, medico.nome)
+                  )
+                }} 
+              />
+            ) : (
+              <div className="text-gray-400 italic text-center py-8">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum conteúdo adicionado ainda.</p>
+                <p className="text-sm">Vá para a aba "Editor" para escrever o laudo.</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Diagnóstico */}
+          {editorLaudo.diagnostico && (
+            <div className="mb-6">
+              <h4 className="font-bold mb-2">DIAGNÓSTICO:</h4>
+              <p>{editorLaudo.diagnostico}</p>
+            </div>
+          )}
+          
+          {/* Conclusão */}
+          {editorLaudo.conclusao && (
+            <div className="mb-6">
+              <h4 className="font-bold mb-2">CONCLUSÃO:</h4>
+              <p>{editorLaudo.conclusao}</p>
+            </div>
+          )}
+          
+          {/* Imagens */}
+          {editorLaudo.imagens.length > 0 && (
+            <div className="mb-6">
+              <h4 className="font-bold mb-4">IMAGENS:</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {editorLaudo.imagens.map((img, index) => (
+                  <img key={index} src={img} alt={`Imagem ${index + 1}`} className="w-full border rounded" />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Assinatura */}
+          {editorLaudo.incluirAssinatura && assinaturaLaudo && (
+            <div className="mt-8 text-center">
+              <div className="border-t pt-4">
+                <img src={assinaturaLaudo} alt="Assinatura" className="mx-auto mb-2" style={{ maxHeight: '80px' }} />
+                <p className="font-semibold">{medico.nome}</p>
+                <p className="text-sm text-gray-600">{medico.identificacao}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   
   const renderComunicacaoSection = () => (
@@ -2704,6 +3399,76 @@ function LaudoEditor() {
           </div>
         </div>
       )}
+
+      {/* Modal de Visualização do Laudo */}
+      <Dialog open={!!laudoVisualizacao} onOpenChange={() => setLaudoVisualizacao(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {laudoVisualizacao?.exameTipo || "Laudo Médico"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {laudoVisualizacao && (
+            <div className="space-y-6">
+              {/* Cabeçalho do Laudo */}
+              <div className="text-center border-b pb-4">
+                <h1 className="text-2xl font-bold mb-2">LAUDO MÉDICO</h1>
+                <p className="text-gray-600">Data: {laudoVisualizacao.data}</p>
+              </div>
+              
+              {/* Dados do Paciente */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded">
+                <div><strong>Paciente:</strong> {laudoVisualizacao.recipient}</div>
+                <div><strong>Executante:</strong> {laudoVisualizacao.execSolicitante}</div>
+                <div><strong>Exame:</strong> {laudoVisualizacao.exameTipo}</div>
+                {laudoVisualizacao.cid && (
+                  <div><strong>CID:</strong> {laudoVisualizacao.cid}</div>
+                )}
+              </div>
+
+              {/* Diagnóstico */}
+              {laudoVisualizacao.diagnostico && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-lg">DIAGNÓSTICO:</h3>
+                  <p className="text-gray-800">{laudoVisualizacao.diagnostico}</p>
+                </div>
+              )}
+
+              {/* Conteúdo do Laudo */}
+              {laudoVisualizacao.conteudo && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-lg">RELATÓRIO:</h3>
+                  <div 
+                    className="prose max-w-none leading-relaxed text-gray-800"
+                    dangerouslySetInnerHTML={{ 
+                      __html: formatTextToHtml(laudoVisualizacao.conteudo)
+                    }} 
+                  />
+                </div>
+              )}
+
+              {/* Conclusão */}
+              {laudoVisualizacao.conclusao && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-lg">CONCLUSÃO:</h3>
+                  <p className="text-gray-800">{laudoVisualizacao.conclusao}</p>
+                </div>
+              )}
+
+              {/* Rodapé */}
+              <div className="border-t pt-4 text-center text-sm text-gray-600">
+                <p><strong>Status:</strong> {laudoVisualizacao.status}</p>
+                <p className="mt-2">
+                  <strong>{medico.nome}</strong><br/>
+                  {medico.identificacao}
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       </div>
     </ProtectedRoute>
   );

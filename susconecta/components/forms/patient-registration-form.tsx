@@ -25,10 +25,13 @@ import {
   listarAnexos,
   removerAnexo,
   buscarPacientePorId,
+  criarUsuarioPaciente,
+  CreateUserWithPasswordResponse,
 } from "@/lib/api";
 
 import { validarCPFLocal } from "@/lib/utils";
-import { verificarCpfDuplicado } from "@/lib/api"; 
+import { verificarCpfDuplicado } from "@/lib/api";
+import { CredentialsDialog } from "@/components/credentials-dialog"; 
 
 
 
@@ -104,6 +107,11 @@ export function PatientRegistrationForm({
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
+  
+  // Estados para o dialog de credenciais
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [credentials, setCredentials] = useState<CreateUserWithPasswordResponse | null>(null);
+  const [savedPatient, setSavedPatient] = useState<Paciente | null>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Paciente" : "Editar Paciente"), [mode]);
 
@@ -264,15 +272,88 @@ export function PatientRegistrationForm({
         }
       }
 
+      // Se for criação de novo paciente e tiver email válido, cria usuário
+      if (mode === "create" && form.email && form.email.includes('@')) {
+        console.log("🔐 Iniciando criação de usuário para o paciente...");
+        console.log("📧 Email:", form.email);
+        console.log("👤 Nome:", form.nome);
+        console.log("📱 Telefone:", form.telefone);
+        
+        try {
+          const userCredentials = await criarUsuarioPaciente({
+            email: form.email,
+            full_name: form.nome,
+            phone_mobile: form.telefone,
+          });
+          
+          console.log("✅ Usuário criado com sucesso!", userCredentials);
+          console.log("🔑 Senha gerada:", userCredentials.password);
+          
+          // Armazena as credenciais e mostra o dialog
+          console.log("📋 Antes de setCredentials - credentials atual:", credentials);
+          console.log("📋 Antes de setShowCredentials - showCredentials atual:", showCredentials);
+          
+          setCredentials(userCredentials);
+          setShowCredentials(true);
+          
+          console.log("📋 Depois de set - credentials:", userCredentials);
+          console.log("📋 Depois de set - showCredentials: true");
+          console.log("📋 Modo inline?", inline);
+          console.log("📋 userCredentials completo:", JSON.stringify(userCredentials));
+          
+          // Força re-render
+          setTimeout(() => {
+            console.log("⏰ Timeout - credentials:", credentials);
+            console.log("⏰ Timeout - showCredentials:", showCredentials);
+          }, 100);
+          
+          console.log("📋 Credenciais definidas, dialog deve aparecer!");
+          
+          // Salva o paciente para chamar onSaved depois
+          setSavedPatient(saved);
+          
+          // ⚠️ NÃO chama onSaved aqui! O dialog vai chamar quando fechar.
+          // Se chamar agora, o formulário fecha e o dialog desaparece.
+          console.log("⚠️ NÃO chamando onSaved ainda - aguardando dialog fechar");
+          
+          // RETORNA AQUI para não executar o código abaixo
+          return;
+          
+        } catch (userError: any) {
+          console.error("❌ ERRO ao criar usuário:", userError);
+          console.error("📋 Stack trace:", userError?.stack);
+          const errorMessage = userError?.message || "Erro desconhecido";
+          console.error("� Mensagem:", errorMessage);
+          
+          // Mostra erro mas fecha o formulário normalmente
+          alert(`Paciente cadastrado com sucesso!\n\n⚠️ Porém, houve erro ao criar usuário de acesso:\n${errorMessage}\n\nVerifique os logs do console (F12) para mais detalhes.`);
+          
+          // Fecha o formulário mesmo com erro na criação de usuário
+          setForm(initial);
+          setPhotoPreview(null);
+          setServerAnexos([]);
+          
+          if (inline) onClose?.();
+          else onOpenChange?.(false);
+        }
+      } else {
+        console.log("⚠️ Não criará usuário. Motivo:");
+        console.log("  - Mode:", mode);
+        console.log("  - Email:", form.email);
+        console.log("  - Tem @:", form.email?.includes('@'));
+        
+        // Se não for criar usuário, fecha normalmente
+        setForm(initial);
+        setPhotoPreview(null);
+        setServerAnexos([]);
+        
+        if (inline) onClose?.();
+        else onOpenChange?.(false);
+
+        alert(mode === "create" ? "Paciente cadastrado!" : "Paciente atualizado!");
+      }
+
       onSaved?.(saved);
-      setForm(initial);
-      setPhotoPreview(null);
-      setServerAnexos([]);
-
-      if (inline) onClose?.();
-      else onOpenChange?.(false);
-
-      alert(mode === "create" ? "Paciente cadastrado!" : "Paciente atualizado!");
     } catch (err: any) {
       setErrors({ submit: err?.message || "Erro ao salvar paciente." });
     } finally {
@@ -611,18 +692,85 @@ export function PatientRegistrationForm({
     </>
   );
 
-  if (inline) return <div className="space-y-6">{content}</div>;
+  if (inline) {
+    return (
+      <>
+        <div className="space-y-6">{content}</div>
+        
+        {/* Debug */}
+        {console.log("🎨 RENDER inline - credentials:", credentials, "showCredentials:", showCredentials)}
+        
+        {/* Dialog de credenciais */}
+        {credentials && (
+          <CredentialsDialog
+            open={showCredentials}
+            onOpenChange={(open) => {
+              console.log("🔄 CredentialsDialog onOpenChange:", open);
+              setShowCredentials(open);
+              if (!open) {
+                console.log("🔄 Dialog fechando - chamando onSaved e limpando formulário");
+                
+                // Chama onSaved com o paciente salvo
+                if (savedPatient) {
+                  console.log("✅ Chamando onSaved com paciente:", savedPatient.id);
+                  onSaved?.(savedPatient);
+                }
+                
+                // Limpa o formulário e fecha
+                setForm(initial);
+                setPhotoPreview(null);
+                setServerAnexos([]);
+                setCredentials(null);
+                setSavedPatient(null);
+                onClose?.();
+              }
+            }}
+            email={credentials.email}
+            password={credentials.password}
+            userName={form.nome}
+            userType="paciente"
+          />
+        )}
+      </>
+    );
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" /> {title}
-          </DialogTitle>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      {console.log("🎨 RENDER dialog - credentials:", credentials, "showCredentials:", showCredentials)}
+      
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" /> {title}
+            </DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog de credenciais */}
+      {credentials && (
+        <CredentialsDialog
+          open={showCredentials}
+          onOpenChange={(open) => {
+            setShowCredentials(open);
+            if (!open) {
+              // Quando fechar o dialog, limpa o formulário e fecha o modal principal
+              setForm(initial);
+              setPhotoPreview(null);
+              setServerAnexos([]);
+              setCredentials(null);
+              onOpenChange?.(false);
+            }
+          }}
+          email={credentials.email}
+          password={credentials.password}
+          userName={form.nome}
+          userType="paciente"
+        />
+      )}
+    </>
   );
 }

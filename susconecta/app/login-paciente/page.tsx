@@ -33,7 +33,16 @@ export default function LoginPacientePage() {
       console.error('[LOGIN-PACIENTE] Erro no login:', err)
       
       if (err instanceof AuthenticationError) {
-        setError(err.message)
+        // Verificar se é erro de credenciais inválidas (pode ser email não confirmado)
+        if (err.code === '400' || err.details?.error_code === 'invalid_credentials') {
+          setError(
+            '⚠️ Email ou senha incorretos. Se você acabou de se cadastrar, ' +
+            'verifique sua caixa de entrada e clique no link de confirmação ' +
+            'que foi enviado para ' + credentials.email
+          )
+        } else {
+          setError(err.message)
+        }
       } else {
         setError('Erro inesperado. Tente novamente.')
       }

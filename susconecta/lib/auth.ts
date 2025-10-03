@@ -103,6 +103,11 @@ export async function loginUser(
     payload,
     timestamp: new Date().toLocaleTimeString() 
   });
+  
+  console.log('🔑 [AUTH-API] Credenciais sendo usadas no login:');
+  console.log('📧 Email:', email);
+  console.log('🔐 Senha:', password);
+  console.log('👤 UserType:', userType);
 
   // Delay para visualizar na aba Network
   await new Promise(resolve => setTimeout(resolve, 50));
@@ -113,45 +118,11 @@ export async function loginUser(
     // Debug: Log request sem credenciais sensíveis
     debugRequest('POST', url, getLoginHeaders(), payload);
     
-    let response = await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: getLoginHeaders(),
       body: JSON.stringify(payload),
     });
-
-    // Se login falhar com 400, tentar criar usuário automaticamente
-    if (!response.ok && response.status === 400) {
-      console.log('[AUTH-API] Login falhou (400), tentando criar usuário...');
-      
-      const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-      const signupPayload = {
-        email,
-        password,
-        data: {
-          userType: userType,
-          name: email.split('@')[0],
-        }
-      };
-      
-      debugRequest('POST', signupUrl, getLoginHeaders(), signupPayload);
-      
-      const signupResponse = await fetch(signupUrl, {
-        method: 'POST',
-        headers: getLoginHeaders(),
-        body: JSON.stringify(signupPayload),
-      });
-      
-      if (signupResponse.ok) {
-        console.log('[AUTH-API] Usuário criado, tentando login novamente...');
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        response = await fetch(url, {
-          method: 'POST',
-          headers: getLoginHeaders(),
-          body: JSON.stringify(payload),
-        });
-      }
-    }
 
     console.log(`[AUTH-API] Login response: ${response.status} ${response.statusText}`, {
       url: response.url,
@@ -159,7 +130,7 @@ export async function loginUser(
       timestamp: new Date().toLocaleTimeString()
     });
 
-    // Se ainda for 400, mostrar detalhes do erro
+    // Se falhar, mostrar detalhes do erro
     if (!response.ok) {
       try {
         const errorText = await response.text();

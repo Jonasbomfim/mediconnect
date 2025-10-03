@@ -24,10 +24,13 @@ import {
   removerAnexoMedico,
   MedicoInput,   // 👈 importado do lib/api
   Medico,        // 👈 adicionado import do tipo Medico
+  criarUsuarioMedico,
+  CreateUserWithPasswordResponse,
 } from "@/lib/api";
 ;
 
-import { buscarCepAPI } from "@/lib/api"; 
+import { buscarCepAPI } from "@/lib/api";
+import { CredentialsDialog } from "@/components/credentials-dialog"; 
 
 type FormacaoAcademica = {
   instituicao: string;
@@ -148,6 +151,11 @@ export function DoctorRegistrationForm({
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
+  
+  // Estados para o dialog de credenciais
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [credentials, setCredentials] = useState<CreateUserWithPasswordResponse | null>(null);
+  const [savedDoctor, setSavedDoctor] = useState<Medico | null>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Médico" : "Editar Médico"), [mode]);
 
@@ -389,8 +397,69 @@ if (missingFields.length > 0) {
 
     console.log("✅ Médico salvo com sucesso:", saved);
 
-    onSaved?.(saved);
-    setSubmitting(false);
+    // Se for criação de novo médico e tiver email válido, cria usuário
+    if (mode === "create" && form.email && form.email.includes('@')) {
+      console.log("🔐 Iniciando criação de usuário para o médico...");
+      console.log("📧 Email:", form.email);
+      console.log("👤 Nome:", form.full_name);
+      console.log("📱 Telefone:", form.celular);
+      
+      try {
+        const userCredentials = await criarUsuarioMedico({
+          email: form.email,
+          full_name: form.full_name,
+          phone_mobile: form.celular,
+        });
+        
+        console.log("✅ Usuário criado com sucesso!", userCredentials);
+        console.log("🔑 Senha gerada:", userCredentials.password);
+        
+        // Armazena as credenciais e mostra o dialog
+        setCredentials(userCredentials);
+        setShowCredentials(true);
+        setSavedDoctor(saved); // Salva médico para chamar onSaved depois
+        
+        console.log("📋 Credenciais definidas, dialog deve aparecer!");
+        
+        // NÃO chama onSaved aqui! Isso fecha o formulário.
+        // O dialog vai chamar onSaved quando o usuário fechar
+        setSubmitting(false);
+        return; // ← IMPORTANTE: Impede que o código abaixo seja executado
+        
+      } catch (userError: any) {
+        console.error("❌ ERRO ao criar usuário:", userError);
+        console.error("📋 Stack trace:", userError?.stack);
+        const errorMessage = userError?.message || "Erro desconhecido";
+        console.error("💬 Mensagem:", errorMessage);
+        
+        // Mostra erro mas fecha o formulário normalmente
+        alert(`Médico cadastrado com sucesso!\n\n⚠️ Porém, houve erro ao criar usuário de acesso:\n${errorMessage}\n\nVerifique os logs do console (F12) para mais detalhes.`);
+        
+        // Fecha o formulário mesmo com erro na criação de usuário
+        setForm(initial);
+        setPhotoPreview(null);
+        setServerAnexos([]);
+        onSaved?.(saved);
+        if (inline) onClose?.();
+        else onOpenChange?.(false);
+        setSubmitting(false);
+        return;
+      }
+    } else {
+      console.log("⚠️ Não criará usuário. Motivo:");
+      console.log("  - Mode:", mode);
+      console.log("  - Email:", form.email);
+      console.log("  - Tem @:", form.email?.includes('@'));
+      
+      // Se não for criar usuário, fecha normalmente
+      setForm(initial);
+      setPhotoPreview(null);
+      setServerAnexos([]);
+      onSaved?.(saved);
+      if (inline) onClose?.();
+      else onOpenChange?.(false);
+      setSubmitting(false);
+    }
   } catch (err: any) {
     console.error("❌ Erro ao salvar médico:", err);
     console.error("❌ Detalhes do erro:", {
@@ -943,18 +1012,90 @@ if (missingFields.length > 0) {
     </>
   );
 
-  if (inline) return <div className="space-y-6">{content}</div>;
+  if (inline) {
+    return (
+      <>
+        <div className="space-y-6">{content}</div>
+        
+        {/* Dialog de credenciais */}
+        {credentials && (
+          <CredentialsDialog
+            open={showCredentials}
+            onOpenChange={(open) => {
+              console.log("🔄 CredentialsDialog (inline) onOpenChange:", open);
+              setShowCredentials(open);
+              if (!open) {
+                console.log("🔄 Dialog fechando - chamando onSaved e limpando formulário");
+                
+                // Chama onSaved com o médico salvo
+                if (savedDoctor) {
+                  console.log("✅ Chamando onSaved com médico:", savedDoctor.id);
+                  onSaved?.(savedDoctor);
+                }
+                
+                // Limpa o formulário e fecha
+                setForm(initial);
+                setPhotoPreview(null);
+                setServerAnexos([]);
+                setCredentials(null);
+                setSavedDoctor(null);
+                onClose?.();
+              }
+            }}
+            email={credentials.email}
+            password={credentials.password}
+            userName={form.full_name}
+            userType="médico"
+          />
+        )}
+      </>
+    );
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" /> {title}
-          </DialogTitle>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" /> {title}
+            </DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog de credenciais */}
+      {credentials && (
+        <CredentialsDialog
+          open={showCredentials}
+          onOpenChange={(open) => {
+            console.log("🔄 CredentialsDialog (dialog mode) onOpenChange:", open);
+            setShowCredentials(open);
+            if (!open) {
+              console.log("🔄 Dialog fechando - chamando onSaved e fechando modal principal");
+              
+              // Chama onSaved com o médico salvo
+              if (savedDoctor) {
+                console.log("✅ Chamando onSaved com médico:", savedDoctor.id);
+                onSaved?.(savedDoctor);
+              }
+              
+              // Limpa o formulário e fecha o modal principal
+              setForm(initial);
+              setPhotoPreview(null);
+              setServerAnexos([]);
+              setCredentials(null);
+              setSavedDoctor(null);
+              onOpenChange?.(false);
+            }
+          }}
+          email={credentials.email}
+          password={credentials.password}
+          userName={form.full_name}
+          userType="médico"
+        />
+      )}
+    </>
   );
 }

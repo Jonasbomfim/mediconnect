@@ -485,7 +485,7 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="ml-4 px-3 py-1 text-sm transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
             >
               Hoje
             </Button>

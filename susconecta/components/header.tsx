@@ -47,18 +47,19 @@ export function Header() {
             <SimpleThemeToggle />
             <Button
               variant="outline"
-              className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+              className="text-primary border-primary hover:bg-transparent hover:text-primary bg-transparent transition-all duration-200"
               asChild
             >
+
               <Link href="/login-paciente">Sou Paciente</Link>
             </Button>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Link href="/login">Sou Profissional de Saúde</Link>
             </Button>
             <Link href="/login-admin">
-              <Button
+             <Button
                 variant="outline"
-                className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
+                className="text-slate-700 border-slate-600 hover:bg-transparent hover:text-slate-700 bg-transparent transition-all duration-200"
               >
                 Sou Administrador de uma Clínica
               </Button>

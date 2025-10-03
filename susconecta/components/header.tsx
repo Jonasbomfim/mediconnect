@@ -18,7 +18,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold text-foreground">
-              <span className="text-primary">MEDI</span>Conecta
+              <span className="text-primary">MEDI</span>Connect
             </span>
           </Link>
 

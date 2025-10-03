@@ -460,13 +460,13 @@ const ProfissionalPage = () => {
         </div>
         
         {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-muted border border-border rounded-lg">
+        <div className="flex items-center justify-between mb-6 p-4 bg-blue-50 rounded-lg dark:bg-muted">
           <div className="flex items-center space-x-4">
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
               <ChevronLeft className="h-4 w-4 hover:!text-white" />
             </Button>
@@ -477,7 +477,7 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
               <ChevronRight className="h-4 w-4 hover:!text-white" />
             </Button>
@@ -485,12 +485,12 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="ml-4 px-3 py-1 text-sm hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
               Hoje
             </Button>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-gray-600 dark:text-muted-foreground">
             {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''} agendada{todayEvents.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -498,8 +498,8 @@ const ProfissionalPage = () => {
         {/* Lista de Pacientes do Dia */}
         <div className="space-y-4">
           {todayEvents.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
+              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
               <p className="text-lg mb-2">Nenhuma consulta agendada para este dia</p>
               <p className="text-sm">Agenda livre para este dia</p>
             </div>
@@ -520,18 +520,18 @@ const ProfissionalPage = () => {
                       ></div>
                       <div>
                         <div className="font-medium flex items-center">
-                          <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <User className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
                           {appointment.title}
                         </div>
                         {paciente && (
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-sm text-gray-600 dark:text-muted-foreground">
                             CPF: {paciente.cpf} • {paciente.idade} anos
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <Clock className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
                       <span className="font-medium">{appointment.time}</span>
                     </div>
                     <div className="flex items-center">
@@ -547,7 +547,7 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-white"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (paciente) {
@@ -615,7 +615,7 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary transition-colors hover:!bg-primary hover:!text-white cursor-pointer mr-2"
+                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer mr-2 dark:hover:bg-primary dark:hover:text-white"
                           onClick={() => {
                             handleAbrirProntuario(paciente);
                             setActiveSection('prontuario');
@@ -666,7 +666,7 @@ const ProfissionalPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-primary hover:text-primary-foreground">
+                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 dark:hover:bg-primary dark:hover:text-primary-foreground">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{paciente.nome}</span>
                           <span className="text-xs opacity-70">({paciente.idade} anos)</span>
@@ -705,11 +705,11 @@ const ProfissionalPage = () => {
         {/* Seletor de Paciente */}
         {!pacienteSelecionado && (
           <div className="space-y-6">
-            <div className="bg-muted border rounded-lg p-6">
+            <div className="bg-gray-50 border rounded-lg p-6 dark:bg-muted">
               <div className="text-center mb-6">
-                <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <User className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
                 <h3 className="text-lg font-medium text-foreground mb-2">Selecionar Paciente</h3>
-                <p className="text-sm text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
               </div>
               
               <div className="max-w-md mx-auto">
@@ -729,7 +729,7 @@ const ProfissionalPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-primary hover:text-primary-foreground cursor-pointer">
+                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground">
                         <div className="flex items-center gap-3 w-full">
                           <div className="flex-1">
                             <p className="font-medium">{paciente.nome}</p>
@@ -759,12 +759,12 @@ const ProfissionalPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{paciente.nome}</p>
-                        <p className="text-sm text-muted-foreground">CPF: {paciente.cpf}</p>
-                        <p className="text-sm text-muted-foreground">{paciente.idade} anos</p>
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">CPF: {paciente.cpf}</p>
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">{paciente.idade} anos</p>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                         paciente.statusLaudo === 'Finalizado' 
                           ? 'bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 border border-green-300 dark:border-green-800' 
                           : paciente.statusLaudo === 'Pendente'
@@ -810,7 +810,7 @@ const ProfissionalPage = () => {
                     className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors cursor-pointer ${
                       abaProntuarioAtiva === aba.id
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                        : 'border-transparent text-gray-600 hover:text-foreground hover:border-border dark:text-muted-foreground'
                     }`}
                   >
                     <Icone className="h-4 w-4" />
@@ -1093,7 +1093,7 @@ const ProfissionalPage = () => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h4 className="font-medium">Consulta Cardiológica</h4>
-              <p className="text-sm text-muted-foreground">27/09/2025 - 09:00</p>
+              <p className="text-sm text-gray-600 dark:text-muted-foreground">27/09/2025 - 09:00</p>
             </div>
             <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Finalizada</span>
           </div>
@@ -1214,7 +1214,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">1 comprimido pela manhã</p>
                   <p className="text-sm text-muted-foreground">Duração: 30 dias</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -1226,7 +1226,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">1 comprimido após café e jantar</p>
                   <p className="text-sm text-muted-foreground">Duração: 60 dias</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -1309,10 +1309,10 @@ const ProfissionalPage = () => {
                 <p className="text-sm font-medium text-green-700 dark:text-green-400">Resultado: 95 mg/dL (Normal)</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-4 w-4" />
                 </Button>
               </div>
@@ -1445,7 +1445,7 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Radiografia de Tórax</p>
-                  <p className="text-xs text-muted-foreground">20/09/2025</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">20/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1467,7 +1467,7 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">ECG</p>
-                  <p className="text-xs text-muted-foreground">15/09/2025</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">15/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1494,14 +1494,14 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Laudo de Ecocardiograma</p>
-                  <p className="text-xs text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
@@ -1518,10 +1518,10 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
@@ -1840,7 +1840,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                             setLaudoSelecionado(laudo);
                             setIsViewing(true);
                           }}
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                         >
                           <Eye className="w-4 h-4" />
                           Ver Laudo
@@ -2216,7 +2216,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 showPreview
                   ? "border-green-500 text-green-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-blue-50 dark:hover:bg-gray-700"
               }`}
             >
               <Eye className="w-4 h-4 inline mr-1" />
@@ -2635,10 +2635,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent className="bg-popover border">
-                <SelectItem value="lembrete" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Lembrete de Consulta</SelectItem>
-                <SelectItem value="resultado" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Resultado de Exame</SelectItem>
-                <SelectItem value="instrucao" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Instruções Pós-Consulta</SelectItem>
-                <SelectItem value="outro" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Outro</SelectItem>
+                <SelectItem value="lembrete" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Lembrete de Consulta</SelectItem>
+                <SelectItem value="resultado" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Resultado de Exame</SelectItem>
+                <SelectItem value="instrucao" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Instruções Pós-Consulta</SelectItem>
+                <SelectItem value="outro" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Outro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -3183,7 +3183,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           <Button 
             variant="outline" 
             onClick={logout}
-            className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white cursor-pointer"
+            className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white"
           >
             Sair
           </Button>

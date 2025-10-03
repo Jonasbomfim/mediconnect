@@ -47,19 +47,19 @@ export function Header() {
             <SimpleThemeToggle />
             <Button
               variant="outline"
-              className="text-primary border-primary hover:bg-transparent hover:text-primary bg-transparent transition-all duration-200"
+              className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
               asChild
             >
 
               <Link href="/login-paciente">Sou Paciente</Link>
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent">
               <Link href="/login">Sou Profissional de Saúde</Link>
             </Button>
             <Link href="/login-admin">
              <Button
                 variant="outline"
-                className="text-slate-700 border-slate-600 hover:bg-transparent hover:text-slate-700 bg-transparent transition-all duration-200"
+                className="text-foreground border-slate-600 bg-transparent shadow-sm shadow-gray-500/10 border border-gray-300 hover:bg-gray-50 dark:shadow-none dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-white cursor-pointer"
               >
                 Sou Administrador de uma Clínica
               </Button>
@@ -98,18 +98,18 @@ export function Header() {
                 <SimpleThemeToggle />
                 <Button
                   variant="outline"
-                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+                  className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
                   asChild
                 >
                   <Link href="/login-paciente">Sou Paciente</Link>
                 </Button>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent">
                   <Link href="/login">Sou Profissional de Saúde</Link>
                 </Button>
                 <Link href="/login-admin">
                   <Button
                     variant="outline"
-                    className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent w-full"
+                    className="text-foreground border-slate-600 bg-transparent w-full shadow-sm shadow-gray-500/10 border border-gray-300 hover:bg-gray-50 dark:shadow-none dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-white cursor-pointer"
                   >
                     Sou Administrador de uma Clínica
                   </Button>

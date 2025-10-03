@@ -24,6 +24,7 @@ import {
   UserCheck,
   FileText,
   BarChart3,
+  Settings,
   Stethoscope,
   User,
 } from "lucide-react"
@@ -35,6 +36,7 @@ const navigation = [
   { name: "Médicos", href: "/doutores", icon: User },
   { name: "Consultas", href: "/consultas", icon: UserCheck },
   { name: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
+  { name: "Configurações", href: "/configuracao", icon: Settings }, 
 ]
 
 export function Sidebar() {

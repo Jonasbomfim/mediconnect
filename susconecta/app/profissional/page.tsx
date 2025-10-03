@@ -583,150 +583,11 @@ const ProfissionalPage = () => {
     handleAbrirProntuario: (paciente: any) => void;
     setActiveSection: (section: string) => void;
   }) {
-    // Estados para busca de pacientes
-     const [buscaPaciente, setBuscaPaciente] = useState("");
-  const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
-  const [carregandoBusca, setCarregandoBusca] = useState(false);
-  const [erroBusca, setErroBusca] = useState<string | null>(null);
-
-
-    // Função para buscar pacientes
-    const handleBuscarPaciente = async () => {
-      if (!buscaPaciente.trim()) {
-        setPacientesBusca([]);
-        setErroBusca(null);
-        return;
-      }
-
-      setCarregandoBusca(true);
-      setErroBusca(null);
-
-      try {
-        // Importa a função de busca
-        const { buscarPacientes } = await import("@/lib/api");
-        const resultados = await buscarPacientes(buscaPaciente.trim());
-        
-        if (resultados.length === 0) {
-          setErroBusca("Nenhum paciente encontrado com os critérios informados.");
-          setPacientesBusca([]);
-        } else {
-          // Transforma os dados da API para o formato usado no componente
-          const pacientesFormatados = resultados.map(p => ({
-            nome: p.full_name || "Nome não informado",
-            cpf: p.cpf || "CPF não informado",
-            idade: p.birth_date ? new Date().getFullYear() - new Date(p.birth_date).getFullYear() : "N/A",
-            statusLaudo: "Pendente", // Status padrão
-            id: p.id
-          }));
-          setPacientesBusca(pacientesFormatados);
-          setErroBusca(null);
-        }
-      } catch (error: any) {
-        console.error("Erro ao buscar pacientes:", error);
-        setErroBusca(error.message || "Erro ao buscar pacientes. Tente novamente.");
-        setPacientesBusca([]);
-      } finally {
-        setCarregandoBusca(false);
-      }
-    };
-
-    const handleLimparBusca = () => {
-      setBuscaPaciente("");
-      setPacientesBusca([]);
-      setErroBusca(null);
-    };
-
     return (
       <div className="bg-card shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
         
-        {/* Campo de busca */}
-        <div className="mb-6 p-4 bg-muted rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Buscar Paciente</h3>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="Digite ID, CPF, nome ou email do paciente..."
-                value={buscaPaciente}
-                onChange={(e) => setBuscaPaciente(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleBuscarPaciente()}
-                className="w-full"
-              />
-            </div>
-            <Button 
-              onClick={handleBuscarPaciente} 
-              disabled={carregandoBusca}
-              className="flex items-center gap-2"
-            >
-              {carregandoBusca ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Buscando...
-                </>
-              ) : (
-                <>
-                  <User className="h-4 w-4" />
-                  Buscar
-                </>
-              )}
-            </Button>
-            {(buscaPaciente || pacientesBusca.length > 0 || erroBusca) && (
-              <Button 
-                variant="outline" 
-                onClick={handleLimparBusca}
-                className="flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Limpar
-              </Button>
-            )}
-          </div>
-          
-          {/* Resultados da busca */}
-          {erroBusca && (
-            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-              <p className="text-red-700 dark:text-red-300 text-sm">{erroBusca}</p>
-            </div>
-          )}
-          
-          {pacientesBusca.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-md font-medium mb-2">Resultados da busca ({pacientesBusca.length}):</h4>
-              <div className="space-y-2">
-                {pacientesBusca.map((paciente, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-card border rounded-lg hover:shadow-sm">
-                    <div>
-                      <p className="font-medium">{paciente.nome}</p>
-                      <p className="text-sm text-muted-foreground">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          handleAbrirProntuario(paciente);
-                          setActiveSection('prontuario');
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <FolderOpen className="h-4 w-4" />
-                        Prontuário
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditarLaudo(paciente)}
-                        className="flex items-center gap-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Editar Laudo
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+
 
         {/* Tabela de pacientes padrão */}
         <div>
@@ -767,20 +628,7 @@ const ProfissionalPage = () => {
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
-                      <div className="relative group">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white cursor-pointer"
-                          onClick={() => handleEditarLaudo(paciente)}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                          Editar laudo do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
-                        </div>
-                      </div>
+
                     </div>
                   </TableCell>
                 </TableRow>

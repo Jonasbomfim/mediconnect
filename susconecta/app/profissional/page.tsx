@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -72,6 +72,10 @@ const ProfissionalPage = () => {
   const { logout, user } = useAuth();
   const [activeSection, setActiveSection] = useState('calendario');
   const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
+  
+  // Estados para edição de laudo
+  const [isEditingLaudoForPatient, setIsEditingLaudoForPatient] = useState(false);
+  const [patientForLaudo, setPatientForLaudo] = useState<any>(null);
   
   // Estados para o perfil do médico
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -197,6 +201,12 @@ const ProfissionalPage = () => {
 
   const handleFecharProntuario = () => {
     setPacienteSelecionado(null);
+  };
+
+  const handleEditarLaudo = (paciente: any) => {
+    setPatientForLaudo(paciente);
+    setIsEditingLaudoForPatient(true);
+    setActiveSection('laudos');
   };
 
   
@@ -553,6 +563,7 @@ const ProfissionalPage = () => {
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
+
                     </div>
                   </div>
                 </div>
@@ -688,17 +699,28 @@ const ProfissionalPage = () => {
                       <p className="font-medium">{paciente.nome}</p>
                       <p className="text-sm text-muted-foreground">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        handleAbrirProntuario(paciente);
-                        setActiveSection('prontuario');
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      Abrir Prontuário
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          handleAbrirProntuario(paciente);
+                          setActiveSection('prontuario');
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                        Prontuário
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditarLaudo(paciente)}
+                        className="flex items-center gap-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Editar Laudo
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -732,7 +754,7 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer mr-2"
                           onClick={() => {
                             handleAbrirProntuario(paciente);
                             setActiveSection('prontuario');
@@ -742,6 +764,20 @@ const ProfissionalPage = () => {
                         </Button>
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
+                        </div>
+                      </div>
+                      <div className="relative group">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white cursor-pointer"
+                          onClick={() => handleEditarLaudo(paciente)}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          Editar laudo do paciente
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
@@ -1651,12 +1687,19 @@ const ProfissionalPage = () => {
   
   const renderLaudosSection = () => (
     <div className="space-y-6">
-      <LaudoManager />
+      <LaudoManager 
+        isEditingForPatient={isEditingLaudoForPatient}
+        selectedPatientForLaudo={patientForLaudo}
+        onClosePatientEditor={() => {
+          setIsEditingLaudoForPatient(false);
+          setPatientForLaudo(null);
+        }}
+      />
     </div>
   );
 
   // --- NOVO SISTEMA DE LAUDOS COMPLETO ---
-  function LaudoManager() {
+  function LaudoManager({ isEditingForPatient, selectedPatientForLaudo, onClosePatientEditor }: { isEditingForPatient?: boolean; selectedPatientForLaudo?: any; onClosePatientEditor?: () => void }) {
     const [pacientesDisponiveis] = useState([
       { id: "95170038", nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, sexo: "Feminino" },
       { id: "93203056", nome: "Bruno Lima", cpf: "987.654.321-00", idade: 33, sexo: "Masculino" },
@@ -1787,6 +1830,9 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     const [laudoSelecionado, setLaudoSelecionado] = useState<any>(null);
     const [isViewing, setIsViewing] = useState(false);
     const [isCreatingNew, setIsCreatingNew] = useState(false);
+
+
+
 
     return (
       <div className="space-y-6">
@@ -1938,18 +1984,33 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                     <TableCell className="text-sm">{laudo.executante}</TableCell>
                     <TableCell className="text-sm">{laudo.exame || "-"}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setLaudoSelecionado(laudo);
-                          setIsViewing(true);
-                        }}
-                        className="flex items-center gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Ver Laudo
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setLaudoSelecionado(laudo);
+                            setIsViewing(true);
+                          }}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver Laudo
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            setPatientForLaudo(laudo);
+                            setIsEditingLaudoForPatient(true);
+                          }}
+                          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
+                          title="Editar laudo para este paciente"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Editar Laudo
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1969,6 +2030,17 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             pacientes={pacientesDisponiveis} 
             onClose={() => setIsCreatingNew(false)} 
             isNewLaudo={true}
+          />
+        )}
+
+        {/* Editor para Paciente Específico */}
+        {isEditingForPatient && selectedPatientForLaudo && (
+          <LaudoEditor 
+            pacientes={[selectedPatientForLaudo.paciente || selectedPatientForLaudo]} 
+            laudo={selectedPatientForLaudo.conteudo ? selectedPatientForLaudo : null}
+            onClose={onClosePatientEditor || (() => {})} 
+            isNewLaudo={!selectedPatientForLaudo.conteudo}
+            preSelectedPatient={selectedPatientForLaudo.paciente || selectedPatientForLaudo}
           />
         )}
       </div>
@@ -2069,17 +2141,17 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
   }
 
   // Editor de Laudo Avançado (para novos laudos)
-  function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean }) {
+  function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any }) {
     const [activeTab, setActiveTab] = useState("editor");
-    const [content, setContent] = useState("");
+    const [content, setContent] = useState(laudo?.conteudo || "");
     const [showPreview, setShowPreview] = useState(false);
-    const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
+    const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
     const [campos, setCampos] = useState({
-      cid: "",
-      diagnostico: "",
-      conclusao: "",
-      exame: "",
-      especialidade: "",
+      cid: laudo?.cid || "",
+      diagnostico: laudo?.diagnostico || "",
+      conclusao: laudo?.conclusao || "",
+      exame: laudo?.exame || "",
+      especialidade: laudo?.especialidade || "",
       mostrarData: true,
       mostrarAssinatura: true
     });
@@ -2094,6 +2166,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     ]);
 
     const sigCanvasRef = useRef<any>(null);
+
+    // Carregar dados do laudo existente quando disponível
+    useEffect(() => {
+      if (laudo && !isNewLaudo) {
+        setContent(laudo.conteudo || "");
+        setCampos({
+          cid: laudo.cid || "",
+          diagnostico: laudo.diagnostico || "",
+          conclusao: laudo.conclusao || "",
+          exame: laudo.exame || "",
+          especialidade: laudo.especialidade || "",
+          mostrarData: true,
+          mostrarAssinatura: true
+        });
+        setPacienteSelecionado(laudo.paciente);
+      }
+    }, [laudo, isNewLaudo]);
 
     const formatText = (type: string) => {
       const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
@@ -2124,12 +2213,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     };
 
     const insertTemplate = (template: string) => {
-      setContent(prev => prev ? `${prev}\n\n${template}` : template);
-    };
-
-    const insertCampo = (campo: string) => {
-      const placeholder = `{{${campo}}}`;
-      setContent(prev => prev ? `${prev} ${placeholder}` : placeholder);
+      setContent((prev: string) => prev ? `${prev}\n\n${template}` : template);
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2149,15 +2233,11 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     };
 
     const processContent = (content: string) => {
-      const paciente = isNewLaudo ? pacienteSelecionado : laudo?.paciente;
       return content
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
-        .replace(/{{nome_paciente}}/g, paciente?.nome || '[NOME_PACIENTE]')
-        .replace(/{{idade_paciente}}/g, paciente?.idade?.toString() || '[IDADE]')
-        .replace(/{{sexo_paciente}}/g, paciente?.sexo || '[SEXO]')
-        .replace(/{{cid}}/g, campos.cid || '[CID]')
+        .replace(/{{sexo_paciente}}/g, pacienteSelecionado?.sexo || laudo?.paciente?.sexo || '[SEXO]')
         .replace(/{{diagnostico}}/g, campos.diagnostico || '[DIAGNÓSTICO]')
         .replace(/{{conclusao}}/g, campos.conclusao || '[CONCLUSÃO]')
         .replace(/\n/g, '<br>');
@@ -2171,7 +2251,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <div className="flex items-center justify-between p-4">
               <div>
                 <h2 className="text-xl font-bold text-foreground">
-                  {isNewLaudo ? "Novo Laudo Médico" : "Editor de Laudo"}
+                  {isNewLaudo ? "Novo Laudo Médico" : "Editar Laudo Existente"}
                 </h2>
                 {isNewLaudo ? (
                   <p className="text-sm text-muted-foreground">
@@ -2179,7 +2259,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Paciente: {laudo?.paciente?.nome} | Pedido: {laudo?.id}
+                    Paciente: {laudo?.paciente?.nome} | Pedido: {laudo?.id} | {laudo?.especialidade}
                   </p>
                 )}
               </div>
@@ -2220,13 +2300,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         CPF: {pacienteSelecionado.cpf} | Idade: {pacienteSelecionado.idade} anos | Sexo: {pacienteSelecionado.sexo}
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPacienteSelecionado(null)}
-                    >
-                      Trocar Paciente
-                    </Button>
+                    {!preSelectedPatient && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPacienteSelecionado(null)}
+                      >
+                        Trocar Paciente
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2412,32 +2494,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         •
                       </Button>
                       
-                      <div className="h-6 w-px bg-border mx-1"></div>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => insertCampo("nome_paciente")}
-                        title="Nome do Paciente"
-                      >
-                        Nome
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => insertCampo("idade_paciente")}
-                        title="Idade do Paciente"
-                      >
-                        Idade
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => insertCampo("cid")}
-                        title="CID"
-                      >
-                        CID
-                      </Button>
                     </div>
 
                     {/* Templates */}
@@ -2699,7 +2755,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   Salvar Rascunho
                 </Button>
                 <Button variant="default">
-                  Liberar Laudo
+                  {isNewLaudo ? "Liberar Laudo" : "Atualizar Laudo"}
                 </Button>
               </div>
             </div>

@@ -145,7 +145,7 @@ export default function ConsultasPage() {
 
   if (showForm && editingAppointment) {
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 p-6 bg-background">
             <div className="flex items-center gap-4">
                 <Button type="button" variant="ghost" size="icon" onClick={handleCancel}> 
                     <ArrowLeft className="h-4 w-4" />
@@ -162,7 +162,7 @@ export default function ConsultasPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 bg-background">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Gerenciamento de Consultas</h1>

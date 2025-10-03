@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,7 +18,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold text-foreground">
-              <span className="text-primary">MEDI</span>Conecta
+              <span className="text-primary">MEDI</span>Connect
             </span>
           </Link>
 
@@ -43,6 +44,7 @@ export function Header() {
 
           {}
           <div className="hidden md:flex items-center space-x-3">
+            <SimpleThemeToggle />
             <Button
               variant="outline"
               className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
@@ -92,6 +94,7 @@ export function Header() {
                 Sobre
               </Link>
               <div className="flex flex-col space-y-2 pt-4">
+                <SimpleThemeToggle />
                 <Button
                   variant="outline"
                   className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"

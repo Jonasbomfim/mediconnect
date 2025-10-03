@@ -59,7 +59,7 @@ export function Sidebar() {
 
           {/* este span some no modo ícone */}
           <span className="text-lg font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-            MediConnect
+            MEDIConnect
           </span>
         </Link>
       </SidebarHeader>
@@ -72,8 +72,8 @@ export function Sidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation.map((item) => {
-  const isActive =
-    pathname === item.href || pathname.startsWith(item.href + "/")
+  const isActive = pathname === item.href || 
+    (pathname.startsWith(item.href + "/") && item.href !== "/dashboard")
 
   return (
     <SidebarMenuItem key={item.name}>

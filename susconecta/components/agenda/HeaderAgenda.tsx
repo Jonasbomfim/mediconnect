@@ -15,14 +15,14 @@ export default function HeaderAgenda() {
   const tabCls = (active: boolean, extra = "") =>
     `px-4 py-1.5 text-[13px] border ${
       active
-        ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
-        : "text-gray-700 hover:bg-gray-100"
+        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+        : "text-muted-foreground hover:bg-muted border-border"
     } ${extra}`;
 
   return (
-    <header className="border-b bg-white">
+    <header className="border-b bg-background border-border">
       <div className="mx-auto w-full max-w-7xl px-8 py-3 flex items-center justify-between">
-        <h1 className="text-[18px] font-semibold">Novo Agendamento</h1>
+        <h1 className="text-[18px] font-semibold text-foreground">Novo Agendamento</h1>
 
         <div className="flex items-center gap-2">
           <nav
@@ -60,7 +60,7 @@ export default function HeaderAgenda() {
             type="button"
             aria-label="Histórico"
             onClick={() => router.back()}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white text-gray-700 hover:bg-gray-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted"
           >
             <RotateCcw className="h-4 w-4" />
           </button>

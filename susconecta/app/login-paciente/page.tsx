@@ -108,7 +108,7 @@ export default function LoginPacientePage() {
             </form>
             
             <div className="mt-4 text-center">
-              <Button variant="outline" asChild className="w-full">
+              <Button variant="outline" asChild className="w-full hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200">
                 <Link href="/">
                   Voltar ao Início
                 </Link>

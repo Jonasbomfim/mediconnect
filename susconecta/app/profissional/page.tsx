@@ -454,21 +454,21 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-card shadow-md rounded-lg p-6">
+      <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
         </div>
         
         {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-muted rounded-lg">
+        <div className="flex items-center justify-between mb-6 p-4 bg-muted border border-border rounded-lg">
           <div className="flex items-center space-x-4">
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="p-2 transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 hover:!text-white" />
             </Button>
             <h3 className="text-lg font-medium text-foreground">
               {formatDate(currentCalendarDate)}
@@ -477,15 +477,15 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="p-2 transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 hover:!text-white" />
             </Button>
             <Button 
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="ml-4 px-3 py-1 text-sm hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="ml-4 px-3 py-1 text-sm transition-colors hover:bg-primary hover:text-white cursor-pointer"
             >
               Hoje
             </Button>
@@ -509,7 +509,7 @@ const ProfissionalPage = () => {
               return (
                 <div
                   key={appointment.id}
-                  className="border-l-4 p-4 rounded-lg shadow-sm bg-card border-border"
+                  className="border-l-4 border-t border-r border-b p-4 rounded-lg shadow-sm bg-card border-border"
                   style={{ borderLeftColor: getStatusColor(appointment.type) }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
@@ -547,7 +547,7 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+                          className="border-primary text-primary transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (paciente) {
@@ -556,7 +556,7 @@ const ProfissionalPage = () => {
                             }
                           }}
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4 hover:!text-white" />
                         </Button>
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
@@ -615,13 +615,13 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer mr-2"
+                          className="border-primary text-primary transition-colors hover:!bg-primary hover:!text-white cursor-pointer mr-2"
                           onClick={() => {
                             handleAbrirProntuario(paciente);
                             setActiveSection('prontuario');
                           }}
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4 hover:!text-white" />
                         </Button>
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
@@ -766,10 +766,10 @@ const ProfissionalPage = () => {
                     <div className="mt-3 flex items-center justify-between">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         paciente.statusLaudo === 'Finalizado' 
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
+                          ? 'bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 border border-green-300 dark:border-green-800' 
                           : paciente.statusLaudo === 'Pendente'
-                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                          : 'bg-muted text-muted-foreground'
+                          ? 'bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-800'
+                          : 'bg-muted text-muted-foreground border border-border'
                       }`}>
                         {paciente.statusLaudo}
                       </span>
@@ -1063,7 +1063,7 @@ const ProfissionalPage = () => {
                       </p>
                     </div>
                     {consulta.cid10 && (
-                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
+                      <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">
                         {consulta.cid10}
                       </span>
                     )}
@@ -1095,7 +1095,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium">Consulta Cardiológica</h4>
               <p className="text-sm text-muted-foreground">27/09/2025 - 09:00</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">Finalizada</span>
+            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Finalizada</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1119,7 +1119,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium">Consulta Dermatológica</h4>
               <p className="text-sm text-muted-foreground">15/09/2025 - 14:30</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">Retorno Agendado</span>
+            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Retorno Agendado</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1174,11 +1174,11 @@ const ProfissionalPage = () => {
           <h4 className="font-medium mb-2">Alergias e Reações Adversas</h4>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded">Alergia</span>
+              <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded border border-red-300 dark:border-red-800">Alergia</span>
               <span>Penicilina - reação cutânea</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded">Intolerância</span>
+              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded border border-yellow-300 dark:border-yellow-800">Intolerância</span>
               <span>Lactose - sintomas gastrintestinais</span>
             </div>
           </div>
@@ -1204,7 +1204,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium text-foreground">Prescrição Atual</h4>
               <p className="text-sm text-muted-foreground">Prescrita em 27/09/2025</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">Ativa</span>
+            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Ativa</span>
           </div>
           <div className="space-y-3">
             <div className="border-l-4 border-blue-500 pl-4">
@@ -1281,7 +1281,7 @@ const ProfissionalPage = () => {
                 <p className="text-sm text-muted-foreground">Solicitado em 25/09/2025</p>
                 <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 text-xs rounded-full">Pendente</span>
+              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Pendente</span>
             </div>
             
             <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
@@ -1290,7 +1290,7 @@ const ProfissionalPage = () => {
                 <p className="text-sm text-muted-foreground">Solicitado em 27/09/2025</p>
                 <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100 text-xs rounded-full">Agendado</span>
+              <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Agendado</span>
             </div>
           </div>
         </div>
@@ -1345,7 +1345,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">Diagnosticado em: 15/03/2020</p>
                   <p className="text-sm mt-1 text-foreground">Status: Controlada com medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded-full border border-red-300 dark:border-red-800">Ativo</span>
               </div>
             </div>
             
@@ -1357,7 +1357,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">Diagnosticado em: 10/08/2018</p>
                   <p className="text-sm mt-1 text-foreground">Status: Controlada com dieta e medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-orange-200/80 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 text-xs rounded-full border border-orange-300 dark:border-orange-800">Ativo</span>
               </div>
             </div>
           </div>
@@ -1371,7 +1371,7 @@ const ProfissionalPage = () => {
                 <p className="font-medium text-foreground">Gastrite Aguda</p>
                 <p className="text-muted-foreground">CID-10: K29.0 - Resolvido em 2023</p>
               </div>
-              <span className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded-full">Resolvido</span>
+              <span className="px-2 py-1 bg-gray-200/80 dark:bg-gray-900/50 text-gray-900 dark:text-gray-200 text-xs rounded-full border border-gray-300 dark:border-gray-800">Resolvido</span>
             </div>
           </div>
         </div>
@@ -1396,7 +1396,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium text-foreground">Evolução Recente</h4>
               <p className="text-sm text-muted-foreground">27/09/2025 - 09:15</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">Melhora</span>
+            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Melhora</span>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-foreground"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
@@ -1412,7 +1412,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium text-foreground">Evolução Anterior</h4>
               <p className="text-sm text-muted-foreground">15/09/2025 - 14:45</p>
             </div>
-            <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">Estável</span>
+            <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Estável</span>
           </div>
           <div className="space-y-2">
             <p className="text-sm"><strong>Subjetivo:</strong> Paciente apresentou episódios esporádicos de dor torácica leve.</p>
@@ -2120,7 +2120,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             {isNewLaudo && (
               <div className="px-4 pb-4">
                 {!pacienteSelecionado ? (
-                  <div className="bg-muted rounded-lg p-4">
+                  <div className="bg-muted border border-border rounded-lg p-4">
                     <Label htmlFor="select-paciente" className="text-sm font-medium mb-2 block">
                       Selecionar Paciente *
                     </Label>
@@ -2270,7 +2270,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
                       <div>
                         <h3 className="text-lg font-semibold mb-4">Dados do Paciente</h3>
-                        <div className="bg-muted rounded-lg p-4">
+                        <div className="bg-muted border border-border rounded-lg p-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="font-medium">Nome:</span> {pacienteSelecionado.nome}
@@ -3163,7 +3163,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
   return (
     <ProtectedRoute requiredUserType={["profissional"]}>
       <div className="container mx-auto px-4 py-8">
-        <header className="bg-card shadow-md rounded-lg p-4 mb-6 flex items-center justify-between">
+        <header className="bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
               <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
@@ -3192,10 +3192,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         {}
         <aside className="md:sticky md:top-8 h-fit">
-          <nav className="bg-card shadow-md rounded-lg p-3 space-y-1">
+          <nav className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('calendario')}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3203,7 +3203,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'pacientes' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('pacientes')}
             >
               <Users className="mr-2 h-4 w-4" />
@@ -3211,7 +3211,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'prontuario' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('prontuario')}
             >
               <ClipboardList className="mr-2 h-4 w-4" />
@@ -3219,7 +3219,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('laudos')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -3227,7 +3227,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
@@ -3235,7 +3235,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'relatorios-medicos' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('relatorios-medicos')}
             >
               <FileCheck className="mr-2 h-4 w-4" />
@@ -3243,7 +3243,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
-              className="w-full justify-start cursor-pointer hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('perfil')}
             >
               <Settings className="mr-2 h-4 w-4" />
@@ -3270,7 +3270,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 
-          <div className="bg-card p-6 rounded-lg w-96 border">
+          <div className="bg-card border border-border p-6 rounded-lg w-96">
 
             {step === 1 && (
               <>
@@ -3383,7 +3383,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       {}
       {showActionModal && selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-card p-6 rounded-lg w-96">
+          <div className="bg-card border border-border p-6 rounded-lg w-96">
             <h3 className="text-lg font-semibold mb-2">
               Consulta de {selectedEvent.title}
             </h3>

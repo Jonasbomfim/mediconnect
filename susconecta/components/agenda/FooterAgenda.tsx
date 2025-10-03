@@ -11,15 +11,15 @@ export default function FooterAgenda() {
   const [bloqueio, setBloqueio] = useState(false);
   
   return (
-    <div className="sticky bottom-0 left-0 right-0 border-t bg-white">
+    <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-background">
       <div className="mx-auto w-full max-w-7xl px-8 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Switch checked={bloqueio} onCheckedChange={setBloqueio} />
-          <Label className="text-sm">Bloqueio de Agenda</Label>
+          <Label className="text-sm text-foreground">Bloqueio de Agenda</Label>
         </div>
         <div className="flex gap-2">
           <Link href={"/calendar"}>
-            <Button variant="ghost" className="hover:bg-blue-100 hover:text-foreground">Cancelar</Button>
+            <Button variant="ghost" className="hover:bg-muted hover:text-foreground">Cancelar</Button>
           </Link>
           <Link href={"/calendar"}>
             <Button>

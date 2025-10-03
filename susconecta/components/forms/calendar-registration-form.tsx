@@ -26,13 +26,13 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="border rounded-md p-6 space-y-4 bg-white">
-        <h2 className="font-medium">Informações do paciente</h2>
+      <div className="border border-border rounded-md p-6 space-y-4 bg-card">
+        <h2 className="font-medium text-foreground">Informações do paciente</h2>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             <div className="md:col-span-6">
               <Label>Nome *</Label>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   name="patientName" 
                   placeholder="Digite o nome do paciente"
@@ -50,23 +50,19 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
               <Label>RG</Label>
               <Input name="rg" placeholder="Número do RG" className="h-10" value={formData.rg || ''} onChange={handleChange} />
             </div>
-            <div className="md:col-span-6">
-              <div className="grid grid-cols-12 gap-3">
-                <div className="col-span-5">
-                  <Label>Data de nascimento *</Label>
-                  <Input name="birthDate" type="date" className="h-10" value={formData.birthDate || ''} onChange={handleChange} />
-                </div>
-                <div className="col-span-7">
-                  <Label>Telefone</Label>
-                  <div className="grid grid-cols-[86px_1fr] gap-2">
-                    <select name="phoneCode" className="h-10 rounded-md border border-input bg-background px-2 text-[13px]" value={formData.phoneCode || '+55'} onChange={handleChange}>
-                      <option value="+55">+55</option>
-                      <option value="+351">+351</option>
-                      <option value="+1">+1</option>
-                    </select>
-                    <Input name="phoneNumber" placeholder="(99) 99999-9999" className="h-10" value={formData.phoneNumber || ''} onChange={handleChange} />
-                  </div>
-                </div>
+            <div className="md:col-span-3">
+              <Label>Data de nascimento *</Label>
+              <Input name="birthDate" type="date" className="h-10" value={formData.birthDate || ''} onChange={handleChange} />
+            </div>
+            <div className="md:col-span-3">
+              <Label>Telefone</Label>
+              <div className="flex gap-2">
+                <select name="phoneCode" className="h-10 w-20 rounded-md border border-input bg-background text-foreground px-2 text-[13px]" value={formData.phoneCode || '+55'} onChange={handleChange}>
+                  <option value="+55">+55</option>
+                  <option value="+351">+351</option>
+                  <option value="+1">+1</option>
+                </select>
+                <Input name="phoneNumber" placeholder="(99) 99999-9999" className="h-10 flex-1" value={formData.phoneNumber || ''} onChange={handleChange} />
               </div>
             </div>
             <div className="md:col-span-6">
@@ -77,10 +73,10 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
       </div>
 
       {}
-      <div className="border rounded-md p-6 space-y-4 bg-white">
-        <h2 className="font-medium">Informações do atendimento</h2>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div className="md:col-span-6 space-y-3">
+      <div className="border border-border rounded-md p-6 space-y-4 bg-card">
+        <h2 className="font-medium text-foreground">Informações do atendimento</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
                 <div>
                     <Label className="text-[13px]">Nome do profissional *</Label>
                     <div className="relative">
@@ -91,7 +87,7 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <Label className="text-[13px]">Unidade *</Label>
-                        <select name="unit" className="h-10 w-full rounded-md border border-input bg-background pr-8 pl-3 text-[13px] appearance-none" value={formData.unit || 'nei'} onChange={handleChange}>
+                        <select name="unit" className="h-10 w-full rounded-md border border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none" value={formData.unit || 'nei'} onChange={handleChange}>
                             <option value="nei">Núcleo de Especialidades Integradas</option>
                             <option value="cc">Clínica Central</option>
                         </select>
@@ -104,19 +100,19 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
                         </div>
                     </div>
                 </div>
-                <div className="grid grid-cols-12 gap-3 items-end">
-                    <div className="col-span-12 md:col-span-3">
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
                         <Label className="text-[13px]">Início *</Label>
                         <Input name="startTime" type="time" className="h-10 w-full rounded-md border border-input px-3 text-[13px]" value={formData.startTime || ''} onChange={handleChange} />
                     </div>
-                    <div className="col-span-12 md:col-span-3">
+                    <div>
                         <Label className="text-[13px]">Término *</Label>
                         <Input name="endTime" type="time" className="h-10 w-full rounded-md border border-input px-3 text-[13px]" value={formData.endTime || ''} onChange={handleChange} />
                     </div>
                 </div>
             </div>
-            <div className="md:col-span-6">
-                <div className="mb-2">
+            <div className="space-y-4">
+                <div>
                     <Label className="text-[13px]">Tipo de atendimento *</Label>
                     <div className="relative mt-1">
                         <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -125,7 +121,7 @@ export function CalendarRegistrationForm({ initialData, onSave, onCancel }: any)
                 </div>
                 <div>
                     <Label className="text-[13px]">Observações</Label>
-                    <Textarea name="notes" rows={4} className="text-[13px] h-[110px] min-h-0 resize-none" value={formData.notes || ''} onChange={handleChange} />
+                    <Textarea name="notes" rows={6} className="text-[13px] min-h-[120px] resize-none" value={formData.notes || ''} onChange={handleChange} />
                 </div>
             </div>
         </div>

@@ -41,14 +41,14 @@ export default function RelatoriosPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Relatórios</h1>
+    <div className="p-6 bg-background min-h-screen">
+      <h1 className="text-2xl font-bold mb-6 text-foreground">Relatórios</h1>
 
       <div className="grid grid-cols-3 gap-6">
         {/* Card Consultas */}
-        <div className="p-4 border rounded-lg shadow">
-          <h2 className="font-semibold text-lg">Relatório de Consultas</h2>
-          <p className="text-sm text-gray-500">Resumo das consultas realizadas.</p>
+        <div className="p-4 border border-border rounded-lg shadow bg-card">
+          <h2 className="font-semibold text-lg text-foreground">Relatório de Consultas</h2>
+          <p className="text-sm text-muted-foreground">Resumo das consultas realizadas.</p>
           {/* PASSO 4 - Botão chama a função */}
           <Button onClick={exportConsultasPDF} className="mt-4">
             <FileDown className="mr-2 h-4 w-4" /> Exportar PDF
@@ -56,17 +56,17 @@ export default function RelatoriosPage() {
         </div>
 
         {/* Card Pacientes */}
-        <div className="p-4 border rounded-lg shadow">
-          <h2 className="font-semibold text-lg">Relatório de Pacientes</h2>
-          <p className="text-sm text-gray-500">Informações gerais dos pacientes cadastrados.</p>
+        <div className="p-4 border border-border rounded-lg shadow bg-card">
+          <h2 className="font-semibold text-lg text-foreground">Relatório de Pacientes</h2>
+          <p className="text-sm text-muted-foreground">Informações gerais dos pacientes cadastrados.</p>
           <Button onClick={exportPacientesPDF} className="mt-4">
             <FileDown className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>
         </div>
 
         {/* Card Financeiro com gráfico */}
-        <div className="p-4 border rounded-lg shadow col-span-3 md:col-span-3">
-          <h2 className="font-semibold text-lg mb-2">Relatório Financeiro</h2>
+        <div className="p-4 border border-border rounded-lg shadow col-span-3 md:col-span-3 bg-card">
+          <h2 className="font-semibold text-lg mb-2 text-foreground">Relatório Financeiro</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={financeiro} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />

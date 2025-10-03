@@ -74,8 +74,8 @@ export function Sidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation.map((item) => {
-  const isActive =
-    pathname === item.href || pathname.startsWith(item.href + "/")
+  const isActive = pathname === item.href || 
+    (pathname.startsWith(item.href + "/") && item.href !== "/dashboard")
 
   return (
     <SidebarMenuItem key={item.name}>

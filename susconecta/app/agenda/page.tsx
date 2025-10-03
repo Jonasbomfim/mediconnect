@@ -19,7 +19,7 @@ export default function NovoAgendamentoPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <HeaderAgenda />
       <main className="flex-1 mx-auto w-full max-w-7xl px-8 py-8">
         <CalendarRegistrationForm 

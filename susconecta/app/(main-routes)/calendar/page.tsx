@@ -103,7 +103,7 @@ export default function AgendamentoPage() {
                 </Button>
               </Link> */}
               <DropdownMenu>
-                <DropdownMenuTrigger className="bg-blue-600 hover:bg-blue-700 px-5 py-1 text-white rounded-sm">
+                <DropdownMenuTrigger className="bg-primary hover:bg-primary/90 px-5 py-1 text-primary-foreground rounded-sm">
                   Opções &#187;
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>

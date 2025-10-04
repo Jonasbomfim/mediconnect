@@ -20,6 +20,16 @@ export default function ProcedimentoPage() {
   const isAg = pathname?.startsWith("/agendamento");
   const isPr = pathname?.startsWith("/procedimento");
   const isFi = pathname?.startsWith("/financeiro");
+  
+  const handleSave = () => {
+    // Lógica de salvar será implementada
+    console.log("Salvando procedimentos...");
+  };
+
+  const handleCancel = () => {
+    router.push("/calendar");
+  };
+
   const tab = (active: boolean, extra = "") =>
     `px-4 py-1.5 text-[13px] border ${
       active
@@ -83,7 +93,7 @@ export default function ProcedimentoPage() {
       </main>
 
       {/* RODAPÉ FIXO */}
-      <FooterAgenda />
+      <FooterAgenda onSave={handleSave} onCancel={handleCancel} />
     </div>
   );
 }

@@ -21,6 +21,15 @@ export default function FinanceiroPage() {
   const isPr = pathname?.startsWith("/procedimento");
   const isFi = pathname?.startsWith("/financeiro");
 
+  const handleSave = () => {
+    // Lógica de salvar será implementada
+    console.log("Salvando informações financeiras...");
+  };
+
+  const handleCancel = () => {
+    router.push("/calendar");
+  };
+
   return (
     <div className="w-full min-h-screen flex flex-col bg-background">
       {/* HEADER */}
@@ -53,7 +62,7 @@ export default function FinanceiroPage() {
                   <DollarSign className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="R$ 0,00"
-                    className="h-10 w-full rounded-md pl-8 pr-4 border-input focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
+                    className="h-10 w-full rounded-md pl-8 pr-4 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
                   />
                 </div>
               </div>
@@ -63,7 +72,7 @@ export default function FinanceiroPage() {
                   <DollarSign className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="R$ 0,00"
-                    className="h-10 w-full rounded-md pl-8 pr-4 border-input focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
+                    className="h-10 w-full rounded-md pl-8 pr-4 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
                   />
                 </div>
               </div>
@@ -81,7 +90,7 @@ export default function FinanceiroPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Tipo</Label>
-                <select className="h-10 w-full rounded-md border border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none">
+                <select className="h-10 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400">
                   <option value="">Selecionar</option>
                   <option value="dinheiro">Dinheiro</option>
                   <option value="cartao">Cartão</option>
@@ -91,7 +100,7 @@ export default function FinanceiroPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Parcelas</Label>
-                <select className="h-10 w-full rounded-md border border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none">
+                <select className="h-10 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400">
                   <option value="1">1x</option>
                   <option value="2">2x</option>
                   <option value="3">3x</option>
@@ -106,7 +115,7 @@ export default function FinanceiroPage() {
                   <Calculator className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="0%"
-                    className="h-10 w-full rounded-md pl-8 pr-4 border-input focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
+                    className="h-10 w-full rounded-md pl-8 pr-4 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
                   />
                 </div>
               </div>
@@ -142,7 +151,7 @@ export default function FinanceiroPage() {
       </main>
 
       {/* RODAPÉ FIXO */}
-      <FooterAgenda />
+      <FooterAgenda onSave={handleSave} onCancel={handleCancel} />
     </div>
   );
 }

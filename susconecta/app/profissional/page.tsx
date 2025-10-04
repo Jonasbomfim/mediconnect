@@ -454,21 +454,21 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-card shadow-md rounded-lg p-6">
+      <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
         </div>
         
         {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-muted rounded-lg">
+        <div className="flex items-center justify-between mb-6 p-4 bg-blue-50 rounded-lg dark:bg-muted">
           <div className="flex items-center space-x-4">
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 hover:!text-white" />
             </Button>
             <h3 className="text-lg font-medium text-foreground">
               {formatDate(currentCalendarDate)}
@@ -477,20 +477,20 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 hover:!text-white" />
             </Button>
             <Button 
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="ml-4 px-3 py-1 text-sm hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="ml-4 px-3 py-1 text-sm hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
               Hoje
             </Button>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-gray-600 dark:text-muted-foreground">
             {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''} agendada{todayEvents.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -498,8 +498,8 @@ const ProfissionalPage = () => {
         {/* Lista de Pacientes do Dia */}
         <div className="space-y-4">
           {todayEvents.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
+              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
               <p className="text-lg mb-2">Nenhuma consulta agendada para este dia</p>
               <p className="text-sm">Agenda livre para este dia</p>
             </div>
@@ -509,7 +509,7 @@ const ProfissionalPage = () => {
               return (
                 <div
                   key={appointment.id}
-                  className="border-l-4 p-4 rounded-lg shadow-sm bg-card border-border"
+                  className="border-l-4 border-t border-r border-b p-4 rounded-lg shadow-sm bg-card border-border"
                   style={{ borderLeftColor: getStatusColor(appointment.type) }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
@@ -520,18 +520,18 @@ const ProfissionalPage = () => {
                       ></div>
                       <div>
                         <div className="font-medium flex items-center">
-                          <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                          <User className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
                           {appointment.title}
                         </div>
                         {paciente && (
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-sm text-gray-600 dark:text-muted-foreground">
                             CPF: {paciente.cpf} • {paciente.idade} anos
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <Clock className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
                       <span className="font-medium">{appointment.time}</span>
                     </div>
                     <div className="flex items-center">
@@ -547,7 +547,7 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-white"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (paciente) {
@@ -556,7 +556,7 @@ const ProfissionalPage = () => {
                             }
                           }}
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4 hover:!text-white" />
                         </Button>
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
@@ -615,13 +615,13 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer mr-2"
+                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer mr-2 dark:hover:bg-primary dark:hover:text-white"
                           onClick={() => {
                             handleAbrirProntuario(paciente);
                             setActiveSection('prontuario');
                           }}
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4 hover:!text-white" />
                         </Button>
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
@@ -666,7 +666,7 @@ const ProfissionalPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-primary hover:text-primary-foreground">
+                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 dark:hover:bg-primary dark:hover:text-primary-foreground">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{paciente.nome}</span>
                           <span className="text-xs opacity-70">({paciente.idade} anos)</span>
@@ -705,11 +705,11 @@ const ProfissionalPage = () => {
         {/* Seletor de Paciente */}
         {!pacienteSelecionado && (
           <div className="space-y-6">
-            <div className="bg-muted border rounded-lg p-6">
+            <div className="bg-gray-50 border rounded-lg p-6 dark:bg-muted">
               <div className="text-center mb-6">
-                <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <User className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
                 <h3 className="text-lg font-medium text-foreground mb-2">Selecionar Paciente</h3>
-                <p className="text-sm text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
               </div>
               
               <div className="max-w-md mx-auto">
@@ -729,7 +729,7 @@ const ProfissionalPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-primary hover:text-primary-foreground cursor-pointer">
+                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground">
                         <div className="flex items-center gap-3 w-full">
                           <div className="flex-1">
                             <p className="font-medium">{paciente.nome}</p>
@@ -759,17 +759,17 @@ const ProfissionalPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{paciente.nome}</p>
-                        <p className="text-sm text-muted-foreground">CPF: {paciente.cpf}</p>
-                        <p className="text-sm text-muted-foreground">{paciente.idade} anos</p>
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">CPF: {paciente.cpf}</p>
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">{paciente.idade} anos</p>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                         paciente.statusLaudo === 'Finalizado' 
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
+                          ? 'bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 border border-green-300 dark:border-green-800' 
                           : paciente.statusLaudo === 'Pendente'
-                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                          : 'bg-muted text-muted-foreground'
+                          ? 'bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-800'
+                          : 'bg-muted text-muted-foreground border border-border'
                       }`}>
                         {paciente.statusLaudo}
                       </span>
@@ -810,7 +810,7 @@ const ProfissionalPage = () => {
                     className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors cursor-pointer ${
                       abaProntuarioAtiva === aba.id
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                        : 'border-transparent text-gray-600 hover:text-foreground hover:border-border dark:text-muted-foreground'
                     }`}
                   >
                     <Icone className="h-4 w-4" />
@@ -884,7 +884,7 @@ const ProfissionalPage = () => {
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Registrar Nova Consulta</h3>
         <div className="flex gap-2">
-          <Button className="cursor-pointer" variant="outline" onClick={() => {
+          <Button className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground" variant="outline" onClick={() => {
             setConsultaAtual({
               dataConsulta: new Date().toISOString().split('T')[0],
               anamnese: "",
@@ -1063,7 +1063,7 @@ const ProfissionalPage = () => {
                       </p>
                     </div>
                     {consulta.cid10 && (
-                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
+                      <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">
                         {consulta.cid10}
                       </span>
                     )}
@@ -1093,9 +1093,9 @@ const ProfissionalPage = () => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h4 className="font-medium">Consulta Cardiológica</h4>
-              <p className="text-sm text-muted-foreground">27/09/2025 - 09:00</p>
+              <p className="text-sm text-gray-600 dark:text-muted-foreground">27/09/2025 - 09:00</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">Finalizada</span>
+            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Finalizada</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1119,7 +1119,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium">Consulta Dermatológica</h4>
               <p className="text-sm text-muted-foreground">15/09/2025 - 14:30</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">Retorno Agendado</span>
+            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Retorno Agendado</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1174,11 +1174,11 @@ const ProfissionalPage = () => {
           <h4 className="font-medium mb-2">Alergias e Reações Adversas</h4>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded">Alergia</span>
+              <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded border border-red-300 dark:border-red-800">Alergia</span>
               <span>Penicilina - reação cutânea</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded">Intolerância</span>
+              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded border border-yellow-300 dark:border-yellow-800">Intolerância</span>
               <span>Lactose - sintomas gastrintestinais</span>
             </div>
           </div>
@@ -1204,7 +1204,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium text-foreground">Prescrição Atual</h4>
               <p className="text-sm text-muted-foreground">Prescrita em 27/09/2025</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-full">Ativa</span>
+            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Ativa</span>
           </div>
           <div className="space-y-3">
             <div className="border-l-4 border-blue-500 pl-4">
@@ -1214,7 +1214,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">1 comprimido pela manhã</p>
                   <p className="text-sm text-muted-foreground">Duração: 30 dias</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -1226,7 +1226,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">1 comprimido após café e jantar</p>
                   <p className="text-sm text-muted-foreground">Duração: 60 dias</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -1281,7 +1281,7 @@ const ProfissionalPage = () => {
                 <p className="text-sm text-muted-foreground">Solicitado em 25/09/2025</p>
                 <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 text-xs rounded-full">Pendente</span>
+              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Pendente</span>
             </div>
             
             <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
@@ -1290,7 +1290,7 @@ const ProfissionalPage = () => {
                 <p className="text-sm text-muted-foreground">Solicitado em 27/09/2025</p>
                 <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100 text-xs rounded-full">Agendado</span>
+              <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Agendado</span>
             </div>
           </div>
         </div>
@@ -1305,14 +1305,14 @@ const ProfissionalPage = () => {
             <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded">
               <div>
                 <p className="font-medium text-foreground">Glicemia de Jejum</p>
-                <p className="text-sm text-muted-foreground">Realizado em 20/09/2025</p>
-                <p className="text-sm font-medium text-green-700 dark:text-green-400">Resultado: 95 mg/dL (Normal)</p>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Realizado em 20/09/2025</p>
+                <p className="text-sm font-bold" style={{ color: '#000000' }}>Resultado: 95 mg/dL (Normal)</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-4 w-4" />
                 </Button>
               </div>
@@ -1345,7 +1345,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">Diagnosticado em: 15/03/2020</p>
                   <p className="text-sm mt-1 text-foreground">Status: Controlada com medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded-full border border-red-300 dark:border-red-800">Ativo</span>
               </div>
             </div>
             
@@ -1357,7 +1357,7 @@ const ProfissionalPage = () => {
                   <p className="text-sm text-muted-foreground">Diagnosticado em: 10/08/2018</p>
                   <p className="text-sm mt-1 text-foreground">Status: Controlada com dieta e medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-orange-200/80 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 text-xs rounded-full border border-orange-300 dark:border-orange-800">Ativo</span>
               </div>
             </div>
           </div>
@@ -1371,7 +1371,7 @@ const ProfissionalPage = () => {
                 <p className="font-medium text-foreground">Gastrite Aguda</p>
                 <p className="text-muted-foreground">CID-10: K29.0 - Resolvido em 2023</p>
               </div>
-              <span className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded-full">Resolvido</span>
+              <span className="px-2 py-1 bg-gray-200/80 dark:bg-gray-900/50 text-gray-900 dark:text-gray-200 text-xs rounded-full border border-gray-300 dark:border-gray-800">Resolvido</span>
             </div>
           </div>
         </div>
@@ -1396,7 +1396,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium text-foreground">Evolução Recente</h4>
               <p className="text-sm text-muted-foreground">27/09/2025 - 09:15</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">Melhora</span>
+            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Melhora</span>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-foreground"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
@@ -1412,7 +1412,7 @@ const ProfissionalPage = () => {
               <h4 className="font-medium text-foreground">Evolução Anterior</h4>
               <p className="text-sm text-muted-foreground">15/09/2025 - 14:45</p>
             </div>
-            <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">Estável</span>
+            <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Estável</span>
           </div>
           <div className="space-y-2">
             <p className="text-sm"><strong>Subjetivo:</strong> Paciente apresentou episódios esporádicos de dor torácica leve.</p>
@@ -1445,15 +1445,15 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Radiografia de Tórax</p>
-                  <p className="text-xs text-muted-foreground">20/09/2025</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">20/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3 mr-1" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
@@ -1467,15 +1467,15 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">ECG</p>
-                  <p className="text-xs text-muted-foreground">15/09/2025</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">15/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3 mr-1" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
@@ -1494,14 +1494,14 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Laudo de Ecocardiograma</p>
-                  <p className="text-xs text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
@@ -1518,10 +1518,10 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
@@ -1759,24 +1759,24 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">Hoje</Button>
-                <Button variant="outline" size="sm">Semana</Button>
-                <Button variant="default" size="sm">Mês</Button>
+                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Hoje</Button>
+                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Semana</Button>
+                <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">Mês</Button>
               </div>
 
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
                 </svg>
                 Filtros
               </Button>
 
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                 <Search className="w-4 h-4 mr-1" />
                 Pesquisar
               </Button>
 
-              <Button variant="default" size="sm">
+              <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">
                 <Download className="w-4 h-4 mr-1" />
                 Exportar
               </Button>
@@ -1840,7 +1840,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                             setLaudoSelecionado(laudo);
                             setIsViewing(true);
                           }}
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                         >
                           <Eye className="w-4 h-4" />
                           Ver Laudo
@@ -1950,15 +1950,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               {/* Diagnóstico e Conclusão */}
               {laudo.diagnostico && (
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded">
-                  <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">Diagnóstico:</h4>
-                  <p className="text-sm">{laudo.diagnostico}</p>
+                  <h4 className="font-semibold mb-1" style={{ color: '#EF4444' }}>Diagnóstico:</h4>
+                  <p className="text-sm font-bold" style={{ color: '#EF4444' }}>{laudo.diagnostico}</p>
                 </div>
               )}
 
               {laudo.conclusao && (
                 <div className="mb-6 p-3 bg-green-50 dark:bg-green-950/20 rounded">
-                  <h4 className="font-semibold text-green-800 dark:text-green-200 mb-1">Conclusão:</h4>
-                  <p className="text-sm">{laudo.conclusao}</p>
+                  <h4 className="font-semibold mb-1" style={{ color: '#EF4444' }}>Conclusão:</h4>
+                  <p className="text-sm font-bold" style={{ color: '#EF4444' }}>{laudo.conclusao}</p>
                 </div>
               )}
 
@@ -2120,7 +2120,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             {isNewLaudo && (
               <div className="px-4 pb-4">
                 {!pacienteSelecionado ? (
-                  <div className="bg-muted rounded-lg p-4">
+                  <div className="bg-muted border border-border rounded-lg p-4">
                     <Label htmlFor="select-paciente" className="text-sm font-medium mb-2 block">
                       Selecionar Paciente *
                     </Label>
@@ -2171,8 +2171,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "info"
                     ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
                 }`}
+                style={{
+                  backgroundColor: activeTab === "info" ? undefined : "transparent"
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "info") {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#4B5563";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "info") {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#4B5563";
+                  }
+                }}
               >
                 <User className="w-4 h-4 inline mr-1" />
                 Informações
@@ -2183,8 +2198,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "editor"
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: activeTab === "editor" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "editor") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "editor") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <FileText className="w-4 h-4 inline mr-1" />
               Editor
@@ -2194,8 +2224,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "imagens"
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: activeTab === "imagens" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "imagens") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "imagens") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <Upload className="w-4 h-4 inline mr-1" />
               Imagens ({imagens.length})
@@ -2205,8 +2250,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "campos"
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: activeTab === "campos" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "campos") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "campos") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <Settings className="w-4 h-4 inline mr-1" />
               Campos
@@ -2216,8 +2276,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 showPreview
                   ? "border-green-500 text-green-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: !showPreview ? "transparent" : undefined
+              }}
+              onMouseEnter={(e) => {
+                if (!showPreview) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showPreview) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <Eye className="w-4 h-4 inline mr-1" />
               {showPreview ? "Ocultar" : "Pré-visualização"}
@@ -2270,7 +2345,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
                       <div>
                         <h3 className="text-lg font-semibold mb-4">Dados do Paciente</h3>
-                        <div className="bg-muted rounded-lg p-4">
+                        <div className="bg-muted border border-border rounded-lg p-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="font-medium">Nome:</span> {pacienteSelecionado.nome}
@@ -2314,6 +2389,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("bold")}
                         title="Negrito"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         <strong>B</strong>
                       </Button>
@@ -2322,6 +2398,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("italic")}
                         title="Itálico"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         <em>I</em>
                       </Button>
@@ -2330,6 +2407,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("underline")}
                         title="Sublinhado"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         <u>U</u>
                       </Button>
@@ -2338,6 +2416,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("list")}
                         title="Lista"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         •
                       </Button>
@@ -2596,10 +2675,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button variant="outline" onClick={onClose} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   Cancelar
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   Salvar Rascunho
                 </Button>
                 <Button variant="default">
@@ -2621,12 +2700,22 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="destinatario">Destinatário</Label>
-            <Input 
-              id="destinatario" 
-              placeholder="Nome do Paciente ou CPF" 
-              disabled 
-              className="bg-muted cursor-not-allowed text-muted-foreground disabled:text-foreground"
-            />
+            <Select>
+              <SelectTrigger id="destinatario" className="hover:border-primary focus:border-primary cursor-pointer">
+                <SelectValue placeholder="Selecione o paciente" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border">
+                {pacientes.map((paciente) => (
+                  <SelectItem 
+                    key={paciente.cpf} 
+                    value={paciente.nome} 
+                    className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground"
+                  >
+                    {paciente.nome} - {paciente.cpf}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipoMensagem">Tipo de mensagem</Label>
@@ -2635,10 +2724,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent className="bg-popover border">
-                <SelectItem value="lembrete" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Lembrete de Consulta</SelectItem>
-                <SelectItem value="resultado" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Resultado de Exame</SelectItem>
-                <SelectItem value="instrucao" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Instruções Pós-Consulta</SelectItem>
-                <SelectItem value="outro" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Outro</SelectItem>
+                <SelectItem value="lembrete" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Lembrete de Consulta</SelectItem>
+                <SelectItem value="resultado" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Resultado de Exame</SelectItem>
+                <SelectItem value="instrucao" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Instruções Pós-Consulta</SelectItem>
+                <SelectItem value="outro" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Outro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -2673,7 +2762,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Relatórios Médicos</h2>
         {editandoRelatorio && (
-          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
+          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
             Cancelar Edição
           </Button>
         )}
@@ -2893,7 +2982,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
           {/* Botões de Ação */}
           <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
+            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
             <Button onClick={handleSalvarRelatorio} className="flex items-center gap-2">
@@ -2989,7 +3078,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <Button onClick={handleSaveProfile} className="flex items-center gap-2">
               Salvar
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit}>
+            <Button variant="outline" onClick={handleCancelEdit} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
           </div>
@@ -3163,7 +3252,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
   return (
     <ProtectedRoute requiredUserType={["profissional"]}>
       <div className="container mx-auto px-4 py-8">
-        <header className="bg-card shadow-md rounded-lg p-4 mb-6 flex items-center justify-between">
+        <header className="bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
               <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
@@ -3183,7 +3272,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           <Button 
             variant="outline" 
             onClick={logout}
-            className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white cursor-pointer"
+            className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white"
           >
             Sair
           </Button>
@@ -3192,10 +3281,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         {}
         <aside className="md:sticky md:top-8 h-fit">
-          <nav className="bg-card shadow-md rounded-lg p-3 space-y-1">
+          <nav className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('calendario')}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3203,7 +3292,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'pacientes' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('pacientes')}
             >
               <Users className="mr-2 h-4 w-4" />
@@ -3211,7 +3300,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'prontuario' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('prontuario')}
             >
               <ClipboardList className="mr-2 h-4 w-4" />
@@ -3219,7 +3308,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('laudos')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -3227,7 +3316,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
@@ -3235,7 +3324,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'relatorios-medicos' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('relatorios-medicos')}
             >
               <FileCheck className="mr-2 h-4 w-4" />
@@ -3243,7 +3332,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
-              className="w-full justify-start cursor-pointer hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('perfil')}
             >
               <Settings className="mr-2 h-4 w-4" />
@@ -3270,7 +3359,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 
-          <div className="bg-card p-6 rounded-lg w-96 border">
+          <div className="bg-card border border-border p-6 rounded-lg w-96">
 
             {step === 1 && (
               <>
@@ -3297,7 +3386,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   <Button
                     onClick={() => setShowPopup(false)}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                   >
                     Cancelar
                   </Button>
@@ -3383,7 +3472,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       {}
       {showActionModal && selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-card p-6 rounded-lg w-96">
+          <div className="bg-card border border-border p-6 rounded-lg w-96">
             <h3 className="text-lg font-semibold mb-2">
               Consulta de {selectedEvent.title}
             </h3>
@@ -3412,7 +3501,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <Button
               onClick={() => setShowActionModal(false)}
               variant="outline"
-              className="w-full mt-2"
+              className="w-full mt-2 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
             >
               Cancelar
             </Button>

@@ -59,7 +59,7 @@ export function Header() {
             <Link href="/login-admin">
              <Button
                 variant="outline"
-                className="text-foreground border-slate-600 bg-transparent shadow-sm shadow-gray-500/10 border border-gray-300 hover:bg-gray-50 dark:shadow-none dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-white cursor-pointer"
+                className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground cursor-pointer"
               >
                 Sou Administrador de uma Clínica
               </Button>
@@ -109,7 +109,7 @@ export function Header() {
                 <Link href="/login-admin">
                   <Button
                     variant="outline"
-                    className="text-foreground border-slate-600 bg-transparent w-full shadow-sm shadow-gray-500/10 border border-gray-300 hover:bg-gray-50 dark:shadow-none dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-white cursor-pointer"
+                    className="text-primary border-primary bg-transparent w-full shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground cursor-pointer"
                   >
                     Sou Administrador de uma Clínica
                   </Button>

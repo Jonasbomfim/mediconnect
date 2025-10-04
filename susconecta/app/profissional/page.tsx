@@ -884,7 +884,7 @@ const ProfissionalPage = () => {
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Registrar Nova Consulta</h3>
         <div className="flex gap-2">
-          <Button className="cursor-pointer" variant="outline" onClick={() => {
+          <Button className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground" variant="outline" onClick={() => {
             setConsultaAtual({
               dataConsulta: new Date().toISOString().split('T')[0],
               anamnese: "",
@@ -1305,8 +1305,8 @@ const ProfissionalPage = () => {
             <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded">
               <div>
                 <p className="font-medium text-foreground">Glicemia de Jejum</p>
-                <p className="text-sm text-muted-foreground">Realizado em 20/09/2025</p>
-                <p className="text-sm font-medium text-green-700 dark:text-green-400">Resultado: 95 mg/dL (Normal)</p>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Realizado em 20/09/2025</p>
+                <p className="text-sm font-bold" style={{ color: '#000000' }}>Resultado: 95 mg/dL (Normal)</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
@@ -1449,11 +1449,11 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3 mr-1" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
@@ -1471,11 +1471,11 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3 mr-1" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
@@ -1759,24 +1759,24 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">Hoje</Button>
-                <Button variant="outline" size="sm">Semana</Button>
-                <Button variant="default" size="sm">Mês</Button>
+                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Hoje</Button>
+                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Semana</Button>
+                <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">Mês</Button>
               </div>
 
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
                 </svg>
                 Filtros
               </Button>
 
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                 <Search className="w-4 h-4 mr-1" />
                 Pesquisar
               </Button>
 
-              <Button variant="default" size="sm">
+              <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">
                 <Download className="w-4 h-4 mr-1" />
                 Exportar
               </Button>
@@ -1950,15 +1950,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               {/* Diagnóstico e Conclusão */}
               {laudo.diagnostico && (
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded">
-                  <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">Diagnóstico:</h4>
-                  <p className="text-sm">{laudo.diagnostico}</p>
+                  <h4 className="font-semibold mb-1" style={{ color: '#EF4444' }}>Diagnóstico:</h4>
+                  <p className="text-sm font-bold" style={{ color: '#EF4444' }}>{laudo.diagnostico}</p>
                 </div>
               )}
 
               {laudo.conclusao && (
                 <div className="mb-6 p-3 bg-green-50 dark:bg-green-950/20 rounded">
-                  <h4 className="font-semibold text-green-800 dark:text-green-200 mb-1">Conclusão:</h4>
-                  <p className="text-sm">{laudo.conclusao}</p>
+                  <h4 className="font-semibold mb-1" style={{ color: '#EF4444' }}>Conclusão:</h4>
+                  <p className="text-sm font-bold" style={{ color: '#EF4444' }}>{laudo.conclusao}</p>
                 </div>
               )}
 
@@ -2171,8 +2171,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "info"
                     ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
                 }`}
+                style={{
+                  backgroundColor: activeTab === "info" ? undefined : "transparent"
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "info") {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#4B5563";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "info") {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#4B5563";
+                  }
+                }}
               >
                 <User className="w-4 h-4 inline mr-1" />
                 Informações
@@ -2183,8 +2198,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "editor"
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: activeTab === "editor" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "editor") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "editor") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <FileText className="w-4 h-4 inline mr-1" />
               Editor
@@ -2194,8 +2224,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "imagens"
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: activeTab === "imagens" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "imagens") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "imagens") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <Upload className="w-4 h-4 inline mr-1" />
               Imagens ({imagens.length})
@@ -2205,8 +2250,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "campos"
                   ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: activeTab === "campos" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "campos") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "campos") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <Settings className="w-4 h-4 inline mr-1" />
               Campos
@@ -2216,8 +2276,23 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 showPreview
                   ? "border-green-500 text-green-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-blue-50 dark:hover:bg-gray-700"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
               }`}
+              style={{
+                backgroundColor: !showPreview ? "transparent" : undefined
+              }}
+              onMouseEnter={(e) => {
+                if (!showPreview) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showPreview) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
             >
               <Eye className="w-4 h-4 inline mr-1" />
               {showPreview ? "Ocultar" : "Pré-visualização"}
@@ -2314,6 +2389,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("bold")}
                         title="Negrito"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         <strong>B</strong>
                       </Button>
@@ -2322,6 +2398,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("italic")}
                         title="Itálico"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         <em>I</em>
                       </Button>
@@ -2330,6 +2407,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("underline")}
                         title="Sublinhado"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         <u>U</u>
                       </Button>
@@ -2338,6 +2416,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         size="sm"
                         onClick={() => formatText("list")}
                         title="Lista"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
                       >
                         •
                       </Button>
@@ -2596,10 +2675,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button variant="outline" onClick={onClose} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   Cancelar
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   Salvar Rascunho
                 </Button>
                 <Button variant="default">
@@ -2621,12 +2700,22 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="destinatario">Destinatário</Label>
-            <Input 
-              id="destinatario" 
-              placeholder="Nome do Paciente ou CPF" 
-              disabled 
-              className="bg-muted cursor-not-allowed text-muted-foreground disabled:text-foreground"
-            />
+            <Select>
+              <SelectTrigger id="destinatario" className="hover:border-primary focus:border-primary cursor-pointer">
+                <SelectValue placeholder="Selecione o paciente" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border">
+                {pacientes.map((paciente) => (
+                  <SelectItem 
+                    key={paciente.cpf} 
+                    value={paciente.nome} 
+                    className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground"
+                  >
+                    {paciente.nome} - {paciente.cpf}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipoMensagem">Tipo de mensagem</Label>
@@ -2673,7 +2762,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Relatórios Médicos</h2>
         {editandoRelatorio && (
-          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
+          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
             Cancelar Edição
           </Button>
         )}
@@ -2893,7 +2982,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
           {/* Botões de Ação */}
           <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
+            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
             <Button onClick={handleSalvarRelatorio} className="flex items-center gap-2">
@@ -2989,7 +3078,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <Button onClick={handleSaveProfile} className="flex items-center gap-2">
               Salvar
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit}>
+            <Button variant="outline" onClick={handleCancelEdit} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
           </div>
@@ -3297,7 +3386,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   <Button
                     onClick={() => setShowPopup(false)}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                   >
                     Cancelar
                   </Button>
@@ -3412,7 +3501,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <Button
               onClick={() => setShowActionModal(false)}
               variant="outline"
-              className="w-full mt-2"
+              className="w-full mt-2 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
             >
               Cancelar
             </Button>

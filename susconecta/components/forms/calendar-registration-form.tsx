@@ -130,19 +130,36 @@ export function CalendarRegistrationForm({ formData, onFormChange }: CalendarReg
                 </div>
             </div>
             <div className="md:col-span-12 space-y-2">
-                <div 
-                    className="flex items-center justify-between cursor-pointer"
-                    onClick={() => setIsAdditionalInfoOpen(!isAdditionalInfoOpen)}
-                >
-                    <Label className="text-sm font-medium cursor-pointer">Informações adicionais</Label>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isAdditionalInfoOpen ? 'rotate-180' : ''}`} />
-                </div>
-                {isAdditionalInfoOpen && (
-                    <div className="space-y-2">
-                        <Label className="text-[13px]">Documentos e anexos</Label>
-                        <Textarea name="documentos" rows={5} className="text-[13px] resize-none rounded-md transition-colors hover:bg-muted/30" value={formData.documentos || ''} onChange={handleChange} />
-                    </div>
-                )}
+        <div 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setIsAdditionalInfoOpen(!isAdditionalInfoOpen)}
+        >
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium cursor-pointer text-primary m-0">Informações adicionais</Label>
+            <ChevronDown className={`h-4 w-4 text-primary transition-transform duration-200 ${isAdditionalInfoOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+        {isAdditionalInfoOpen && (
+          <div className="space-y-2">
+            <div className="relative">
+              <select
+                name="documentos"
+                className="h-11 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400"
+                value={formData.documentos || ''}
+                onChange={handleChange}
+              >
+                <option value="" disabled>
+                  Documentos e anexos
+                </option>
+                <option value="identidade">Identidade / CPF</option>
+                <option value="comprovante_residencia">Comprovante de residência</option>
+                <option value="guias">Guias / Encaminhamentos</option>
+                <option value="outros">Outros</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+            </div>
+          </div>
+        )}
             </div>
         </div>
       </div>

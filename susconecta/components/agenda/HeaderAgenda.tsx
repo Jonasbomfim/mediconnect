@@ -60,8 +60,8 @@ export default function HeaderAgenda() {
 
           <button
             type="button"
-            aria-label="Histórico"
-            onClick={() => router.back()}
+            aria-label="Voltar para Calendário"
+            onClick={() => router.push("/calendar")}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-primary hover:text-white hover:border-primary transition-colors"
           >
             <RotateCcw className="h-4 w-4" />

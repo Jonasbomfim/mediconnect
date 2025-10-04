@@ -43,7 +43,7 @@ export default function NovoAgendamentoPage() {
   };
 
   const handleCancel = () => {
-    router.back(); 
+    router.push("/calendar");
   };
 
   return (

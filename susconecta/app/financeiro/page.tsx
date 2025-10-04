@@ -21,6 +21,15 @@ export default function FinanceiroPage() {
   const isPr = pathname?.startsWith("/procedimento");
   const isFi = pathname?.startsWith("/financeiro");
 
+  const handleSave = () => {
+    // Lógica de salvar será implementada
+    console.log("Salvando informações financeiras...");
+  };
+
+  const handleCancel = () => {
+    router.push("/calendar");
+  };
+
   return (
     <div className="w-full min-h-screen flex flex-col bg-background">
       {/* HEADER */}
@@ -142,7 +151,7 @@ export default function FinanceiroPage() {
       </main>
 
       {/* RODAPÉ FIXO */}
-      <FooterAgenda />
+      <FooterAgenda onSave={handleSave} onCancel={handleCancel} />
     </div>
   );
 }

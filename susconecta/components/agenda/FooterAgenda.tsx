@@ -5,9 +5,13 @@ import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { useState } from "react";
-import Link from "next/link";
 
-export default function FooterAgenda() {
+interface FooterAgendaProps {
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+export default function FooterAgenda({ onSave, onCancel }: FooterAgendaProps) {
   const [bloqueio, setBloqueio] = useState(false);
   
   return (
@@ -18,15 +22,8 @@ export default function FooterAgenda() {
           <Label className="text-sm text-foreground">Bloqueio de Agenda</Label>
         </div>
         <div className="flex gap-2">
-          <Link href={"/calendar"}>
-            <Button variant="ghost" className="hover:bg-muted hover:text-foreground">Cancelar</Button>
-          </Link>
-          <Link href={"/calendar"}>
-            <Button>
-              <Save className="mr-2 h-4 w-4" />
-              Salvar as alterações
-            </Button>
-          </Link>
+          <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+          <Button onClick={onSave}>Salvar</Button>
         </div>
       </div>
     </div>

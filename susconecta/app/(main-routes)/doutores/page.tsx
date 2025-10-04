@@ -326,10 +326,11 @@ export default function DoutoresPage() {
                 onKeyDown={handleSearchKeyDown}
               />
             </div>
-            <Button 
-              variant="outline" 
-              onClick={handleClickBuscar}
-              disabled={loading || !search.trim()}
+            <Button
+              variant="secondary"
+              onClick={handleBuscarServidor}
+              disabled={loading}
+              className="hover:bg-primary hover:text-white"
             >
               Buscar
             </Button>

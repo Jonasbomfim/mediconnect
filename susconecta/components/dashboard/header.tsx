@@ -35,7 +35,7 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
         <SidebarTrigger />
         <div className="flex items-start flex-col justify-center py-2">
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          <p className="text-gray-600">{subtitle}</p>
+          <p className="text-muted-foreground">{subtitle}</p>
         </div>
       </div>
 
@@ -49,42 +49,42 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
         <div className="relative" ref={dropdownRef}>
           <Button 
             variant="ghost" 
-            className="relative h-8 w-8 rounded-full border-2 border-gray-300 hover:border-blue-500"
+            className="relative h-8 w-8 rounded-full border-2 border-border hover:border-primary"
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
             <Avatar className="h-8 w-8">
               <AvatarImage src="/avatars/01.png" alt="@usuario" />
-              <AvatarFallback className="bg-blue-500 text-white font-semibold">RA</AvatarFallback>
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold">RA</AvatarFallback>
             </Avatar>
           </Button>
 
           {/* Dropdown Content */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-              <div className="p-4 border-b border-gray-100">
+            <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-md shadow-lg z-50 text-popover-foreground">
+              <div className="p-4 border-b border-border">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-semibold leading-none">
                     {user?.userType === 'administrador' ? 'Administrador da Clínica' : 'Usuário do Sistema'}
                   </p>
                   {user?.email ? (
-                    <p className="text-xs leading-none text-gray-600">{user.email}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                   ) : (
-                    <p className="text-xs leading-none text-gray-600">Email não disponível</p>
+                    <p className="text-xs leading-none text-muted-foreground">Email não disponível</p>
                   )}
-                  <p className="text-xs leading-none text-blue-600 font-medium">
+                  <p className="text-xs leading-none text-primary font-medium">
                     Tipo: {user?.userType === 'administrador' ? 'Administrador' : user?.userType || 'Não definido'}
                   </p>
                 </div>
               </div>
               
               <div className="py-1">
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer">
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer">
                   👤 Perfil
                 </button>
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer">
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer">
                   ⚙️ Configurações
                 </button>
-                <div className="border-t border-gray-100 my-1"></div>
+                <div className="border-t border-border my-1"></div>
                 <button 
                   onClick={(e) => {
                     e.preventDefault();
@@ -93,7 +93,7 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
                     // Usar sempre o logout do hook useAuth (ele já redireciona corretamente)
                     logout();
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
                   🚪 Sair
                 </button>

@@ -287,7 +287,7 @@ export default function DoutoresPage() {
 
   if (showForm) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-6 bg-background">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}>
             <ArrowLeft className="h-4 w-4" />
@@ -307,7 +307,7 @@ export default function DoutoresPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 bg-background">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Médicos</h1>
@@ -326,10 +326,11 @@ export default function DoutoresPage() {
                 onKeyDown={handleSearchKeyDown}
               />
             </div>
-            <Button 
-              variant="outline" 
-              onClick={handleClickBuscar}
-              disabled={loading || !search.trim()}
+            <Button
+              variant="secondary"
+              onClick={handleBuscarServidor}
+              disabled={loading}
+              className="hover:bg-primary hover:text-white"
             >
               Buscar
             </Button>

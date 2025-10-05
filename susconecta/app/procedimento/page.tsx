@@ -20,15 +20,25 @@ export default function ProcedimentoPage() {
   const isAg = pathname?.startsWith("/agendamento");
   const isPr = pathname?.startsWith("/procedimento");
   const isFi = pathname?.startsWith("/financeiro");
+  
+  const handleSave = () => {
+    // Lógica de salvar será implementada
+    console.log("Salvando procedimentos...");
+  };
+
+  const handleCancel = () => {
+    router.push("/calendar");
+  };
+
   const tab = (active: boolean, extra = "") =>
     `px-4 py-1.5 text-[13px] border ${
       active
-        ? "border-sky-500 bg-sky-50 text-sky-700 font-medium"
-        : "text-gray-700 hover:bg-gray-100"
+        ? "border-sky-500 bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 font-medium"
+        : "text-muted-foreground hover:bg-muted border-border"
     } ${extra}`;
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-white">
+    <div className="w-full min-h-screen flex flex-col bg-background">
       {/* HEADER */}
       <HeaderAgenda />
 
@@ -37,15 +47,15 @@ export default function ProcedimentoPage() {
         {/* ATENDIMENTOS */}
         <section className="space-y-6">
           {/* Selo Atendimento com + dentro da bolinha */}
-          <div className="inline-flex items-center gap-2 border px-3 py-1.5 bg-white text-[12px] rounded-md cursor-pointer hover:bg-gray-50">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 bg-gray-100 text-gray-700">
+          <div className="inline-flex items-center gap-2 border border-border px-3 py-1.5 bg-card text-[12px] rounded-md cursor-pointer hover:bg-muted">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
               <Plus className="h-3 w-3" strokeWidth={2} />
             </span>
-            Atendimento
+            <span className="text-foreground">Atendimento</span>
           </div>
 
           {/* Traço separador */}
-          <div className="border-b border-gray-200" />
+          <div className="border-b border-border" />
 
           {/* PROCEDIMENTOS */}
           <div className="space-y-1">
@@ -56,14 +66,14 @@ export default function ProcedimentoPage() {
               <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar"
-                className="h-10 w-full rounded-md pl-8 pr-8 border border-gray-300 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
+                className="h-10 w-full rounded-md pl-8 pr-8 border-input focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
               />
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
 
           {/* Traço separador */}
-          <div className="border-b border-gray-200" />
+          <div className="border-b border-border" />
 
           {/* OUTRAS DESPESAS */}
           <div className="space-y-1">
@@ -74,7 +84,7 @@ export default function ProcedimentoPage() {
               <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar"
-                className="h-10 w-full rounded-md pl-8 pr-8 border border-gray-300 focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
+                className="h-10 w-full rounded-md pl-8 pr-8 border-input focus-visible:ring-1 focus-visible:ring-sky-500 focus-visible:border-sky-500"
               />
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
@@ -83,7 +93,7 @@ export default function ProcedimentoPage() {
       </main>
 
       {/* RODAPÉ FIXO */}
-      <FooterAgenda />
+      <FooterAgenda onSave={handleSave} onCancel={handleCancel} />
     </div>
   );
 }

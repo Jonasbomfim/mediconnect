@@ -135,6 +135,8 @@ const initial: FormData = {
 
 
 
+// AgendaEditor removido - restaurando o textarea original abaixo
+
 export function DoctorRegistrationForm({
   open = true,
   onOpenChange,
@@ -535,10 +537,10 @@ if (missingFields.length > 0) {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="photo" className="cursor-pointer">
-                      <Button type="button" variant="outline" asChild>
+                    <Label htmlFor="photo" className="cursor-pointer rounded-md transition-colors">
+                      <Button type="button" variant="ghost" asChild className="bg-primary text-primary-foreground border-transparent hover:bg-primary">
                         <span>
-                          <Upload className="mr-2 h-4 w-4" /> Carregar Foto
+                          <Upload className="mr-2 h-4 w-4 text-primary-foreground" /> Carregar Foto
                         </span>
                       </Button>
                     </Label>
@@ -591,27 +593,27 @@ if (missingFields.length > 0) {
 </div>
 
 
-                <div className="space-y-2">
-                    <Label>Currículo</Label>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="curriculo-input" className="cursor-pointer">
-                            <Button type="button" variant="outline" asChild>
-                                <span>
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Anexar PDF ou DOC
-                                </span>
-                            </Button>
-                        </Label>
-                        <Input
-                            id="curriculo-input"
-                            type="file"
-                            className="hidden"
-                            onChange={(e) => setField("curriculo", e.target.files?.[0] || null)}
-                            accept=".pdf,.doc,.docx"
-                        />
-                        {form.curriculo && <span className="text-sm text-muted-foreground">{form.curriculo.name}</span>}
-                    </div>
-                </div>
+        <div className="space-y-2">
+          <Label>Currículo</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="curriculo-input" className="cursor-pointer">
+              <Button type="button" variant="ghost" asChild className="bg-primary text-primary-foreground border-transparent hover:bg-primary">
+                <span>
+                  <Upload className="mr-2 h-4 w-4 text-primary-foreground" />
+                  Anexar PDF ou DOC
+                </span>
+              </Button>
+            </Label>
+            <Input
+              id="curriculo-input"
+              type="file"
+              className="hidden"
+              onChange={(e) => setField("curriculo", e.target.files?.[0] || null)}
+              accept=".pdf,.doc,.docx"
+            />
+            {form.curriculo && <span className="text-sm text-primary-foreground">{form.curriculo.name}</span>}
+          </div>
+        </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -713,7 +715,7 @@ if (missingFields.length > 0) {
                     </Button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" onClick={addFormacao}>
+                <Button type="button" onClick={addFormacao}>
                   Adicionar Formação
                 </Button>
               </CardContent>
@@ -821,17 +823,7 @@ if (missingFields.length > 0) {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Agenda/Horário</Label>
-                  // Dentro do form, apenas exiba o campo se precisar dele visualmente, mas não envie
-<textarea
-  value={form.agenda_horario}
-  onChange={(e) => setField("agenda_horario", e.target.value)}
-  placeholder="Descreva os dias e horários de atendimento"
-  disabled={true}  // Torne o campo apenas visual, sem enviar
-/>
-
-                </div>
+                {/* Agenda/Horário removido conforme solicitado */}
 
                 <div className="space-y-4">
                   <Label>Dados Bancários</Label>
@@ -971,10 +963,10 @@ if (missingFields.length > 0) {
                 <div className="space-y-2">
                   <Label>Adicionar anexos</Label>
                   <div className="border-2 border-dashed rounded-lg p-4">
-                    <Label htmlFor="anexos" className="cursor-pointer block w-full">
+                    <Label htmlFor="anexos" className="cursor-pointer block w-full rounded-md p-4 bg-primary text-primary-foreground">
                       <div className="flex flex-col items-center justify-center text-center">
-                        <Upload className="h-7 w-7 mb-2" />
-                        <p className="text-sm text-muted-foreground">Clique para adicionar documentos (PDF, imagens, etc.)</p>
+                        <Upload className="h-7 w-7 mb-2 text-primary-foreground" />
+                        <p className="text-sm text-primary-foreground">Clique para adicionar documentos (PDF, imagens, etc.)</p>
                       </div>
                     </Label>
                     <Input id="anexos" type="file" multiple className="hidden" onChange={addLocalAnexos} />

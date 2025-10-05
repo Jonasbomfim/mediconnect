@@ -85,7 +85,7 @@ export default function AgendamentoPage() {
   };
 
   return (
-    <div className="flex flex-row">
+    <div className="flex flex-row bg-background">
       <div className="flex w-full flex-col">
         <div className="flex w-full flex-col gap-10 p-6">
           <div className="flex flex-row justify-between items-center">
@@ -103,7 +103,7 @@ export default function AgendamentoPage() {
                 </Button>
               </Link> */}
               <DropdownMenu>
-                <DropdownMenuTrigger className="bg-blue-600 hover:bg-blue-700 px-5 py-1 text-white rounded-sm">
+                <DropdownMenuTrigger className="bg-primary hover:bg-primary/90 px-5 py-1 text-primary-foreground rounded-sm">
                   Opções &#187;
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
@@ -122,7 +122,7 @@ export default function AgendamentoPage() {
               <div className="flex flex-row">
                 <Button
                   variant={"outline"}
-                  className="bg-gray-100 hover:bg-gray-200 hover:text-foreground rounded-l-[100px] rounded-r-[0px]"
+                  className="bg-muted hover:bg-muted/80 hover:text-foreground rounded-l-[100px] rounded-r-[0px]"
                   onClick={() => setActiveTab("calendar")}
                 >
                   Calendário
@@ -130,7 +130,7 @@ export default function AgendamentoPage() {
 
                 <Button
                   variant={"outline"}
-                  className="bg-gray-100 hover:bg-gray-200 hover:text-foreground rounded-r-[100px] rounded-l-[0px]"
+                  className="bg-muted hover:bg-muted/80 hover:text-foreground rounded-r-[100px] rounded-l-[0px]"
                   onClick={() => setActiveTab("espera")}
                 >
                   Lista de espera

@@ -52,13 +52,13 @@ export default function LoginPacientePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Portal do Paciente
+          <h2 className="mt-6 text-3xl font-extrabold text-foreground">
+            Sou Paciente
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Acesse sua área pessoal e gerencie suas consultas
           </p>
         </div>
@@ -70,7 +70,7 @@ export default function LoginPacientePage() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className="block text-sm font-medium text-foreground">
                   Email
                 </label>
                 <Input
@@ -86,7 +86,7 @@ export default function LoginPacientePage() {
               </div>
               
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" className="block text-sm font-medium text-foreground">
                   Senha
                 </label>
                 <Input
@@ -117,7 +117,7 @@ export default function LoginPacientePage() {
             </form>
             
             <div className="mt-4 text-center">
-              <Button variant="outline" asChild className="w-full">
+              <Button variant="outline" asChild className="w-full hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200">
                 <Link href="/">
                   Voltar ao Início
                 </Link>

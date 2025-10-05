@@ -440,10 +440,10 @@ export function PatientRegistrationForm({
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="photo" className="cursor-pointer">
-                      <Button type="button" variant="outline" asChild>
+                    <Label htmlFor="photo" className="cursor-pointer rounded-md transition-colors">
+                      <Button type="button" variant="ghost" asChild className="bg-primary text-primary-foreground border-transparent hover:bg-primary">
                         <span>
-                          <Upload className="mr-2 h-4 w-4" /> Carregar Foto
+                          <Upload className="mr-2 h-4 w-4 text-primary-foreground" /> Carregar Foto
                         </span>
                       </Button>
                     </Label>
@@ -631,10 +631,10 @@ export function PatientRegistrationForm({
                 <div className="space-y-2">
                   <Label>Adicionar anexos</Label>
                   <div className="border-2 border-dashed rounded-lg p-4">
-                    <Label htmlFor="anexos" className="cursor-pointer block w-full">
+                    <Label htmlFor="anexos" className="cursor-pointer block w-full rounded-md p-4 bg-primary text-primary-foreground">
                       <div className="flex flex-col items-center justify-center text-center">
-                        <Upload className="h-7 w-7 mb-2" />
-                        <p className="text-sm text-muted-foreground">Clique para adicionar documentos (PDF, imagens, etc.)</p>
+                        <Upload className="h-7 w-7 mb-2 text-primary-foreground" />
+                        <p className="text-sm text-primary-foreground">Clique para adicionar documentos (PDF, imagens, etc.)</p>
                       </div>
                     </Label>
                     <Input id="anexos" type="file" multiple className="hidden" onChange={addLocalAnexos} />

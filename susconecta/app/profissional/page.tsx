@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import SignatureCanvas from "react-signature-canvas";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity } from "lucide-react"
+import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity, Search } from "lucide-react"
 import { Calendar as CalendarIcon, FileText, Settings } from "lucide-react";
 import {
   Tooltip,
@@ -74,6 +72,10 @@ const ProfissionalPage = () => {
   const { logout, user } = useAuth();
   const [activeSection, setActiveSection] = useState('calendario');
   const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
+  
+  // Estados para edição de laudo
+  const [isEditingLaudoForPatient, setIsEditingLaudoForPatient] = useState(false);
+  const [patientForLaudo, setPatientForLaudo] = useState<any>(null);
   
   // Estados para o perfil do médico
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -199,6 +201,12 @@ const ProfissionalPage = () => {
 
   const handleFecharProntuario = () => {
     setPacienteSelecionado(null);
+  };
+
+  const handleEditarLaudo = (paciente: any) => {
+    setPatientForLaudo(paciente);
+    setIsEditingLaudoForPatient(true);
+    setActiveSection('laudos');
   };
 
   
@@ -446,43 +454,43 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-white shadow-md rounded-lg p-6">
+      <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
         </div>
         
         {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between mb-6 p-4 bg-blue-50 rounded-lg dark:bg-muted">
           <div className="flex items-center space-x-4">
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 hover:!text-white" />
             </Button>
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-foreground">
               {formatDate(currentCalendarDate)}
             </h3>
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 hover:!text-white" />
             </Button>
             <Button 
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="ml-4 px-3 py-1 text-sm hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="ml-4 px-3 py-1 text-sm hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
             >
               Hoje
             </Button>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-600 dark:text-muted-foreground">
             {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''} agendada{todayEvents.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -490,8 +498,8 @@ const ProfissionalPage = () => {
         {/* Lista de Pacientes do Dia */}
         <div className="space-y-4">
           {todayEvents.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
+              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
               <p className="text-lg mb-2">Nenhuma consulta agendada para este dia</p>
               <p className="text-sm">Agenda livre para este dia</p>
             </div>
@@ -501,7 +509,7 @@ const ProfissionalPage = () => {
               return (
                 <div
                   key={appointment.id}
-                  className="border-l-4 p-4 rounded-lg shadow-sm bg-white border-gray-200"
+                  className="border-l-4 border-t border-r border-b p-4 rounded-lg shadow-sm bg-card border-border"
                   style={{ borderLeftColor: getStatusColor(appointment.type) }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
@@ -512,18 +520,18 @@ const ProfissionalPage = () => {
                       ></div>
                       <div>
                         <div className="font-medium flex items-center">
-                          <User className="h-4 w-4 mr-2 text-gray-500" />
+                          <User className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
                           {appointment.title}
                         </div>
                         {paciente && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-600 dark:text-muted-foreground">
                             CPF: {paciente.cpf} • {paciente.idade} anos
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                      <Clock className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
                       <span className="font-medium">{appointment.time}</span>
                     </div>
                     <div className="flex items-center">
@@ -539,7 +547,7 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-white"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (paciente) {
@@ -548,13 +556,14 @@ const ProfissionalPage = () => {
                             }
                           }}
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4 hover:!text-white" />
                         </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
+
                     </div>
                   </div>
                 </div>
@@ -567,140 +576,18 @@ const ProfissionalPage = () => {
   };
 
   
-  function PacientesSection({ handleAbrirProntuario, setActiveSection }) {
-    // Estados para busca de pacientes
-     const [buscaPaciente, setBuscaPaciente] = useState("");
-  const [pacientesBusca, setPacientesBusca] = useState<any[]>([]);
-  const [carregandoBusca, setCarregandoBusca] = useState(false);
-  const [erroBusca, setErroBusca] = useState<string | null>(null);
-
-
-    // Função para buscar pacientes
-    const handleBuscarPaciente = async () => {
-      if (!buscaPaciente.trim()) {
-        setPacientesBusca([]);
-        setErroBusca(null);
-        return;
-      }
-
-      setCarregandoBusca(true);
-      setErroBusca(null);
-
-      try {
-        // Importa a função de busca
-        const { buscarPacientes } = await import("@/lib/api");
-        const resultados = await buscarPacientes(buscaPaciente.trim());
-        
-        if (resultados.length === 0) {
-          setErroBusca("Nenhum paciente encontrado com os critérios informados.");
-          setPacientesBusca([]);
-        } else {
-          // Transforma os dados da API para o formato usado no componente
-          const pacientesFormatados = resultados.map(p => ({
-            nome: p.full_name || "Nome não informado",
-            cpf: p.cpf || "CPF não informado",
-            idade: p.birth_date ? new Date().getFullYear() - new Date(p.birth_date).getFullYear() : "N/A",
-            statusLaudo: "Pendente", // Status padrão
-            id: p.id
-          }));
-          setPacientesBusca(pacientesFormatados);
-          setErroBusca(null);
-        }
-      } catch (error: any) {
-        console.error("Erro ao buscar pacientes:", error);
-        setErroBusca(error.message || "Erro ao buscar pacientes. Tente novamente.");
-        setPacientesBusca([]);
-      } finally {
-        setCarregandoBusca(false);
-      }
-    };
-
-    const handleLimparBusca = () => {
-      setBuscaPaciente("");
-      setPacientesBusca([]);
-      setErroBusca(null);
-    };
-
+  function PacientesSection({
+    handleAbrirProntuario,
+    setActiveSection,
+  }: {
+    handleAbrirProntuario: (paciente: any) => void;
+    setActiveSection: (section: string) => void;
+  }) {
     return (
-      <div className="bg-white shadow-md rounded-lg p-6">
+      <div className="bg-card shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
         
-        {/* Campo de busca */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Buscar Paciente</h3>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="Digite ID, CPF, nome ou email do paciente..."
-                value={buscaPaciente}
-                onChange={(e) => setBuscaPaciente(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleBuscarPaciente()}
-                className="w-full"
-              />
-            </div>
-            <Button 
-              onClick={handleBuscarPaciente} 
-              disabled={carregandoBusca}
-              className="flex items-center gap-2"
-            >
-              {carregandoBusca ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Buscando...
-                </>
-              ) : (
-                <>
-                  <User className="h-4 w-4" />
-                  Buscar
-                </>
-              )}
-            </Button>
-            {(buscaPaciente || pacientesBusca.length > 0 || erroBusca) && (
-              <Button 
-                variant="outline" 
-                onClick={handleLimparBusca}
-                className="flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Limpar
-              </Button>
-            )}
-          </div>
-          
-          {/* Resultados da busca */}
-          {erroBusca && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-700 text-sm">{erroBusca}</p>
-            </div>
-          )}
-          
-          {pacientesBusca.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-md font-medium mb-2">Resultados da busca ({pacientesBusca.length}):</h4>
-              <div className="space-y-2">
-                {pacientesBusca.map((paciente, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white border rounded-lg hover:shadow-sm">
-                    <div>
-                      <p className="font-medium">{paciente.nome}</p>
-                      <p className="text-sm text-gray-600">CPF: {paciente.cpf} • Idade: {paciente.idade} anos</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        handleAbrirProntuario(paciente);
-                        setActiveSection('prontuario');
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      Abrir Prontuário
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+
 
         {/* Tabela de pacientes padrão */}
         <div>
@@ -728,19 +615,20 @@ const ProfissionalPage = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="border-primary text-primary hover:bg-primary hover:text-white cursor-pointer"
+                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer mr-2 dark:hover:bg-primary dark:hover:text-white"
                           onClick={() => {
                             handleAbrirProntuario(paciente);
                             setActiveSection('prontuario');
                           }}
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4 hover:!text-white" />
                         </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
+
                     </div>
                   </TableCell>
                 </TableRow>
@@ -755,7 +643,7 @@ const ProfissionalPage = () => {
   
   const renderProntuarioSection = () => (
     <div className="space-y-6">
-      <div className="bg-white shadow-md rounded-lg p-6">
+      <div className="bg-card shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Prontuário do Paciente</h2>
         
         {/* Informações do Paciente Selecionado */}
@@ -773,12 +661,12 @@ const ProfissionalPage = () => {
                     }
                   }}
                 >
-                  <SelectTrigger className="w-48 h-8 text-xs bg-white border-primary/30 cursor-pointer">
+                  <SelectTrigger className="w-48 h-8 text-xs bg-card border-primary/30 cursor-pointer">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-primary hover:text-primary-foreground">
+                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 dark:hover:bg-primary dark:hover:text-primary-foreground">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{paciente.nome}</span>
                           <span className="text-xs opacity-70">({paciente.idade} anos)</span>
@@ -817,15 +705,15 @@ const ProfissionalPage = () => {
         {/* Seletor de Paciente */}
         {!pacienteSelecionado && (
           <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <div className="bg-gray-50 border rounded-lg p-6 dark:bg-muted">
               <div className="text-center mb-6">
-                <User className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Selecionar Paciente</h3>
-                <p className="text-sm text-gray-600">Escolha um paciente para visualizar o prontuário completo</p>
+                <User className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Selecionar Paciente</h3>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
               </div>
               
               <div className="max-w-md mx-auto">
-                <Label htmlFor="seletorPaciente" className="block text-sm font-medium text-gray-700 mb-2">
+                <Label htmlFor="seletorPaciente" className="block text-sm font-medium text-foreground mb-2">
                   Escolha o paciente:
                 </Label>
                 <Select
@@ -841,7 +729,7 @@ const ProfissionalPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-primary hover:text-primary-foreground cursor-pointer">
+                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground">
                         <div className="flex items-center gap-3 w-full">
                           <div className="flex-1">
                             <p className="font-medium">{paciente.nome}</p>
@@ -857,31 +745,31 @@ const ProfissionalPage = () => {
             
             {/* Cards de pacientes para seleção rápida */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Ou selecione rapidamente:</h3>
+              <h3 className="text-lg font-medium text-foreground mb-4">Ou selecione rapidamente:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pacientes.map((paciente) => (
                   <div
                     key={paciente.cpf}
                     onClick={() => setPacienteSelecionado(paciente)}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-primary transition-all cursor-pointer group"
+                    className="border rounded-lg p-4 hover:shadow-md hover:border-primary transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                         <User className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{paciente.nome}</p>
-                        <p className="text-sm text-gray-500">CPF: {paciente.cpf}</p>
-                        <p className="text-sm text-gray-500">{paciente.idade} anos</p>
+                        <p className="font-medium text-foreground truncate">{paciente.nome}</p>
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">CPF: {paciente.cpf}</p>
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">{paciente.idade} anos</p>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                         paciente.statusLaudo === 'Finalizado' 
-                          ? 'bg-green-100 text-green-800' 
+                          ? 'bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 border border-green-300 dark:border-green-800' 
                           : paciente.statusLaudo === 'Pendente'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-800'
+                          : 'bg-muted text-muted-foreground border border-border'
                       }`}>
                         {paciente.statusLaudo}
                       </span>
@@ -902,7 +790,7 @@ const ProfissionalPage = () => {
 
         {/* Tabs de Navegação do Prontuário */}
         {pacienteSelecionado && (
-          <div className="border-b border-gray-200 mb-6">
+          <div className="border-b border-border mb-6">
             <nav className="flex space-x-8">
               {[
                 { id: 'nova-consulta',nome: 'Nova Consulta', icone: Plus },
@@ -922,7 +810,7 @@ const ProfissionalPage = () => {
                     className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors cursor-pointer ${
                       abaProntuarioAtiva === aba.id
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        : 'border-transparent text-gray-600 hover:text-foreground hover:border-border dark:text-muted-foreground'
                     }`}
                   >
                     <Icone className="h-4 w-4" />
@@ -996,7 +884,7 @@ const ProfissionalPage = () => {
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Registrar Nova Consulta</h3>
         <div className="flex gap-2">
-          <Button className="cursor-pointer" variant="outline" onClick={() => {
+          <Button className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground" variant="outline" onClick={() => {
             setConsultaAtual({
               dataConsulta: new Date().toISOString().split('T')[0],
               anamnese: "",
@@ -1017,11 +905,11 @@ const ProfissionalPage = () => {
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg p-6 space-y-6">
+      <div className="bg-card border rounded-lg p-6 space-y-6">
         {/* Data da Consulta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="dataConsulta" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="dataConsulta" className="text-sm font-medium text-foreground">
               Data da Consulta *
             </Label>
             <Input
@@ -1034,7 +922,7 @@ const ProfissionalPage = () => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="cid10" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="cid10" className="text-sm font-medium text-foreground">
               CID-10
             </Label>
             <Input
@@ -1049,7 +937,7 @@ const ProfissionalPage = () => {
 
         {/* Anamnese */}
         <div className="space-y-2">
-          <Label htmlFor="anamnese" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="anamnese" className="text-sm font-medium text-foreground">
             Anamnese *
           </Label>
           <Textarea
@@ -1064,7 +952,7 @@ const ProfissionalPage = () => {
 
         {/* Exame Físico */}
         <div className="space-y-2">
-          <Label htmlFor="exameFisico" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="exameFisico" className="text-sm font-medium text-foreground">
             Exame Físico *
           </Label>
           <Textarea
@@ -1079,7 +967,7 @@ const ProfissionalPage = () => {
 
         {/* Hipóteses Diagnósticas */}
         <div className="space-y-2">
-          <Label htmlFor="hipotesesDiagnosticas" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="hipotesesDiagnosticas" className="text-sm font-medium text-foreground">
             Hipóteses Diagnósticas
           </Label>
           <Textarea
@@ -1094,7 +982,7 @@ const ProfissionalPage = () => {
 
         {/* Conduta Médica */}
         <div className="space-y-2">
-          <Label htmlFor="condutaMedica" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="condutaMedica" className="text-sm font-medium text-foreground">
             Conduta Médica
           </Label>
           <Textarea
@@ -1109,7 +997,7 @@ const ProfissionalPage = () => {
 
         {/* Prescrições */}
         <div className="space-y-2">
-          <Label htmlFor="prescricoes" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="prescricoes" className="text-sm font-medium text-foreground">
             Prescrições
           </Label>
           <Textarea
@@ -1124,7 +1012,7 @@ const ProfissionalPage = () => {
 
         {/* Retorno Agendado */}
         <div className="space-y-2">
-          <Label htmlFor="retornoAgendado" className="text-sm font-medium text-gray-700">
+          <Label htmlFor="retornoAgendado" className="text-sm font-medium text-foreground">
             Retorno Agendado
           </Label>
           <Input
@@ -1138,7 +1026,7 @@ const ProfissionalPage = () => {
 
         {/* Informações do Registro */}
         <div className="border-t pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
             <div>
               <span className="font-medium">Paciente:</span>
               <p>{pacienteSelecionado?.nome}</p>
@@ -1157,7 +1045,7 @@ const ProfissionalPage = () => {
 
       {/* Consultas Anteriores do Paciente */}
       {consultasRegistradas.length > 0 && (
-        <div className="bg-white border rounded-lg p-6">
+        <div className="bg-card border rounded-lg p-6">
           <h4 className="text-lg font-medium mb-4">Consultas Anteriores</h4>
           <div className="space-y-3">
             {consultasRegistradas
@@ -1170,17 +1058,17 @@ const ProfissionalPage = () => {
                       <p className="font-medium text-sm">
                         Consulta de {new Date(consulta.dataConsulta).toLocaleDateString('pt-BR')}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         Registrada em: {consulta.dataCriacao}
                       </p>
                     </div>
                     {consulta.cid10 && (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">
                         {consulta.cid10}
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-foreground">
                     <p><strong>Anamnese:</strong> {consulta.anamnese.substring(0, 100)}...</p>
                     {consulta.hipotesesDiagnosticas && (
                       <p><strong>Diagnóstico:</strong> {consulta.hipotesesDiagnosticas.substring(0, 80)}...</p>
@@ -1205,9 +1093,9 @@ const ProfissionalPage = () => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h4 className="font-medium">Consulta Cardiológica</h4>
-              <p className="text-sm text-gray-600">27/09/2025 - 09:00</p>
+              <p className="text-sm text-gray-600 dark:text-muted-foreground">27/09/2025 - 09:00</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Finalizada</span>
+            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Finalizada</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1229,9 +1117,9 @@ const ProfissionalPage = () => {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h4 className="font-medium">Consulta Dermatológica</h4>
-              <p className="text-sm text-gray-600">15/09/2025 - 14:30</p>
+              <p className="text-sm text-muted-foreground">15/09/2025 - 14:30</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Retorno Agendado</span>
+            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Retorno Agendado</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -1273,11 +1161,11 @@ const ProfissionalPage = () => {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Apendicectomia</span>
-              <span className="text-gray-600">15/03/2010</span>
+              <span className="text-muted-foreground">15/03/2010</span>
             </div>
             <div className="flex justify-between">
               <span>Colecistectomia laparoscópica</span>
-              <span className="text-gray-600">22/08/2019</span>
+              <span className="text-muted-foreground">22/08/2019</span>
             </div>
           </div>
         </div>
@@ -1286,11 +1174,11 @@ const ProfissionalPage = () => {
           <h4 className="font-medium mb-2">Alergias e Reações Adversas</h4>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded">Alergia</span>
+              <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded border border-red-300 dark:border-red-800">Alergia</span>
               <span>Penicilina - reação cutânea</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Intolerância</span>
+              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded border border-yellow-300 dark:border-yellow-800">Intolerância</span>
               <span>Lactose - sintomas gastrintestinais</span>
             </div>
           </div>
@@ -1302,7 +1190,7 @@ const ProfissionalPage = () => {
   const renderPrescricoesTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Prescrições Médicas</h3>
+        <h3 className="text-lg font-semibold text-foreground">Prescrições Médicas</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Nova Prescrição
@@ -1313,20 +1201,20 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Prescrição Atual</h4>
-              <p className="text-sm text-gray-600">Prescrita em 27/09/2025</p>
+              <h4 className="font-medium text-foreground">Prescrição Atual</h4>
+              <p className="text-sm text-muted-foreground">Prescrita em 27/09/2025</p>
             </div>
-            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Ativa</span>
+            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Ativa</span>
           </div>
           <div className="space-y-3">
             <div className="border-l-4 border-blue-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Losartana 50mg</p>
-                  <p className="text-sm text-gray-600">1 comprimido pela manhã</p>
-                  <p className="text-sm text-gray-500">Duração: 30 dias</p>
+                  <p className="font-medium text-foreground">Losartana 50mg</p>
+                  <p className="text-sm text-muted-foreground">1 comprimido pela manhã</p>
+                  <p className="text-sm text-muted-foreground">Duração: 30 dias</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -1334,11 +1222,11 @@ const ProfissionalPage = () => {
             <div className="border-l-4 border-green-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Metformina 850mg</p>
-                  <p className="text-sm text-gray-600">1 comprimido após café e jantar</p>
-                  <p className="text-sm text-gray-500">Duração: 60 dias</p>
+                  <p className="font-medium text-foreground">Metformina 850mg</p>
+                  <p className="text-sm text-muted-foreground">1 comprimido após café e jantar</p>
+                  <p className="text-sm text-muted-foreground">Duração: 60 dias</p>
                 </div>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </div>
@@ -1349,15 +1237,15 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Prescrições Anteriores</h4>
-              <p className="text-sm text-gray-600">Histórico de medicamentos</p>
+              <h4 className="font-medium text-foreground">Prescrições Anteriores</h4>
+              <p className="text-sm text-muted-foreground">Histórico de medicamentos</p>
             </div>
           </div>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center py-2 border-b">
+            <div className="flex justify-between items-center py-2 border-b border-border">
               <div>
-                <p className="font-medium">Sinvastatina 20mg</p>
-                <p className="text-gray-600">Prescrita em 15/08/2025 - Finalizada</p>
+                <p className="font-medium text-foreground">Sinvastatina 20mg</p>
+                <p className="text-muted-foreground">Prescrita em 15/08/2025 - Finalizada</p>
               </div>
               <Button variant="ghost" size="sm" className="cursor-pointer">
                 <History className="h-4 w-4" />
@@ -1372,7 +1260,7 @@ const ProfissionalPage = () => {
   const renderExamesTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Exames Solicitados</h3>
+        <h3 className="text-lg font-semibold text-foreground">Exames Solicitados</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Solicitar Exame
@@ -1383,26 +1271,26 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Exames Pendentes</h4>
+              <h4 className="font-medium text-foreground">Exames Pendentes</h4>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-yellow-50 border border-yellow-200 rounded">
+            <div className="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded">
               <div>
-                <p className="font-medium">Ecocardiograma</p>
-                <p className="text-sm text-gray-600">Solicitado em 25/09/2025</p>
-                <p className="text-sm text-gray-500">Urgência: Normal</p>
+                <p className="font-medium text-foreground">Ecocardiograma</p>
+                <p className="text-sm text-muted-foreground">Solicitado em 25/09/2025</p>
+                <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pendente</span>
+              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Pendente</span>
             </div>
             
-            <div className="flex justify-between items-center p-3 bg-blue-50 border border-blue-200 rounded">
+            <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
               <div>
-                <p className="font-medium">Hemograma Completo</p>
-                <p className="text-sm text-gray-600">Solicitado em 27/09/2025</p>
-                <p className="text-sm text-gray-500">Urgência: Normal</p>
+                <p className="font-medium text-foreground">Hemograma Completo</p>
+                <p className="text-sm text-muted-foreground">Solicitado em 27/09/2025</p>
+                <p className="text-sm text-muted-foreground">Urgência: Normal</p>
               </div>
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Agendado</span>
+              <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Agendado</span>
             </div>
           </div>
         </div>
@@ -1410,21 +1298,21 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Resultados Disponíveis</h4>
+              <h4 className="font-medium text-foreground">Resultados Disponíveis</h4>
             </div>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded">
+            <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded">
               <div>
-                <p className="font-medium">Glicemia de Jejum</p>
-                <p className="text-sm text-gray-600">Realizado em 20/09/2025</p>
-                <p className="text-sm font-medium text-green-700">Resultado: 95 mg/dL (Normal)</p>
+                <p className="font-medium text-foreground">Glicemia de Jejum</p>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Realizado em 20/09/2025</p>
+                <p className="text-sm font-bold" style={{ color: '#000000' }}>Resultado: 95 mg/dL (Normal)</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-4 w-4" />
                 </Button>
               </div>
@@ -1438,7 +1326,7 @@ const ProfissionalPage = () => {
   const renderDiagnosticosTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Diagnósticos</h3>
+        <h3 className="text-lg font-semibold text-foreground">Diagnósticos</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Novo Diagnóstico
@@ -1447,43 +1335,43 @@ const ProfissionalPage = () => {
       
       <div className="space-y-4">
         <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Diagnósticos Ativos</h4>
+          <h4 className="font-medium mb-3 text-foreground">Diagnósticos Ativos</h4>
           <div className="space-y-3">
             <div className="border-l-4 border-red-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Hipertensão Arterial Sistêmica</p>
-                  <p className="text-sm text-gray-600">CID-10: I10</p>
-                  <p className="text-sm text-gray-500">Diagnosticado em: 15/03/2020</p>
-                  <p className="text-sm mt-1">Status: Controlada com medicação</p>
+                  <p className="font-medium text-foreground">Hipertensão Arterial Sistêmica</p>
+                  <p className="text-sm text-muted-foreground">CID-10: I10</p>
+                  <p className="text-sm text-muted-foreground">Diagnosticado em: 15/03/2020</p>
+                  <p className="text-sm mt-1 text-foreground">Status: Controlada com medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded-full border border-red-300 dark:border-red-800">Ativo</span>
               </div>
             </div>
             
             <div className="border-l-4 border-orange-500 pl-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Diabetes Mellitus Tipo 2</p>
-                  <p className="text-sm text-gray-600">CID-10: E11</p>
-                  <p className="text-sm text-gray-500">Diagnosticado em: 10/08/2018</p>
-                  <p className="text-sm mt-1">Status: Controlada com dieta e medicação</p>
+                  <p className="font-medium text-foreground">Diabetes Mellitus Tipo 2</p>
+                  <p className="text-sm text-muted-foreground">CID-10: E11</p>
+                  <p className="text-sm text-muted-foreground">Diagnosticado em: 10/08/2018</p>
+                  <p className="text-sm mt-1 text-foreground">Status: Controlada com dieta e medicação</p>
                 </div>
-                <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">Ativo</span>
+                <span className="px-2 py-1 bg-orange-200/80 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 text-xs rounded-full border border-orange-300 dark:border-orange-800">Ativo</span>
               </div>
             </div>
           </div>
         </div>
 
         <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Histórico de Diagnósticos</h4>
+          <h4 className="font-medium mb-3 text-foreground">Histórico de Diagnósticos</h4>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center py-2 border-b">
               <div>
-                <p className="font-medium">Gastrite Aguda</p>
-                <p className="text-gray-600">CID-10: K29.0 - Resolvido em 2023</p>
+                <p className="font-medium text-foreground">Gastrite Aguda</p>
+                <p className="text-muted-foreground">CID-10: K29.0 - Resolvido em 2023</p>
               </div>
-              <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">Resolvido</span>
+              <span className="px-2 py-1 bg-gray-200/80 dark:bg-gray-900/50 text-gray-900 dark:text-gray-200 text-xs rounded-full border border-gray-300 dark:border-gray-800">Resolvido</span>
             </div>
           </div>
         </div>
@@ -1494,7 +1382,7 @@ const ProfissionalPage = () => {
   const renderEvolucaoTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Evolução do Quadro</h3>
+        <h3 className="text-lg font-semibold text-foreground">Evolução do Quadro</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Nova Evolução
@@ -1505,26 +1393,26 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Evolução Recente</h4>
-              <p className="text-sm text-gray-600">27/09/2025 - 09:15</p>
+              <h4 className="font-medium text-foreground">Evolução Recente</h4>
+              <p className="text-sm text-muted-foreground">27/09/2025 - 09:15</p>
             </div>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Melhora</span>
+            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Melhora</span>
           </div>
           <div className="space-y-2">
-            <p className="text-sm"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
-            <p className="text-sm"><strong>Objetivo:</strong> PA: 130/80 mmHg, FC: 72 bpm, ausculta cardíaca sem alterações.</p>
-            <p className="text-sm"><strong>Avaliação:</strong> Resposta positiva ao tratamento iniciado, pressão arterial em níveis aceitáveis.</p>
-            <p className="text-sm"><strong>Plano:</strong> Manter medicação atual, retorno em 30 dias.</p>
+            <p className="text-sm text-foreground"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
+            <p className="text-sm text-foreground"><strong>Objetivo:</strong> PA: 130/80 mmHg, FC: 72 bpm, ausculta cardíaca sem alterações.</p>
+            <p className="text-sm text-foreground"><strong>Avaliação:</strong> Resposta positiva ao tratamento iniciado, pressão arterial em níveis aceitáveis.</p>
+            <p className="text-sm text-foreground"><strong>Plano:</strong> Manter medicação atual, retorno em 30 dias.</p>
           </div>
         </div>
 
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h4 className="font-medium">Evolução Anterior</h4>
-              <p className="text-sm text-gray-600">15/09/2025 - 14:45</p>
+              <h4 className="font-medium text-foreground">Evolução Anterior</h4>
+              <p className="text-sm text-muted-foreground">15/09/2025 - 14:45</p>
             </div>
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Estável</span>
+            <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Estável</span>
           </div>
           <div className="space-y-2">
             <p className="text-sm"><strong>Subjetivo:</strong> Paciente apresentou episódios esporádicos de dor torácica leve.</p>
@@ -1539,7 +1427,7 @@ const ProfissionalPage = () => {
   const renderAnexosTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Anexos (Exames, Imagens)</h3>
+        <h3 className="text-lg font-semibold text-foreground">Anexos (Exames, Imagens)</h3>
         <Button className="flex items-center gap-2 cursor-pointer">
           <Upload className="h-4 w-4" />
           Adicionar Anexo
@@ -1557,15 +1445,15 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Radiografia de Tórax</p>
-                  <p className="text-xs text-gray-600">20/09/2025</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">20/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3 mr-1" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
@@ -1579,15 +1467,15 @@ const ProfissionalPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">ECG</p>
-                  <p className="text-xs text-gray-600">15/09/2025</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">15/09/2025</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3 mr-1" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer">
+                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
@@ -1599,27 +1487,27 @@ const ProfissionalPage = () => {
         <div className="border rounded-lg p-4">
           <h4 className="font-medium mb-3">Laudos e Documentos</h4>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
                   <FileText className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">Laudo de Ecocardiograma</p>
-                  <p className="text-xs text-gray-600">10/08/2025 - Dr. Carlos Andrade</p>
+                  <p className="text-xs text-gray-600 dark:text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
                   <FileText className="h-4 w-4 text-orange-600" />
@@ -1630,10 +1518,10 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Eye className="h-3 w-3" />
                 </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer">
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
@@ -1646,272 +1534,1188 @@ const ProfissionalPage = () => {
 
   
   const renderLaudosSection = () => (
-    <section>
-      <LaudoEditor />
-    </section>
-  );
-// --- LaudoEditor COMPONENT ---
-function LaudoEditor() {
-  
-  const pacientes = [
-    { nome: "Ana Souza", cpf: "123.456.789-00", idade: 32, sexo: "Feminino" },
-    { nome: "Bruno Lima", cpf: "987.654.321-00", idade: 45, sexo: "Masculino" },
-    { nome: "Carla Menezes", cpf: "111.222.333-44", idade: 28, sexo: "Feminino" },
-  ];
-
-  const [conteudo, setConteudo] = useState("");
-  const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
-  const [cid, setCid] = useState("");
-  const [imagem, setImagem] = useState<string | null>(null);
-  const [assinatura, setAssinatura] = useState<string | null>(null);
-  const sigCanvasRef = useRef<any>(null);
-  const [laudos, setLaudos] = useState<any[]>([]);
-  const [preview, setPreview] = useState(false);
-
-  
-  const handleSelectPaciente = (paciente: any) => {
-    setPacienteSelecionado(paciente);
-  };
-
-  const limparPaciente = () => setPacienteSelecionado(null);
-
-  const salvarLaudo = (status: string) => {
-    if (!pacienteSelecionado) {
-      alert('Selecione um paciente.');
-      return;
-    }
-    const novoLaudo = {
-      paciente: pacienteSelecionado.nome,
-      cpf: pacienteSelecionado.cpf,
-      idade: pacienteSelecionado.idade,
-      sexo: pacienteSelecionado.sexo,
-      cid,
-      conteudo,
-      imagem,
-      assinatura,
-      data: new Date().toLocaleString(),
-      status
-    };
-    setLaudos(prev => [novoLaudo, ...prev]);
-    setPacienteSelecionado(null); setCid(""); setConteudo(""); setImagem(null); setAssinatura(null);
-    if (sigCanvasRef.current) sigCanvasRef.current.clear();
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-white p-2 md:p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6 mb-6">
-          <h2 className="text-2xl font-bold text-primary mb-4 text-center tracking-tight">Laudo Médico</h2>
-          
-          {!pacienteSelecionado ? (
-            <div className="flex flex-col items-center justify-center py-8 px-1 bg-white rounded-xl shadow-sm">
-              <div className="mb-2">
-                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="mx-auto text-gray-400">
-                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M4 20c0-2.5 3.5-4.5 8-4.5s8 2 8 4.5" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-              </div>
-              <h2 className="text-lg font-bold text-center text-gray-800 mb-1">Selecionar Paciente</h2>
-              <p className="text-gray-500 text-center mb-4 max-w-xs text-sm">Escolha um paciente para visualizar o prontuário completo</p>
-              <div className="w-full max-w-xs">
-                <label htmlFor="select-paciente" className="block text-sm font-medium text-gray-700 mb-1">Escolha o paciente:</label>
-                <div className="relative">
-                  <select
-                    id="select-paciente"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-300 focus:outline-none bg-white text-sm text-gray-900 shadow-sm transition-all appearance-none"
-                    onChange={e => {
-                      const p = pacientes.find(p => p.cpf === e.target.value);
-                      if (p) handleSelectPaciente(p);
-                    }}
-                    defaultValue=""
-                  >
-                    <option value="" className="text-gray-400">Selecione um paciente...</option>
-                    {pacientes.map(p => (
-                      <option key={p.cpf} value={p.cpf}>{p.nome} - {p.cpf}</option>
-                    ))}
-                  </select>
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 14l-4-4h8l-4 4z" fill="currentColor"/></svg>
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-              <div>
-                <div className="font-bold text-primary text-base mb-0.5">{pacienteSelecionado.nome}</div>
-                <div className="text-xs text-gray-700">CPF: {pacienteSelecionado.cpf}</div>
-                <div className="text-xs text-gray-700">Idade: {pacienteSelecionado.idade}</div>
-                <div className="text-xs text-gray-700">Sexo: {pacienteSelecionado.sexo}</div>
-              </div>
-              <button type="button" onClick={limparPaciente} className="px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold shadow text-xs">Trocar paciente</button>
-            </div>
-          )}
-          
-          <form className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary">CID</label>
-              <input
-                type="text"
-                value={cid}
-                onChange={e => setCid(e.target.value)}
-                placeholder="Ex: I10, E11, etc."
-                className="w-full p-2 border border-primary/20 rounded-md focus:ring-2 focus:ring-primary/30 focus:outline-none text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary">Conteúdo do Laudo *</label>
-              {!preview ? (
-                <ReactQuill
-                  value={conteudo}
-                  onChange={setConteudo}
-                  modules={{
-                    toolbar: [
-                      ['bold', 'italic', 'underline'],
-                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                      [{ 'align': [] }],
-                      [{ 'size': ['small', false, 'large', 'huge'] }],
-                      ['clean']
-                    ]
-                  }}
-                  className="h-40 border border-primary/20 rounded-md text-sm"
-                />
-              ) : (
-                <div className="border border-primary/20 p-2 rounded-md bg-muted overflow-auto">
-                  <h3 className="text-base font-semibold mb-1 text-primary">Pré-visualização:</h3>
-                  <div dangerouslySetInnerHTML={{ __html: conteudo }} />
-                </div>
-              )}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary mb-2">Imagem (opcional)</label>
-              <div className="mb-2"></div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setImagem(reader.result as string);
-                    reader.readAsDataURL(file);
-                  } else {
-                    setImagem(null);
-                  }
-                }}
-                className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              />
-              {imagem && (
-                <img src={imagem} alt="Pré-visualização" className="mt-1 rounded-md max-h-20 border border-primary/20" />
-              )}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-semibold text-primary">Assinatura Digital</label>
-              <div className="bg-muted rounded-md border border-primary/20 p-2 flex flex-col items-center">
-                <SignatureCanvas
-                  ref={sigCanvasRef}
-                  penColor="#0f172a"
-                  backgroundColor="#fff"
-                  canvasProps={{ width: 220, height: 60, className: "rounded-md border bg-white shadow" }}
-                  onEnd={() => setAssinatura(sigCanvasRef.current?.isEmpty() ? null : sigCanvasRef.current?.toDataURL())}
-                />
-                <div className="flex gap-2 mt-2">
-                  <button type="button" onClick={() => { sigCanvasRef.current?.clear(); setAssinatura(null); }} className="px-2 py-1 text-xs rounded-md bg-muted-foreground text-white hover:bg-muted font-semibold shadow">Limpar</button>
-                </div>
-                {assinatura && (
-                  <img src={assinatura} alt="Assinatura" className="mt-2 max-h-10 border rounded-md bg-white shadow" />
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col md:flex-row gap-2 mt-4">
-              <button
-                type="button"
-                onClick={() => salvarLaudo("Rascunho")}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-gray-200 transition-all border border-gray-200"
-              >
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Salvar Rascunho
-              </button>
-              <button
-                type="button"
-                onClick={() => salvarLaudo("Entregue")}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-primary text-white py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/90 transition-all border border-primary/20"
-              >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2l4-4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Liberar Laudo
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreview(!preview)}
-                className="w-full md:w-1/3 flex items-center justify-center gap-1 bg-white text-primary py-2 rounded-lg font-semibold text-base shadow-sm hover:bg-primary/10 transition-all border border-primary/20"
-              >
-                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 10l4.553 2.276A2 2 0 0121 14.09V17a2 2 0 01-2 2H5a2 2 0 01-2-2v-2.91a2 2 0 01.447-1.814L8 10m7-4v4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Pré-visualizar Laudo
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        <div className="bg-white border border-primary/10 shadow-lg rounded-xl p-4 md:p-6">
-          <h3 className="text-xl font-bold text-primary mb-3 text-center">Histórico de Laudos</h3>
-          {laudos.length === 0 ? (
-            <p className="text-muted-foreground text-center text-sm">Nenhum laudo registrado.</p>
-          ) : (
-            laudos.map((laudo: any, idx: number) => (
-              <div key={idx} className="border border-primary/20 rounded-2xl p-4 mb-6 bg-primary/5 shadow-sm">
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 20c0-2.5 3.5-4.5 8-4.5s8 2 8 4.5" stroke="currentColor" strokeWidth="2"/></svg>
-                    <span className="font-bold text-lg md:text-xl text-primary drop-shadow-sm">{laudo.paciente}</span>
-                  </div>
-                  <span className="text-base text-gray-500 font-medium">CPF: {laudo.cpf}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 text-sm text-gray-700">
-                  <div>Idade: <span className="font-medium">{laudo.idade}</span></div>
-                  <div>Sexo: <span className="font-medium">{laudo.sexo}</span></div>
-                  <div>Status: <span className="font-medium">{laudo.status}</span></div>
-                  <div>CID: <span className="font-medium">{laudo.cid}</span></div>
-                  <div>Data: <span className="font-medium">{laudo.data}</span></div>
-                </div>
-                {laudo.assinatura && (
-                  <div className="mb-2">
-                    <p className="font-semibold text-primary text-sm mb-1">Assinatura Digital:</p>
-                    <img src={laudo.assinatura} alt="Assinatura digital" className="rounded-lg max-h-16 border bg-white shadow" />
-                  </div>
-                )}
-                {laudo.imagem && (
-                  <div className="mb-2">
-                    <p className="font-semibold text-primary text-sm mb-1">Imagem:</p>
-                    <img src={laudo.imagem} alt="Imagem do laudo" className="rounded-lg max-h-20 border border-primary/20 mb-1" />
-                  </div>
-                )}
-                <div className="mb-1">
-                  <p className="font-semibold text-primary text-sm mb-1">Conteúdo:</p>
-                  <div className="text-sm text-gray-800" dangerouslySetInnerHTML={{ __html: laudo.conteudo }} />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <LaudoManager 
+        isEditingForPatient={isEditingLaudoForPatient}
+        selectedPatientForLaudo={patientForLaudo}
+        onClosePatientEditor={() => {
+          setIsEditingLaudoForPatient(false);
+          setPatientForLaudo(null);
+        }}
+      />
     </div>
   );
-}
+
+  // --- NOVO SISTEMA DE LAUDOS COMPLETO ---
+  function LaudoManager({ isEditingForPatient, selectedPatientForLaudo, onClosePatientEditor }: { isEditingForPatient?: boolean; selectedPatientForLaudo?: any; onClosePatientEditor?: () => void }) {
+    const [pacientesDisponiveis] = useState([
+      { id: "95170038", nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, sexo: "Feminino" },
+      { id: "93203056", nome: "Bruno Lima", cpf: "987.654.321-00", idade: 33, sexo: "Masculino" },
+      { id: "92953542", nome: "Carla Menezes", cpf: "111.222.333-44", idade: 67, sexo: "Feminino" },
+    ]);
+
+    const [laudos] = useState([
+      { 
+        id: "306494942", 
+        data: "29/07/2025", 
+        prazo: "29/07/2025", 
+        paciente: { id: "95170038", nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, sexo: "Feminino" },
+        executante: "Carlos Andrade",
+        exame: "Ecocardiograma",
+        status: "Entregue",
+        urgente: true,
+        especialidade: "Cardiologia",
+        conteudo: `**ECOCARDIOGRAMA TRANSTORÁCICO**
+
+**Dados do Paciente:**
+Nome: Ana Souza
+Idade: 42 anos
+Sexo: Feminino
+
+**Indicação Clínica:**
+Investigação de sopro cardíaco
+
+**Técnica:**
+Ecocardiograma transtorácico bidimensional com Doppler colorido e espectral.
+
+**Resultados:**
+- Átrio esquerdo: dimensões normais
+- Ventrículo esquerdo: função sistólica preservada, FEVE = 65%
+- Valvas cardíacas: sem alterações significativas
+- Pericárdio: sem derrame
+
+**Conclusão:**
+Exame ecocardiográfico dentro dos limites da normalidade.
+
+**CID:** I25.9`,
+        cid: "I25.9",
+        diagnostico: "Exame ecocardiográfico normal",
+        conclusao: "Função cardíaca preservada, sem alterações estruturais significativas."
+      },
+      { 
+        id: "306463987", 
+        data: "29/07/2025", 
+        prazo: "29/07/2025", 
+        paciente: { id: "93203056", nome: "Bruno Lima", cpf: "987.654.321-00", idade: 33, sexo: "Masculino" },
+        executante: "Carlos Andrade",
+        exame: "Eletrocardiograma",
+        status: "Entregue",
+        urgente: true,
+        especialidade: "Cardiologia",
+        conteudo: `**ELETROCARDIOGRAMA DE REPOUSO**
+
+**Dados do Paciente:**
+Nome: Bruno Lima
+Idade: 33 anos
+Sexo: Masculino
+
+**Indicação Clínica:**
+Dor precordial atípica
+
+**Técnica:**
+Eletrocardiograma de 12 derivações em repouso.
+
+**Resultados:**
+- Ritmo: sinusal regular
+- Frequência cardíaca: 72 bpm
+- Eixo elétrico: normal
+- Intervalos PR, QRS e QT: dentro dos limites normais
+- Ondas Q patológicas: ausentes
+- Alterações de ST-T: não observadas
+
+**Conclusão:**
+Eletrocardiograma normal.
+
+**CID:** Z01.8`,
+        cid: "Z01.8",
+        diagnostico: "ECG normal",
+        conclusao: "Traçado eletrocardiográfico dentro dos parâmetros de normalidade."
+      },
+      { 
+        id: "306452545", 
+        data: "29/07/2025", 
+        prazo: "29/07/2025", 
+        paciente: { id: "92953542", nome: "Carla Menezes", cpf: "111.222.333-44", idade: 67, sexo: "Feminino" },
+        executante: "Carlos Andrade",
+        exame: "Dermatoscopia",
+        status: "Entregue",
+        urgente: true,
+        especialidade: "Dermatologia",
+        conteudo: `**DERMATOSCOPIA DIGITAL**
+
+**Dados do Paciente:**
+Nome: Carla Menezes
+Idade: 67 anos
+Sexo: Feminino
+
+**Indicação Clínica:**
+Avaliação de lesão pigmentada em dorso
+
+**Técnica:**
+Dermatoscopia digital com magnificação de 10x e 20x.
+
+**Localização:**
+Região dorsal, região escapular direita
+
+**Achados Dermatoscópicos:**
+- Lesão melanocítica benigna
+- Padrão reticular típico
+- Bordas regulares e simétricas
+- Pigmentação homogênea
+- Ausência de estruturas atípicas
+
+**Conclusão:**
+Nevo melanocítico benigno. Seguimento clínico recomendado.
+
+**CID:** D22.5`,
+        cid: "D22.5",
+        diagnostico: "Nevo melanocítico benigno",
+        conclusao: "Lesão benigna, recomenda-se acompanhamento dermatológico de rotina."
+      },
+    ]);
+
+    const [activeTab, setActiveTab] = useState("entregue");
+    const [laudoSelecionado, setLaudoSelecionado] = useState<any>(null);
+    const [isViewing, setIsViewing] = useState(false);
+    const [isCreatingNew, setIsCreatingNew] = useState(false);
+
+
+
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="bg-card rounded-lg p-6 shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground mb-2">Gerenciamento de Laudo</h1>
+              <p className="text-muted-foreground">Nesta seção você pode gerenciar todos os laudos gerados através da integração.</p>
+            </div>
+            <Button 
+              onClick={() => setIsCreatingNew(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Laudo
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-card rounded-lg shadow-md">
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setActiveTab("descobrir")}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "descobrir"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              A descobrir
+            </button>
+            <button
+              onClick={() => setActiveTab("liberado")}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "liberado"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Liberado
+            </button>
+            <button
+              onClick={() => setActiveTab("entregue")}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "entregue"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Entregue
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div className="p-4 border-b border-border">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="relative flex-1 min-w-[200px]">
+                <Input 
+                  placeholder="Buscar paciente/pedido"
+                  className="pl-10"
+                />
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-sm">
+                  <CalendarIcon className="w-4 h-4" />
+                  <span>01/07/2025</span>
+                  <span>-</span>
+                  <span>31/07/2025</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Hoje</Button>
+                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Semana</Button>
+                <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">Mês</Button>
+              </div>
+
+              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+                </svg>
+                Filtros
+              </Button>
+
+              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                <Search className="w-4 h-4 mr-1" />
+                Pesquisar
+              </Button>
+
+              <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">
+                <Download className="w-4 h-4 mr-1" />
+                Exportar
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabela */}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pedido</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Prazo</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Executante/Solicitante</TableHead>
+                  <TableHead>Exame/Classificação</TableHead>
+                  <TableHead>Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {laudos.map((laudo) => (
+                  <TableRow key={laudo.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {laudo.urgente && (
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        )}
+                        <span className="font-mono text-sm">{laudo.id}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{laudo.data}</div>
+                        <div className="text-xs text-muted-foreground">11:48</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{laudo.prazo}</div>
+                        <div className="text-xs text-muted-foreground">11:48</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          <span className="font-mono text-xs">{laudo.paciente.id}</span>
+                        </div>
+                        <div className="font-medium">{laudo.paciente.nome}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">{laudo.executante}</TableCell>
+                    <TableCell className="text-sm">{laudo.exame || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setLaudoSelecionado(laudo);
+                            setIsViewing(true);
+                          }}
+                          className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver Laudo
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            setPatientForLaudo(laudo);
+                            setIsEditingLaudoForPatient(true);
+                          }}
+                          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
+                          title="Editar laudo para este paciente"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Editar Laudo
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Visualizador de Laudo */}
+        {isViewing && laudoSelecionado && (
+          <LaudoViewer laudo={laudoSelecionado} onClose={() => setIsViewing(false)} />
+        )}
+
+        {/* Editor para Novo Laudo */}
+        {isCreatingNew && (
+          <LaudoEditor 
+            pacientes={pacientesDisponiveis} 
+            onClose={() => setIsCreatingNew(false)} 
+            isNewLaudo={true}
+          />
+        )}
+
+        {/* Editor para Paciente Específico */}
+        {isEditingForPatient && selectedPatientForLaudo && (
+          <LaudoEditor 
+            pacientes={[selectedPatientForLaudo.paciente || selectedPatientForLaudo]} 
+            laudo={selectedPatientForLaudo.conteudo ? selectedPatientForLaudo : null}
+            onClose={onClosePatientEditor || (() => {})} 
+            isNewLaudo={!selectedPatientForLaudo.conteudo}
+            preSelectedPatient={selectedPatientForLaudo.paciente || selectedPatientForLaudo}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Visualizador de Laudo (somente leitura)
+  function LaudoViewer({ laudo, onClose }: { laudo: any; onClose: () => void }) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="bg-background rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Visualizar Laudo</h2>
+              <p className="text-sm text-muted-foreground">
+                Paciente: {laudo.paciente.nome} | Pedido: {laudo.id} | {laudo.especialidade}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-2xl mx-auto bg-background border border-border rounded-lg p-6 shadow-sm">
+              {/* Header do Laudo */}
+              <div className="text-center mb-6">
+                <h2 className="text-lg font-bold">LAUDO MÉDICO - {laudo.especialidade.toUpperCase()}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Data: {laudo.data}
+                </p>
+              </div>
+
+              {/* Dados do Paciente */}
+              <div className="mb-6 p-4 bg-muted rounded">
+                <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <p><strong>Nome:</strong> {laudo.paciente.nome}</p>
+                  <p><strong>ID:</strong> {laudo.paciente.id}</p>
+                  <p><strong>CPF:</strong> {laudo.paciente.cpf}</p>
+                  <p><strong>Idade:</strong> {laudo.paciente.idade} anos</p>
+                  <p><strong>Sexo:</strong> {laudo.paciente.sexo}</p>
+                  <p><strong>CID:</strong> {laudo.cid}</p>
+                </div>
+              </div>
+
+              {/* Conteúdo do Laudo */}
+              <div className="mb-6">
+                <div 
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: laudo.conteudo.replace(/\n/g, '<br>') 
+                  }}
+                />
+              </div>
+
+              {/* Diagnóstico e Conclusão */}
+              {laudo.diagnostico && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded">
+                  <h4 className="font-semibold mb-1" style={{ color: '#EF4444' }}>Diagnóstico:</h4>
+                  <p className="text-sm font-bold" style={{ color: '#EF4444' }}>{laudo.diagnostico}</p>
+                </div>
+              )}
+
+              {laudo.conclusao && (
+                <div className="mb-6 p-3 bg-green-50 dark:bg-green-950/20 rounded">
+                  <h4 className="font-semibold mb-1" style={{ color: '#EF4444' }}>Conclusão:</h4>
+                  <p className="text-sm font-bold" style={{ color: '#EF4444' }}>{laudo.conclusao}</p>
+                </div>
+              )}
+
+              {/* Assinatura */}
+              <div className="mt-8 text-center border-t pt-4">
+                <div className="h-16 mb-2"></div>
+                <p className="text-sm font-semibold">Dr. Carlos Andrade</p>
+                <p className="text-xs text-muted-foreground">CRM 000000 - {laudo.especialidade}</p>
+                <p className="text-xs text-muted-foreground mt-1">Data: {laudo.data}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-border bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">
+                Status: {laudo.status} | Executante: {laudo.executante}
+              </div>
+              <Button onClick={onClose}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Editor de Laudo Avançado (para novos laudos)
+  function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any }) {
+    const [activeTab, setActiveTab] = useState("editor");
+    const [content, setContent] = useState(laudo?.conteudo || "");
+    const [showPreview, setShowPreview] = useState(false);
+    const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
+    const [campos, setCampos] = useState({
+      cid: laudo?.cid || "",
+      diagnostico: laudo?.diagnostico || "",
+      conclusao: laudo?.conclusao || "",
+      exame: laudo?.exame || "",
+      especialidade: laudo?.especialidade || "",
+      mostrarData: true,
+      mostrarAssinatura: true
+    });
+    const [imagens, setImagens] = useState<any[]>([]);
+    const [templates] = useState([
+      "Exame normal, sem alterações significativas",
+      "Paciente em acompanhamento ambulatorial",
+      "Recomenda-se retorno em 30 dias",
+      "Alterações compatíveis com processo inflamatório",
+      "Resultado dentro dos parâmetros de normalidade",
+      "Recomendo seguimento com especialista"
+    ]);
+
+    const sigCanvasRef = useRef<any>(null);
+
+    // Carregar dados do laudo existente quando disponível
+    useEffect(() => {
+      if (laudo && !isNewLaudo) {
+        setContent(laudo.conteudo || "");
+        setCampos({
+          cid: laudo.cid || "",
+          diagnostico: laudo.diagnostico || "",
+          conclusao: laudo.conclusao || "",
+          exame: laudo.exame || "",
+          especialidade: laudo.especialidade || "",
+          mostrarData: true,
+          mostrarAssinatura: true
+        });
+        setPacienteSelecionado(laudo.paciente);
+      }
+    }, [laudo, isNewLaudo]);
+
+    const formatText = (type: string) => {
+      const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = textarea.value.substring(start, end);
+      
+      let formattedText = "";
+      switch(type) {
+        case "bold":
+          formattedText = selectedText ? `**${selectedText}**` : "**texto em negrito**";
+          break;
+        case "italic":
+          formattedText = selectedText ? `*${selectedText}*` : "*texto em itálico*";
+          break;
+        case "underline":
+          formattedText = selectedText ? `<u>${selectedText}</u>` : "<u>texto sublinhado</u>";
+          break;
+        case "list":
+          formattedText = selectedText ? `• ${selectedText}` : "• item da lista";
+          break;
+      }
+
+      const newText = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+      setContent(newText);
+    };
+
+    const insertTemplate = (template: string) => {
+      setContent((prev: string) => prev ? `${prev}\n\n${template}` : template);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagens(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            name: file.name,
+            url: e.target?.result,
+            type: file.type
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    const processContent = (content: string) => {
+      return content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+        .replace(/{{sexo_paciente}}/g, pacienteSelecionado?.sexo || laudo?.paciente?.sexo || '[SEXO]')
+        .replace(/{{diagnostico}}/g, campos.diagnostico || '[DIAGNÓSTICO]')
+        .replace(/{{conclusao}}/g, campos.conclusao || '[CONCLUSÃO]')
+        .replace(/\n/g, '<br>');
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="bg-background rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="border-b border-border">
+            <div className="flex items-center justify-between p-4">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">
+                  {isNewLaudo ? "Novo Laudo Médico" : "Editar Laudo Existente"}
+                </h2>
+                {isNewLaudo ? (
+                  <p className="text-sm text-muted-foreground">
+                    Crie um novo laudo selecionando um paciente
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Paciente: {laudo?.paciente?.nome} | Pedido: {laudo?.id} | {laudo?.especialidade}
+                  </p>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Seleção de Paciente (apenas para novos laudos) */}
+            {isNewLaudo && (
+              <div className="px-4 pb-4">
+                {!pacienteSelecionado ? (
+                  <div className="bg-muted border border-border rounded-lg p-4">
+                    <Label htmlFor="select-paciente" className="text-sm font-medium mb-2 block">
+                      Selecionar Paciente *
+                    </Label>
+                    <Select onValueChange={(value) => {
+                      const paciente = pacientes?.find(p => p.id === value);
+                      if (paciente) setPacienteSelecionado(paciente);
+                    }}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Escolha um paciente para criar o laudo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pacientes?.map((paciente) => (
+                          <SelectItem key={paciente.id} value={paciente.id}>
+                            {paciente.nome} - CPF: {paciente.cpf}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-primary">{pacienteSelecionado.nome}</div>
+                      <div className="text-xs text-muted-foreground">
+                        CPF: {pacienteSelecionado.cpf} | Idade: {pacienteSelecionado.idade} anos | Sexo: {pacienteSelecionado.sexo}
+                      </div>
+                    </div>
+                    {!preSelectedPatient && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPacienteSelecionado(null)}
+                      >
+                        Trocar Paciente
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-border">
+            {isNewLaudo && (
+              <button
+                onClick={() => setActiveTab("info")}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "info"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
+                }`}
+                style={{
+                  backgroundColor: activeTab === "info" ? undefined : "transparent"
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "info") {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#4B5563";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "info") {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#4B5563";
+                  }
+                }}
+              >
+                <User className="w-4 h-4 inline mr-1" />
+                Informações
+              </button>
+            )}
+            <button
+              onClick={() => setActiveTab("editor")}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "editor"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
+              }`}
+              style={{
+                backgroundColor: activeTab === "editor" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "editor") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "editor") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+            >
+              <FileText className="w-4 h-4 inline mr-1" />
+              Editor
+            </button>
+            <button
+              onClick={() => setActiveTab("imagens")}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "imagens"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
+              }`}
+              style={{
+                backgroundColor: activeTab === "imagens" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "imagens") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "imagens") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+            >
+              <Upload className="w-4 h-4 inline mr-1" />
+              Imagens ({imagens.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("campos")}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "campos"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
+              }`}
+              style={{
+                backgroundColor: activeTab === "campos" ? undefined : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== "campos") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "campos") {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+            >
+              <Settings className="w-4 h-4 inline mr-1" />
+              Campos
+            </button>
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                showPreview
+                  ? "border-green-500 text-green-600"
+                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
+              }`}
+              style={{
+                backgroundColor: !showPreview ? "transparent" : undefined
+              }}
+              onMouseEnter={(e) => {
+                if (!showPreview) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showPreview) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#4B5563";
+                }
+              }}
+            >
+              <Eye className="w-4 h-4 inline mr-1" />
+              {showPreview ? "Ocultar" : "Pré-visualização"}
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-hidden flex">
+            {/* Left Panel */}
+            <div className="flex-1 flex flex-col">
+              {activeTab === "info" && isNewLaudo && (
+                <div className="flex-1 p-4 space-y-4">
+                  {!pacienteSelecionado ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <User className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">Selecione um paciente primeiro</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Informações do Exame</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="especialidade">Especialidade *</Label>
+                            <Select onValueChange={(value) => setCampos(prev => ({ ...prev, especialidade: value }))}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a especialidade" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Cardiologia">Cardiologia</SelectItem>
+                                <SelectItem value="Dermatologia">Dermatologia</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="tipo-exame">Tipo de Exame *</Label>
+                            <Input
+                              id="tipo-exame"
+                              value={campos.exame}
+                              onChange={(e) => setCampos(prev => ({ ...prev, exame: e.target.value }))}
+                              placeholder="Ex: Ecocardiograma, Dermatoscopia, etc."
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Dados do Paciente</h3>
+                        <div className="bg-muted border border-border rounded-lg p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium">Nome:</span> {pacienteSelecionado.nome}
+                            </div>
+                            <div>
+                              <span className="font-medium">ID:</span> {pacienteSelecionado.id}
+                            </div>
+                            <div>
+                              <span className="font-medium">CPF:</span> {pacienteSelecionado.cpf}
+                            </div>
+                            <div>
+                              <span className="font-medium">Idade:</span> {pacienteSelecionado.idade} anos
+                            </div>
+                            <div>
+                              <span className="font-medium">Sexo:</span> {pacienteSelecionado.sexo}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button 
+                          onClick={() => setActiveTab("editor")}
+                          disabled={!campos.especialidade || !campos.exame}
+                        >
+                          Continuar para Editor
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "editor" && (
+                <div className="flex-1 flex flex-col">
+                  {/* Toolbar */}
+                  <div className="p-3 border-b border-border">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => formatText("bold")}
+                        title="Negrito"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
+                      >
+                        <strong>B</strong>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => formatText("italic")}
+                        title="Itálico"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
+                      >
+                        <em>I</em>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => formatText("underline")}
+                        title="Sublinhado"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
+                      >
+                        <u>U</u>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => formatText("list")}
+                        title="Lista"
+                        className="hover:bg-blue-50 dark:hover:bg-accent"
+                      >
+                        •
+                      </Button>
+                      
+                    </div>
+
+                    {/* Templates */}
+                    <div className="mt-3">
+                      <p className="text-xs text-muted-foreground mb-2">Frases rápidas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {templates.map((template, idx) => (
+                          <Button
+                            key={idx}
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-auto p-1 px-2"
+                            onClick={() => insertTemplate(template)}
+                          >
+                            {template.substring(0, 30)}...
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Editor */}
+                  <div className="flex-1 p-4">
+                    <Textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder="Digite o conteúdo do laudo aqui. Use ** para negrito, * para itálico, <u></u> para sublinhado."
+                      className="h-full min-h-[400px] resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "imagens" && (
+                <div className="flex-1 p-4">
+                  <div className="mb-4">
+                    <Label htmlFor="upload-images">Upload de Imagens</Label>
+                    <Input
+                      id="upload-images"
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf"
+                      onChange={handleImageUpload}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {imagens.map((img) => (
+                      <div key={img.id} className="border border-border rounded-lg p-2">
+                        {img.type.startsWith('image/') ? (
+                          <img 
+                            src={img.url} 
+                            alt={img.name}
+                            className="w-full h-32 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-muted rounded flex items-center justify-center">
+                            <FileText className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full mt-1"
+                          onClick={() => setImagens(prev => prev.filter(i => i.id !== img.id))}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "campos" && (
+                <div className="flex-1 p-4 space-y-4">
+                  <div>
+                    <Label htmlFor="cid">CID</Label>
+                    <Input
+                      id="cid"
+                      value={campos.cid}
+                      onChange={(e) => setCampos(prev => ({ ...prev, cid: e.target.value }))}
+                      placeholder="Ex: M25.5, I10, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="diagnostico">Diagnóstico</Label>
+                    <Textarea
+                      id="diagnostico"
+                      value={campos.diagnostico}
+                      onChange={(e) => setCampos(prev => ({ ...prev, diagnostico: e.target.value }))}
+                      placeholder="Diagnóstico principal"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="conclusao">Conclusão</Label>
+                    <Textarea
+                      id="conclusao"
+                      value={campos.conclusao}
+                      onChange={(e) => setCampos(prev => ({ ...prev, conclusao: e.target.value }))}
+                      placeholder="Conclusão do laudo"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="mostrar-data"
+                        checked={campos.mostrarData}
+                        onChange={(e) => setCampos(prev => ({ ...prev, mostrarData: e.target.checked }))}
+                      />
+                      <Label htmlFor="mostrar-data">Mostrar data no laudo</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="mostrar-assinatura"
+                        checked={campos.mostrarAssinatura}
+                        onChange={(e) => setCampos(prev => ({ ...prev, mostrarAssinatura: e.target.checked }))}
+                      />
+                      <Label htmlFor="mostrar-assinatura">Mostrar assinatura no laudo</Label>
+                    </div>
+                  </div>
+
+                  {/* Assinatura Digital */}
+                  <div>
+                    <Label>Assinatura Digital</Label>
+                    <div className="mt-2 p-4 border border-border rounded-lg bg-muted">
+                      <SignatureCanvas
+                        ref={sigCanvasRef}
+                        penColor="#000"
+                        backgroundColor="#fff"
+                        canvasProps={{ 
+                          width: 400, 
+                          height: 150, 
+                          className: "border rounded bg-background"
+                        }}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => sigCanvasRef.current?.clear()}
+                        >
+                          Limpar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Preview Panel */}
+            {showPreview && (
+              <div className="w-1/2 border-l border-border bg-muted/20">
+                <div className="p-4 border-b border-border">
+                  <h3 className="font-semibold text-foreground">Pré-visualização do Laudo</h3>
+                </div>
+                <div className="p-4 max-h-[600px] overflow-y-auto">
+                  <div className="bg-background border border-border rounded-lg p-6 shadow-sm">
+                    {/* Header do Laudo */}
+                    <div className="text-center mb-6">
+                      <h2 className="text-lg font-bold">
+                        LAUDO MÉDICO {campos.especialidade ? `- ${campos.especialidade.toUpperCase()}` : ''}
+                      </h2>
+                      {campos.exame && (
+                        <h3 className="text-md font-semibold mt-2">{campos.exame}</h3>
+                      )}
+                      {campos.mostrarData && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Data: {new Date().toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Dados do Paciente */}
+                    {(isNewLaudo ? pacienteSelecionado : laudo?.paciente) && (
+                      <div className="mb-4 p-3 bg-muted rounded">
+                        <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
+                        {isNewLaudo && pacienteSelecionado ? (
+                          <>
+                            <p><strong>Nome:</strong> {pacienteSelecionado.nome}</p>
+                            <p><strong>ID:</strong> {pacienteSelecionado.id}</p>
+                            <p><strong>CPF:</strong> {pacienteSelecionado.cpf}</p>
+                            <p><strong>Idade:</strong> {pacienteSelecionado.idade} anos</p>
+                            <p><strong>Sexo:</strong> {pacienteSelecionado.sexo}</p>
+                            {campos.cid && <p><strong>CID:</strong> {campos.cid}</p>}
+                          </>
+                        ) : (
+                          <>
+                            <p><strong>Nome:</strong> {laudo?.paciente?.nome}</p>
+                            <p><strong>ID:</strong> {laudo?.paciente?.id}</p>
+                            {campos.cid && <p><strong>CID:</strong> {campos.cid}</p>}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Conteúdo */}
+                    <div className="mb-4">
+                      <div 
+                        dangerouslySetInnerHTML={{ 
+                          __html: processContent(content) 
+                        }}
+                      />
+                    </div>
+
+                    {/* Imagens */}
+                    {imagens.length > 0 && (
+                      <div className="mb-4">
+                        <h3 className="font-semibold mb-2">Imagens:</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          {imagens.map((img) => (
+                            <img 
+                              key={img.id}
+                              src={img.url} 
+                              alt={img.name}
+                              className="w-full h-32 object-cover rounded border"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Assinatura */}
+                    {campos.mostrarAssinatura && (
+                      <div className="mt-8 text-center">
+                        <div className="h-16 border-b border-border mb-2"></div>
+                        <p className="text-sm">Dr. Carlos Andrade</p>
+                        <p className="text-xs text-muted-foreground">CRM 000000</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-border bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">
+                Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onClose} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                  Cancelar
+                </Button>
+                <Button variant="outline" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                  Salvar Rascunho
+                </Button>
+                <Button variant="default">
+                  {isNewLaudo ? "Liberar Laudo" : "Atualizar Laudo"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   
   const renderComunicacaoSection = () => (
-    <div className="bg-white shadow-md rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-4">Comunicação com o Paciente</h2>
+    <div className="bg-card shadow-md rounded-lg p-6">
+      <h2 className="text-2xl font-bold mb-4 text-foreground">Comunicação com o Paciente</h2>
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="destinatario">Destinatário</Label>
-            <Input 
-              id="destinatario" 
-              placeholder="Nome do Paciente ou CPF" 
-              disabled 
-              className="bg-muted cursor-not-allowed text-gray-700 disabled:text-gray-900"
-            />
+            <Select>
+              <SelectTrigger id="destinatario" className="hover:border-primary focus:border-primary cursor-pointer">
+                <SelectValue placeholder="Selecione o paciente" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border">
+                {pacientes.map((paciente) => (
+                  <SelectItem 
+                    key={paciente.cpf} 
+                    value={paciente.nome} 
+                    className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground"
+                  >
+                    {paciente.nome} - {paciente.cpf}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipoMensagem">Tipo de mensagem</Label>
@@ -1919,11 +2723,11 @@ function LaudoEditor() {
               <SelectTrigger id="tipoMensagem" className="hover:border-primary focus:border-primary cursor-pointer">
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
-              <SelectContent className="bg-white border border-gray-200">
-                <SelectItem value="lembrete" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Lembrete de Consulta</SelectItem>
-                <SelectItem value="resultado" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Resultado de Exame</SelectItem>
-                <SelectItem value="instrucao" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Instruções Pós-Consulta</SelectItem>
-                <SelectItem value="outro" className="hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground cursor-pointer">Outro</SelectItem>
+              <SelectContent className="bg-popover border">
+                <SelectItem value="lembrete" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Lembrete de Consulta</SelectItem>
+                <SelectItem value="resultado" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Resultado de Exame</SelectItem>
+                <SelectItem value="instrucao" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Instruções Pós-Consulta</SelectItem>
+                <SelectItem value="outro" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Outro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1956,17 +2760,17 @@ function LaudoEditor() {
   const renderRelatoriosMedicosSection = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Relatórios Médicos</h2>
+        <h2 className="text-2xl font-bold text-foreground">Relatórios Médicos</h2>
         {editandoRelatorio && (
-          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
+          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
             Cancelar Edição
           </Button>
         )}
       </div>
 
       {/* Formulário de Relatório Médico */}
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">
+      <div className="bg-card shadow-md rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">
           {editandoRelatorio ? 'Editar Relatório Médico' : 'Novo Relatório Médico'}
         </h3>
         
@@ -1981,7 +2785,7 @@ function LaudoEditor() {
                   id="profissionalNome"
                   value={relatorioMedico.profissionalNome}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
               <div className="space-y-2">
@@ -1990,7 +2794,7 @@ function LaudoEditor() {
                   id="profissionalCrm"
                   value={relatorioMedico.profissionalCrm}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
             </div>
@@ -2178,7 +2982,7 @@ function LaudoEditor() {
 
           {/* Botões de Ação */}
           <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio}>
+            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
             <Button onClick={handleSalvarRelatorio} className="flex items-center gap-2">
@@ -2190,12 +2994,12 @@ function LaudoEditor() {
       </div>
 
       {/* Lista de Relatórios Existentes */}
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Relatórios Médicos Salvos</h3>
+      <div className="bg-card shadow-md rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Relatórios Médicos Salvos</h3>
         
         {relatoriosMedicos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <FileCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted-foreground">
+            <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
             <p className="text-lg mb-2">Nenhum relatório médico encontrado</p>
             <p className="text-sm">Os relatórios salvos aparecerão aqui</p>
           </div>
@@ -2206,9 +3010,9 @@ function LaudoEditor() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h4 className="font-semibold text-lg">{relatorio.pacienteNome}</h4>
-                    <p className="text-sm text-gray-600">CPF: {relatorio.pacienteCpf} • Idade: {relatorio.pacienteIdade} anos</p>
-                    <p className="text-sm text-gray-500">Data do relatório: {new Date(relatorio.dataRelatorio).toLocaleDateString('pt-BR')}</p>
-                    <p className="text-xs text-gray-400">Gerado em: {relatorio.dataGeracao}</p>
+                    <p className="text-sm text-muted-foreground">CPF: {relatorio.pacienteCpf} • Idade: {relatorio.pacienteIdade} anos</p>
+                    <p className="text-sm text-muted-foreground">Data do relatório: {new Date(relatorio.dataRelatorio).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs text-muted-foreground/70">Gerado em: {relatorio.dataGeracao}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -2235,20 +3039,20 @@ function LaudoEditor() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-primary">Motivo:</span>
-                    <p className="text-gray-700 mt-1">{relatorio.motivoRelatorio}</p>
+                    <p className="text-foreground mt-1">{relatorio.motivoRelatorio}</p>
                   </div>
                   
                   {relatorio.diagnosticos && (
                     <div>
                       <span className="font-medium text-primary">Diagnóstico(s):</span>
-                      <p className="text-gray-700 mt-1">{relatorio.diagnosticos}</p>
+                      <p className="text-foreground mt-1">{relatorio.diagnosticos}</p>
                     </div>
                   )}
                   
                   {relatorio.recomendacoes && (
                     <div className="md:col-span-2">
                       <span className="font-medium text-primary">Recomendações:</span>
-                      <p className="text-gray-700 mt-1">{relatorio.recomendacoes}</p>
+                      <p className="text-foreground mt-1">{relatorio.recomendacoes}</p>
                     </div>
                   )}
                 </div>
@@ -2263,7 +3067,7 @@ function LaudoEditor() {
   const renderPerfilSection = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Meu Perfil</h2>
+        <h2 className="text-2xl font-bold text-foreground">Meu Perfil</h2>
         {!isEditingProfile ? (
           <Button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2">
             <Edit className="h-4 w-4" />
@@ -2274,7 +3078,7 @@ function LaudoEditor() {
             <Button onClick={handleSaveProfile} className="flex items-center gap-2">
               Salvar
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit}>
+            <Button variant="outline" onClick={handleCancelEdit} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
           </div>
@@ -2284,12 +3088,12 @@ function LaudoEditor() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Informações Pessoais */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b pb-2">Informações Pessoais</h3>
+          <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Informações Pessoais</h3>
           
           <div className="space-y-2">
             <Label htmlFor="nome">Nome Completo</Label>
-            <p className="p-2 bg-gray-100 rounded text-gray-600">{profileData.nome}</p>
-            <span className="text-xs text-gray-500">Este campo não pode ser alterado</span>
+            <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.nome}</p>
+            <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
           </div>
 
           <div className="space-y-2">
@@ -2302,7 +3106,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('email', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.email}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.email}</p>
             )}
           </div>
 
@@ -2315,14 +3119,14 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('telefone', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.telefone}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.telefone}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="crm">CRM</Label>
-            <p className="p-2 bg-gray-100 rounded text-gray-600">{profileData.crm}</p>
-            <span className="text-xs text-gray-500">Este campo não pode ser alterado</span>
+            <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.crm}</p>
+            <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
           </div>
 
           <div className="space-y-2">
@@ -2334,14 +3138,14 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('especialidade', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.especialidade}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.especialidade}</p>
             )}
           </div>
         </div>
 
         {/* Endereço e Contato */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b pb-2">Endereço e Contato</h3>
+          <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Endereço e Contato</h3>
           
           <div className="space-y-2">
             <Label htmlFor="endereco">Endereço</Label>
@@ -2352,7 +3156,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('endereco', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.endereco}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.endereco}</p>
             )}
           </div>
 
@@ -2365,7 +3169,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('cidade', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.cidade}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cidade}</p>
             )}
           </div>
 
@@ -2378,7 +3182,7 @@ function LaudoEditor() {
                 onChange={(e) => handleProfileChange('cep', e.target.value)}
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded">{profileData.cep}</p>
+              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
             )}
           </div>
 
@@ -2393,15 +3197,15 @@ function LaudoEditor() {
                 placeholder="Descreva sua experiência profissional..."
               />
             ) : (
-              <p className="p-2 bg-gray-50 rounded min-h-[100px]">{profileData.biografia}</p>
+              <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Foto do Perfil */}
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+      <div className="border-t border-border pt-6">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
             <AvatarFallback className="text-lg">
@@ -2413,7 +3217,7 @@ function LaudoEditor() {
               <Button variant="outline" size="sm">
                 Alterar Foto
               </Button>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Formatos aceitos: JPG, PNG (máx. 2MB)
               </p>
             </div>
@@ -2448,7 +3252,7 @@ function LaudoEditor() {
   return (
     <ProtectedRoute requiredUserType={["profissional"]}>
       <div className="container mx-auto px-4 py-8">
-        <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex items-center justify-between">
+        <header className="bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
               <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
@@ -2468,7 +3272,7 @@ function LaudoEditor() {
           <Button 
             variant="outline" 
             onClick={logout}
-            className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white cursor-pointer"
+            className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white"
           >
             Sair
           </Button>
@@ -2477,10 +3281,10 @@ function LaudoEditor() {
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         {}
         <aside className="md:sticky md:top-8 h-fit">
-          <nav className="bg-white shadow-md rounded-lg p-3 space-y-1">
+          <nav className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('calendario')}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -2488,7 +3292,7 @@ function LaudoEditor() {
             </Button>
             <Button 
               variant={activeSection === 'pacientes' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('pacientes')}
             >
               <Users className="mr-2 h-4 w-4" />
@@ -2496,7 +3300,7 @@ function LaudoEditor() {
             </Button>
             <Button 
               variant={activeSection === 'prontuario' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('prontuario')}
             >
               <ClipboardList className="mr-2 h-4 w-4" />
@@ -2504,7 +3308,7 @@ function LaudoEditor() {
             </Button>
             <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('laudos')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -2512,7 +3316,7 @@ function LaudoEditor() {
             </Button>
             <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
@@ -2520,7 +3324,7 @@ function LaudoEditor() {
             </Button>
             <Button 
               variant={activeSection === 'relatorios-medicos' ? 'default' : 'ghost'} 
-              className="w-full justify-start hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('relatorios-medicos')}
             >
               <FileCheck className="mr-2 h-4 w-4" />
@@ -2528,7 +3332,7 @@ function LaudoEditor() {
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
-              className="w-full justify-start cursor-pointer hover:bg-primary hover:text-primary-foreground cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('perfil')}
             >
               <Settings className="mr-2 h-4 w-4" />
@@ -2555,7 +3359,7 @@ function LaudoEditor() {
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 
-          <div className="bg-white p-6 rounded-lg w-96 border border-black">
+          <div className="bg-card border border-border p-6 rounded-lg w-96">
 
             {step === 1 && (
               <>
@@ -2582,7 +3386,7 @@ function LaudoEditor() {
                   <Button
                     onClick={() => setShowPopup(false)}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                   >
                     Cancelar
                   </Button>
@@ -2668,7 +3472,7 @@ function LaudoEditor() {
       {}
       {showActionModal && selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96">
+          <div className="bg-card border border-border p-6 rounded-lg w-96">
             <h3 className="text-lg font-semibold mb-2">
               Consulta de {selectedEvent.title}
             </h3>
@@ -2697,7 +3501,7 @@ function LaudoEditor() {
             <Button
               onClick={() => setShowActionModal(false)}
               variant="outline"
-              className="w-full mt-2"
+              className="w-full mt-2 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
             >
               Cancelar
             </Button>

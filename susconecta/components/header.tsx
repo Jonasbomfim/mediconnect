@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,7 +18,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold text-foreground">
-              <span className="text-primary">MEDI</span>Conecta
+              <span className="text-primary">MEDI</span>Connect
             </span>
           </Link>
 
@@ -43,20 +44,22 @@ export function Header() {
 
           {}
           <div className="hidden md:flex items-center space-x-3">
+            <SimpleThemeToggle />
             <Button
               variant="outline"
-              className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+              className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
               asChild
             >
+
               <Link href="/login-paciente">Sou Paciente</Link>
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent">
               <Link href="/login">Sou Profissional de Saúde</Link>
             </Button>
             <Link href="/login-admin">
-              <Button
+             <Button
                 variant="outline"
-                className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent"
+                className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground cursor-pointer"
               >
                 Sou Administrador de uma Clínica
               </Button>
@@ -92,20 +95,21 @@ export function Header() {
                 Sobre
               </Link>
               <div className="flex flex-col space-y-2 pt-4">
+                <SimpleThemeToggle />
                 <Button
                   variant="outline"
-                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground bg-transparent"
+                  className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
                   asChild
                 >
                   <Link href="/login-paciente">Sou Paciente</Link>
                 </Button>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full">
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent">
                   <Link href="/login">Sou Profissional de Saúde</Link>
                 </Button>
                 <Link href="/login-admin">
                   <Button
                     variant="outline"
-                    className="text-slate-700 border-slate-600 hover:bg-slate-700 hover:text-white bg-transparent w-full"
+                    className="text-primary border-primary bg-transparent w-full shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground cursor-pointer"
                   >
                     Sou Administrador de uma Clínica
                   </Button>

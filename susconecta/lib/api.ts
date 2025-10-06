@@ -624,6 +624,8 @@ export type Profile = {
   updated_at: string;
 };
 
+export type ProfileInput = Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
+
 export type Permissions = {
   isAdmin: boolean;
   isManager: boolean;
@@ -1040,3 +1042,14 @@ export async function adicionarAnexoMedico(_id: string | number, _file: File): P
 export async function removerAnexoMedico(_id: string | number, _anexoId: string | number): Promise<void> {}
 export async function uploadFotoMedico(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> { return {}; }
 export async function removerFotoMedico(_id: string | number): Promise<void> {}
+
+// ===== PERFIS DE USUÁRIOS =====
+export async function listarPerfis(): Promise<Profile[]> {
+  const url = `https://mock.apidog.com/m1/1053378-0-default/rest/v1/profiles`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: baseHeaders(),
+  });
+  return await parse<Profile[]>(res);
+}
+

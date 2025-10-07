@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useState, useEffect, useRef } from "react"
 import { SidebarTrigger } from "../ui/sidebar"
+import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 
 export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
   const { logout, user } = useAuth();
@@ -44,7 +45,12 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
           <Bell className="h-4 w-4" />
         </Button>
 
-
+        <SimpleThemeToggle />
+                    <Button
+                      variant="outline"
+                      className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
+                      asChild
+                    ></Button>
         {/* Avatar Dropdown Simples */}
         <div className="relative" ref={dropdownRef}>
           <Button 

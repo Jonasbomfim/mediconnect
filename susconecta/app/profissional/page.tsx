@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 import {
   Table,
   TableBody,
@@ -3270,13 +3271,16 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               )}
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={logout}
-            className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white"
-          >
-            Sair
-          </Button>
+          <div className="flex items-center gap-2">
+            <SimpleThemeToggle />
+            <Button 
+              variant="outline" 
+              onClick={logout}
+              className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white"
+            >
+              Sair
+            </Button>
+          </div>
         </header>
       
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">

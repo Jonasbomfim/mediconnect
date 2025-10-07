@@ -2033,14 +2033,40 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       }
     }, [laudo, isNewLaudo]);
 
-    const formatText = (type: string) => {
+    // Histórico para desfazer/refazer
+    const [history, setHistory] = useState<string[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+
+    // Atualiza histórico ao digitar
+    useEffect(() => {
+      if (history[historyIndex] !== content) {
+        const newHistory = history.slice(0, historyIndex + 1);
+        setHistory([...newHistory, content]);
+        setHistoryIndex(newHistory.length);
+      }
+      // eslint-disable-next-line
+    }, [content]);
+
+    const handleUndo = () => {
+      if (historyIndex > 0) {
+        setContent(history[historyIndex - 1]);
+        setHistoryIndex(historyIndex - 1);
+      }
+    };
+    const handleRedo = () => {
+      if (historyIndex < history.length - 1) {
+        setContent(history[historyIndex + 1]);
+        setHistoryIndex(historyIndex + 1);
+      }
+    };
+
+    // Formatação avançada
+    const formatText = (type: string, value?: any) => {
       const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
       if (!textarea) return;
-
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const selectedText = textarea.value.substring(start, end);
-      
       let formattedText = "";
       switch(type) {
         case "bold":
@@ -2050,13 +2076,44 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           formattedText = selectedText ? `*${selectedText}*` : "*texto em itálico*";
           break;
         case "underline":
-          formattedText = selectedText ? `<u>${selectedText}</u>` : "<u>texto sublinhado</u>";
+          formattedText = selectedText ? `__${selectedText}__` : "__texto sublinhado__";
           break;
-        case "list":
-          formattedText = selectedText ? `• ${selectedText}` : "• item da lista";
+        case "list-ul":
+          formattedText = selectedText ? selectedText.split('\n').map(l => `• ${l}`).join('\n') : "• item da lista";
           break;
+        case "list-ol":
+          formattedText = selectedText ? selectedText.split('\n').map((l,i) => `${i+1}. ${l}`).join('\n') : "1. item da lista";
+          break;
+        case "indent":
+          formattedText = selectedText ? selectedText.split('\n').map(l => `    ${l}`).join('\n') : "    ";
+          break;
+        case "outdent":
+          formattedText = selectedText ? selectedText.split('\n').map(l => l.replace(/^\s{1,4}/, "")).join('\n') : "";
+          break;
+        case "align-left":
+          formattedText = selectedText ? `[left]${selectedText}[/left]` : "[left]Texto à esquerda[/left]";
+          break;
+        case "align-center":
+          formattedText = selectedText ? `[center]${selectedText}[/center]` : "[center]Texto centralizado[/center]";
+          break;
+        case "align-right":
+          formattedText = selectedText ? `[right]${selectedText}[/right]` : "[right]Texto à direita[/right]";
+          break;
+        case "align-justify":
+          formattedText = selectedText ? `[justify]${selectedText}[/justify]` : "[justify]Texto justificado[/justify]";
+          break;
+        case "font-size":
+          formattedText = selectedText ? `[size=${value}]${selectedText}[/size]` : `[size=${value}]Texto tamanho ${value}[/size]`;
+          break;
+        case "font-family":
+          formattedText = selectedText ? `[font=${value}]${selectedText}[/font]` : `[font=${value}]${value}[/font]`;
+          break;
+        case "font-color":
+          formattedText = selectedText ? `[color=${value}]${selectedText}[/color]` : `[color=${value}]${value}[/color]`;
+          break;
+        default:
+          return;
       }
-
       const newText = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
       setContent(newText);
     };
@@ -2085,7 +2142,14 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       return content
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+        .replace(/__(.*?)__/g, '<u>$1</u>')
+        .replace(/\[left\](.*?)\[\/left\]/gs, '<div style="text-align:left">$1</div>')
+        .replace(/\[center\](.*?)\[\/center\]/gs, '<div style="text-align:center">$1</div>')
+        .replace(/\[right\](.*?)\[\/right\]/gs, '<div style="text-align:right">$1</div>')
+        .replace(/\[justify\](.*?)\[\/justify\]/gs, '<div style="text-align:justify">$1</div>')
+        .replace(/\[size=(\d+)\](.*?)\[\/size\]/gs, '<span style="font-size:$1px">$2</span>')
+        .replace(/\[font=([^\]]+)\](.*?)\[\/font\]/gs, '<span style="font-family:$1">$2</span>')
+        .replace(/\[color=([^\]]+)\](.*?)\[\/color\]/gs, '<span style="color:$1">$2</span>')
         .replace(/{{sexo_paciente}}/g, pacienteSelecionado?.sexo || laudo?.paciente?.sexo || '[SEXO]')
         .replace(/{{diagnostico}}/g, campos.diagnostico || '[DIAGNÓSTICO]')
         .replace(/{{conclusao}}/g, campos.conclusao || '[CONCLUSÃO]')
@@ -2384,44 +2448,60 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <div className="flex-1 flex flex-col">
                   {/* Toolbar */}
                   <div className="p-3 border-b border-border">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => formatText("bold")}
-                        title="Negrito"
-                        className="hover:bg-blue-50 dark:hover:bg-accent"
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {/* Tamanho da fonte */}
+                      <label className="text-xs mr-1">Tamanho</label>
+                      <input
+                        type="number"
+                        min={8}
+                        max={32}
+                        defaultValue={14}
+                        onBlur={e => formatText('font-size', e.target.value)}
+                        className="w-14 border rounded px-1 py-0.5 text-xs mr-2"
+                        title="Tamanho da fonte"
+                      />
+                      {/* Família da fonte */}
+                      <label className="text-xs mr-1">Fonte</label>
+                      <select
+                        defaultValue={'Arial'}
+                        onBlur={e => formatText('font-family', e.target.value)}
+                        className="border rounded px-1 py-0.5 text-xs mr-2"
+                        title="Família da fonte"
                       >
-                        <strong>B</strong>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => formatText("italic")}
-                        title="Itálico"
-                        className="hover:bg-blue-50 dark:hover:bg-accent"
-                      >
-                        <em>I</em>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => formatText("underline")}
-                        title="Sublinhado"
-                        className="hover:bg-blue-50 dark:hover:bg-accent"
-                      >
-                        <u>U</u>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => formatText("list")}
-                        title="Lista"
-                        className="hover:bg-blue-50 dark:hover:bg-accent"
-                      >
-                        •
-                      </Button>
-                      
+                        <option value="Arial">Arial</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Georgia">Georgia</option>
+                      </select>
+                      {/* Cor da fonte */}
+                      <label className="text-xs mr-1">Cor</label>
+                      <input
+                        type="color"
+                        defaultValue="#222222"
+                        onBlur={e => formatText('font-color', e.target.value)}
+                        className="w-6 h-6 border rounded mr-2"
+                        title="Cor da fonte"
+                      />
+                      {/* Alinhamento */}
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-left')} title="Alinhar à esquerda" className="px-1"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-center')} title="Centralizar" className="px-1"><svg width="16" height="16" fill="none"><rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="3" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-right')} title="Alinhar à direita" className="px-1"><svg width="16" height="16" fill="none"><rect x="6" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="4" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-justify')} title="Justificar" className="px-1"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      {/* Listas */}
+                      <Button variant="outline" size="sm" onClick={() => formatText('list-ol')} title="Lista numerada" className="px-1">1.</Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('list-ul')} title="Lista com marcadores" className="px-1">•</Button>
+                      {/* Recuo */}
+                      <Button variant="outline" size="sm" onClick={() => formatText('indent')} title="Aumentar recuo" className="px-1">→</Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('outdent')} title="Diminuir recuo" className="px-1">←</Button>
+                      {/* Desfazer/Refazer */}
+                      <Button variant="outline" size="sm" onClick={handleUndo} title="Desfazer" className="px-1">↺</Button>
+                      <Button variant="outline" size="sm" onClick={handleRedo} title="Refazer" className="px-1">↻</Button>
+                      {/* Negrito, itálico, sublinhado */}
+                      <Button variant="outline" size="sm" onClick={() => formatText("bold") } title="Negrito" className="hover:bg-blue-50 dark:hover:bg-accent"><strong>B</strong></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText("italic") } title="Itálico" className="hover:bg-blue-50 dark:hover:bg-accent"><em>I</em></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText("underline") } title="Sublinhado" className="hover:bg-blue-50 dark:hover:bg-accent"><u>U</u></Button>
                     </div>
 
                     {/* Templates */}
@@ -2444,12 +2524,13 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   </div>
 
                   {/* Editor */}
-                  <div className="flex-1 p-4">
+                  <div className="flex-1 p-4 overflow-auto max-h-[500px]">
                     <Textarea
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       placeholder="Digite o conteúdo do laudo aqui. Use ** para negrito, * para itálico, <u></u> para sublinhado."
-                      className="h-full min-h-[400px] resize-none"
+                      className="h-full min-h-[400px] resize-none scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-blue-100"
+                      style={{ maxHeight: 400, overflow: 'auto' }}
                     />
                   </div>
                 </div>

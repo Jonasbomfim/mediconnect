@@ -528,6 +528,11 @@ export default function PacientePage() {
           <div className="flex items-center gap-2">
             <User className="h-6 w-6 text-primary" aria-hidden />
             <span className="font-bold">Portal do Paciente</span>
+            <Button asChild variant="outline" className="ml-4">
+              <Link href="/">
+                <Home className="h-4 w-4 mr-1" /> Início
+              </Link>
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <SimpleThemeToggle />

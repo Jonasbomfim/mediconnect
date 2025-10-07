@@ -2498,7 +2498,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               )}
 
               {activeTab === "campos" && (
-                <div className="flex-1 p-4 space-y-4">
+                <div className="flex-1 p-4 space-y-4 max-h-[500px] overflow-y-auto">
                   <div>
                     <Label htmlFor="cid">CID</Label>
                     <Input
@@ -2572,6 +2572,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                           variant="outline"
                           size="sm"
                           onClick={() => sigCanvasRef.current?.clear()}
+                          className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                         >
                           Limpar
                         </Button>

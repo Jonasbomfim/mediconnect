@@ -2,6 +2,7 @@
 // import { useAuth } from '@/hooks/useAuth' // removido duplicado
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -163,6 +164,7 @@ export default function PacientePage() {
   const consultasDoDia = consultasFicticias.filter(c => c.data === todayStr);
 
   function Consultas() {
+    const router = useRouter()
     const [tipoConsulta, setTipoConsulta] = useState<'teleconsulta' | 'presencial'>('teleconsulta')
     const [especialidade, setEspecialidade] = useState('cardiologia')
     const [localizacao, setLocalizacao] = useState('')
@@ -174,6 +176,15 @@ export default function PacientePage() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
     const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+
+    const handlePesquisar = () => {
+      const params = new URLSearchParams({
+        tipo: tipoConsulta,
+        especialidade,
+        local: localizacao
+      })
+      router.push(`/resultados?${params.toString()}`)
+    }
 
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
@@ -237,7 +248,12 @@ export default function PacientePage() {
               </div>
             </div>
 
-            <Button className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}>Pesquisar</Button>
+            <Button
+              className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}
+              onClick={handlePesquisar}
+            >
+              Pesquisar
+            </Button>
           </div>
 
           <div className="text-center">

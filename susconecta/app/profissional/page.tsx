@@ -5,7 +5,9 @@ import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
-import { buscarPacientes } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, type Paciente } from "@/lib/api";
+import { useReports } from "@/hooks/useReports";
+import { CreateReportData, ReportFormData } from "@/types/report";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,10 +110,19 @@ const ProfissionalPage = () => {
     prognostico: "",
     tratamentosRealizados: "",
     recomendacoes: "",
+    cid: "",
     dataRelatorio: new Date().toISOString().split('T')[0]
   });
   const [relatoriosMedicos, setRelatoriosMedicos] = useState<any[]>([]);
   const [editandoRelatorio, setEditandoRelatorio] = useState<any>(null);
+
+  // Estados para integração com API de Relatórios
+  const [pacientesReais, setPacientesReais] = useState<Paciente[]>([]);
+  const [carregandoPacientes, setCarregandoPacientes] = useState(false);
+  const [pacienteSelecionadoReport, setPacienteSelecionadoReport] = useState<Paciente | null>(null);
+  
+  // Hook personalizado para relatórios
+  const reportsApi = useReports();
 
   // Estados para funcionalidades do prontuário
   const [consultasRegistradas, setConsultasRegistradas] = useState<any[]>([]);
@@ -306,6 +317,7 @@ const ProfissionalPage = () => {
       prognostico: "",
       tratamentosRealizados: "",
       recomendacoes: "",
+      cid: "",
       dataRelatorio: new Date().toISOString().split('T')[0]
     });
   };
@@ -339,9 +351,270 @@ const ProfissionalPage = () => {
       prognostico: "",
       tratamentosRealizados: "",
       recomendacoes: "",
+      cid: "",
       dataRelatorio: new Date().toISOString().split('T')[0]
     });
   };
+
+  // ===== FUNÇÕES PARA INTEGRAÇÃO COM API DE RELATÓRIOS =====
+  
+  // Carregar pacientes reais do Supabase
+  const carregarPacientesReais = async () => {
+    setCarregandoPacientes(true);
+    try {
+      console.log('📋 [REPORTS] Carregando pacientes do Supabase...');
+      
+      // Tentar primeiro usando a função da API que já existe
+      try {
+        console.log('📋 [REPORTS] Tentando função listarPacientes...');
+        const pacientes = await listarPacientes({ limit: 50 });
+        console.log('✅ [REPORTS] Pacientes do Supabase via API:', pacientes);
+        
+        if (pacientes && pacientes.length > 0) {
+          setPacientesReais(pacientes);
+          console.log('✅ [REPORTS] Usando pacientes do Supabase:', pacientes.length);
+          return;
+        }
+      } catch (apiError) {
+        console.warn('⚠️ [REPORTS] Erro na função listarPacientes:', apiError);
+      }
+      
+      // Se a função da API falhar, tentar diretamente
+      console.log('📋 [REPORTS] Tentando buscar diretamente do Supabase...');
+      const supabaseUrl = 'https://yuanqfswhberkoevtmfr.supabase.co/rest/v1/patients';
+      console.log('📋 [REPORTS] URL do Supabase:', supabaseUrl);
+      
+      // Verificar se há token de autenticação
+      const token = localStorage.getItem("auth_token") || localStorage.getItem("token") || 
+                   sessionStorage.getItem("auth_token") || sessionStorage.getItem("token");
+      
+      console.log('🔑 [REPORTS] Token encontrado:', token ? 'SIM' : 'NÃO');
+      
+      const headers: Record<string, string> = {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(supabaseUrl, {
+        method: 'GET',
+        headers
+      });
+      
+      console.log('📡 [REPORTS] Status da resposta do Supabase:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [REPORTS] Erro detalhado do Supabase:', errorText);
+        throw new Error(`Supabase HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ [REPORTS] Resposta completa do Supabase:', data);
+      console.log('✅ [REPORTS] Tipo da resposta:', Array.isArray(data) ? 'Array' : typeof data);
+      
+      let pacientes: Paciente[] = [];
+      
+      if (Array.isArray(data)) {
+        pacientes = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        pacientes = data.data;
+      } else {
+        console.warn('⚠️ [REPORTS] Formato de resposta inesperado do Supabase:', data);
+        pacientes = [];
+      }
+      
+      console.log('✅ [REPORTS] Pacientes encontrados no Supabase:', pacientes.length);
+      if (pacientes.length > 0) {
+        console.log('✅ [REPORTS] Primeiro paciente:', pacientes[0]);
+        console.log('✅ [REPORTS] Últimos 3 pacientes:', pacientes.slice(-3));
+      }
+      
+      setPacientesReais(pacientes);
+      
+      if (pacientes.length === 0) {
+        console.warn('⚠️ [REPORTS] Nenhum paciente encontrado no Supabase - verifique se há dados na tabela patients');
+      }
+    } catch (error) {
+      console.error('❌ [REPORTS] Erro detalhado ao carregar pacientes:', {
+        error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      setPacientesReais([]);
+      alert('Erro ao carregar pacientes do Supabase: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setCarregandoPacientes(false);
+    }
+  };
+
+  // Calcular idade do paciente baseado na data de nascimento
+  const calcularIdade = (birthDate: string | null | undefined): string => {
+    if (!birthDate) return '';
+    
+    const hoje = new Date();
+    const nascimento = new Date(birthDate);
+    let idade = hoje.getFullYear() - nascimento.getFullYear();
+    const mesAtual = hoje.getMonth();
+    const mesNascimento = nascimento.getMonth();
+    
+    if (mesAtual < mesNascimento || (mesAtual === mesNascimento && hoje.getDate() < nascimento.getDate())) {
+      idade--;
+    }
+    
+    return idade.toString();
+  };
+
+  // Selecionar paciente para o relatório
+  const selecionarPacienteParaRelatorio = (paciente: Paciente) => {
+    setPacienteSelecionadoReport(paciente);
+    
+    // Atualizar o formulário de relatório com dados do paciente
+    setRelatorioMedico(prev => ({
+      ...prev,
+      pacienteNome: paciente.full_name,
+      pacienteCpf: paciente.cpf || '',
+      pacienteIdade: calcularIdade(paciente.birth_date),
+    }));
+    
+    console.log('👤 [REPORTS] Paciente selecionado:', paciente);
+  };
+
+  // Salvar relatório usando a API
+  const salvarRelatorioAPI = async () => {
+    if (!pacienteSelecionadoReport) {
+      alert('Por favor, selecione um paciente.');
+      return;
+    }
+
+    if (!relatorioMedico.motivoRelatorio.trim()) {
+      alert('Por favor, preencha o motivo do relatório.');
+      return;
+    }
+
+    try {
+      console.log('💾 [REPORTS] Salvando relatório...');
+      
+      // Dados para enviar à API
+      const reportData: CreateReportData = {
+        patient_id: pacienteSelecionadoReport.id,
+        doctor_id: user?.id || 'temp-doctor-id', // Usar ID do usuário logado
+        report_type: 'Relatório Médico',
+        chief_complaint: relatorioMedico.motivoRelatorio,
+        clinical_history: relatorioMedico.historicoClinico,
+        symptoms_and_signs: relatorioMedico.sinaisSintomas,
+        physical_examination: '', // Pode adicionar campo no formulário se necessário
+        complementary_exams: relatorioMedico.examesRealizados,
+        exam_results: relatorioMedico.resultadosExames,
+        diagnosis: relatorioMedico.diagnosticos,
+        prognosis: relatorioMedico.prognostico,
+        treatment_performed: relatorioMedico.tratamentosRealizados,
+        objective_recommendations: relatorioMedico.recomendacoes || '',
+        icd_code: relatorioMedico.cid,
+        report_date: relatorioMedico.dataRelatorio,
+      };
+
+      const novoRelatorio = await reportsApi.createNewReport(reportData);
+      
+      console.log('✅ [REPORTS] Relatório salvo com sucesso:', novoRelatorio);
+      
+      // Recarregar a lista de relatórios para garantir que está sincronizada
+      await reportsApi.loadReports();
+      
+      alert('Relatório médico salvo com sucesso!');
+      
+      // Limpar formulário
+      limparFormularioRelatorio();
+      
+    } catch (error) {
+      console.error('❌ [REPORTS] Erro ao salvar relatório:', error);
+      alert('Erro ao salvar relatório: ' + error);
+    }
+  };
+
+  // Limpar formulário de relatório
+  const limparFormularioRelatorio = () => {
+    setRelatorioMedico({
+      pacienteNome: "",
+      pacienteCpf: "",
+      pacienteIdade: "",
+      profissionalNome: medico.nome,
+      profissionalCrm: medico.identificacao,
+      motivoRelatorio: "",
+      historicoClinico: "",
+      sinaisSintomas: "",
+      examesRealizados: "",
+      resultadosExames: "",
+      diagnosticos: "",
+      prognostico: "",
+      tratamentosRealizados: "",
+      recomendacoes: "",
+      cid: "",
+      dataRelatorio: new Date().toISOString().split('T')[0]
+    });
+    setPacienteSelecionadoReport(null);
+  };
+
+  // Carregar relatórios existentes
+  const carregarRelatorios = async () => {
+    try {
+      await reportsApi.loadReports();
+      console.log('✅ [REPORTS] Relatórios carregados:', reportsApi.reports.length);
+    } catch (error) {
+      console.error('❌ [REPORTS] Erro ao carregar relatórios:', error);
+    }
+  };
+
+
+  // useEffect para carregar dados iniciais
+  useEffect(() => {
+    if (activeSection === 'relatorios-medicos') {
+      console.log('🔄 [REPORTS] Seção de relatórios ativada - carregando dados...');
+      carregarPacientesReais();
+      carregarRelatorios();
+    }
+  }, [activeSection]);
+
+  // Buscar pacientes faltantes por patient_id após carregar relatórios e pacientes
+  useEffect(() => {
+    if (activeSection !== 'relatorios-medicos') return;
+    if (!reportsApi.reports || reportsApi.reports.length === 0) return;
+
+    // IDs de pacientes já carregados
+    const idsPacientesReais = new Set(pacientesReais.map(p => String(p.id)));
+    // IDs de pacientes presentes nos relatórios
+    const idsRelatorios = Array.from(new Set(reportsApi.reports.map(r => String(r.patient_id)).filter(Boolean)));
+    // IDs que faltam
+    const idsFaltantes = idsRelatorios.filter(id => !idsPacientesReais.has(id));
+
+    if (idsFaltantes.length === 0) return;
+
+    // Buscar pacientes faltantes individualmente, apenas se o ID for string/UUID
+    (async () => {
+      const novosPacientes: Paciente[] = [];
+      for (const id of idsFaltantes) {
+        // Só busca se for string e não for número
+        if (typeof id === 'string' && isNaN(Number(id))) {
+          try {
+            const paciente = await buscarPacientePorId(id);
+            if (paciente) novosPacientes.push(paciente);
+          } catch (e) {
+            console.warn('⚠️ [REPORTS] Paciente não encontrado para o relatório:', id);
+          }
+        } else {
+          console.warn('⚠️ [REPORTS] Ignorando busca de paciente por ID não-string/UUID:', id);
+        }
+      }
+      if (novosPacientes.length > 0) {
+        setPacientesReais(prev => ([...prev, ...novosPacientes]));
+      }
+    })();
+  }, [activeSection, reportsApi.reports, pacientesReais]);
 
   
   const handleDateClick = (arg: any) => {
@@ -2883,32 +3156,54 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             </div>
           </div>
 
-          {/* Identificação do Paciente */}
+          {/* Identificação do Paciente - USANDO API REAL */}
           <div className="space-y-4">
-            <h4 className="text-md font-medium text-primary border-b pb-2">Identificação do Paciente</h4>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="text-md font-medium text-primary">Identificação do Paciente</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={carregarPacientesReais}
+                disabled={carregandoPacientes}
+                className="flex items-center gap-2 text-xs"
+              >
+                🔄 {carregandoPacientes ? 'Carregando...' : 'Recarregar Pacientes'}
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pacienteNome">Nome do Paciente *</Label>
                 <Select
-                  value={relatorioMedico.pacienteNome}
+                  value={pacienteSelecionadoReport?.id || ''}
                   onValueChange={(value) => {
-                    const pacienteSelecionado = pacientes.find(p => p.nome === value);
-                    handleRelatorioChange('pacienteNome', value);
-                    if (pacienteSelecionado) {
-                      handleRelatorioChange('pacienteCpf', pacienteSelecionado.cpf);
-                      handleRelatorioChange('pacienteIdade', pacienteSelecionado.idade.toString());
+                    const paciente = pacientesReais.find(p => p.id === value);
+                    if (paciente) {
+                      selecionarPacienteParaRelatorio(paciente);
+                    }
+                  }}
+                  onOpenChange={(open) => {
+                    // Carregar pacientes quando o dropdown for aberto pela primeira vez
+                    if (open && pacientesReais.length === 0 && !carregandoPacientes) {
+                      console.log('🔄 [REPORTS] Dropdown aberto - carregando pacientes...');
+                      carregarPacientesReais();
                     }
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o paciente" />
+                    <SelectValue placeholder={carregandoPacientes ? "Carregando..." : "Selecione o paciente"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome}>
-                        {paciente.nome}
-                      </SelectItem>
-                    ))}
+                    {carregandoPacientes ? (
+                      <SelectItem value="loading" disabled>Carregando pacientes...</SelectItem>
+                    ) : pacientesReais.length === 0 ? (
+                      <SelectItem value="empty" disabled>Nenhum paciente encontrado</SelectItem>
+                    ) : (
+                      pacientesReais.map((paciente) => (
+                        <SelectItem key={paciente.id} value={paciente.id}>
+                          {paciente.full_name} - {paciente.cpf || 'CPF não informado'}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -2917,27 +3212,50 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <Input
                   id="pacienteCpf"
                   value={relatorioMedico.pacienteCpf}
-                  onChange={(e) => handleRelatorioChange('pacienteCpf', e.target.value)}
-                  placeholder="000.000.000-00"
+                  disabled
+                  className="bg-muted"
+                  placeholder="CPF será preenchido automaticamente"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pacienteIdade">Idade</Label>
                 <Input
                   id="pacienteIdade"
-                  type="number"
+                  type="text"
                   value={relatorioMedico.pacienteIdade}
-                  onChange={(e) => handleRelatorioChange('pacienteIdade', e.target.value)}
-                  placeholder="Idade do paciente"
+                  disabled
+                  className="bg-muted"
+                  placeholder="Idade será calculada automaticamente"
                 />
               </div>
             </div>
+            
+            {/* Informações adicionais do paciente selecionado */}
+            {pacienteSelecionadoReport && (
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h5 className="font-medium text-sm text-muted-foreground mb-2">Informações do Paciente Selecionado:</h5>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Nome Completo:</span><br />
+                    <span>{pacienteSelecionadoReport.full_name}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Email:</span><br />
+                    <span>{pacienteSelecionadoReport.email || 'Não informado'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Telefone:</span><br />
+                    <span>{pacienteSelecionadoReport.phone_mobile || 'Não informado'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Informações do Relatório */}
           <div className="space-y-4">
             <h4 className="text-md font-medium text-primary border-b pb-2">Informações do Relatório</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="motivoRelatorio">Motivo do Relatório *</Label>
                 <Textarea
@@ -2946,6 +3264,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   onChange={(e) => handleRelatorioChange('motivoRelatorio', e.target.value)}
                   placeholder="Descreva o motivo para a elaboração deste relatório médico..."
                   rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cid">CID</Label>
+                <Input
+                  id="cid"
+                  value={relatorioMedico.cid}
+                  onChange={(e) => handleRelatorioChange('cid', e.target.value)}
+                  placeholder="Ex: A00, B20, C34..."
                 />
               </div>
               <div className="space-y-2">
@@ -2958,7 +3285,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 />
               </div>
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="historicoClinico">Histórico Clínico Conciso</Label>
               <Textarea
@@ -3068,19 +3394,54 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
               Cancelar
             </Button>
-            <Button onClick={handleSalvarRelatorio} className="flex items-center gap-2">
+            <Button 
+              onClick={salvarRelatorioAPI} 
+              className="flex items-center gap-2"
+              disabled={reportsApi.loading || !pacienteSelecionadoReport}
+            >
               <FileCheck className="h-4 w-4" />
-              {editandoRelatorio ? 'Atualizar Relatório' : 'Salvar Relatório'}
+              {reportsApi.loading ? 'Salvando...' : (editandoRelatorio ? 'Atualizar Relatório' : 'Salvar Relatório')}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Lista de Relatórios Existentes */}
+      {/* Lista de Relatórios da API */}
       <div className="bg-card shadow-md rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4 text-foreground">Relatórios Médicos Salvos</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">Relatórios Médicos</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={carregarRelatorios}
+            disabled={reportsApi.loading}
+            className="flex items-center gap-2"
+          >
+            <FileCheck className="h-4 w-4" />
+            {reportsApi.loading ? 'Carregando...' : 'Atualizar'}
+          </Button>
+        </div>
         
-        {relatoriosMedicos.length === 0 ? (
+        {reportsApi.error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+            <p className="text-destructive text-sm">{reportsApi.error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={reportsApi.clearError}
+              className="mt-2"
+            >
+              Limpar erro
+            </Button>
+          </div>
+        )}
+        
+        {reportsApi.loading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50 animate-pulse" />
+            <p className="text-lg mb-2">Carregando relatórios...</p>
+          </div>
+        ) : reportsApi.reports.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
             <p className="text-lg mb-2">Nenhum relatório médico encontrado</p>
@@ -3088,30 +3449,50 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           </div>
         ) : (
           <div className="space-y-4">
-            {relatoriosMedicos.map((relatorio) => (
-              <div key={relatorio.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h4 className="font-semibold text-lg">{relatorio.pacienteNome}</h4>
-                    <p className="text-sm text-muted-foreground">CPF: {relatorio.pacienteCpf} • Idade: {relatorio.pacienteIdade} anos</p>
-                    <p className="text-sm text-muted-foreground">Data do relatório: {new Date(relatorio.dataRelatorio).toLocaleDateString('pt-BR')}</p>
-                    <p className="text-xs text-muted-foreground/70">Gerado em: {relatorio.dataGeracao}</p>
+            {reportsApi.reports.filter(relatorio => relatorio != null).map((relatorio, idx) => {
+              // Buscar dados do paciente pelos pacientes carregados
+              const pacienteEncontrado = pacientesReais.find(p => p.id === relatorio?.patient_id);
+              const nomeExibir = relatorio?.patient?.full_name || pacienteEncontrado?.full_name || 'Paciente não identificado';
+              const cpfExibir = relatorio?.patient?.cpf || pacienteEncontrado?.cpf || 'Não informado';
+              
+              return (
+                <div key={relatorio?.id ? `report-${relatorio.id}-${idx}` : `report-idx-${idx}`} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-semibold text-lg">
+                        {nomeExibir}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        CPF: {cpfExibir} • 
+                        Tipo: {relatorio?.report_type || 'Relatório Médico'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Data do relatório: {relatorio?.report_date ? new Date(relatorio.report_date).toLocaleDateString('pt-BR') : 'Data não informada'}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">
+                        Criado em: {relatorio?.created_at ? new Date(relatorio.created_at).toLocaleDateString('pt-BR') : 'Data não informada'}
+                      </p>
+                      <p className="text-sm text-foreground/80 mt-2 line-clamp-2">
+                        <strong>Motivo:</strong> {relatorio?.chief_complaint || 'Não informado'}
+                      </p>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEditarRelatorio(relatorio)}
+                      onClick={() => relatorio?.id && reportsApi.loadReportById(relatorio.id)}
                       className="flex items-center gap-1"
+                      disabled={!relatorio?.id}
                     >
-                      <Edit className="h-3 w-3" />
-                      Editar
+                      <Eye className="h-3 w-3" />
+                      Visualizar
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleExcluirRelatorio(relatorio.id)}
+                      onClick={() => relatorio?.id && reportsApi.deleteExistingReport(relatorio.id)}
                       className="flex items-center gap-1"
+                      disabled={reportsApi.loading || !relatorio?.id}
                     >
                       <Trash2 className="h-3 w-3" />
                       Excluir
@@ -3121,26 +3502,34 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium text-primary">Motivo:</span>
-                    <p className="text-foreground mt-1">{relatorio.motivoRelatorio}</p>
+                    <span className="font-medium text-primary">Queixa Principal:</span>
+                    <p className="text-foreground mt-1 line-clamp-3">{relatorio.chief_complaint}</p>
                   </div>
                   
-                  {relatorio.diagnosticos && (
+                  {relatorio.diagnosis && (
                     <div>
                       <span className="font-medium text-primary">Diagnóstico(s):</span>
-                      <p className="text-foreground mt-1">{relatorio.diagnosticos}</p>
+                      <p className="text-foreground mt-1 line-clamp-3">{relatorio.diagnosis}</p>
                     </div>
                   )}
                   
-                  {relatorio.recomendacoes && (
+                  {relatorio.objective_recommendations && (
                     <div className="md:col-span-2">
                       <span className="font-medium text-primary">Recomendações:</span>
-                      <p className="text-foreground mt-1">{relatorio.recomendacoes}</p>
+                      <p className="text-foreground mt-1 line-clamp-3">{relatorio.objective_recommendations}</p>
+                    </div>
+                  )}
+                  
+                  {relatorio.icd_code && (
+                    <div>
+                      <span className="font-medium text-primary">CID:</span>
+                      <p className="text-foreground mt-1">{relatorio.icd_code}</p>
                     </div>
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

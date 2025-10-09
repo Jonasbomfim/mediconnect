@@ -320,7 +320,12 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
 }
 
 export async function buscarPacientePorId(id: string | number): Promise<Paciente> {
-  const url = `${REST}/patients?id=eq.${id}`;
+  // Se for string e não for só número, coloca aspas duplas (para UUID/texto)
+  let idParam: string | number = id;
+  if (typeof id === 'string' && isNaN(Number(id))) {
+    idParam = `\"${id}\"`;
+  }
+  const url = `${REST}/patients?id=eq.${idParam}`;
   const res = await fetch(url, { method: "GET", headers: baseHeaders() });
   const arr = await parse<Paciente[]>(res);
   if (!arr?.length) throw new Error("404: Paciente não encontrado");

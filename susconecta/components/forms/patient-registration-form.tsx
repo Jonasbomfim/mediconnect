@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { format, parse, isValid, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,7 +131,9 @@ export function PatientRegistrationForm({
   cpf: p.cpf || "",
   rg: p.rg || "",
   sexo: p.sex || "",
-  birth_date: p.birth_date || "", // 👈 trocar data_nascimento → birth_date
+  birth_date: p.birth_date ? (() => {
+    try { return format(parseISO(String(p.birth_date)), 'dd/MM/yyyy'); } catch { return String(p.birth_date); }
+  })() : "",
   telefone: p.phone_mobile || "",
   email: p.email || "",
   cep: p.cep || "",
@@ -199,13 +202,26 @@ export function PatientRegistrationForm({
   }
 
   function toPayload(): PacienteInput {
+  // converte dd/MM/yyyy para ISO (yyyy-MM-dd) se possível
+  let isoDate: string | null = null;
+  try {
+    const parts = String(form.birth_date).split(/\D+/).filter(Boolean);
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      if (!isNaN(date.getTime())) {
+        isoDate = date.toISOString().slice(0, 10);
+      }
+    }
+  } catch {}
+
   return {
     full_name: form.nome,   // 👈 troca 'nome' por 'full_name'
     social_name: form.nome_social || null,
     cpf: form.cpf,
     rg: form.rg || null,
     sex: form.sexo || null,
-    birth_date: form.birth_date || null,   // 👈 troca data_nascimento → birth_date
+    birth_date: isoDate,   // enviar ISO ou null
     phone_mobile: form.telefone || null,
     email: form.email || null,
     cep: form.cep || null,
@@ -504,8 +520,24 @@ export function PatientRegistrationForm({
                   </div>
                   <div className="space-y-2">
                     <Label>Data de Nascimento</Label>
-<Input type="date" value={form.birth_date} onChange={(e) => setField("birth_date", e.target.value)} />
-
+                    <Input
+                      placeholder="dd/mm/aaaa"
+                      value={form.birth_date}
+                      onChange={(e) => {
+                        // permita apenas números e '/'
+                        const v = e.target.value.replace(/[^0-9\/]/g, "").slice(0, 10);
+                        setField("birth_date", v);
+                      }}
+                      onBlur={() => {
+                        // tenta formatar automaticamente se for uma data válida
+                        const raw = form.birth_date;
+                        const parts = raw.split(/\D+/).filter(Boolean);
+                        if (parts.length === 3) {
+                          const d = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2].padStart(4,'0')}`;
+                          setField("birth_date", d);
+                        }
+                      }}
+                    />
                   </div>
                 </div>
               </CardContent>

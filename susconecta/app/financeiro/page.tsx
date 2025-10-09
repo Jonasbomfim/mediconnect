@@ -16,6 +16,8 @@ export default function FinanceiroPage() {
   const pathname = usePathname();
   const router = useRouter();
   const [bloqueio, setBloqueio] = useState(false);
+  const [formaTipo, setFormaTipo] = useState("");
+  const [parcelas, setParcelas] = useState("1");
 
   const isAg = pathname?.startsWith("/agendamento");
   const isPr = pathname?.startsWith("/procedimento");
@@ -90,7 +92,7 @@ export default function FinanceiroPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Tipo</Label>
-                <select className="h-10 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400">
+                <select value={formaTipo} onChange={(e) => setFormaTipo(e.target.value)} className="h-10 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400">
                   <option value="">Selecionar</option>
                   <option value="dinheiro">Dinheiro</option>
                   <option value="cartao">Cartão</option>

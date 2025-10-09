@@ -368,7 +368,18 @@ const payload: MedicoInput = {
   neighborhood: form.bairro || undefined,
   city: form.cidade || "",
   state: form.estado || "",
-  birth_date: form.data_nascimento || null,
+  // converte dd/MM/yyyy para ISO
+  birth_date: (() => {
+    try {
+      const parts = String(form.data_nascimento).split(/\D+/).filter(Boolean);
+      if (parts.length === 3) {
+        const [d, m, y] = parts;
+        const date = new Date(Number(y), Number(m) - 1, Number(d));
+        if (!isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+      }
+    } catch {}
+    return null;
+  })(),
   rg: form.rg || null,
   active: true,
   created_by: null,
@@ -653,7 +664,22 @@ if (missingFields.length > 0) {
                   </div>
                   <div className="space-y-2">
                     <Label>Data de Nascimento</Label>
-                    <Input type="date" value={form.data_nascimento} onChange={(e) => setField("data_nascimento", e.target.value)} />
+                    <Input
+                      placeholder="dd/mm/aaaa"
+                      value={form.data_nascimento}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9\/]/g, "").slice(0, 10);
+                        setField("data_nascimento", v);
+                      }}
+                      onBlur={() => {
+                        const raw = form.data_nascimento;
+                        const parts = raw.split(/\D+/).filter(Boolean);
+                        if (parts.length === 3) {
+                          const d = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2].padStart(4,'0')}`;
+                          setField("data_nascimento", d);
+                        }
+                      }}
+                    />
                   </div>
                 </div>
               </CardContent>

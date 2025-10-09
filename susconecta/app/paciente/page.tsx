@@ -14,6 +14,7 @@ import { SimpleThemeToggle } from '@/components/simple-theme-toggle'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 // Simulação de internacionalização básica
 const strings = {
   dashboard: 'Dashboard',
@@ -145,8 +146,7 @@ export default function PacientePage() {
     },
   ];
 
-  function formatDatePt(dateStr: string) {
-    const date = new Date(dateStr);
+  function formatDatePt(date: Date) {
     return date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   }
 
@@ -163,65 +163,222 @@ export default function PacientePage() {
   const consultasDoDia = consultasFicticias.filter(c => c.data === todayStr);
 
   function Consultas() {
+    const [tipoConsulta, setTipoConsulta] = useState<'teleconsulta' | 'presencial'>('teleconsulta')
+    const [especialidade, setEspecialidade] = useState('cardiologia')
+    const [localizacao, setLocalizacao] = useState('')
+    const [mostrarAgendadas, setMostrarAgendadas] = useState(false)
+    const hoverPrimaryClass = "transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97]"
+    const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
+    const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
+    const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
+    const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Minhas Consultas</h2>
-        </div>
-        {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-blue-50 rounded-lg dark:bg-muted">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm" onClick={() => navigateDate('prev')} className="p-2"><ChevronLeft className="h-4 w-4" /></Button>
-            <h3 className="text-lg font-medium text-foreground">{formatDatePt(todayStr)}</h3>
-            <Button variant="outline" size="sm" onClick={() => navigateDate('next')} className="p-2"><ChevronRight className="h-4 w-4" /></Button>
-            <Button variant="outline" size="sm" onClick={goToToday} className="ml-4 px-3 py-1 text-sm">Hoje</Button>
-          </div>
-          <div className="text-sm text-gray-600 dark:text-muted-foreground">
-            {consultasDoDia.length} consulta{consultasDoDia.length !== 1 ? 's' : ''} agendada{consultasDoDia.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-        {/* Lista de Consultas do Dia */}
-        <div className="space-y-4">
-          {consultasDoDia.length === 0 ? (
-            <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
-              <p className="text-lg mb-2">Nenhuma consulta agendada para este dia</p>
-              <p className="text-sm">Você pode agendar uma nova consulta</p>
-              <Button variant="default" className="mt-4">Agendar Consulta</Button>
+        <div className="max-w-3xl mx-auto space-y-8">
+          <header className="text-center space-y-2">
+            <h2 className="text-3xl font-semibold text-foreground">Agende sua próxima consulta</h2>
+            <p className="text-muted-foreground">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
+          </header>
+
+          <div className="space-y-6 rounded-lg border border-border bg-muted/40 p-6">
+            <div className="space-y-3">
+              <Label>Tipo de consulta</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  className={tipoConsulta === 'teleconsulta' ? activeToggleClass : inactiveToggleClass}
+                  aria-pressed={tipoConsulta === 'teleconsulta'}
+                  onClick={() => setTipoConsulta('teleconsulta')}
+                >
+                  Teleconsulta
+                </Button>
+                <Button
+                  type="button"
+                  className={tipoConsulta === 'presencial' ? activeToggleClass : inactiveToggleClass}
+                  aria-pressed={tipoConsulta === 'presencial'}
+                  onClick={() => setTipoConsulta('presencial')}
+                >
+                  Consulta no local
+                </Button>
+              </div>
             </div>
-          ) : (
-            consultasDoDia.map(consulta => (
-              <div key={consulta.id} className="border-l-4 border-t border-r border-b p-4 rounded-lg shadow-sm bg-card border-border">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}></div>
-                    <div>
-                      <div className="font-medium flex items-center">
-                        <Stethoscope className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
-                        {consulta.medico}
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Especialidade</Label>
+                <Select value={especialidade} onValueChange={setEspecialidade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a especialidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cardiologia">Cardiologia</SelectItem>
+                    <SelectItem value="pediatria">Pediatria</SelectItem>
+                    <SelectItem value="dermatologia">Dermatologia</SelectItem>
+                    <SelectItem value="ortopedia">Ortopedia</SelectItem>
+                    <SelectItem value="ginecologia">Ginecologia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Localização (opcional)</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={localizacao}
+                    onChange={event => setLocalizacao(event.target.value)}
+                    placeholder="Cidade ou estado"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Button className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}>Pesquisar</Button>
+          </div>
+
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="transition duration-200 bg-white text-[#1e293b] border border-black/10 rounded-md shadow-[0_2px_6px_rgba(0,0,0,0.03)] hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:hover:bg-[#2563eb] dark:hover:text-white"
+              onClick={() => setMostrarAgendadas(true)}
+            >
+              Ver consultas agendadas
+            </Button>
+          </div>
+        </div>
+
+        <Dialog open={mostrarAgendadas} onOpenChange={open => setMostrarAgendadas(open)}>
+          <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-semibold text-foreground">Consultas agendadas</DialogTitle>
+              <DialogDescription>Gerencie suas consultas confirmadas, pendentes ou canceladas.</DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigateDate('prev')}
+                  aria-label="Dia anterior"
+                  className={`group shadow-sm ${hoverPrimaryIconClass}`}
+                >
+                  <ChevronLeft className="h-4 w-4 transition group-hover:text-white" />
+                </Button>
+                <span className="text-lg font-medium text-foreground">{formatDatePt(currentDate)}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigateDate('next')}
+                  aria-label="Próximo dia"
+                  className={`group shadow-sm ${hoverPrimaryIconClass}`}
+                >
+                  <ChevronRight className="h-4 w-4 transition group-hover:text-white" />
+                </Button>
+                {isSelectedDateToday && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={goToToday}
+                    disabled
+                    className="border border-border text-foreground focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] hover:bg-transparent hover:text-foreground disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground"
+                  >
+                    Hoje
+                  </Button>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {consultasDoDia.length} consulta{consultasDoDia.length !== 1 ? 's' : ''} agendada{consultasDoDia.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] pr-1 sm:pr-2">
+              {consultasDoDia.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
+                  <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
+                  <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
+                </div>
+              ) : (
+                consultasDoDia.map(consulta => (
+                  <div
+                    key={consulta.id}
+                    className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
+                  >
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
+                          style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
+                        />
+                        <div className="space-y-1">
+                          <div className="font-medium flex items-center gap-2 text-foreground">
+                            <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                            {consulta.medico}
+                          </div>
+                          <p className="text-sm text-muted-foreground break-words">
+                            {consulta.especialidade} • {consulta.local}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-muted-foreground">
-                        {consulta.especialidade} • {consulta.local}
+
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{consulta.hora}</span>
+                      </div>
+
+                      <div className="flex items-center">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
+                          {consulta.status}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
+                        >
+                          Detalhes
+                        </Button>
+                        {consulta.status !== 'Cancelada' && (
+                          <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
+                            Reagendar
+                          </Button>
+                        )}
+                        {consulta.status !== 'Cancelada' && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                          >
+                            Cancelar
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
-                    <span className="font-medium">{consulta.hora}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>{consulta.status}</div>
-                  </div>
-                  <div className="flex items-center justify-end space-x-2">
-                    <Button variant="outline" size="sm">Detalhes</Button>
-                    {consulta.status !== 'Cancelada' && <Button variant="secondary" size="sm">Reagendar</Button>}
-                    {consulta.status !== 'Cancelada' && <Button variant="destructive" size="sm">Cancelar</Button>}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+                ))
+              )}
+            </div>
+
+            <DialogFooter className="justify-center border-t border-border pt-4 mt-2">
+              <Button variant="outline" onClick={() => setMostrarAgendadas(false)} className="w-full sm:w-auto">
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </section>
     )
   }

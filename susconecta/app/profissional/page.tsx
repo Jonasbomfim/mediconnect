@@ -7,7 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { buscarPacientes, listarPacientes, buscarPacientePorId, type Paciente } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
-import { CreateReportData, ReportFormData } from "@/types/report";
+import { CreateReportData, ReportFormData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -2416,13 +2416,13 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/__(.*?)__/g, '<u>$1</u>')
-        .replace(/\[left\](.*?)\[\/left\]/gs, '<div style="text-align:left">$1</div>')
-        .replace(/\[center\](.*?)\[\/center\]/gs, '<div style="text-align:center">$1</div>')
-        .replace(/\[right\](.*?)\[\/right\]/gs, '<div style="text-align:right">$1</div>')
-        .replace(/\[justify\](.*?)\[\/justify\]/gs, '<div style="text-align:justify">$1</div>')
-        .replace(/\[size=(\d+)\](.*?)\[\/size\]/gs, '<span style="font-size:$1px">$2</span>')
-        .replace(/\[font=([^\]]+)\](.*?)\[\/font\]/gs, '<span style="font-family:$1">$2</span>')
-        .replace(/\[color=([^\]]+)\](.*?)\[\/color\]/gs, '<span style="color:$1">$2</span>')
+        .replace(/\[left\]([\s\S]*?)\[\/left\]/g, '<div style="text-align:left">$1</div>')
+        .replace(/\[center\]([\s\S]*?)\[\/center\]/g, '<div style="text-align:center">$1</div>')
+        .replace(/\[right\]([\s\S]*?)\[\/right\]/g, '<div style="text-align:right">$1</div>')
+        .replace(/\[justify\]([\s\S]*?)\[\/justify\]/g, '<div style="text-align:justify">$1</div>')
+        .replace(/\[size=(\d+)\]([\s\S]*?)\[\/size\]/g, '<span style="font-size:$1px">$2</span>')
+        .replace(/\[font=([^\]]+)\]([\s\S]*?)\[\/font\]/g, '<span style="font-family:$1">$2</span>')
+        .replace(/\[color=([^\]]+)\]([\s\S]*?)\[\/color\]/g, '<span style="color:$1">$2</span>')
         .replace(/{{sexo_paciente}}/g, pacienteSelecionado?.sexo || laudo?.paciente?.sexo || '[SEXO]')
         .replace(/{{diagnostico}}/g, campos.diagnostico || '[DIAGNÓSTICO]')
         .replace(/{{conclusao}}/g, campos.conclusao || '[CONCLUSÃO]')

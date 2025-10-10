@@ -22,10 +22,10 @@ import {
   listarAnexosMedico,
   adicionarAnexoMedico,
   removerAnexoMedico,
-  MedicoInput,   // 👈 importado do lib/api
-  Medico,        // 👈 adicionado import do tipo Medico
-  criarUsuarioMedico,
-  CreateUserWithPasswordResponse,
+  MedicoInput,
+  Medico,
+  criarUsuario,
+  gerarSenhaAleatoria,
 } from "@/lib/api";
 ;
 
@@ -155,9 +155,8 @@ export function DoctorRegistrationForm({
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
   
   // Estados para o dialog de credenciais
-  const [showCredentials, setShowCredentials] = useState(false);
-  const [credentials, setCredentials] = useState<CreateUserWithPasswordResponse | null>(null);
-  const [savedDoctor, setSavedDoctor] = useState<Medico | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [tempCredentials, setTempCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Médico" : "Editar Médico"), [mode]);
 
@@ -337,150 +336,157 @@ function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
   return Object.keys(e).length === 0;
 }
 
+function toPayload(): MedicoInput {
+  // Converte dd/MM/yyyy para ISO (yyyy-MM-dd) se possível
+  let isoDate: string | null = null;
+  try {
+    const parts = String(form.data_nascimento).split(/\D+/).filter(Boolean);
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      if (!isNaN(date.getTime())) {
+        isoDate = date.toISOString().slice(0, 10);
+      }
+    }
+  } catch {}
+
+  return {
+    user_id: null,
+    crm: form.crm || "",
+    crm_uf: form.estado_crm || "",
+    specialty: form.especialidade || "",
+    full_name: form.full_name || "",
+    cpf: form.cpf || "",
+    email: form.email || "",
+    phone_mobile: form.celular || "",
+    phone2: form.telefone || null,
+    cep: form.cep || "",
+    street: form.logradouro || "",
+    number: form.numero || "",
+    complement: form.complemento || undefined,
+    neighborhood: form.bairro || undefined,
+    city: form.cidade || "",
+    state: form.estado || "",
+    birth_date: isoDate,
+    rg: form.rg || null,
+    active: true,
+    created_by: null,
+    updated_by: null,
+  };
+}
 
 
 async function handleSubmit(ev: React.FormEvent) {
   ev.preventDefault();
-  console.log("Submitting the form...");  // Verifique se a função está sendo chamada
-
-  if (!validateLocal()) {
-    console.log("Validation failed");
-    return; // Se a validação falhar, saia da função.
-  }
+  if (!validateLocal()) return;
 
   setSubmitting(true);
-  setErrors((e) => ({ ...e, submit: "" }));
-
-const payload: MedicoInput = {
-  user_id: null,
-  crm: form.crm || "",
-  crm_uf: form.estado_crm || "",
-  specialty: form.especialidade || "",
-  full_name: form.full_name || "",
-  cpf: form.cpf || "",
-  email: form.email || "",
-  phone_mobile: form.celular || "",
-  phone2: form.telefone || null,
-  cep: form.cep || "",
-  street: form.logradouro || "",
-  number: form.numero || "",
-  complement: form.complemento || undefined,
-  neighborhood: form.bairro || undefined,
-  city: form.cidade || "",
-  state: form.estado || "",
-  // converte dd/MM/yyyy para ISO
-  birth_date: (() => {
-    try {
-      const parts = String(form.data_nascimento).split(/\D+/).filter(Boolean);
-      if (parts.length === 3) {
-        const [d, m, y] = parts;
-        const date = new Date(Number(y), Number(m) - 1, Number(d));
-        if (!isNaN(date.getTime())) return date.toISOString().slice(0, 10);
-      }
-    } catch {}
-    return null;
-  })(),
-  rg: form.rg || null,
-  active: true,
-  created_by: null,
-  updated_by: null,
-};
-
-// Validação dos campos obrigatórios
-const requiredFields = ['crm', 'crm_uf', 'specialty', 'full_name', 'cpf', 'email', 'phone_mobile', 'cep', 'street', 'number', 'city', 'state'];
-const missingFields = requiredFields.filter(field => !payload[field as keyof MedicoInput]);
-
-if (missingFields.length > 0) {
-  console.warn('⚠️ Campos obrigatórios vazios:', missingFields);
-}
-
-
-
-  console.log("📤 Payload being sent:", payload);
-  console.log("🔧 Mode:", mode, "DoctorId:", doctorId);
-
+  setErrors({});
   try {
-    if (mode === "edit" && !doctorId) {
-      throw new Error("ID do médico não fornecido para edição");
-    }
-    
-    const saved = mode === "create"
-      ? await criarMedico(payload)
-      : await atualizarMedico(String(doctorId), payload);
-
-    console.log("✅ Médico salvo com sucesso:", saved);
-
-    // Se for criação de novo médico e tiver email válido, cria usuário
-    if (mode === "create" && form.email && form.email.includes('@')) {
-      console.log("🔐 Iniciando criação de usuário para o médico...");
-      console.log("📧 Email:", form.email);
-      console.log("👤 Nome:", form.full_name);
-      console.log("📱 Telefone:", form.celular);
-      
-      try {
-        const userCredentials = await criarUsuarioMedico({
-          email: form.email,
-          full_name: form.full_name,
-          phone_mobile: form.celular,
-        });
-        
-        console.log("✅ Usuário criado com sucesso!", userCredentials);
-        console.log("🔑 Senha gerada:", userCredentials.password);
-        
-        // Armazena as credenciais e mostra o dialog
-        setCredentials(userCredentials);
-        setShowCredentials(true);
-        setSavedDoctor(saved); // Salva médico para chamar onSaved depois
-        
-        console.log("📋 Credenciais definidas, dialog deve aparecer!");
-        
-        // NÃO chama onSaved aqui! Isso fecha o formulário.
-        // O dialog vai chamar onSaved quando o usuário fechar
-        setSubmitting(false);
-        return; // ← IMPORTANTE: Impede que o código abaixo seja executado
-        
-      } catch (userError: any) {
-        console.error("❌ ERRO ao criar usuário:", userError);
-        console.error("📋 Stack trace:", userError?.stack);
-        const errorMessage = userError?.message || "Erro desconhecido";
-        console.error("💬 Mensagem:", errorMessage);
-        
-        // Mostra erro mas fecha o formulário normalmente
-        alert(`Médico cadastrado com sucesso!\n\n⚠️ Porém, houve erro ao criar usuário de acesso:\n${errorMessage}\n\nVerifique os logs do console (F12) para mais detalhes.`);
-        
-        // Fecha o formulário mesmo com erro na criação de usuário
-        setForm(initial);
-        setPhotoPreview(null);
-        setServerAnexos([]);
-        onSaved?.(saved);
-        if (inline) onClose?.();
-        else onOpenChange?.(false);
-        setSubmitting(false);
-        return;
-      }
-    } else {
-      console.log("⚠️ Não criará usuário. Motivo:");
-      console.log("  - Mode:", mode);
-      console.log("  - Email:", form.email);
-      console.log("  - Tem @:", form.email?.includes('@'));
-      
-      // Se não for criar usuário, fecha normalmente
-      setForm(initial);
-      setPhotoPreview(null);
-      setServerAnexos([]);
+    if (mode === "edit") {
+      if (!doctorId) throw new Error("ID do médico não fornecido para edição");
+      const payload = toPayload();
+      const saved = await atualizarMedico(String(doctorId), payload);
       onSaved?.(saved);
+      alert("Médico atualizado com sucesso!");
       if (inline) onClose?.();
       else onOpenChange?.(false);
-      setSubmitting(false);
+
+    } else {
+      // --- NOVA LÓGICA DE CRIAÇÃO ---
+      const medicoPayload = toPayload();
+      const savedDoctorProfile = await criarMedico(medicoPayload);
+      console.log("✅ Perfil do médico criado:", savedDoctorProfile);
+
+      if (form.email && form.email.includes('@')) {
+        const tempPassword = gerarSenhaAleatoria();
+        const userInput = {
+          email: form.email,
+          password: tempPassword,
+          full_name: form.full_name,
+          phone: form.celular,
+          role: 'medico' as const,
+        };
+
+        console.log("🔐 Criando usuário de autenticação com payload:", userInput);
+        
+        try {
+          const userResponse = await criarUsuario(userInput);
+
+          if (userResponse.success && userResponse.user) {
+            console.log("✅ Usuário de autenticação criado:", userResponse.user);
+            
+            // Mostra credenciais (NÃO fecha o formulário ainda)
+            setTempCredentials({ email: form.email, password: tempPassword });
+            setDialogOpen(true);
+            
+            // Limpa formulário mas NÃO fecha ainda - fechará quando o dialog de credenciais fechar
+            setForm(initial);
+            setPhotoPreview(null);
+            setServerAnexos([]);
+            onSaved?.(savedDoctorProfile);
+            // NÃO chama onClose ou onOpenChange aqui - deixa o dialog de credenciais fazer isso
+            return;
+          } else {
+            throw new Error((userResponse as any).message || "Falhou ao criar o usuário de acesso.");
+          }
+        } catch (userError: any) {
+          console.error("❌ Erro ao criar usuário via função server-side:", userError);
+          
+          // Mensagem de erro específica para email duplicado
+          const errorMsg = userError?.message || String(userError);
+          
+          if (errorMsg.toLowerCase().includes('already registered') || 
+              errorMsg.toLowerCase().includes('já está cadastrado') ||
+              errorMsg.toLowerCase().includes('já existe')) {
+            alert(
+              `⚠️ Este email já está cadastrado no sistema.\n\n` +
+              `✅ O perfil do médico foi salvo com sucesso.\n\n` +
+              `Para criar acesso ao sistema, use um email diferente ou recupere a senha do email existente.`
+            );
+          } else if (errorMsg.toLowerCase().includes('failed to assign user role') ||
+                     errorMsg.toLowerCase().includes('atribuir permissões')) {
+            alert(
+              `⚠️ PROBLEMA NA CONFIGURAÇÃO DO SISTEMA\n\n` +
+              `✅ O perfil do médico foi salvo com sucesso.\n\n` +
+              `❌ Porém, houve falha ao atribuir permissões de acesso.\n\n` +
+              `Esse erro indica que a Edge Function do Supabase não está configurada corretamente.\n\n` +
+              `Entre em contato com o administrador do sistema para:\n` +
+              `1. Verificar se a service role key está configurada\n` +
+              `2. Verificar as permissões da tabela user_roles\n` +
+              `3. Revisar o código da Edge Function create-user`
+            );
+          } else {
+            alert(
+              `✅ Médico cadastrado com sucesso!\n\n` +
+              `⚠️ Porém houve um problema ao criar o acesso:\n${errorMsg}\n\n` +
+              `O cadastro do médico foi salvo, mas será necessário criar o acesso manualmente.`
+            );
+          }
+          
+          // Limpa formulário e fecha
+          setForm(initial);
+          setPhotoPreview(null);
+          setServerAnexos([]);
+          onSaved?.(savedDoctorProfile);
+          if (inline) onClose?.();
+          else onOpenChange?.(false);
+          return;
+        }
+      } else {
+        alert("Médico cadastrado com sucesso (sem usuário de acesso - email não fornecido).");
+        onSaved?.(savedDoctorProfile);
+        if (inline) onClose?.();
+        else onOpenChange?.(false);
+      }
     }
   } catch (err: any) {
-    console.error("❌ Erro ao salvar médico:", err);
-    console.error("❌ Detalhes do erro:", {
-      message: err?.message,
-      status: err?.status,
-      stack: err?.stack
-    });
-    setErrors((e) => ({ ...e, submit: err?.message || "Erro ao salvar médico" }));
+    console.error("❌ Erro no handleSubmit:", err);
+    // Exibe mensagem amigável ao usuário
+    const userMessage = err?.message?.includes("toPayload")
+      ? "Erro ao processar os dados do formulário. Por favor, verifique os campos e tente novamente."
+      : err?.message || "Erro ao salvar médico. Por favor, tente novamente.";
+    setErrors({ submit: userMessage });
   } finally {
     setSubmitting(false);
   }
@@ -1036,32 +1042,23 @@ if (missingFields.length > 0) {
         <div className="space-y-6">{content}</div>
         
         {/* Dialog de credenciais */}
-        {credentials && (
+        {tempCredentials && (
           <CredentialsDialog
-            open={showCredentials}
+            open={dialogOpen}
             onOpenChange={(open) => {
-              console.log("🔄 CredentialsDialog (inline) onOpenChange:", open);
-              setShowCredentials(open);
+              setDialogOpen(open);
               if (!open) {
-                console.log("🔄 Dialog fechando - chamando onSaved e limpando formulário");
-                
-                // Chama onSaved com o médico salvo
-                if (savedDoctor) {
-                  console.log("✅ Chamando onSaved com médico:", savedDoctor.id);
-                  onSaved?.(savedDoctor);
+                // Quando o dialog de credenciais fecha, fecha o formulário também
+                setTempCredentials(null);
+                if (inline) {
+                  onClose?.();
+                } else {
+                  onOpenChange?.(false);
                 }
-                
-                // Limpa o formulário e fecha
-                setForm(initial);
-                setPhotoPreview(null);
-                setServerAnexos([]);
-                setCredentials(null);
-                setSavedDoctor(null);
-                onClose?.();
               }
             }}
-            email={credentials.email}
-            password={credentials.password}
+            email={tempCredentials.email}
+            password={tempCredentials.password}
             userName={form.full_name}
             userType="médico"
           />
@@ -1084,32 +1081,18 @@ if (missingFields.length > 0) {
       </Dialog>
       
       {/* Dialog de credenciais */}
-      {credentials && (
+      {tempCredentials && (
         <CredentialsDialog
-          open={showCredentials}
+          open={dialogOpen}
           onOpenChange={(open) => {
-            console.log("🔄 CredentialsDialog (dialog mode) onOpenChange:", open);
-            setShowCredentials(open);
+            setDialogOpen(open);
             if (!open) {
-              console.log("🔄 Dialog fechando - chamando onSaved e fechando modal principal");
-              
-              // Chama onSaved com o médico salvo
-              if (savedDoctor) {
-                console.log("✅ Chamando onSaved com médico:", savedDoctor.id);
-                onSaved?.(savedDoctor);
-              }
-              
-              // Limpa o formulário e fecha o modal principal
-              setForm(initial);
-              setPhotoPreview(null);
-              setServerAnexos([]);
-              setCredentials(null);
-              setSavedDoctor(null);
+              setTempCredentials(null);
               onOpenChange?.(false);
             }
           }}
-          email={credentials.email}
-          password={credentials.password}
+          email={tempCredentials.email}
+          password={tempCredentials.password}
           userName={form.full_name}
           userType="médico"
         />

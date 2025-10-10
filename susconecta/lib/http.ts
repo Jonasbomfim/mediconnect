@@ -5,7 +5,7 @@
 
 import { AUTH_STORAGE_KEYS } from '@/types/auth'
 import { isExpired } from '@/lib/jwt'
-import { API_KEY } from '@/lib/config'
+import { ENV_CONFIG } from '@/lib/env-config'
 
 interface QueuedRequest {
   resolve: (value: any) => void
@@ -58,11 +58,11 @@ class HttpClient {
       timestamp: new Date().toLocaleTimeString()
     })
     
-    const response = await fetch('https://yuanqfswhberkoevtmfr.supabase.co/auth/v1/token?grant_type=refresh_token', {
+    const response = await fetch(ENV_CONFIG.AUTH_ENDPOINTS.REFRESH, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY // API Key sempre necessária
+        'apikey': ENV_CONFIG.SUPABASE_ANON_KEY // API Key sempre necessária
       },
       body: JSON.stringify({ refresh_token: refreshToken })
     })
@@ -141,7 +141,7 @@ class HttpClient {
           // Reexecutar requisição original
           const newHeaders = {
             ...config.headers,
-            'apikey': API_KEY, // Garantir API Key
+            'apikey': ENV_CONFIG.SUPABASE_ANON_KEY, // Garantir API Key
             Authorization: `Bearer ${newToken}`
           }
           
@@ -203,11 +203,11 @@ class HttpClient {
       timestamp: new Date().toLocaleTimeString()
     })
     
-    const config: RequestInit & { url: string } = {
+      const config: RequestInit & { url: string } = {
       url: url.startsWith('http') ? url : `${this.baseURL}${url}`,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY, // API Key da Supabase sempre presente
+        'apikey': ENV_CONFIG.SUPABASE_ANON_KEY, // API Key da Supabase sempre presente
         ...(token && { Authorization: `Bearer ${token}` }), // Bearer Token quando usuário logado
         ...options.headers
       },

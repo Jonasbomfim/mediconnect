@@ -1,7 +1,7 @@
 // lib/api.ts
 
 import { ENV_CONFIG } from '@/lib/env-config';
-import { API_KEY } from '@/lib/config';
+// Use ENV_CONFIG for SUPABASE URL and anon key in frontend
 
 export type ApiOk<T = any> = {
   success?: boolean;
@@ -152,8 +152,7 @@ export type MedicoInput = {
 
 
 // ===== CONFIG =====
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "https://yuanqfswhberkoevtmfr.supabase.co";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? ENV_CONFIG.SUPABASE_URL;
 const REST = `${API_BASE}/rest/v1`;
 
 // Token salvo no browser (aceita auth_token ou token)
@@ -170,8 +169,7 @@ function getAuthToken(): string | null {
 // Cabeçalhos base
 function baseHeaders(): Record<string, string> {
   const h: Record<string, string> = {
-    apikey:
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ",
+    apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
     Accept: "application/json",
   };
   const jwt = getAuthToken();
@@ -196,13 +194,31 @@ async function parse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     console.error("[API ERROR]", res.url, res.status, json);
     const code = (json && (json.error?.code || json.code)) ?? res.status;
-    const msg = (json && (json.error?.message || json.message)) ?? res.statusText;
+    const msg = (json && (json.error?.message || json.message || json.error)) ?? res.statusText;
     
     // Mensagens amigáveis para erros comuns
-    let friendlyMessage = `${code}: ${msg}`;
+    let friendlyMessage = msg;
     
+    // Erros de criação de usuário
+    if (res.url?.includes('create-user')) {
+      if (msg?.includes('Failed to assign user role')) {
+        friendlyMessage = 'O usuário foi criado mas houve falha ao atribuir permissões. Entre em contato com o administrador do sistema para verificar as configurações da Edge Function.';
+      } else if (msg?.includes('already registered')) {
+        friendlyMessage = 'Este email já está cadastrado no sistema.';
+      } else if (msg?.includes('Invalid role')) {
+        friendlyMessage = 'Tipo de acesso inválido.';
+      } else if (msg?.includes('Missing required fields')) {
+        friendlyMessage = 'Campos obrigatórios não preenchidos.';
+      } else if (res.status === 401) {
+        friendlyMessage = 'Você não está autenticado. Faça login novamente.';
+      } else if (res.status === 403) {
+        friendlyMessage = 'Você não tem permissão para criar usuários.';
+      } else if (res.status === 500) {
+        friendlyMessage = 'Erro no servidor ao criar usuário. Entre em contato com o suporte.';
+      }
+    }
     // Erro de CPF duplicado
-    if (code === '23505' && msg.includes('patients_cpf_key')) {
+    else if (code === '23505' && msg.includes('patients_cpf_key')) {
       friendlyMessage = 'Já existe um paciente cadastrado com este CPF. Por favor, verifique se o paciente já está registrado no sistema ou use um CPF diferente.';
     }
     // Erro de email duplicado (paciente)
@@ -220,6 +236,15 @@ async function parse<T>(res: Response): Promise<T> {
     // Outros erros de constraint unique
     else if (code === '23505') {
       friendlyMessage = 'Registro duplicado: já existe um cadastro com essas informações no sistema.';
+    }
+    // Erro de foreign key (registro referenciado em outra tabela)
+    else if (code === '23503') {
+      // Mensagem específica para pacientes com relatórios vinculados
+      if (msg && msg.toString().toLowerCase().includes('reports')) {
+        friendlyMessage = 'Não é possível excluir este paciente porque existem relatórios vinculados a ele. Exclua ou desvincule os relatórios antes de remover o paciente.';
+      } else {
+        friendlyMessage = 'Registro referenciado em outra tabela. Remova referências dependentes antes de tentar novamente.';
+      }
     }
     
     throw new Error(friendlyMessage);
@@ -355,9 +380,42 @@ export async function atualizarPaciente(id: string | number, input: PacienteInpu
 }
 
 export async function excluirPaciente(id: string | number): Promise<void> {
+  // Antes de excluir, verificar se existem relatórios vinculados a este paciente
+  try {
+    // Import dinâmico para evitar ciclos durante bundling
+    const reportsMod = await import('./reports');
+    if (reportsMod && typeof reportsMod.listarRelatoriosPorPaciente === 'function') {
+      const rels = await reportsMod.listarRelatoriosPorPaciente(String(id)).catch(() => []);
+      if (Array.isArray(rels) && rels.length > 0) {
+        throw new Error('Não é possível excluir este paciente: existem relatórios vinculados. Remova ou reatribua esses relatórios antes de excluir o paciente.');
+      }
+    }
+  } catch (err) {
+    // Se a checagem falhar por algum motivo, apenas logamos e continuamos para a tentativa de exclusão
+    console.warn('[API] Falha ao checar relatórios vinculados antes da exclusão:', err);
+  }
+
   const url = `${REST}/patients?id=eq.${id}`;
   const res = await fetch(url, { method: "DELETE", headers: baseHeaders() });
   await parse<any>(res);
+}
+
+/**
+ * Chama o endpoint server-side seguro para atribuir roles.
+ * Este endpoint usa a service role key e valida se o requisitante é administrador.
+ */
+export async function assignRoleServerSide(userId: string, role: string): Promise<any> {
+  const url = `/api/assign-role`;
+  const token = getAuthToken();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+  return await parse<any>(res);
 }
 // ===== PACIENTES (Extra: verificação de CPF duplicado) =====
 export async function verificarCpfDuplicado(cpf: string): Promise<boolean> {
@@ -586,15 +644,19 @@ export async function excluirMedico(id: string | number): Promise<void> {
 }
 
 // ===== USUÁRIOS =====
+
+// Roles válidos conforme documentação API
+export type UserRoleEnum = "admin" | "gestor" | "medico" | "secretaria" | "user";
+
 export type UserRole = {
   id: string;
   user_id: string;
-  role: string;
+  role: UserRoleEnum;
   created_at: string;
 };
 
 export async function listarUserRoles(): Promise<UserRole[]> {
-  const url = `https://mock.apidog.com/m1/1053378-0-default/rest/v1/user_roles`;
+  const url = `${API_BASE}/rest/v1/user_roles`;
   const res = await fetch(url, {
     method: "GET",
     headers: baseHeaders(),
@@ -602,28 +664,61 @@ export async function listarUserRoles(): Promise<UserRole[]> {
   return await parse<UserRole[]>(res);
 }
 
+export type PatientAssignment = {
+  id: string;
+  patient_id: string;
+  user_id: string;
+  role: 'medico' | 'enfermeiro';
+  created_at?: string;
+  created_by?: string | null;
+};
+
+// Listar atribuições de pacientes (GET /rest/v1/patient_assignments)
+export async function listarPatientAssignments(params?: { page?: number; limit?: number; q?: string; }): Promise<PatientAssignment[]> {
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set('q', params.q);
+  const url = `${REST}/patient_assignments${qs.toString() ? `?${qs.toString()}` : ''}`;
+  const res = await fetch(url, { method: 'GET', headers: { ...baseHeaders(), ...rangeHeaders(params?.page, params?.limit) } });
+  return await parse<PatientAssignment[]>(res);
+}
+
+// NOTE: role assignments MUST be done server-side with service role credentials.
+// The client should NOT attempt to POST to /rest/v1/user_roles because this
+// endpoint typically requires elevated permissions (service role) and is not
+// exposed in the public OpenAPI for client usage. Any role assignment must be
+// implemented in an authenticated server function (Edge Function) and called
+// from the backend. Keeping a client-side POST here caused confusion with the
+// API documentation which only lists GET for `/rest/v1/user_roles`.
+
+// If you need to retry role assignment from the frontend, call your backend
+// service (e.g. an Edge Function) that performs the assignment using the
+// service role key. Do not add client-side POSTs to `user_roles`.
+
+// Nota: o endpoint POST /rest/v1/patient_assignments não existe na documentação fornecida.
+// Se for necessário criar assignments, isso deve ser feito via função server-side segura.
+
 export type User = {
   id: string;
   email: string;
-  email_confirmed_at: string;
+  email_confirmed_at: string | null;
   created_at: string;
-  last_sign_in_at: string;
+  last_sign_in_at: string | null;
 };
 
 export type CurrentUser = {
   id: string;
   email: string;
-  email_confirmed_at: string;
+  email_confirmed_at: string | null;
   created_at: string;
-  last_sign_in_at: string;
+  last_sign_in_at: string | null;
 };
 
 export type Profile = {
   id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  avatar_url: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
   disabled: boolean;
   created_at: string;
   updated_at: string;
@@ -641,13 +736,13 @@ export type Permissions = {
 
 export type UserInfo = {
   user: User;
-  profile: Profile;
-  roles: string[];
+  profile: Profile | null;
+  roles: UserRoleEnum[];
   permissions: Permissions;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser> {
-  const url = `https://mock.apidog.com/m1/1053378-0-default/auth/v1/user`;
+  const url = `${API_BASE}/auth/v1/user`;
   const res = await fetch(url, {
     method: "GET",
     headers: baseHeaders(),
@@ -656,7 +751,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
 }
 
 export async function getUserInfo(): Promise<UserInfo> {
-  const url = `https://mock.apidog.com/m1/1053378-0-default/functions/v1/user-info`;
+  const url = `${API_BASE}/functions/v1/user-info`;
   const res = await fetch(url, {
     method: "GET",
     headers: baseHeaders(),
@@ -666,24 +761,23 @@ export async function getUserInfo(): Promise<UserInfo> {
 
 export type CreateUserInput = {
   email: string;
+  password: string;
   full_name: string;
-  phone: string;
-  role: string;
-  password?: string;
+  phone?: string | null;
+  role: UserRoleEnum;
 };
 
 export type CreatedUser = {
   id: string;
   email: string;
   full_name: string;
-  phone: string;
-  role: string;
+  phone: string | null;
+  role: UserRoleEnum;
 };
 
 export type CreateUserResponse = {
   success: boolean;
   user: CreatedUser;
-  password?: string;
 };
 
 export type CreateUserWithPasswordResponse = {
@@ -702,13 +796,89 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
-  const url = `https://mock.apidog.com/m1/1053378-0-default/functions/v1/create-user`;
+  const url = `${API_BASE}/functions/v1/create-user`;
   const res = await fetch(url, {
     method: "POST",
     headers: { ...baseHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
   return await parse<CreateUserResponse>(res);
+}
+
+// ===== ALTERNATIVA: Criar usuário diretamente via Supabase Auth =====
+// Esta função é um fallback caso a função server-side create-user falhe
+
+export async function criarUsuarioDirectAuth(input: {
+  email: string;
+  password: string;
+  full_name: string;
+  phone?: string | null;
+  role: UserRoleEnum;
+  userType?: 'profissional' | 'paciente';
+}): Promise<CreateUserWithPasswordResponse> {
+  console.log('🔐 [DIRECT AUTH] Criando usuário diretamente via Supabase Auth...');
+  
+  const signupUrl = `${API_BASE}/auth/v1/signup`;
+  
+  const payload = {
+    email: input.email,
+    password: input.password,
+    data: {
+      userType: input.userType || (input.role === 'medico' ? 'profissional' : 'paciente'),
+      full_name: input.full_name,
+      phone: input.phone || '',
+    }
+  };
+  
+  try {
+    const response = await fetch(signupUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMsg = `Erro ao criar usuário (${response.status})`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg;
+      } catch (e) {
+        // Ignora erro de parse
+      }
+      throw new Error(errorMsg);
+    }
+    
+    const responseData = await response.json();
+    const userId = responseData.user?.id || responseData.id;
+    
+    console.log('✅ [DIRECT AUTH] Usuário criado:', userId);
+    
+    // NOTE: Role assignments MUST be done by the backend (Edge Function or server)
+    // when creating the user. The frontend should NOT attempt to assign roles.
+    // The backend should use the service role key to insert into user_roles table.
+    
+    return {
+      success: true,
+      user: {
+        id: userId,
+        email: input.email,
+        full_name: input.full_name,
+        phone: input.phone || null,
+        role: input.role,
+      },
+      email: input.email,
+      password: input.password,
+    };
+    
+  } catch (error: any) {
+    console.error('❌ [DIRECT AUTH] Erro ao criar usuário:', error);
+    throw error;
+  }
 }
 
 // ============================================
@@ -752,7 +922,7 @@ export async function criarUsuarioMedico(medico: {
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "apikey": API_KEY,
+        "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
       },
       body: JSON.stringify(payload),
     });
@@ -888,7 +1058,7 @@ export async function criarUsuarioPaciente(paciente: {
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "apikey": API_KEY,
+        "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
       },
       body: JSON.stringify(payload),
     });

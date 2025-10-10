@@ -5,9 +5,9 @@ import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
-import { listarPacientes, buscarPacientePorId, type Paciente } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, type Paciente } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
-import { CreateReportData } from "@/types/report-types";
+import { CreateReportData, ReportFormData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,23 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity, Search } from "lucide-react"
 import { Calendar as CalendarIcon, FileText, Settings } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+
+import dynamic from "next/dynamic";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import ptBrLocale from "@fullcalendar/core/locales/pt-br";
+
+const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
+  ssr: false,
+});
 
 const pacientes = [
   { nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, statusLaudo: "Finalizado" },
@@ -109,6 +126,12 @@ const ProfissionalPage = () => {
 
   // Estados para funcionalidades do prontuário
   const [consultasRegistradas, setConsultasRegistradas] = useState<any[]>([]);
+  const [historicoMedico, setHistoricoMedico] = useState<any[]>([]);
+  const [prescricoesMedicas, setPrescricoesMedicas] = useState<any[]>([]);
+  const [examesSolicitados, setExamesSolicitados] = useState<any[]>([]);
+  const [diagnosticos, setDiagnosticos] = useState<any[]>([]);
+  const [evolucaoQuadro, setEvolucaoQuadro] = useState<any[]>([]);
+  const [anexos, setAnexos] = useState<any[]>([]);
   const [abaProntuarioAtiva, setAbaProntuarioAtiva] = useState('nova-consulta');
 
   // Estados para campos principais da consulta
@@ -190,6 +213,12 @@ const ProfissionalPage = () => {
 
   const handleFecharProntuario = () => {
     setPacienteSelecionado(null);
+  };
+
+  const handleEditarLaudo = (paciente: any) => {
+    setPatientForLaudo(paciente);
+    setIsEditingLaudoForPatient(true);
+    setActiveSection('laudos');
   };
 
   
@@ -669,6 +698,32 @@ const ProfissionalPage = () => {
   };
 
  
+  const renderEventContent = (eventInfo: any) => {
+    const bg = eventInfo.event.backgroundColor || eventInfo.event.extendedProps?.color || "#4dabf7";
+
+    return (
+      <div
+        className="flex items-center gap-1 text-xs p-1 rounded cursor-pointer"
+        style={{
+          backgroundColor: bg,
+          color: "#fff",
+          maxWidth: "100%",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis"
+        }}
+        title={`${eventInfo.event.title} • ${eventInfo.event.extendedProps.type} • ${eventInfo.event.extendedProps.time}`}
+      >
+        <span className="truncate">{eventInfo.event.title}</span>
+        <span>•</span>
+        <span className="truncate">{eventInfo.event.extendedProps.type}</span>
+        <span>•</span>
+        <span>{eventInfo.event.extendedProps.time}</span>
+      </div>
+    );
+  };
+
+  
   const renderCalendarioSection = () => {
     const todayEvents = getTodayEvents();
     
@@ -1529,10 +1584,12 @@ const ProfissionalPage = () => {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-3 w-3 mr-1" />
+                  Visualizar
                 </Button>
                 <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3 w-3 mr-1" />
+                  Download
                 </Button>
               </div>
             </div>
@@ -1650,7 +1707,6 @@ const ProfissionalPage = () => {
         <Button className="flex items-center gap-2 cursor-pointer">
           <Upload className="h-4 w-4" />
           Adicionar Anexo
-
         </Button>
       </div>
       
@@ -1669,12 +1725,12 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-3 w-3 mr-1" />
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                  <Eye className="h-4 w-4" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-3 w-3 mr-1" />
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                  <Download className="h-4 w-4" />
                   Download
                 </Button>
               </div>
@@ -1691,12 +1747,12 @@ const ProfissionalPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-3 w-3 mr-1" />
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                  <Eye className="h-4 w-4" />
                   Visualizar
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-3 w-3 mr-1" />
+                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                  <Download className="h-4 w-4" />
                   Download
                 </Button>
               </div>
@@ -1751,7 +1807,6 @@ const ProfissionalPage = () => {
       </div>
     </div>
   );
-
   
   const renderLaudosSection = () => (
     <div className="space-y-6">
@@ -2060,23 +2115,25 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                             setLaudoSelecionado(laudo);
                             setIsViewing(true);
                           }}
-                          className="flex items-center gap-1"
-                          disabled={!laudo?.id}
+                          className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                         >
-                          <Eye className="h-3 w-3" />
-                          Visualizar
+                          <Eye className="w-4 h-4" />
+                          Ver Laudo
                         </Button>
                         <Button
-                          variant="destructive"
+                          variant="default"
                           size="sm"
                           onClick={() => {
-                            setPatientForLaudo(laudo);
-                            setIsEditingLaudoForPatient(true);
+                            if (laudo?.id) {
+                              setPatientForLaudo(laudo);
+                              setIsEditingLaudoForPatient(true);
+                            }
                           }}
-                          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
+                          className="flex items-center gap-1 bg-green-600 text-white hover:bg-green-700"
                           title="Editar laudo para este paciente"
+                          disabled={!laudo?.id}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="w-4 h-4" />
                           Editar Laudo
                         </Button>
                       </div>
@@ -2139,7 +2196,12 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <div className="max-w-2xl mx-auto bg-background border border-border rounded-lg p-6 shadow-sm">
               {/* Header do Laudo */}
               <div className="text-center mb-6">
-                <h2 className="text-lg font-bold">LAUDO MÉDICO - {laudo.especialidade.toUpperCase()}</h2>
+                <h2 className="text-lg font-bold">
+                  LAUDO MÉDICO {laudo.especialidade ? `- ${laudo.especialidade.toUpperCase()}` : ''}
+                </h2>
+                {laudo.exame && (
+                  <h3 className="text-md font-semibold mt-2">{laudo.exame}</h3>
+                )}
                 <p className="text-sm text-muted-foreground mt-1">
                   Data: {laudo.data}
                 </p>
@@ -2718,68 +2780,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       <Button variant="outline" size="sm" onClick={() => formatText('outdent')} title="Diminuir recuo" className="px-1">←</Button>
                       {/* Desfazer/Refazer */}
                       <Button variant="outline" size="sm" onClick={handleUndo} title="Desfazer" className="px-1">↺</Button>
-                      <Button variant="outline" size="sm" onClick={handleRedo} title="Refazer" className="px-1">↻</Button>
-                      {/* Negrito, itálico, sublinhado */}
-                      <Button variant="outline" size="sm" onClick={() => formatText("bold") } title="Negrito" className="hover:bg-blue-50 dark:hover:bg-accent"><strong>B</strong></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText("italic") } title="Itálico" className="hover:bg-blue-50 dark:hover:bg-accent"><em>I</em></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText("underline") } title="Sublinhado" className="hover:bg-blue-50 dark:hover:bg-accent"><u>U</u></Button>
-                    </div>
-
-                    {/* Templates */}
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground mb-2">Frases rápidas:</p>
-                        defaultValue={14}
-                        onBlur={e => formatText('font-size', e.target.value)}
-                        className="w-14 border rounded px-1 py-0.5 text-xs mr-2"
-                        title="Tamanho da fonte"
-                      />
-                      {/* Família da fonte */}
-                      <label className="text-xs mr-1">Fonte</label>
-                      <select
-                        defaultValue={'Arial'}
-                        onBlur={e => formatText('font-family', e.target.value)}
-                        className="border rounded px-1 py-0.5 text-xs mr-2"
-                        title="Família da fonte"
-                      >
-                        <option value="Arial">Arial</option>
-                        <option value="Helvetica">Helvetica</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Georgia">Georgia</option>
-                      </select>
-                      {/* Cor da fonte */}
-                      <label className="text-xs mr-1">Cor</label>
-                      <input
-                        type="color"
-                        defaultValue="#222222"
-                        onBlur={e => formatText('font-color', e.target.value)}
-                        className="w-6 h-6 border rounded mr-2"
-                        title="Cor da fonte"
-                      />
-                      {/* Alinhamento */}
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-left')} title="Alinhar à esquerda" className="px-1"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-center')} title="Centralizar" className="px-1"><svg width="16" height="16" fill="none"><rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="3" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-right')} title="Alinhar à direita" className="px-1"><svg width="16" height="16" fill="none"><rect x="6" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="4" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-justify')} title="Justificar" className="px-1"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      {/* Listas */}
-                      <Button variant="outline" size="sm" onClick={() => formatText('list-ol')} title="Lista numerada" className="px-1">1.</Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('list-ul')} title="Lista com marcadores" className="px-1">•</Button>
-                      {/* Recuo */}
-                      <Button variant="outline" size="sm" onClick={() => formatText('indent')} title="Aumentar recuo" className="px-1">→</Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('outdent')} title="Diminuir recuo" className="px-1">←</Button>
-                      {/* Desfazer/Refazer */}
-                      <Button variant="outline" size="sm" onClick={handleUndo} title="Desfazer" className="px-1">↺</Button>
-                      <Button variant="outline" size="sm" onClick={handleRedo} title="Refazer" className="px-1">↻</Button>
-                      {/* Negrito, itálico, sublinhado */}
-                      <Button variant="outline" size="sm" onClick={() => formatText("bold") } title="Negrito" className="hover:bg-blue-50 dark:hover:bg-accent"><strong>B</strong></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText("italic") } title="Itálico" className="hover:bg-blue-50 dark:hover:bg-accent"><em>I</em></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText("underline") } title="Sublinhado" className="hover:bg-blue-50 dark:hover:bg-accent"><u>U</u></Button>
-                    </div>
-
-                    {/* Templates */}
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground mb-2">Frases rápidas:</p>
                       <div className="flex flex-wrap gap-1">
                         {templates.map((template, idx) => (
                           <Button
@@ -3850,7 +3850,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                     <SelectValue placeholder="Selecione o paciente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pacientes.map((paciente) => (
+                    {pacientes && pacientes.map((paciente) => (
                       <SelectItem key={paciente.cpf} value={paciente.nome}>
                         {paciente.nome} - {paciente.cpf}
                       </SelectItem>

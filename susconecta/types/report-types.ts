@@ -94,12 +94,5 @@ export interface ReportFormData {
 	retornoAgendado: string;
 		// cid10: string; // Removed, not present in schema
   
-	// Histórico Clínico
-	historicoClinico: string;
-  
-	// Sinais, Sintomas e Exames
-	sinaisSintomas: string;
-	examesRealizados: string;
-	resultadosExames: string;
-	// ...restante do código...
+	
 }

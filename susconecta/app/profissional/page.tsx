@@ -90,6 +90,24 @@ const colorsByType = {
     return p?.idade ?? p?.age ?? '';
   };
 
+  // Helpers para normalizar campos do laudo/relatório
+  const getReportPatientName = (r: any) => r?.paciente?.full_name ?? r?.paciente?.nome ?? r?.patient?.full_name ?? r?.patient?.nome ?? r?.patient_name ?? r?.patient_full_name ?? '';
+  const getReportPatientId = (r: any) => r?.paciente?.id ?? r?.patient?.id ?? r?.patient_id ?? r?.patientId ?? r?.patient_id_raw ?? r?.patient_id ?? r?.id ?? '';
+  const getReportPatientCpf = (r: any) => r?.paciente?.cpf ?? r?.patient?.cpf ?? r?.patient_cpf ?? '';
+  const getReportExecutor = (r: any) => r?.executante ?? r?.requested_by ?? r?.requestedBy ?? r?.created_by ?? r?.createdBy ?? r?.requested_by_name ?? r?.executor ?? '';
+  const getReportExam = (r: any) => r?.exame ?? r?.exam ?? r?.especialidade ?? r?.cid_code ?? r?.report_type ?? '-';
+  const getReportDate = (r: any) => r?.data ?? r?.created_at ?? r?.due_at ?? r?.report_date ?? '';
+  const formatReportDate = (raw?: string) => {
+    if (!raw) return '-';
+    try {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      return d.toLocaleDateString('pt-BR');
+    } catch (e) {
+      return raw;
+    }
+  };
+
 const ProfissionalPage = () => {
   const { logout, user } = useAuth();
   const [activeSection, setActiveSection] = useState('calendario');
@@ -484,127 +502,142 @@ const ProfissionalPage = () => {
       { id: "92953542", nome: "Carla Menezes", cpf: "111.222.333-44", idade: 67, sexo: "Feminino" },
     ]);
 
-    const [laudos] = useState([
-      { 
-        id: "306494942", 
-        data: "29/07/2025", 
-        prazo: "29/07/2025", 
-        paciente: { id: "95170038", nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, sexo: "Feminino" },
-        executante: "Carlos Andrade",
-        exame: "Ecocardiograma",
-        status: "Entregue",
-        urgente: true,
-        especialidade: "Cardiologia",
-        conteudo: `**ECOCARDIOGRAMA TRANSTORÁCICO**
+  const { reports, loadReports, loading: reportsLoading, createNewReport, updateExistingReport } = useReports();
+    const [laudos, setLaudos] = useState<any[]>([]);
+  const [selectedRange, setSelectedRange] = useState<'todos'|'hoje'|'semana'|'mes'|'custom'>('mes');
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
 
-**Dados do Paciente:**
-Nome: Ana Souza
-Idade: 42 anos
-Sexo: Feminino
+    // helper to check if a date string is in range
+    const isInRange = (dateStr: string | undefined, range: 'todos'|'hoje'|'semana'|'mes'|'custom') => {
+      if (range === 'todos') return true;
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return false;
+      const now = new Date();
+      if (range === 'hoje') {
+        return d.toDateString() === now.toDateString();
+      }
+      if (range === 'semana') {
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay()); // sunday start
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        return d >= start && d <= end;
+      }
+      // mes
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    };
 
-**Indicação Clínica:**
-Investigação de sopro cardíaco
+    // When selectedRange changes (and isn't custom), compute start/end dates
+    useEffect(() => {
+      const now = new Date();
+      if (selectedRange === 'todos') {
+        setStartDate(null);
+        setEndDate(null);
+        return;
+      }
+      if (selectedRange === 'hoje') {
+        const iso = now.toISOString().slice(0,10);
+        setStartDate(iso);
+        setEndDate(iso);
+        return;
+      }
+      if (selectedRange === 'semana') {
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay()); // sunday
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        setStartDate(start.toISOString().slice(0,10));
+        setEndDate(end.toISOString().slice(0,10));
+        return;
+      }
+      if (selectedRange === 'mes') {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        setStartDate(start.toISOString().slice(0,10));
+        setEndDate(end.toISOString().slice(0,10));
+        return;
+      }
+      // custom: leave startDate/endDate as-is
+    }, [selectedRange]);
 
-**Técnica:**
-Ecocardiograma transtorácico bidimensional com Doppler colorido e espectral.
+    const filteredLaudos = (laudos || []).filter(l => {
+      // If a specific start/end date is set, use that range
+      if (startDate && endDate) {
+        const ds = getReportDate(l);
+        if (!ds) return false;
+        const d = new Date(ds);
+        if (isNaN(d.getTime())) return false;
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59');
+        return d >= start && d <= end;
+      }
+      // Fallback to selectedRange heuristics
+      if (!selectedRange) return true;
+      const ds = getReportDate(l);
+      return isInRange(ds, selectedRange);
+    });
 
-**Resultados:**
-- Átrio esquerdo: dimensões normais
-- Ventrículo esquerdo: função sistólica preservada, FEVE = 65%
-- Valvas cardíacas: sem alterações significativas
-- Pericárdio: sem derrame
+    function DateRangeButtons() {
+      return (
+        <>
+          <Button
+            variant={selectedRange === 'todos' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedRange('todos')}
+            className="hover:bg-blue-50"
+          >
+            Todos
+          </Button>
+          <Button
+            variant={selectedRange === 'hoje' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedRange('hoje')}
+            className="hover:bg-blue-50"
+          >
+            Hoje
+          </Button>
+          <Button
+            variant={selectedRange === 'semana' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedRange('semana')}
+            className="hover:bg-blue-50"
+          >
+            Semana
+          </Button>
+          <Button
+            variant={selectedRange === 'mes' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedRange('mes')}
+            className="hover:bg-blue-50"
+          >
+            Mês
+          </Button>
+        </>
+      );
+    }
 
-**Conclusão:**
-Exame ecocardiográfico dentro dos limites da normalidade.
+    // carregar laudos ao montar
+    useEffect(() => {
+      let mounted = true;
+      (async () => {
+        try {
+          await loadReports();
+        } catch (e) {
+          // erro tratado no hook
+        }
+        if (mounted) setLaudos(reports || []);
+      })();
+      return () => { mounted = false; };
+    }, [loadReports]);
 
-**CID:** I25.9`,
-        cid: "I25.9",
-        diagnostico: "Exame ecocardiográfico normal",
-        conclusao: "Função cardíaca preservada, sem alterações estruturais significativas."
-      },
-      { 
-        id: "306463987", 
-        data: "29/07/2025", 
-        prazo: "29/07/2025", 
-        paciente: { id: "93203056", nome: "Bruno Lima", cpf: "987.654.321-00", idade: 33, sexo: "Masculino" },
-        executante: "Carlos Andrade",
-        exame: "Eletrocardiograma",
-        status: "Entregue",
-        urgente: true,
-        especialidade: "Cardiologia",
-        conteudo: `**ELETROCARDIOGRAMA DE REPOUSO**
+    // sincroniza quando reports mudarem no hook
+    useEffect(() => {
+      setLaudos(reports || []);
+    }, [reports]);
 
-**Dados do Paciente:**
-Nome: Bruno Lima
-Idade: 33 anos
-Sexo: Masculino
-
-**Indicação Clínica:**
-Dor precordial atípica
-
-**Técnica:**
-Eletrocardiograma de 12 derivações em repouso.
-
-**Resultados:**
-- Ritmo: sinusal regular
-- Frequência cardíaca: 72 bpm
-- Eixo elétrico: normal
-- Intervalos PR, QRS e QT: dentro dos limites normais
-- Ondas Q patológicas: ausentes
-- Alterações de ST-T: não observadas
-
-**Conclusão:**
-Eletrocardiograma normal.
-
-**CID:** Z01.8`,
-        cid: "Z01.8",
-        diagnostico: "ECG normal",
-        conclusao: "Traçado eletrocardiográfico dentro dos parâmetros de normalidade."
-      },
-      { 
-        id: "306452545", 
-        data: "29/07/2025", 
-        prazo: "29/07/2025", 
-        paciente: { id: "92953542", nome: "Carla Menezes", cpf: "111.222.333-44", idade: 67, sexo: "Feminino" },
-        executante: "Carlos Andrade",
-        exame: "Dermatoscopia",
-        status: "Entregue",
-        urgente: true,
-        especialidade: "Dermatologia",
-        conteudo: `**DERMATOSCOPIA DIGITAL**
-
-**Dados do Paciente:**
-Nome: Carla Menezes
-Idade: 67 anos
-Sexo: Feminino
-
-**Indicação Clínica:**
-Avaliação de lesão pigmentada em dorso
-
-**Técnica:**
-Dermatoscopia digital com magnificação de 10x e 20x.
-
-**Localização:**
-Região dorsal, região escapular direita
-
-**Achados Dermatoscópicos:**
-- Lesão melanocítica benigna
-- Padrão reticular típico
-- Bordas regulares e simétricas
-- Pigmentação homogênea
-- Ausência de estruturas atípicas
-
-**Conclusão:**
-Nevo melanocítico benigno. Seguimento clínico recomendado.
-
-**CID:** D22.5`,
-        cid: "D22.5",
-        diagnostico: "Nevo melanocítico benigno",
-        conclusao: "Lesão benigna, recomenda-se acompanhamento dermatológico de rotina."
-      },
-    ]);
-
-    const [activeTab, setActiveTab] = useState("entregue");
+  const [activeTab, setActiveTab] = useState("descobrir");
     const [laudoSelecionado, setLaudoSelecionado] = useState<any>(null);
     const [isViewing, setIsViewing] = useState(false);
     const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -644,26 +677,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             >
               A descobrir
             </button>
-            <button
-              onClick={() => setActiveTab("liberado")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "liberado"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Liberado
-            </button>
-            <button
-              onClick={() => setActiveTab("entregue")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "entregue"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Entregue
-            </button>
           </div>
 
           {/* Filtros */}
@@ -682,29 +695,18 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 text-sm">
                   <CalendarIcon className="w-4 h-4" />
-                  <span>01/07/2025</span>
+                  <Input type="date" value={startDate ?? ''} onChange={(e) => { setStartDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm" />
                   <span>-</span>
-                  <span>31/07/2025</span>
+                  <Input type="date" value={endDate ?? ''} onChange={(e) => { setEndDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm" />
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Hoje</Button>
-                <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">Semana</Button>
-                <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">Mês</Button>
+                {/* date range buttons: Hoje / Semana / Mês */}
+                <DateRangeButtons />
               </div>
 
-              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
-                </svg>
-                Filtros
-              </Button>
-
-              <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                <Search className="w-4 h-4 mr-1" />
-                Pesquisar
-              </Button>
+              {/* Filtros e pesquisa removidos por solicitação */}
 
               <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">
                 <Download className="w-4 h-4 mr-1" />
@@ -728,39 +730,42 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {laudos.map((laudo) => (
+                {filteredLaudos.map((laudo) => (
                   <TableRow key={laudo.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {laudo.urgente && (
                           <div className="w-2 h-2 rounded-full bg-red-500"></div>
                         )}
-                        <span className="font-mono text-sm">{laudo.id}</span>
+                        <span className="font-mono text-sm">
+                          {getReportPatientName(laudo) || laudo.order_number || getShortId(laudo.id)}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{laudo.data}</div>
-                        <div className="text-xs text-muted-foreground">11:48</div>
+                        <div>{formatReportDate(getReportDate(laudo))}</div>
+                        <div className="text-xs text-muted-foreground">{laudo?.hora || new Date(laudo?.data || laudo?.created_at || laudo?.due_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{laudo.prazo}</div>
-                        <div className="text-xs text-muted-foreground">11:48</div>
+                        <div>{laudo?.prazo ?? laudo?.due_at ? formatReportDate(laudo?.due_at ?? laudo?.prazo) : '-'}</div>
+                        <div className="text-xs text-muted-foreground">{laudo?.prazo_hora ?? laudo?.due_time ?? '-'}</div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
                         <div className="flex items-center gap-1">
                           <User className="w-3 h-3" />
-                          <span className="font-mono text-xs">{laudo.paciente.id}</span>
+                          <span className="font-mono text-xs">{getReportPatientId(laudo) || '-'}</span>
                         </div>
-                        <div className="font-medium">{laudo.paciente.nome}</div>
+                        <div className="font-medium">{getReportPatientName(laudo) || '—'}</div>
+                        <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : ''}</div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{laudo.executante}</TableCell>
-                    <TableCell className="text-sm">{laudo.exame || "-"}</TableCell>
+                    <TableCell className="text-sm">{getReportExecutor(laudo) || '-'}</TableCell>
+                    <TableCell className="text-sm">{getReportExam(laudo) || "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
@@ -799,26 +804,34 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
         {/* Visualizador de Laudo */}
         {isViewing && laudoSelecionado && (
-          <LaudoViewer laudo={laudoSelecionado} onClose={() => setIsViewing(false)} />
-        )}
+              <LaudoViewer laudo={laudoSelecionado} onClose={() => setIsViewing(false)} />
+            )}
 
         {/* Editor para Novo Laudo */}
         {isCreatingNew && (
-          <LaudoEditor 
-            pacientes={pacientesDisponiveis} 
-            onClose={() => setIsCreatingNew(false)} 
+          <LaudoEditor
+            pacientes={pacientesDisponiveis}
+            onClose={() => setIsCreatingNew(false)}
             isNewLaudo={true}
+            createNewReport={createNewReport}
+            updateExistingReport={updateExistingReport}
+            reloadReports={loadReports}
+            onSaved={(r:any) => { setLaudoSelecionado(r); setIsViewing(true); }}
           />
         )}
 
         {/* Editor para Paciente Específico */}
         {isEditingForPatient && selectedPatientForLaudo && (
-          <LaudoEditor 
-            pacientes={[selectedPatientForLaudo.paciente || selectedPatientForLaudo]} 
-            laudo={selectedPatientForLaudo.conteudo ? selectedPatientForLaudo : null}
-            onClose={onClosePatientEditor || (() => {})} 
-            isNewLaudo={!selectedPatientForLaudo.conteudo}
+          <LaudoEditor
+            pacientes={[selectedPatientForLaudo.paciente || selectedPatientForLaudo]}
+            laudo={selectedPatientForLaudo}
+            onClose={onClosePatientEditor || (() => {})}
+            isNewLaudo={!selectedPatientForLaudo?.id}
             preSelectedPatient={selectedPatientForLaudo.paciente || selectedPatientForLaudo}
+            createNewReport={createNewReport}
+            updateExistingReport={updateExistingReport}
+            reloadReports={loadReports}
+            onSaved={(r:any) => { setLaudoSelecionado(r); setIsViewing(true); }}
           />
         )}
       </div>
@@ -835,7 +848,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <div>
               <h2 className="text-xl font-bold text-foreground">Visualizar Laudo</h2>
               <p className="text-sm text-muted-foreground">
-                Paciente: {laudo.paciente.nome} | Pedido: {laudo.id} | {laudo.especialidade}
+                Paciente: {getPatientName(laudo?.paciente) || getPatientName(laudo) || '—'} | CPF: {getReportPatientCpf(laudo) ?? laudo?.patient_cpf ?? '-'} | {laudo?.especialidade ?? laudo?.exame ?? '-'}
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -848,9 +861,9 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             <div className="max-w-2xl mx-auto bg-background border border-border rounded-lg p-6 shadow-sm">
               {/* Header do Laudo */}
               <div className="text-center mb-6">
-                <h2 className="text-lg font-bold">LAUDO MÉDICO - {laudo.especialidade.toUpperCase()}</h2>
+                <h2 className="text-lg font-bold">LAUDO MÉDICO - {(laudo.especialidade ?? laudo.exame ?? '').toString().toUpperCase()}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Data: {laudo.data}
+                  Data: {formatReportDate(getReportDate(laudo))}
                 </p>
               </div>
 
@@ -858,12 +871,12 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <div className="mb-6 p-4 bg-muted rounded">
                 <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <p><strong>Nome:</strong> {getPatientName(laudo.paciente)}</p>
-                  <p><strong>ID:</strong> {getPatientId(laudo.paciente)}</p>
-                  <p><strong>CPF:</strong> {getPatientCpf(laudo.paciente)}</p>
-                  <p><strong>Idade:</strong> {getPatientAge(laudo.paciente)} anos</p>
-                  <p><strong>Sexo:</strong> {getPatientSex(laudo.paciente)}</p>
-                  <p><strong>CID:</strong> {laudo.cid}</p>
+                  <p><strong>Nome:</strong> {getPatientName(laudo?.paciente) || getPatientName(laudo) || '-'}</p>
+                  <p><strong>ID:</strong> {getPatientId(laudo?.paciente) ?? getPatientId(laudo) ?? '-'}</p>
+                  <p><strong>CPF:</strong> {getPatientCpf(laudo?.paciente) ?? laudo?.patient_cpf ?? '-'}</p>
+                  <p><strong>Idade:</strong> {getPatientAge(laudo?.paciente) ? `${getPatientAge(laudo?.paciente)} anos` : (getPatientAge(laudo) ? `${getPatientAge(laudo)} anos` : '-')}</p>
+                  <p><strong>Sexo:</strong> {getPatientSex(laudo?.paciente) ?? getPatientSex(laudo) ?? '-'}</p>
+                  <p><strong>CID:</strong> {laudo?.cid ?? laudo?.cid_code ?? '-'}</p>
                 </div>
               </div>
 
@@ -872,10 +885,34 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <div 
                   className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ 
-                    __html: laudo.conteudo.replace(/\n/g, '<br>') 
+                    __html: ((laudo.conteudo ?? laudo.content_html ?? laudo.contentHtml ?? laudo.content) || '').toString().replace(/\n/g, '<br>') 
                   }}
                 />
               </div>
+
+              {/* Exame */}
+              {((laudo.exame ?? laudo.exam ?? laudo.especialidade ?? laudo.report_type) || '').toString().length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-semibold mb-1">Exame / Especialidade:</h4>
+                  <p className="text-sm">{laudo.exame ?? laudo.exam ?? laudo.especialidade ?? laudo.report_type}</p>
+                </div>
+              )}
+
+              {/* Diagnóstico */}
+              {((laudo.diagnostico ?? laudo.diagnosis) || '').toString().length > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded">
+                  <h4 className="font-semibold mb-1">Diagnóstico:</h4>
+                  <p className="text-sm font-bold">{laudo.diagnostico ?? laudo.diagnosis}</p>
+                </div>
+              )}
+
+              {/* Conclusão */}
+              {((laudo.conclusao ?? laudo.conclusion) || '').toString().length > 0 && (
+                <div className="mb-6 p-3 bg-green-50 dark:bg-green-950/20 rounded">
+                  <h4 className="font-semibold mb-1">Conclusão:</h4>
+                  <p className="text-sm font-bold">{laudo.conclusao ?? laudo.conclusion}</p>
+                </div>
+              )}
 
               {/* Diagnóstico e Conclusão */}
               {laudo.diagnostico && (
@@ -893,11 +930,18 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               )}
 
               {/* Assinatura */}
-              <div className="mt-8 text-center border-t pt-4">
+                <div className="mt-8 text-center border-t pt-4">
                 <div className="h-16 mb-2"></div>
-                <p className="text-sm font-semibold">Dr. Carlos Andrade</p>
-                <p className="text-xs text-muted-foreground">CRM 000000 - {laudo.especialidade}</p>
-                <p className="text-xs text-muted-foreground mt-1">Data: {laudo.data}</p>
+                {(() => {
+                  const signatureName = laudo?.created_by_name ?? laudo?.createdByName ?? ((laudo?.created_by && user?.id && laudo.created_by === user.id) ? 'Squad-20' : medico.nome ?? 'Squad-20');
+                  return (
+                    <>
+                      <p className="text-sm font-semibold">{signatureName}</p>
+                      <p className="text-xs text-muted-foreground">CRM 000000 - {laudo.especialidade}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Data: {formatReportDate(getReportDate(laudo))}</p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -919,7 +963,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
   }
 
   // Editor de Laudo Avançado (para novos laudos)
-  function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any }) {
+  function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient, createNewReport, updateExistingReport, reloadReports, onSaved }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any; createNewReport?: (data: any) => Promise<any>; updateExistingReport?: (id: string, data: any) => Promise<any>; reloadReports?: () => Promise<void>; onSaved?: (r:any) => void }) {
   // Import useToast at the top level of the component
   const { toast } = require('@/hooks/use-toast').useToast();
     const [activeTab, setActiveTab] = useState("editor");
@@ -927,6 +971,10 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     const [showPreview, setShowPreview] = useState(false);
     const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
     const [listaPacientes, setListaPacientes] = useState<any[]>([]);
+  // Novo: campos para solicitante e prazo
+  const [solicitante, setSolicitante] = useState<string>(user?.id || "");
+  const [prazoDate, setPrazoDate] = useState<string>("");
+  const [prazoTime, setPrazoTime] = useState<string>("");
 
     // Pega token do usuário logado (passado explicitamente para listarPacientes)
     const { token } = useAuth();
@@ -999,25 +1047,65 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       setAssinaturaImg(null);
     };
 
-    // Carregar dados do laudo existente quando disponível
+    // Carregar dados do laudo existente quando disponível (mais robusto: suporta vários nomes de campo)
     useEffect(() => {
       if (laudo && !isNewLaudo) {
-        setContent(laudo.conteudo || "");
+        // Conteúdo: aceita 'conteudo', 'content_html', 'contentHtml', 'content'
+        const contentValue = laudo.conteudo ?? laudo.content_html ?? laudo.contentHtml ?? laudo.content ?? "";
+        setContent(contentValue);
+
+        // Campos: use vários fallbacks
+        const cidValue = laudo.cid ?? laudo.cid_code ?? '';
+        const diagnosticoValue = laudo.diagnostico ?? laudo.diagnosis ?? '';
+        const conclusaoValue = laudo.conclusao ?? laudo.conclusion ?? '';
+        const exameValue = laudo.exame ?? laudo.exam ?? laudo.especialidade ?? '';
+        const especialidadeValue = laudo.especialidade ?? laudo.exame ?? laudo.exam ?? '';
+        const mostrarDataValue = typeof laudo.hide_date === 'boolean' ? !laudo.hide_date : true;
+        const mostrarAssinaturaValue = typeof laudo.hide_signature === 'boolean' ? !laudo.hide_signature : true;
+
         setCampos({
-          cid: laudo.cid || "",
-          diagnostico: laudo.diagnostico || "",
-          conclusao: laudo.conclusao || "",
-          exame: laudo.exame || "",
-          especialidade: laudo.especialidade || "",
-          mostrarData: true,
-          mostrarAssinatura: true
+          cid: cidValue,
+          diagnostico: diagnosticoValue,
+          conclusao: conclusaoValue,
+          exame: exameValue,
+          especialidade: especialidadeValue,
+          mostrarData: mostrarDataValue,
+          mostrarAssinatura: mostrarAssinaturaValue
         });
-        setPacienteSelecionado(laudo.paciente);
-        if (laudo.assinaturaImg) {
-          setAssinaturaImg(laudo.assinaturaImg);
+
+        // Paciente: não sobrescrever se já existe preSelectedPatient ou pacienteSelecionado
+        if (!pacienteSelecionado) {
+          const pacienteFromLaudo = laudo.paciente ?? laudo.patient ?? null;
+          if (pacienteFromLaudo) {
+            setPacienteSelecionado(pacienteFromLaudo);
+          } else if (laudo.patient_id && listaPacientes && listaPacientes.length) {
+            const found = listaPacientes.find(p => String(p.id) === String(laudo.patient_id));
+            if (found) setPacienteSelecionado(found);
+          }
         }
+
+        // preencher solicitante/prazo quando existe laudo (edição)
+        const possibleName = laudo.requested_by_name ?? laudo.requester_name ?? laudo.requestedByName ?? laudo.executante_name ?? laudo.executante?.nome ?? laudo.requested_by ?? laudo.created_by_name ?? user?.id ?? "";
+        setSolicitante(possibleName);
+
+        const dueRaw = laudo.due_at ?? laudo.prazo ?? laudo.dueDate ?? laudo.data ?? null;
+        if (dueRaw) {
+          try {
+            const d = new Date(dueRaw);
+            if (!isNaN(d.getTime())) {
+              setPrazoDate(d.toISOString().slice(0,10));
+              setPrazoTime(d.toTimeString().slice(0,5));
+            }
+          } catch (e) {
+            // ignore invalid date
+          }
+        }
+
+        // assinatura: aceitar vários campos possíveis
+        const sig = laudo.assinaturaImg ?? laudo.signature_image ?? laudo.signature ?? laudo.sign_image ?? null;
+        if (sig) setAssinaturaImg(sig);
       }
-    }, [laudo, isNewLaudo]);
+    }, [laudo, isNewLaudo, pacienteSelecionado, listaPacientes, user]);
 
     // Histórico para desfazer/refazer
     const [history, setHistory] = useState<string[]>([]);
@@ -1158,7 +1246,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Paciente: {laudo?.paciente?.nome} | Pedido: {laudo?.id} | {laudo?.especialidade}
+                    Paciente: {getPatientName(pacienteSelecionado) || getPatientName(laudo?.paciente) || getPatientName(laudo) || '-'} | CPF: {getReportPatientCpf(laudo) ?? laudo?.patient_cpf ?? '-'} | {laudo?.especialidade}
                   </p>
                 )}
               </div>
@@ -1212,6 +1300,22 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                     )}
                   </div>
                 )}
+                {/* Novos campos: Solicitante e Prazo */}
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="solicitante">Solicitante (ID)</Label>
+                    <Input id="solicitante" value={solicitante} onChange={(e) => setSolicitante(e.target.value)} placeholder="Nome ou ID do solicitante (opcional)" />
+                    <p className="text-xs text-muted-foreground mt-1">Se vazio, o usuário logado será usado como solicitante.</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="prazoDate">Prazo do Laudo</Label>
+                    <div className="flex gap-2">
+                      <Input id="prazoDate" type="date" value={prazoDate} onChange={(e) => setPrazoDate(e.target.value)} />
+                      <Input id="prazoTime" type="time" value={prazoTime} onChange={(e) => setPrazoTime(e.target.value)} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Defina a data e hora do prazo (opcional).</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1623,15 +1727,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                     {/* Assinatura Digital em tempo real */}
                     {campos.mostrarAssinatura && (
                       <div className="mt-8 text-center">
-                        {assinaturaImg && assinaturaImg.length > 30 ? (
-                          <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-16 object-contain mb-2" />
-                        ) : (
-                          <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
-                        )}
-                        <div className="border-b border-border mb-2"></div>
-                        <p className="text-sm">Dr. Carlos Andrade</p>
-                        <p className="text-xs text-muted-foreground">CRM 000000</p>
-                      </div>
+                          {assinaturaImg && assinaturaImg.length > 30 ? (
+                            <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-16 object-contain mb-2" />
+                          ) : (
+                            <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
+                          )}
+                          <div className="border-b border-border mb-2"></div>
+                          <p className="text-sm">{user?.name ? user.name : 'Squad-20'}</p>
+                          <p className="text-xs text-muted-foreground">CRM 000000</p>
+                        </div>
                     )}
                   </div>
                 </div>
@@ -1649,19 +1753,22 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <Button variant="outline" onClick={onClose} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   Cancelar
                 </Button>
-                <Button variant="outline" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  Salvar Rascunho
-                </Button>
+                {/* botão 'Salvar Rascunho' removido por não ser utilizado */}
                 <Button
                   variant="default"
                   onClick={async () => {
-                    if (!isNewLaudo) return; // só cria novo laudo
                     try {
-                      // Monta os dados do laudo conforme CreateReportData do Supabase
-                      // Preencher campos obrigatórios com valores válidos
-                      const userId = user?.id || '00000000-0000-0000-0000-000000000001'; // fallback seguro
-                      const novoLaudo = {
-                        patient_id: pacienteSelecionado?.id, // agora sempre UUID real do paciente
+                      const userId = user?.id || '00000000-0000-0000-0000-000000000001';
+                      // compor due_at a partir dos campos de data/hora, se fornecidos
+                      let composedDueAt = undefined;
+                      if (prazoDate) {
+                        // if time not provided, default to 23:59
+                        const t = prazoTime || '23:59';
+                        composedDueAt = new Date(`${prazoDate}T${t}:00`).toISOString();
+                      }
+
+                      const payload = {
+                        patient_id: pacienteSelecionado?.id,
                         order_number: '',
                         exam: campos.exame || '',
                         diagnosis: campos.diagnostico || '',
@@ -1669,23 +1776,80 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         cid_code: campos.cid || '',
                         content_html: content,
                         content_json: {},
-                        status: 'draft',
-                        requested_by: userId,
-                        due_at: new Date().toISOString(),
+                        // status intentionally omitted — não enviar 'draft'
+                        requested_by: solicitante || userId,
+                        due_at: composedDueAt ?? new Date().toISOString(),
                         hide_date: !campos.mostrarData,
                         hide_signature: !campos.mostrarAssinatura,
-                        created_by: userId,
                       };
-                      const resp = await import('@/lib/reports').then(m => m.criarRelatorio(novoLaudo, token || undefined));
+
+                        if (isNewLaudo) {
+                          if (createNewReport) {
+                            const created = await createNewReport(payload as any);
+                            if (onSaved) onSaved(created);
+                          }
+                        } else {
+                          // Atualizar laudo existente: confirmar e enviar apenas diff
+                          const targetId = laudo?.id ?? laudo?.order_number ?? null;
+                          if (!targetId) throw new Error('ID do laudo ausente, não é possível atualizar');
+
+                          // Montar objeto contendo somente campos alterados
+                          const original = laudo || {};
+                          const candidate: any = {
+                            patient_id: payload.patient_id,
+                            order_number: payload.order_number,
+                            exam: payload.exam,
+                            diagnosis: payload.diagnosis,
+                            conclusion: payload.conclusion,
+                            cid_code: payload.cid_code,
+                            content_html: payload.content_html,
+                            // content_json intentionally left as full replacement if changed
+                            // status omitted on purpose
+                            requested_by: payload.requested_by,
+                            due_at: payload.due_at,
+                            hide_date: payload.hide_date,
+                            hide_signature: payload.hide_signature,
+                          };
+
+                          const diff: any = {};
+                          for (const k of Object.keys(candidate)) {
+                            const val = candidate[k];
+                            const origVal = original[k];
+                            // Considerar string/undefined equivalence
+                            if (typeof val === 'string') {
+                              if ((origVal ?? '') !== (val ?? '')) diff[k] = val;
+                            } else if (typeof val === 'boolean') {
+                              if (origVal !== val) diff[k] = val;
+                            } else if (val !== undefined && val !== null) {
+                              if (JSON.stringify(origVal) !== JSON.stringify(val)) diff[k] = val;
+                            }
+                          }
+
+                          if (Object.keys(diff).length === 0) {
+                            toast({ title: 'Nada a atualizar', description: 'Nenhuma alteração detectada.', variant: 'default' });
+                          } else {
+                            const ok = window.confirm('Deseja realmente atualizar este laudo? As alterações serão enviadas ao servidor.');
+                            if (!ok) return;
+                            if (updateExistingReport) {
+                              const updated = await updateExistingReport(String(targetId), diff as any);
+                              if (onSaved) onSaved(updated);
+                            }
+                          }
+                        }
+
+                      if (reloadReports) {
+                        await reloadReports();
+                      }
+
                       toast({
-                        title: 'Laudo criado com sucesso!',
-                        description: 'O laudo foi liberado e salvo.',
+                        title: isNewLaudo ? 'Laudo criado com sucesso!' : 'Laudo atualizado com sucesso!',
+                        description: isNewLaudo ? 'O laudo foi liberado e salvo.' : 'As alterações foram salvas.',
                         variant: 'default',
                       });
                       onClose();
                     } catch (err) {
                       toast({
-                        title: 'Erro ao criar laudo',
+                        title: isNewLaudo ? 'Erro ao criar laudo' : 'Erro ao atualizar laudo',
                         description: (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err) || 'Tente novamente.',
                         variant: 'destructive',
                       });
@@ -1996,6 +2160,9 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           </div>
           <div className="flex items-center gap-2">
             <SimpleThemeToggle />
+            <Button asChild variant="default" className="mr-2 bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1 rounded shadow-sm shadow-blue-500/10 border border-primary">
+              <Link href="/" aria-label="Início">Início</Link>
+            </Button>
             <Button 
               variant="outline" 
               onClick={logout}
@@ -2056,10 +2223,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
         <main>
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-3xl font-bold">Área do Profissional de Saúde</h1>
-            <Button asChild>
-              <Link href="/">Início</Link>
-            </Button>
-            
           </div>
           <p className="mb-8">Bem-vindo à sua área exclusiva.</p>
 
@@ -2223,6 +2386,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       </div>
     </ProtectedRoute>
   );
+};
+
+const getShortId = (id?: string) => {
+  if (!id) return '-';
+  try {
+    return id.length > 10 ? `${id.slice(0, 8)}...` : id;
+  } catch (e) {
+    return id;
+  }
 };
 
 export default ProfissionalPage;

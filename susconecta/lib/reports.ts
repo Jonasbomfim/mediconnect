@@ -59,6 +59,16 @@ const BASE_API_RELATORIOS = 'https://yuanqfswhberkoevtmfr.supabase.co/rest/v1/re
 
 // Cabeçalhos base para as requisições Supabase
 function obterCabecalhos(token?: string): HeadersInit {
+  // If token not passed explicitly, try the same fallbacks as lib/api.ts
+  if (!token && typeof window !== 'undefined') {
+    token =
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('auth_token') ||
+      sessionStorage.getItem('token') ||
+      undefined;
+  }
+
   const cabecalhos: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -75,12 +85,15 @@ function obterCabecalhos(token?: string): HeadersInit {
 async function tratarRespostaApi<T>(resposta: Response): Promise<T> {
   if (!resposta.ok) {
     let mensagemErro = `HTTP ${resposta.status}: ${resposta.statusText}`;
+    let rawText = '';
     try {
-      const dadosErro = await resposta.json();
+      rawText = await resposta.clone().text();
+      const dadosErro = JSON.parse(rawText || '{}');
       mensagemErro = dadosErro.message || dadosErro.error || mensagemErro;
     } catch (e) {
-      // Se não conseguir parsear como JSON, usa a mensagem de status HTTP
+      // Se não conseguir parsear como JSON, manter rawText para debug
     }
+    console.error('[tratarRespostaApi] response raw:', rawText);
     const erro: ApiError = {
       message: mensagemErro,
       code: resposta.status.toString(),
@@ -106,25 +119,44 @@ export async function listarRelatorios(filtros?: { patient_id?: string; status?:
     url += `?${params.toString()}`;
   }
 
+  // Busca o token do usuário (compatível com lib/api.ts keys)
+  let token: string | undefined = undefined;
+  if (typeof window !== 'undefined') {
+    token =
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('auth_token') ||
+      sessionStorage.getItem('token') ||
+      undefined;
+  }
+
   // Monta cabeçalhos conforme cURL
   const cabecalhos: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ',
   };
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      cabecalhos['Authorization'] = `Bearer ${token}`;
-    }
+  if (token) {
+    cabecalhos['Authorization'] = `Bearer ${token}`;
   }
+
+  // Logs de depuração (mask token)
+  const masked = token ? `${token.slice(0, 6)}...${token.slice(-6)}` : null;
+  console.log('[listarRelatorios] URL:', url);
+  console.log('[listarRelatorios] Authorization (masked):', masked);
+  console.log('[listarRelatorios] Headers (masked):', {
+    ...cabecalhos,
+    Authorization: cabecalhos['Authorization'] ? '<<masked>>' : undefined,
+  });
 
   const resposta = await fetch(url, {
     method: 'GET',
     headers: cabecalhos,
   });
+  console.log('[listarRelatorios] Status:', resposta.status, resposta.statusText);
+  const dados = await resposta.json().catch(() => null);
+  console.log('[listarRelatorios] Payload:', dados);
   if (!resposta.ok) throw new Error('Erro ao buscar relatórios');
-  const dados = await resposta.json();
   if (Array.isArray(dados)) return dados;
   if (dados && Array.isArray(dados.data)) return dados.data;
   for (const chave in dados) {
@@ -158,17 +190,26 @@ export async function buscarRelatorioPorId(id: string): Promise<Report> {
  * Cria um novo relatório médico
  */
 export async function criarRelatorio(dadosRelatorio: CreateReportData, token?: string): Promise<Report> {
+  const headers = obterCabecalhos(token);
+  const masked = (headers as any)['Authorization'] ? String((headers as any)['Authorization']).replace(/Bearer\s+(.+)/, 'Bearer <token_masked>') : null;
+  console.log('[criarRelatorio] POST', BASE_API_RELATORIOS);
+  console.log('[criarRelatorio] Headers (masked):', { ...headers, Authorization: masked });
+
   const resposta = await fetch(BASE_API_RELATORIOS, {
     method: 'POST',
-    headers: obterCabecalhos(token),
+    headers,
     body: JSON.stringify(dadosRelatorio),
   });
+  console.log('[criarRelatorio] Status:', resposta.status, resposta.statusText);
   if (!resposta.ok) {
     let mensagemErro = `HTTP ${resposta.status}: ${resposta.statusText}`;
     try {
       const dadosErro = await resposta.json();
       mensagemErro = dadosErro.message || dadosErro.error || mensagemErro;
-    } catch (e) {}
+      console.error('[criarRelatorio] error body:', dadosErro);
+    } catch (e) {
+      console.error('[criarRelatorio] erro ao parsear body de erro');
+    }
     const erro: any = {
       message: mensagemErro,
       code: resposta.status.toString(),
@@ -230,9 +271,14 @@ export async function deletarRelatorio(id: string): Promise<void> {
 export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<Report[]> {
   try {
     console.log('👤 [API RELATÓRIOS] Buscando relatórios do paciente:', idPaciente);
-    const resposta = await fetch(`${BASE_API_RELATORIOS}?patient_id=eq.${idPaciente}`, {
+    const url = `${BASE_API_RELATORIOS}?patient_id=eq.${idPaciente}`;
+    const headers = obterCabecalhos();
+    const masked = (headers as any)['Authorization'] ? `${String((headers as any)['Authorization']).slice(0,6)}...${String((headers as any)['Authorization']).slice(-6)}` : null;
+    console.debug('[listarRelatoriosPorPaciente] URL:', url);
+    console.debug('[listarRelatoriosPorPaciente] Headers (masked):', { ...headers, Authorization: masked ? '<<masked>>' : undefined });
+    const resposta = await fetch(url, {
       method: 'GET',
-      headers: obterCabecalhos(),
+      headers,
     });
     const resultado = await tratarRespostaApi<Report[]>(resposta);
     console.log('✅ [API RELATÓRIOS] Relatórios do paciente encontrados:', resultado.length);
@@ -249,7 +295,12 @@ export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<R
 export async function listarRelatoriosPorMedico(idMedico: string): Promise<Report[]> {
   try {
     console.log('👨‍⚕️ [API RELATÓRIOS] Buscando relatórios do médico:', idMedico);
-    const resposta = await fetch(`${BASE_API_RELATORIOS}?requested_by=eq.${idMedico}`, {
+    const url = `${BASE_API_RELATORIOS}?requested_by=eq.${idMedico}`;
+    const headers = obterCabecalhos();
+    const masked = (headers as any)['Authorization'] ? `${String((headers as any)['Authorization']).slice(0,6)}...${String((headers as any)['Authorization']).slice(-6)}` : null;
+    console.debug('[listarRelatoriosPorMedico] URL:', url);
+    console.debug('[listarRelatoriosPorMedico] Headers (masked):', { ...headers, Authorization: masked ? '<<masked>>' : undefined });
+    const resposta = await fetch(url, {
       method: 'GET',
       headers: obterCabecalhos(),
     });

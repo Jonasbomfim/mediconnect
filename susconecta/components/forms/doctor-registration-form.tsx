@@ -25,6 +25,8 @@ import {
   MedicoInput,
   Medico,
   criarUsuario,
+  criarUsuarioDirectAuth,
+  assignRoleServerSide,
   gerarSenhaAleatoria,
 } from "@/lib/api";
 ;
@@ -398,87 +400,33 @@ async function handleSubmit(ev: React.FormEvent) {
       const savedDoctorProfile = await criarMedico(medicoPayload);
       console.log("✅ Perfil do médico criado:", savedDoctorProfile);
 
-      if (form.email && form.email.includes('@')) {
-        const tempPassword = gerarSenhaAleatoria();
-        const userInput = {
-          email: form.email,
-          password: tempPassword,
-          full_name: form.full_name,
-          phone: form.celular,
-          role: 'medico' as const,
-        };
-
-        console.log("🔐 Criando usuário de autenticação com payload:", userInput);
-        
-        try {
-          const userResponse = await criarUsuario(userInput);
-
-          if (userResponse.success && userResponse.user) {
-            console.log("✅ Usuário de autenticação criado:", userResponse.user);
-            
-            // Mostra credenciais (NÃO fecha o formulário ainda)
-            setTempCredentials({ email: form.email, password: tempPassword });
-            setDialogOpen(true);
-            
-            // Limpa formulário mas NÃO fecha ainda - fechará quando o dialog de credenciais fechar
-            setForm(initial);
-            setPhotoPreview(null);
-            setServerAnexos([]);
-            onSaved?.(savedDoctorProfile);
-            // NÃO chama onClose ou onOpenChange aqui - deixa o dialog de credenciais fazer isso
-            return;
-          } else {
-            throw new Error((userResponse as any).message || "Falhou ao criar o usuário de acesso.");
-          }
-        } catch (userError: any) {
-          console.error("❌ Erro ao criar usuário via função server-side:", userError);
-          
-          // Mensagem de erro específica para email duplicado
-          const errorMsg = userError?.message || String(userError);
-          
-          if (errorMsg.toLowerCase().includes('already registered') || 
-              errorMsg.toLowerCase().includes('já está cadastrado') ||
-              errorMsg.toLowerCase().includes('já existe')) {
-            alert(
-              `⚠️ Este email já está cadastrado no sistema.\n\n` +
-              `✅ O perfil do médico foi salvo com sucesso.\n\n` +
-              `Para criar acesso ao sistema, use um email diferente ou recupere a senha do email existente.`
-            );
-          } else if (errorMsg.toLowerCase().includes('failed to assign user role') ||
-                     errorMsg.toLowerCase().includes('atribuir permissões')) {
-            alert(
-              `⚠️ PROBLEMA NA CONFIGURAÇÃO DO SISTEMA\n\n` +
-              `✅ O perfil do médico foi salvo com sucesso.\n\n` +
-              `❌ Porém, houve falha ao atribuir permissões de acesso.\n\n` +
-              `Esse erro indica que a Edge Function do Supabase não está configurada corretamente.\n\n` +
-              `Entre em contato com o administrador do sistema para:\n` +
-              `1. Verificar se a service role key está configurada\n` +
-              `2. Verificar as permissões da tabela user_roles\n` +
-              `3. Revisar o código da Edge Function create-user`
-            );
-          } else {
-            alert(
-              `✅ Médico cadastrado com sucesso!\n\n` +
-              `⚠️ Porém houve um problema ao criar o acesso:\n${errorMsg}\n\n` +
-              `O cadastro do médico foi salvo, mas será necessário criar o acesso manualmente.`
-            );
-          }
-          
-          // Limpa formulário e fecha
-          setForm(initial);
-          setPhotoPreview(null);
-          setServerAnexos([]);
-          onSaved?.(savedDoctorProfile);
-          if (inline) onClose?.();
-          else onOpenChange?.(false);
-          return;
-        }
-      } else {
-        alert("Médico cadastrado com sucesso (sem usuário de acesso - email não fornecido).");
-        onSaved?.(savedDoctorProfile);
-        if (inline) onClose?.();
-        else onOpenChange?.(false);
-      }
+      // ⚠️ IMPORTANTE: A criação de usuário de autenticação foi DESABILITADA temporariamente
+      // porque a Edge Function /functions/v1/create-user está retornando erro 500 ao
+      // tentar atribuir o role "medico" ao usuário.
+      //
+      // Para habilitar novamente, o backend precisa corrigir a Edge Function ou
+      // configurar as permissões corretas na tabela user_roles.
+      //
+      // Por ora, apenas o perfil do médico será salvo na tabela "doctors".
+      // O acesso ao sistema precisa ser criado manualmente pelo administrador.
+      
+      console.log("⚠️ Criação de usuário Auth desabilitada - salvando apenas perfil do médico");
+      
+      alert(
+        `✅ Médico cadastrado com sucesso!\n\n` +
+        `📋 Perfil salvo na base de dados.\n\n` +
+        `⚠️ IMPORTANTE: O acesso ao sistema (login) precisa ser criado manualmente.\n\n` +
+        `Motivo: A função de criação automática de usuários está com problema no backend.\n` +
+        `Entre em contato com o administrador do sistema para criar o acesso.`
+      );
+      
+      // Limpa formulário e fecha
+      setForm(initial);
+      setPhotoPreview(null);
+      setServerAnexos([]);
+      onSaved?.(savedDoctorProfile);
+      if (inline) onClose?.();
+      else onOpenChange?.(false);
     }
   } catch (err: any) {
     console.error("❌ Erro no handleSubmit:", err);

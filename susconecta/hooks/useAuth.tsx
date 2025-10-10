@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { loginUser, logoutUser, AuthenticationError } from '@/lib/auth'
+import { ENV_CONFIG } from '@/lib/env-config'
 import { isExpired, parseJwt } from '@/lib/jwt'
 import { httpClient } from '@/lib/http'
 import type { 
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return
             }
           } catch (refreshError) {
-            console.log('❌ [AUTH] Falha no refresh automático')
+            console.log(' [AUTH] Falha no refresh automático')
             await new Promise(resolve => setTimeout(resolve, 400))
           }
         }
@@ -158,6 +159,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const response = await loginUser(email, password, userType)
       
+      // Após receber token, buscar roles/permissions reais e reconciliar userType
+      try {
+        const infoRes = await fetch(`${ENV_CONFIG.SUPABASE_URL}/functions/v1/user-info`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${response.access_token}`,
+            'apikey': ENV_CONFIG.SUPABASE_ANON_KEY,
+          }
+        })
+
+        if (infoRes.ok) {
+          const info = await infoRes.json().catch(() => null)
+          const roles: string[] = Array.isArray(info?.roles) ? info.roles : (info?.roles ? [info.roles] : [])
+
+          // Derivar tipo de usuário a partir dos roles
+          let derived: UserType = 'paciente'
+          if (roles.includes('admin') || roles.includes('gestor') || roles.includes('secretaria')) {
+            derived = 'administrador'
+          } else if (roles.includes('medico') || roles.includes('enfermeiro')) {
+            derived = 'profissional'
+          }
+
+          // Atualizar userType caso seja diferente
+          if (response.user && response.user.userType !== derived) {
+            response.user.userType = derived
+            console.log('[AUTH] userType reconciled from roles ->', derived)
+          }
+        } else {
+          console.warn('[AUTH] Falha ao obter user-info para reconciliar roles:', infoRes.status)
+        }
+      } catch (err) {
+        console.warn('[AUTH] Erro ao buscar user-info após login (não crítico):', err)
+      }
+
       saveAuthData(
         response.access_token,
         response.user,

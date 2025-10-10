@@ -14,11 +14,8 @@ export type ApiOk<T = any> = {
     total?: number;
   };
 };
-
-// ===== TIPOS COMUNS =====
 export type Endereco = {
   cep?: string;
-  logradouro?: string;
   numero?: string;
   complemento?: string;
   bairro?: string;
@@ -245,14 +242,19 @@ export async function listarPacientes(params?: {
 }): Promise<Paciente[]> {
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q);
+  let url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients`;
+  const qsString = qs.toString();
+  if (qsString) url += `?${qsString}`;
 
-  const url = `${REST}/patients${qs.toString() ? `?${qs.toString()}` : ""}`;
+  // Use baseHeaders() so the current user token (from local/session storage) and apikey are sent
+  const headers: HeadersInit = {
+    ...baseHeaders(),
+    ...rangeHeaders(params?.page, params?.limit),
+  };
+
   const res = await fetch(url, {
     method: "GET",
-    headers: {
-      ...baseHeaders(),
-      ...rangeHeaders(params?.page, params?.limit),
-    },
+    headers,
   });
   return await parse<Paciente[]>(res);
 }
@@ -299,7 +301,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      const url = `${REST}/patients?${query}&limit=10`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?${query}&limit=10`;
       const res = await fetch(url, { method: "GET", headers: baseHeaders() });
       const arr = await parse<Paciente[]>(res);
       
@@ -325,7 +327,7 @@ export async function buscarPacientePorId(id: string | number): Promise<Paciente
   if (typeof id === 'string' && isNaN(Number(id))) {
     idParam = `\"${id}\"`;
   }
-  const url = `${REST}/patients?id=eq.${idParam}`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?id=eq.${idParam}`;
   const res = await fetch(url, { method: "GET", headers: baseHeaders() });
   const arr = await parse<Paciente[]>(res);
   if (!arr?.length) throw new Error("404: Paciente não encontrado");
@@ -333,7 +335,7 @@ export async function buscarPacientePorId(id: string | number): Promise<Paciente
 }
 
 export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
-  const url = `${REST}/patients`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients`;
   const res = await fetch(url, {
     method: "POST",
     headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
@@ -344,7 +346,7 @@ export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
 }
 
 export async function atualizarPaciente(id: string | number, input: PacienteInput): Promise<Paciente> {
-  const url = `${REST}/patients?id=eq.${id}`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?id=eq.${id}`;
   const res = await fetch(url, {
     method: "PATCH",
     headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
@@ -355,7 +357,7 @@ export async function atualizarPaciente(id: string | number, input: PacienteInpu
 }
 
 export async function excluirPaciente(id: string | number): Promise<void> {
-  const url = `${REST}/patients?id=eq.${id}`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?id=eq.${id}`;
   const res = await fetch(url, { method: "DELETE", headers: baseHeaders() });
   await parse<any>(res);
 }

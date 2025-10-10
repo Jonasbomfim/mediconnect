@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useRef, useEffect } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
@@ -7,7 +6,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { buscarPacientes, listarPacientes, buscarPacientePorId, type Paciente } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
-import { CreateReportData, ReportFormData } from "@/types/report-types";
+import { CreateReportData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +70,26 @@ const colorsByType = {
   Oftalmologia: "#2ecc71"
 };
 
+  // Helpers para normalizar dados de paciente (suporta schema antigo e novo)
+  const getPatientName = (p: any) => p?.full_name ?? p?.nome ?? '';
+  const getPatientCpf = (p: any) => p?.cpf ?? '';
+  const getPatientSex = (p: any) => p?.sex ?? p?.sexo ?? '';
+  const getPatientId = (p: any) => p?.id ?? '';
+  const getPatientAge = (p: any) => {
+    if (!p) return '';
+    // Prefer birth_date (ISO) to calcular idade
+    const bd = p?.birth_date ?? p?.data_nascimento ?? p?.birthDate;
+    if (bd) {
+      const d = new Date(bd);
+      if (!isNaN(d.getTime())) {
+        const age = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+        return `${age}`;
+      }
+    }
+    // Fallback para campo idade/idade_anterior
+    return p?.idade ?? p?.age ?? '';
+  };
+
 const ProfissionalPage = () => {
   const { logout, user } = useAuth();
   const [activeSection, setActiveSection] = useState('calendario');
@@ -94,56 +113,23 @@ const ProfissionalPage = () => {
     biografia: "Médico especialista em cardiologia e dermatologia com mais de 15 anos de experiência em tratamentos clínicos e cirúrgicos."
   });
 
-  // Estados para relatórios médicos
-  const [relatorioMedico, setRelatorioMedico] = useState({
-    pacienteNome: "",
-    pacienteCpf: "",
-    pacienteIdade: "",
-    profissionalNome: medico.nome,
-    profissionalCrm: medico.identificacao,
-    motivoRelatorio: "",
-    historicoClinico: "",
-    sinaisSintomas: "",
-    examesRealizados: "",
-    resultadosExames: "",
-    diagnosticos: "",
-    prognostico: "",
-    tratamentosRealizados: "",
-    recomendacoes: "",
-    cid: "",
-    dataRelatorio: new Date().toISOString().split('T')[0]
-  });
-  const [relatoriosMedicos, setRelatoriosMedicos] = useState<any[]>([]);
-  const [editandoRelatorio, setEditandoRelatorio] = useState<any>(null);
 
-  // Estados para integração com API de Relatórios
-  const [pacientesReais, setPacientesReais] = useState<Paciente[]>([]);
-  const [carregandoPacientes, setCarregandoPacientes] = useState(false);
-  const [pacienteSelecionadoReport, setPacienteSelecionadoReport] = useState<Paciente | null>(null);
-  
-  // Hook personalizado para relatórios
-  const reportsApi = useReports();
-
-  // Estados para funcionalidades do prontuário
-  const [consultasRegistradas, setConsultasRegistradas] = useState<any[]>([]);
-  const [historicoMedico, setHistoricoMedico] = useState<any[]>([]);
-  const [prescricoesMedicas, setPrescricoesMedicas] = useState<any[]>([]);
-  const [examesSolicitados, setExamesSolicitados] = useState<any[]>([]);
-  const [diagnosticos, setDiagnosticos] = useState<any[]>([]);
-  const [evolucaoQuadro, setEvolucaoQuadro] = useState<any[]>([]);
-  const [anexos, setAnexos] = useState<any[]>([]);
-  const [abaProntuarioAtiva, setAbaProntuarioAtiva] = useState('nova-consulta');
 
   // Estados para campos principais da consulta
   const [consultaAtual, setConsultaAtual] = useState({
-    dataConsulta: new Date().toISOString().split('T')[0],
-    anamnese: "",
-    exameFisico: "",
-    hipotesesDiagnosticas: "",
-    condutaMedica: "",
-    prescricoes: "",
-    retornoAgendado: "",
-    cid10: ""
+    patient_id: "",
+    order_number: "",
+    exam: "",
+    diagnosis: "",
+    conclusion: "",
+    cid_code: "",
+    content_html: "",
+    content_json: {},
+    status: "draft",
+    requested_by: "",
+    due_at: new Date().toISOString(),
+    hide_date: true,
+    hide_signature: true
   });
   
   const [events, setEvents] = useState<any[]>([
@@ -196,24 +182,7 @@ const ProfissionalPage = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleAbrirProntuario = (paciente: any) => {
-    setPacienteSelecionado(paciente);
-    
-    const pacienteLaudo = document.getElementById('pacienteLaudo') as HTMLInputElement;
-    if (pacienteLaudo) pacienteLaudo.value = paciente.nome;
-    
-    const destinatario = document.getElementById('destinatario') as HTMLInputElement;
-    if (destinatario) destinatario.value = `${paciente.nome} - ${paciente.cpf}`;
-    
-    const prontuarioSection = document.getElementById('prontuario-paciente');
-    if (prontuarioSection) {
-      prontuarioSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleFecharProntuario = () => {
-    setPacienteSelecionado(null);
-  };
+  
 
   const handleEditarLaudo = (paciente: any) => {
     setPatientForLaudo(paciente);
@@ -270,351 +239,7 @@ const ProfissionalPage = () => {
     setIsEditingProfile(false);
   };
 
-  // Funções para relatórios médicos
-  const handleRelatorioChange = (field: string, value: string) => {
-    setRelatorioMedico(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
 
-  const handleSalvarRelatorio = () => {
-    if (!relatorioMedico.pacienteNome || !relatorioMedico.motivoRelatorio) {
-      alert('Por favor, preencha pelo menos o nome do paciente e o motivo do relatório.');
-      return;
-    }
-
-    const novoRelatorio = {
-      ...relatorioMedico,
-      id: Date.now(),
-      dataGeracao: new Date().toLocaleString()
-    };
-
-    if (editandoRelatorio) {
-      setRelatoriosMedicos(prev => 
-        prev.map(rel => rel.id === editandoRelatorio.id ? novoRelatorio : rel)
-      );
-      setEditandoRelatorio(null);
-      alert('Relatório médico atualizado com sucesso!');
-    } else {
-      setRelatoriosMedicos(prev => [novoRelatorio, ...prev]);
-      alert('Relatório médico salvo com sucesso!');
-    }
-
-    // Limpar formulário
-    setRelatorioMedico({
-      pacienteNome: "",
-      pacienteCpf: "",
-      pacienteIdade: "",
-      profissionalNome: medico.nome,
-      profissionalCrm: medico.identificacao,
-      motivoRelatorio: "",
-      historicoClinico: "",
-      sinaisSintomas: "",
-      examesRealizados: "",
-      resultadosExames: "",
-      diagnosticos: "",
-      prognostico: "",
-      tratamentosRealizados: "",
-      recomendacoes: "",
-      cid: "",
-      dataRelatorio: new Date().toISOString().split('T')[0]
-    });
-  };
-
-  const handleEditarRelatorio = (relatorio: any) => {
-    setRelatorioMedico(relatorio);
-    setEditandoRelatorio(relatorio);
-  };
-
-  const handleExcluirRelatorio = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir este relatório médico?')) {
-      setRelatoriosMedicos(prev => prev.filter(rel => rel.id !== id));
-      alert('Relatório médico excluído com sucesso!');
-    }
-  };
-
-  const handleCancelarEdicaoRelatorio = () => {
-    setEditandoRelatorio(null);
-    setRelatorioMedico({
-      pacienteNome: "",
-      pacienteCpf: "",
-      pacienteIdade: "",
-      profissionalNome: medico.nome,
-      profissionalCrm: medico.identificacao,
-      motivoRelatorio: "",
-      historicoClinico: "",
-      sinaisSintomas: "",
-      examesRealizados: "",
-      resultadosExames: "",
-      diagnosticos: "",
-      prognostico: "",
-      tratamentosRealizados: "",
-      recomendacoes: "",
-      cid: "",
-      dataRelatorio: new Date().toISOString().split('T')[0]
-    });
-  };
-
-  // ===== FUNÇÕES PARA INTEGRAÇÃO COM API DE RELATÓRIOS =====
-  
-  // Carregar pacientes reais do Supabase
-  const carregarPacientesReais = async () => {
-    setCarregandoPacientes(true);
-    try {
-      console.log('📋 [REPORTS] Carregando pacientes do Supabase...');
-      
-      // Tentar primeiro usando a função da API que já existe
-      try {
-        console.log('📋 [REPORTS] Tentando função listarPacientes...');
-        const pacientes = await listarPacientes({ limit: 50 });
-        console.log('✅ [REPORTS] Pacientes do Supabase via API:', pacientes);
-        
-        if (pacientes && pacientes.length > 0) {
-          setPacientesReais(pacientes);
-          console.log('✅ [REPORTS] Usando pacientes do Supabase:', pacientes.length);
-          return;
-        }
-      } catch (apiError) {
-        console.warn('⚠️ [REPORTS] Erro na função listarPacientes:', apiError);
-      }
-      
-      // Se a função da API falhar, tentar diretamente
-      console.log('📋 [REPORTS] Tentando buscar diretamente do Supabase...');
-      const supabaseUrl = 'https://yuanqfswhberkoevtmfr.supabase.co/rest/v1/patients';
-      console.log('📋 [REPORTS] URL do Supabase:', supabaseUrl);
-      
-      // Verificar se há token de autenticação
-      const token = localStorage.getItem("auth_token") || localStorage.getItem("token") || 
-                   sessionStorage.getItem("auth_token") || sessionStorage.getItem("token");
-      
-      console.log('🔑 [REPORTS] Token encontrado:', token ? 'SIM' : 'NÃO');
-      
-      const headers: Record<string, string> = {
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(supabaseUrl, {
-        method: 'GET',
-        headers
-      });
-      
-      console.log('📡 [REPORTS] Status da resposta do Supabase:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [REPORTS] Erro detalhado do Supabase:', errorText);
-        throw new Error(`Supabase HTTP ${response.status}: ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ [REPORTS] Resposta completa do Supabase:', data);
-      console.log('✅ [REPORTS] Tipo da resposta:', Array.isArray(data) ? 'Array' : typeof data);
-      
-      let pacientes: Paciente[] = [];
-      
-      if (Array.isArray(data)) {
-        pacientes = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        pacientes = data.data;
-      } else {
-        console.warn('⚠️ [REPORTS] Formato de resposta inesperado do Supabase:', data);
-        pacientes = [];
-      }
-      
-      console.log('✅ [REPORTS] Pacientes encontrados no Supabase:', pacientes.length);
-      if (pacientes.length > 0) {
-        console.log('✅ [REPORTS] Primeiro paciente:', pacientes[0]);
-        console.log('✅ [REPORTS] Últimos 3 pacientes:', pacientes.slice(-3));
-      }
-      
-      setPacientesReais(pacientes);
-      
-      if (pacientes.length === 0) {
-        console.warn('⚠️ [REPORTS] Nenhum paciente encontrado no Supabase - verifique se há dados na tabela patients');
-      }
-    } catch (error) {
-      console.error('❌ [REPORTS] Erro detalhado ao carregar pacientes:', {
-        error,
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      
-      setPacientesReais([]);
-      alert('Erro ao carregar pacientes do Supabase: ' + (error instanceof Error ? error.message : String(error)));
-    } finally {
-      setCarregandoPacientes(false);
-    }
-  };
-
-  // Calcular idade do paciente baseado na data de nascimento
-  const calcularIdade = (birthDate: string | null | undefined): string => {
-    if (!birthDate) return '';
-    
-    const hoje = new Date();
-    const nascimento = new Date(birthDate);
-    let idade = hoje.getFullYear() - nascimento.getFullYear();
-    const mesAtual = hoje.getMonth();
-    const mesNascimento = nascimento.getMonth();
-    
-    if (mesAtual < mesNascimento || (mesAtual === mesNascimento && hoje.getDate() < nascimento.getDate())) {
-      idade--;
-    }
-    
-    return idade.toString();
-  };
-
-  // Selecionar paciente para o relatório
-  const selecionarPacienteParaRelatorio = (paciente: Paciente) => {
-    setPacienteSelecionadoReport(paciente);
-    
-    // Atualizar o formulário de relatório com dados do paciente
-    setRelatorioMedico(prev => ({
-      ...prev,
-      pacienteNome: paciente.full_name,
-      pacienteCpf: paciente.cpf || '',
-      pacienteIdade: calcularIdade(paciente.birth_date),
-    }));
-    
-    console.log('👤 [REPORTS] Paciente selecionado:', paciente);
-  };
-
-  // Salvar relatório usando a API
-  const salvarRelatorioAPI = async () => {
-    if (!pacienteSelecionadoReport) {
-      alert('Por favor, selecione um paciente.');
-      return;
-    }
-
-    if (!relatorioMedico.motivoRelatorio.trim()) {
-      alert('Por favor, preencha o motivo do relatório.');
-      return;
-    }
-
-    try {
-      console.log('💾 [REPORTS] Salvando relatório...');
-      
-      // Dados para enviar à API
-      const reportData: CreateReportData = {
-        patient_id: pacienteSelecionadoReport.id,
-        doctor_id: user?.id || 'temp-doctor-id', // Usar ID do usuário logado
-        report_type: 'Relatório Médico',
-        chief_complaint: relatorioMedico.motivoRelatorio,
-        clinical_history: relatorioMedico.historicoClinico,
-        symptoms_and_signs: relatorioMedico.sinaisSintomas,
-        physical_examination: '', // Pode adicionar campo no formulário se necessário
-        complementary_exams: relatorioMedico.examesRealizados,
-        exam_results: relatorioMedico.resultadosExames,
-        diagnosis: relatorioMedico.diagnosticos,
-        prognosis: relatorioMedico.prognostico,
-        treatment_performed: relatorioMedico.tratamentosRealizados,
-        objective_recommendations: relatorioMedico.recomendacoes || '',
-        icd_code: relatorioMedico.cid,
-        report_date: relatorioMedico.dataRelatorio,
-      };
-
-      const novoRelatorio = await reportsApi.createNewReport(reportData);
-      
-      console.log('✅ [REPORTS] Relatório salvo com sucesso:', novoRelatorio);
-      
-      // Recarregar a lista de relatórios para garantir que está sincronizada
-      await reportsApi.loadReports();
-      
-      alert('Relatório médico salvo com sucesso!');
-      
-      // Limpar formulário
-      limparFormularioRelatorio();
-      
-    } catch (error) {
-      console.error('❌ [REPORTS] Erro ao salvar relatório:', error);
-      alert('Erro ao salvar relatório: ' + error);
-    }
-  };
-
-  // Limpar formulário de relatório
-  const limparFormularioRelatorio = () => {
-    setRelatorioMedico({
-      pacienteNome: "",
-      pacienteCpf: "",
-      pacienteIdade: "",
-      profissionalNome: medico.nome,
-      profissionalCrm: medico.identificacao,
-      motivoRelatorio: "",
-      historicoClinico: "",
-      sinaisSintomas: "",
-      examesRealizados: "",
-      resultadosExames: "",
-      diagnosticos: "",
-      prognostico: "",
-      tratamentosRealizados: "",
-      recomendacoes: "",
-      cid: "",
-      dataRelatorio: new Date().toISOString().split('T')[0]
-    });
-    setPacienteSelecionadoReport(null);
-  };
-
-  // Carregar relatórios existentes
-  const carregarRelatorios = async () => {
-    try {
-      await reportsApi.loadReports();
-      console.log('✅ [REPORTS] Relatórios carregados:', reportsApi.reports.length);
-    } catch (error) {
-      console.error('❌ [REPORTS] Erro ao carregar relatórios:', error);
-    }
-  };
-
-
-  // useEffect para carregar dados iniciais
-  useEffect(() => {
-    if (activeSection === 'relatorios-medicos') {
-      console.log('🔄 [REPORTS] Seção de relatórios ativada - carregando dados...');
-      carregarPacientesReais();
-      carregarRelatorios();
-    }
-  }, [activeSection]);
-
-  // Buscar pacientes faltantes por patient_id após carregar relatórios e pacientes
-  useEffect(() => {
-    if (activeSection !== 'relatorios-medicos') return;
-    if (!reportsApi.reports || reportsApi.reports.length === 0) return;
-
-    // IDs de pacientes já carregados
-    const idsPacientesReais = new Set(pacientesReais.map(p => String(p.id)));
-    // IDs de pacientes presentes nos relatórios
-    const idsRelatorios = Array.from(new Set(reportsApi.reports.map(r => String(r.patient_id)).filter(Boolean)));
-    // IDs que faltam
-    const idsFaltantes = idsRelatorios.filter(id => !idsPacientesReais.has(id));
-
-    if (idsFaltantes.length === 0) return;
-
-    // Buscar pacientes faltantes individualmente, apenas se o ID for string/UUID
-    (async () => {
-      const novosPacientes: Paciente[] = [];
-      for (const id of idsFaltantes) {
-        // Só busca se for string e não for número
-        if (typeof id === 'string' && isNaN(Number(id))) {
-          try {
-            const paciente = await buscarPacientePorId(id);
-            if (paciente) novosPacientes.push(paciente);
-          } catch (e) {
-            console.warn('⚠️ [REPORTS] Paciente não encontrado para o relatório:', id);
-          }
-        } else {
-          console.warn('⚠️ [REPORTS] Ignorando busca de paciente por ID não-string/UUID:', id);
-        }
-      }
-      if (novosPacientes.length > 0) {
-        setPacientesReais(prev => ([...prev, ...novosPacientes]));
-      }
-    })();
-  }, [activeSection, reportsApi.reports, pacientesReais]);
 
   
   const handleDateClick = (arg: any) => {
@@ -799,7 +424,7 @@ const ProfissionalPage = () => {
                         </div>
                         {paciente && (
                           <div className="text-sm text-gray-600 dark:text-muted-foreground">
-                            CPF: {paciente.cpf} • {paciente.idade} anos
+                            CPF: {getPatientCpf(paciente)} • {getPatientAge(paciente)} anos
                           </div>
                         )}
                       </div>
@@ -818,20 +443,6 @@ const ProfissionalPage = () => {
                     </div>
                     <div className="flex items-center justify-end space-x-2">
                       <div className="relative group">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (paciente) {
-                              handleAbrirProntuario(paciente);
-                              setActiveSection('prontuario');
-                            }
-                          }}
-                        >
-                          <FolderOpen className="h-4 w-4 hover:!text-white" />
-                        </Button>
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
@@ -850,962 +461,7 @@ const ProfissionalPage = () => {
   };
 
   
-  function PacientesSection({
-    handleAbrirProntuario,
-    setActiveSection,
-  }: {
-    handleAbrirProntuario: (paciente: any) => void;
-    setActiveSection: (section: string) => void;
-  }) {
-    return (
-      <div className="bg-card shadow-md rounded-lg p-6">
-        <h2 className="text-2xl font-bold mb-4">Gerenciamento de Pacientes</h2>
-        
-
-
-        {/* Tabela de pacientes padrão */}
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Pacientes Recentes</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Paciente</TableHead>
-                <TableHead>CPF</TableHead>
-                <TableHead>Idade</TableHead>
-                <TableHead>Status do laudo</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pacientes.map((paciente) => (
-                <TableRow key={paciente.cpf}>
-                  <TableCell className="font-medium">{paciente.nome}</TableCell>
-                  <TableCell>{paciente.cpf}</TableCell>
-                  <TableCell>{paciente.idade}</TableCell>
-                  <TableCell>{paciente.statusLaudo}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="relative group">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="border-primary text-primary hover:bg-blue-50 cursor-pointer mr-2 dark:hover:bg-primary dark:hover:text-white"
-                          onClick={() => {
-                            handleAbrirProntuario(paciente);
-                            setActiveSection('prontuario');
-                          }}
-                        >
-                          <FolderOpen className="h-4 w-4 hover:!text-white" />
-                        </Button>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                          Ver informações do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    );
-  };
-
   
-  const renderProntuarioSection = () => (
-    <div className="space-y-6">
-      <div className="bg-card shadow-md rounded-lg p-6">
-        <h2 className="text-2xl font-bold mb-4">Prontuário do Paciente</h2>
-        
-        {/* Informações do Paciente Selecionado */}
-        {pacienteSelecionado && (
-          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold text-primary">Dados do Paciente</h3>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={pacienteSelecionado.nome}
-                  onValueChange={(value) => {
-                    const paciente = pacientes.find(p => p.nome === value);
-                    if (paciente) {
-                      setPacienteSelecionado(paciente);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-48 h-8 text-xs bg-card border-primary/30 cursor-pointer">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 dark:hover:bg-primary dark:hover:text-primary-foreground">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{paciente.nome}</span>
-                          <span className="text-xs opacity-70">({paciente.idade} anos)</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleFecharProntuario}
-                  className="text-primary hover:text-primary hover:bg-primary/10 h-6 w-6 p-0 cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-primary">Nome:</span>
-                <p className="text-primary/80">{pacienteSelecionado.nome}</p>
-              </div>
-              <div>
-                <span className="font-medium text-primary">CPF:</span>
-                <p className="text-primary/80">{pacienteSelecionado.cpf}</p>
-              </div>
-              <div>
-                <span className="font-medium text-primary">Idade:</span>
-                <p className="text-primary/80">{pacienteSelecionado.idade} anos</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Seletor de Paciente */}
-        {!pacienteSelecionado && (
-          <div className="space-y-6">
-            <div className="bg-gray-50 border rounded-lg p-6 dark:bg-muted">
-              <div className="text-center mb-6">
-                <User className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
-                <h3 className="text-lg font-medium text-foreground mb-2">Selecionar Paciente</h3>
-                <p className="text-sm text-gray-600 dark:text-muted-foreground">Escolha um paciente para visualizar o prontuário completo</p>
-              </div>
-              
-              <div className="max-w-md mx-auto">
-                <Label htmlFor="seletorPaciente" className="block text-sm font-medium text-foreground mb-2">
-                  Escolha o paciente:
-                </Label>
-                <Select
-                  onValueChange={(value) => {
-                    const paciente = pacientes.find(p => p.nome === value);
-                    if (paciente) {
-                      setPacienteSelecionado(paciente);
-                    }
-                  }}
-                >
-                  <SelectTrigger id="seletorPaciente" className="w-full cursor-pointer">
-                    <SelectValue placeholder="Selecione um paciente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pacientes.map((paciente) => (
-                      <SelectItem key={paciente.cpf} value={paciente.nome} className="hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground">
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="flex-1">
-                            <p className="font-medium">{paciente.nome}</p>
-                            <p className="text-xs opacity-70">CPF: {paciente.cpf} • {paciente.idade} anos</p>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {/* Cards de pacientes para seleção rápida */}
-            <div>
-              <h3 className="text-lg font-medium text-foreground mb-4">Ou selecione rapidamente:</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pacientes.map((paciente) => (
-                  <div
-                    key={paciente.cpf}
-                    onClick={() => setPacienteSelecionado(paciente)}
-                    className="border rounded-lg p-4 hover:shadow-md hover:border-primary transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{paciente.nome}</p>
-                        <p className="text-sm text-gray-600 dark:text-muted-foreground">CPF: {paciente.cpf}</p>
-                        <p className="text-sm text-gray-600 dark:text-muted-foreground">{paciente.idade} anos</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                        paciente.statusLaudo === 'Finalizado' 
-                          ? 'bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 border border-green-300 dark:border-green-800' 
-                          : paciente.statusLaudo === 'Pendente'
-                          ? 'bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-800'
-                          : 'bg-muted text-muted-foreground border border-border'
-                      }`}>
-                        {paciente.statusLaudo}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
-                      >
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tabs de Navegação do Prontuário */}
-        {pacienteSelecionado && (
-          <div className="border-b border-border mb-6">
-            <nav className="flex space-x-8">
-              {[
-                { id: 'nova-consulta',nome: 'Nova Consulta', icone: Plus },
-                { id: 'consultas', nome: 'Consultas', icone: Stethoscope },
-                { id: 'historico', nome: 'Histórico Médico', icone: History },
-                { id: 'prescricoes', nome: 'Prescrições', icone: Pill },
-                { id: 'exames', nome: 'Exames', icone: FileText },
-                { id: 'diagnosticos', nome: 'Diagnósticos', icone: ClipboardList },
-                { id: 'evolucao', nome: 'Evolução', icone: Activity },
-                { id: 'anexos', nome: 'Anexos', icone: Upload }
-              ].map((aba) => {
-                const Icone = aba.icone;
-                return (
-                  <button
-                    key={aba.id}
-                    onClick={() => setAbaProntuarioAtiva(aba.id)}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors cursor-pointer ${
-                      abaProntuarioAtiva === aba.id
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-600 hover:text-foreground hover:border-border dark:text-muted-foreground'
-                    }`}
-                  >
-                    <Icone className="h-4 w-4" />
-                    {aba.nome}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        )}
-
-        {/* Conteúdo das Abas */}
-        {pacienteSelecionado && (
-          <div className="min-h-[400px]">
-            {abaProntuarioAtiva === 'nova-consulta' && renderNovaConsultaTab()}
-            {abaProntuarioAtiva === 'consultas' && renderConsultasTab()}
-            {abaProntuarioAtiva === 'historico' && renderHistoricoTab()}
-            {abaProntuarioAtiva === 'prescricoes' && renderPrescricoesTab()}
-            {abaProntuarioAtiva === 'exames' && renderExamesTab()}
-            {abaProntuarioAtiva === 'diagnosticos' && renderDiagnosticosTab()}
-            {abaProntuarioAtiva === 'evolucao' && renderEvolucaoTab()}
-            {abaProntuarioAtiva === 'anexos' && renderAnexosTab()}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Função para alterar campos da consulta atual
-  const handleConsultaChange = (field: string, value: string) => {
-    setConsultaAtual(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Função para salvar a consulta
-  const handleSalvarConsulta = () => {
-    if (!consultaAtual.anamnese || !consultaAtual.exameFisico) {
-      alert('Por favor, preencha os campos que são obrigatórios.');
-      return;
-    }
-
-    const novaConsulta = {
-      ...consultaAtual,
-      id: Date.now(),
-      paciente: pacienteSelecionado?.nome,
-      dataCriacao: new Date().toLocaleString(),
-      profissional: medico.nome
-    };
-
-    setConsultasRegistradas(prev => [novaConsulta, ...prev]);
-    
-    setConsultaAtual({
-      dataConsulta: new Date().toISOString().split('T')[0],
-      anamnese: "",
-      exameFisico: "",
-      hipotesesDiagnosticas: "",
-      condutaMedica: "",
-      prescricoes: "",
-      retornoAgendado: "",
-      cid10: ""
-    });
-
-    alert('Consulta registrada com sucesso!');
-  };
-
-  // Funções para renderizar cada aba do prontuário
-  const renderNovaConsultaTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Registrar Nova Consulta</h3>
-        <div className="flex gap-2">
-          <Button className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground" variant="outline" onClick={() => {
-            setConsultaAtual({
-              dataConsulta: new Date().toISOString().split('T')[0],
-              anamnese: "",
-              exameFisico: "",
-              hipotesesDiagnosticas: "",
-              condutaMedica: "",
-              prescricoes: "",
-              retornoAgendado: "",
-              cid10: ""
-            });
-          }}>
-            Limpar Formulário
-          </Button>
-          <Button onClick={handleSalvarConsulta} className="flex items-center gap-2 cursor-pointer">
-            <Plus className="h-4 w-4" />
-            Salvar Consulta
-          </Button>
-        </div>
-      </div>
-
-      <div className="bg-card border rounded-lg p-6 space-y-6">
-        {/* Data da Consulta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="dataConsulta" className="text-sm font-medium text-foreground">
-              Data da Consulta *
-            </Label>
-            <Input
-              id="dataConsulta"
-              type="date"
-              value={consultaAtual.dataConsulta}
-              onChange={(e) => handleConsultaChange('dataConsulta', e.target.value)}
-              className="w-full"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="cid10" className="text-sm font-medium text-foreground">
-              CID-10
-            </Label>
-            <Input
-              id="cid10"
-              value={consultaAtual.cid10}
-              onChange={(e) => handleConsultaChange('cid10', e.target.value)}
-              placeholder="Ex: I10, E11, etc."
-              className="w-full"
-            />
-          </div>
-        </div>
-
-        {/* Anamnese */}
-        <div className="space-y-2">
-          <Label htmlFor="anamnese" className="text-sm font-medium text-foreground">
-            Anamnese *
-          </Label>
-          <Textarea
-            id="anamnese"
-            value={consultaAtual.anamnese}
-            onChange={(e) => handleConsultaChange('anamnese', e.target.value)}
-            placeholder="Descreva a história clínica do paciente, queixas principais, histórico da doença atual..."
-            rows={4}
-            className="w-full"
-          />
-        </div>
-
-        {/* Exame Físico */}
-        <div className="space-y-2">
-          <Label htmlFor="exameFisico" className="text-sm font-medium text-foreground">
-            Exame Físico *
-          </Label>
-          <Textarea
-            id="exameFisico"
-            value={consultaAtual.exameFisico}
-            onChange={(e) => handleConsultaChange('exameFisico', e.target.value)}
-            placeholder="Descreva os achados do exame físico: sinais vitais, inspeção, palpação, ausculta, percussão..."
-            rows={4}
-            className="w-full"
-          />
-        </div>
-
-        {/* Hipóteses Diagnósticas */}
-        <div className="space-y-2">
-          <Label htmlFor="hipotesesDiagnosticas" className="text-sm font-medium text-foreground">
-            Hipóteses Diagnósticas
-          </Label>
-          <Textarea
-            id="hipotesesDiagnosticas"
-            value={consultaAtual.hipotesesDiagnosticas}
-            onChange={(e) => handleConsultaChange('hipotesesDiagnosticas', e.target.value)}
-            placeholder="Liste as principais hipóteses diagnósticas em ordem de probabilidade..."
-            rows={3}
-            className="w-full"
-          />
-        </div>
-
-        {/* Conduta Médica */}
-        <div className="space-y-2">
-          <Label htmlFor="condutaMedica" className="text-sm font-medium text-foreground">
-            Conduta Médica
-          </Label>
-          <Textarea
-            id="condutaMedica"
-            value={consultaAtual.condutaMedica}
-            onChange={(e) => handleConsultaChange('condutaMedica', e.target.value)}
-            placeholder="Descreva a conduta médica adotada, orientações gerais, solicitação de exames complementares..."
-            rows={3}
-            className="w-full"
-          />
-        </div>
-
-        {/* Prescrições */}
-        <div className="space-y-2">
-          <Label htmlFor="prescricoes" className="text-sm font-medium text-foreground">
-            Prescrições
-          </Label>
-          <Textarea
-            id="prescricoes"
-            value={consultaAtual.prescricoes}
-            onChange={(e) => handleConsultaChange('prescricoes', e.target.value)}
-            placeholder="Liste as prescrições: medicamentos, dosagens, frequência, duração do tratamento..."
-            rows={4}
-            className="w-full"
-          />
-        </div>
-
-        {/* Retorno Agendado */}
-        <div className="space-y-2">
-          <Label htmlFor="retornoAgendado" className="text-sm font-medium text-foreground">
-            Retorno Agendado
-          </Label>
-          <Input
-            id="retornoAgendado"
-            type="date"
-            value={consultaAtual.retornoAgendado}
-            onChange={(e) => handleConsultaChange('retornoAgendado', e.target.value)}
-            className="w-full"
-          />
-        </div>
-
-        {/* Informações do Registro */}
-        <div className="border-t pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-            <div>
-              <span className="font-medium">Paciente:</span>
-              <p>{pacienteSelecionado?.nome}</p>
-            </div>
-            <div>
-              <span className="font-medium">Profissional:</span>
-              <p>{medico.nome}</p>
-            </div>
-            <div>
-              <span className="font-medium">Data do Registro:</span>
-              <p>{new Date().toLocaleDateString('pt-BR')}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Consultas Anteriores do Paciente */}
-      {consultasRegistradas.length > 0 && (
-        <div className="bg-card border rounded-lg p-6">
-          <h4 className="text-lg font-medium mb-4">Consultas Anteriores</h4>
-          <div className="space-y-3">
-            {consultasRegistradas
-              .filter(consulta => consulta.paciente === pacienteSelecionado?.nome)
-              .slice(0, 3)
-              .map((consulta) => (
-                <div key={consulta.id} className="border rounded-lg p-3 hover:shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-medium text-sm">
-                        Consulta de {new Date(consulta.dataConsulta).toLocaleDateString('pt-BR')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Registrada em: {consulta.dataCriacao}
-                      </p>
-                    </div>
-                    {consulta.cid10 && (
-                      <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">
-                        {consulta.cid10}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-sm text-foreground">
-                    <p><strong>Anamnese:</strong> {consulta.anamnese.substring(0, 100)}...</p>
-                    {consulta.hipotesesDiagnosticas && (
-                      <p><strong>Diagnóstico:</strong> {consulta.hipotesesDiagnosticas.substring(0, 80)}...</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderConsultasTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Registro de Consultas</h3>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium">Consulta Cardiológica</h4>
-              <p className="text-sm text-gray-600 dark:text-muted-foreground">27/09/2025 - 09:00</p>
-            </div>
-            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Finalizada</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">Motivo:</span>
-              <p>Dor no peito e falta de ar</p>
-            </div>
-            <div>
-              <span className="font-medium">Duração:</span>
-              <p>45 minutos</p>
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="font-medium">Observações:</span>
-            <p className="text-sm mt-1">Paciente relatou melhora dos sintomas após início do tratamento. Pressão arterial controlada.</p>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium">Consulta Dermatológica</h4>
-              <p className="text-sm text-muted-foreground">15/09/2025 - 14:30</p>
-            </div>
-            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Retorno Agendado</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">Motivo:</span>
-              <p>Avaliação de lesão cutânea</p>
-            </div>
-            <div>
-              <span className="font-medium">Duração:</span>
-              <p>30 minutos</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderHistoricoTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Histórico Médico Completo</h3>
-        <Button className="flex items-center gap-2 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Adicionar Registro
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-2">Condições Pré-existentes</h4>
-          <ul className="list-disc list-inside text-sm space-y-1">
-            <li>Hipertensão arterial (diagnosticada em 2020)</li>
-            <li>Diabetes tipo 2 (diagnosticada em 2018)</li>
-            <li>Histórico familiar de doenças cardiovasculares</li>
-          </ul>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-2">Cirurgias Anteriores</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Apendicectomia</span>
-              <span className="text-muted-foreground">15/03/2010</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Colecistectomia laparoscópica</span>
-              <span className="text-muted-foreground">22/08/2019</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-2">Alergias e Reações Adversas</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded border border-red-300 dark:border-red-800">Alergia</span>
-              <span>Penicilina - reação cutânea</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded border border-yellow-300 dark:border-yellow-800">Intolerância</span>
-              <span>Lactose - sintomas gastrintestinais</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPrescricoesTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-foreground">Prescrições Médicas</h3>
-        <Button className="flex items-center gap-2 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Nova Prescrição
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium text-foreground">Prescrição Atual</h4>
-              <p className="text-sm text-muted-foreground">Prescrita em 27/09/2025</p>
-            </div>
-            <span className="px-2 py-1 bg-green-200/80 dark:bg-green-900/50 text-green-900 dark:text-green-200 text-xs rounded-full border border-green-300 dark:border-green-800">Ativa</span>
-          </div>
-          <div className="space-y-3">
-            <div className="border-l-4 border-blue-500 pl-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-foreground">Losartana 50mg</p>
-                  <p className="text-sm text-muted-foreground">1 comprimido pela manhã</p>
-                  <p className="text-sm text-muted-foreground">Duração: 30 dias</p>
-                </div>
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="border-l-4 border-green-500 pl-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-foreground">Metformina 850mg</p>
-                  <p className="text-sm text-muted-foreground">1 comprimido após café e jantar</p>
-                  <p className="text-sm text-muted-foreground">Duração: 60 dias</p>
-                </div>
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium text-foreground">Prescrições Anteriores</h4>
-              <p className="text-sm text-muted-foreground">Histórico de medicamentos</p>
-            </div>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center py-2 border-b border-border">
-              <div>
-                <p className="font-medium text-foreground">Sinvastatina 20mg</p>
-                <p className="text-muted-foreground">Prescrita em 15/08/2025 - Finalizada</p>
-              </div>
-              <Button variant="ghost" size="sm" className="cursor-pointer">
-                <History className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderExamesTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-foreground">Exames Solicitados</h3>
-        <Button className="flex items-center gap-2 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Solicitar Exame
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium text-foreground">Exames Pendentes</h4>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded">
-              <div>
-                <p className="font-medium text-foreground">Ecocardiograma</p>
-                <p className="text-sm text-muted-foreground">Solicitado em 25/09/2025</p>
-                <p className="text-sm text-muted-foreground">Urgência: Normal</p>
-              </div>
-              <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Pendente</span>
-            </div>
-            
-            <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
-              <div>
-                <p className="font-medium text-foreground">Hemograma Completo</p>
-                <p className="text-sm text-muted-foreground">Solicitado em 27/09/2025</p>
-                <p className="text-sm text-muted-foreground">Urgência: Normal</p>
-              </div>
-              <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Agendado</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium text-foreground">Resultados Disponíveis</h4>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded">
-              <div>
-                <p className="font-medium text-foreground">Glicemia de Jejum</p>
-                <p className="text-sm text-gray-600 dark:text-muted-foreground">Realizado em 20/09/2025</p>
-                <p className="text-sm font-bold" style={{ color: '#000000' }}>Resultado: 95 mg/dL (Normal)</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderDiagnosticosTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-foreground">Diagnósticos</h3>
-        <Button className="flex items-center gap-2 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Novo Diagnóstico
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3 text-foreground">Diagnósticos Ativos</h4>
-          <div className="space-y-3">
-            <div className="border-l-4 border-red-500 pl-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-foreground">Hipertensão Arterial Sistêmica</p>
-                  <p className="text-sm text-muted-foreground">CID-10: I10</p>
-                  <p className="text-sm text-muted-foreground">Diagnosticado em: 15/03/2020</p>
-                  <p className="text-sm mt-1 text-foreground">Status: Controlada com medicação</p>
-                </div>
-                <span className="px-2 py-1 bg-red-200/80 dark:bg-red-900/50 text-red-900 dark:text-red-200 text-xs rounded-full border border-red-300 dark:border-red-800">Ativo</span>
-              </div>
-            </div>
-            
-            <div className="border-l-4 border-orange-500 pl-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-foreground">Diabetes Mellitus Tipo 2</p>
-                  <p className="text-sm text-muted-foreground">CID-10: E11</p>
-                  <p className="text-sm text-muted-foreground">Diagnosticado em: 10/08/2018</p>
-                  <p className="text-sm mt-1 text-foreground">Status: Controlada com dieta e medicação</p>
-                </div>
-                <span className="px-2 py-1 bg-orange-200/80 dark:bg-orange-900/50 text-orange-900 dark:text-orange-200 text-xs rounded-full border border-orange-300 dark:border-orange-800">Ativo</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3 text-foreground">Histórico de Diagnósticos</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center py-2 border-b">
-              <div>
-                <p className="font-medium text-foreground">Gastrite Aguda</p>
-                <p className="text-muted-foreground">CID-10: K29.0 - Resolvido em 2023</p>
-              </div>
-              <span className="px-2 py-1 bg-gray-200/80 dark:bg-gray-900/50 text-gray-900 dark:text-gray-200 text-xs rounded-full border border-gray-300 dark:border-gray-800">Resolvido</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderEvolucaoTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-foreground">Evolução do Quadro</h3>
-        <Button className="flex items-center gap-2 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Nova Evolução
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium text-foreground">Evolução Recente</h4>
-              <p className="text-sm text-muted-foreground">27/09/2025 - 09:15</p>
-            </div>
-            <span className="px-2 py-1 bg-blue-200/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-200 text-xs rounded-full border border-blue-300 dark:border-blue-800">Melhora</span>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm text-foreground"><strong>Subjetivo:</strong> Paciente relatou diminuição significativa da dor no peito e melhora da capacidade respiratória.</p>
-            <p className="text-sm text-foreground"><strong>Objetivo:</strong> PA: 130/80 mmHg, FC: 72 bpm, ausculta cardíaca sem alterações.</p>
-            <p className="text-sm text-foreground"><strong>Avaliação:</strong> Resposta positiva ao tratamento iniciado, pressão arterial em níveis aceitáveis.</p>
-            <p className="text-sm text-foreground"><strong>Plano:</strong> Manter medicação atual, retorno em 30 dias.</p>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-medium text-foreground">Evolução Anterior</h4>
-              <p className="text-sm text-muted-foreground">15/09/2025 - 14:45</p>
-            </div>
-            <span className="px-2 py-1 bg-yellow-200/80 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-200 text-xs rounded-full border border-yellow-300 dark:border-yellow-800">Estável</span>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm"><strong>Subjetivo:</strong> Paciente apresentou episódios esporádicos de dor torácica leve.</p>
-            <p className="text-sm"><strong>Objetivo:</strong> Exame físico sem alterações significativas.</p>
-            <p className="text-sm"><strong>Plano:</strong> Ajuste da medicação e solicitação de exames complementares.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAnexosTab = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-foreground">Anexos (Exames, Imagens)</h3>
-        <Button className="flex items-center gap-2 cursor-pointer">
-          <Upload className="h-4 w-4" />
-          Adicionar Anexo
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Exames de Imagem</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Radiografia de Tórax</p>
-                  <p className="text-xs text-gray-600 dark:text-muted-foreground">20/09/2025</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-3 w-3 mr-1" />
-                  Visualizar
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-3 w-3 mr-1" />
-                  Download
-                </Button>
-              </div>
-            </div>
-
-            <div className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">ECG</p>
-                  <p className="text-xs text-gray-600 dark:text-muted-foreground">15/09/2025</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-3 w-3 mr-1" />
-                  Visualizar
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-3 w-3 mr-1" />
-                  Download
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-3">Laudos e Documentos</h4>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Laudo de Ecocardiograma</p>
-                  <p className="text-xs text-gray-600 dark:text-muted-foreground">10/08/2025 - Dr. Carlos Andrade</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-3 w-3" />
-                </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-orange-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Relatório de Consulta Especializada</p>
-                  <p className="text-xs text-gray-600">05/09/2025 - Cardiologia</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Eye className="h-3 w-3" />
-                </Button>
-                <Button variant="outline" size="sm" className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-                  <Download className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   
   const renderLaudosSection = () => (
     <div className="space-y-6">
@@ -2199,14 +855,14 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               </div>
 
               {/* Dados do Paciente */}
-              <div className="mb-6 p-4 bg-muted rounded">
+                <div className="mb-6 p-4 bg-muted rounded">
                 <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <p><strong>Nome:</strong> {laudo.paciente.nome}</p>
-                  <p><strong>ID:</strong> {laudo.paciente.id}</p>
-                  <p><strong>CPF:</strong> {laudo.paciente.cpf}</p>
-                  <p><strong>Idade:</strong> {laudo.paciente.idade} anos</p>
-                  <p><strong>Sexo:</strong> {laudo.paciente.sexo}</p>
+                  <p><strong>Nome:</strong> {getPatientName(laudo.paciente)}</p>
+                  <p><strong>ID:</strong> {getPatientId(laudo.paciente)}</p>
+                  <p><strong>CPF:</strong> {getPatientCpf(laudo.paciente)}</p>
+                  <p><strong>Idade:</strong> {getPatientAge(laudo.paciente)} anos</p>
+                  <p><strong>Sexo:</strong> {getPatientSex(laudo.paciente)}</p>
                   <p><strong>CID:</strong> {laudo.cid}</p>
                 </div>
               </div>
@@ -2264,10 +920,34 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
   // Editor de Laudo Avançado (para novos laudos)
   function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any }) {
+  // Import useToast at the top level of the component
+  const { toast } = require('@/hooks/use-toast').useToast();
     const [activeTab, setActiveTab] = useState("editor");
     const [content, setContent] = useState(laudo?.conteudo || "");
     const [showPreview, setShowPreview] = useState(false);
     const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
+    const [listaPacientes, setListaPacientes] = useState<any[]>([]);
+
+    // Pega token do usuário logado (passado explicitamente para listarPacientes)
+    const { token } = useAuth();
+
+    // Carregar pacientes reais do Supabase ao abrir o modal ou quando o token mudar
+    useEffect(() => {
+      async function fetchPacientes() {
+        try {
+          if (!token) {
+            setListaPacientes([]);
+            return;
+          }
+          const pacientes = await listarPacientes();
+          setListaPacientes(pacientes || []);
+        } catch (err) {
+          console.warn('Erro ao carregar pacientes:', err);
+          setListaPacientes([]);
+        }
+      }
+      fetchPacientes();
+    }, [token]);
     const [campos, setCampos] = useState({
       cid: laudo?.cid || "",
       diagnostico: laudo?.diagnostico || "",
@@ -2287,7 +967,37 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
       "Recomendo seguimento com especialista"
     ]);
 
+
     const sigCanvasRef = useRef<any>(null);
+
+    // Estado para imagem da assinatura
+    const [assinaturaImg, setAssinaturaImg] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (!sigCanvasRef.current) return;
+      const handleEnd = () => {
+        const url = sigCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
+        setAssinaturaImg(url);
+      };
+      const canvas = sigCanvasRef.current;
+      if (canvas && canvas.canvas) {
+        canvas.canvas.addEventListener('mouseup', handleEnd);
+        canvas.canvas.addEventListener('touchend', handleEnd);
+      }
+      return () => {
+        if (canvas && canvas.canvas) {
+          canvas.canvas.removeEventListener('mouseup', handleEnd);
+          canvas.canvas.removeEventListener('touchend', handleEnd);
+        }
+      };
+    }, [sigCanvasRef]);
+
+    const handleClearSignature = () => {
+      if (sigCanvasRef.current) {
+        sigCanvasRef.current.clear();
+      }
+      setAssinaturaImg(null);
+    };
 
     // Carregar dados do laudo existente quando disponível
     useEffect(() => {
@@ -2303,6 +1013,9 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           mostrarAssinatura: true
         });
         setPacienteSelecionado(laudo.paciente);
+        if (laudo.assinaturaImg) {
+          setAssinaturaImg(laudo.assinaturaImg);
+        }
       }
     }, [laudo, isNewLaudo]);
 
@@ -2463,16 +1176,16 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       Selecionar Paciente *
                     </Label>
                     <Select onValueChange={(value) => {
-                      const paciente = pacientes?.find(p => p.id === value);
+                      const paciente = listaPacientes.find(p => p.id === value);
                       if (paciente) setPacienteSelecionado(paciente);
                     }}>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Escolha um paciente para criar o laudo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {pacientes?.map((paciente) => (
+                        {listaPacientes.map((paciente) => (
                           <SelectItem key={paciente.id} value={paciente.id}>
-                            {paciente.nome} - CPF: {paciente.cpf}
+                            {paciente.full_name} {paciente.cpf ? `- CPF: ${paciente.cpf}` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2481,10 +1194,12 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 ) : (
                   <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between">
                     <div>
-                      <div className="font-semibold text-primary">{pacienteSelecionado.nome}</div>
-                      <div className="text-xs text-muted-foreground">
-                        CPF: {pacienteSelecionado.cpf} | Idade: {pacienteSelecionado.idade} anos | Sexo: {pacienteSelecionado.sexo}
-                      </div>
+                      <div className="font-semibold text-primary">{getPatientName(pacienteSelecionado)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {getPatientCpf(pacienteSelecionado) ? `CPF: ${getPatientCpf(pacienteSelecionado)} | ` : ''}
+                          {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date}` : (getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : '')}
+                          {getPatientSex(pacienteSelecionado) ? ` | Sexo: ${getPatientSex(pacienteSelecionado)}` : ''}
+                        </div>
                     </div>
                     {!preSelectedPatient && (
                       <Button
@@ -2503,34 +1218,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
 
           {/* Tabs */}
           <div className="flex border-b border-border">
-            {isNewLaudo && (
-              <button
-                onClick={() => setActiveTab("info")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "info"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
-                }`}
-                style={{
-                  backgroundColor: activeTab === "info" ? undefined : "transparent"
-                }}
-                onMouseEnter={(e) => {
-                  if (activeTab !== "info") {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = "#4B5563";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== "info") {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = "#4B5563";
-                  }
-                }}
-              >
-                <User className="w-4 h-4 inline mr-1" />
-                Informações
-              </button>
-            )}
+            {/* Informações tab removed - only Editor/Imagens/Campos/Pré-visualização remain */}
             <button
               onClick={() => setActiveTab("editor")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -2641,81 +1329,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
           <div className="flex-1 overflow-hidden flex">
             {/* Left Panel */}
             <div className="flex-1 flex flex-col">
-              {activeTab === "info" && isNewLaudo && (
-                <div className="flex-1 p-4 space-y-4">
-                  {!pacienteSelecionado ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <User className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">Selecione um paciente primeiro</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4">Informações do Exame</h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="especialidade">Especialidade *</Label>
-                            <Select onValueChange={(value) => setCampos(prev => ({ ...prev, especialidade: value }))}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione a especialidade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Cardiologia">Cardiologia</SelectItem>
-                                <SelectItem value="Dermatologia">Dermatologia</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div>
-                            <Label htmlFor="tipo-exame">Tipo de Exame *</Label>
-                            <Input
-                              id="tipo-exame"
-                              value={campos.exame}
-                              onChange={(e) => setCampos(prev => ({ ...prev, exame: e.target.value }))}
-                              placeholder="Ex: Ecocardiograma, Dermatoscopia, etc."
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4">Dados do Paciente</h3>
-                        <div className="bg-muted border border-border rounded-lg p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="font-medium">Nome:</span> {pacienteSelecionado.nome}
-                            </div>
-                            <div>
-                              <span className="font-medium">ID:</span> {pacienteSelecionado.id}
-                            </div>
-                            <div>
-                              <span className="font-medium">CPF:</span> {pacienteSelecionado.cpf}
-                            </div>
-                            <div>
-                              <span className="font-medium">Idade:</span> {pacienteSelecionado.idade} anos
-                            </div>
-                            <div>
-                              <span className="font-medium">Sexo:</span> {pacienteSelecionado.sexo}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <Button 
-                          onClick={() => setActiveTab("editor")}
-                          disabled={!campos.especialidade || !campos.exame}
-                        >
-                          Continuar para Editor
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* 'Informações' section removed to keep editor-only experience */}
 
               {activeTab === "editor" && (
                 <div className="flex-1 flex flex-col">
@@ -2738,15 +1352,16 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       <select
                         defaultValue={'Arial'}
                         onBlur={e => formatText('font-family', e.target.value)}
-                        className="border rounded px-1 py-0.5 text-xs mr-2"
+                        className="border rounded px-1 py-0.5 text-xs mr-2 bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+                        style={{ minWidth: 140, fontWeight: 500 }}
                         title="Família da fonte"
                       >
-                        <option value="Arial">Arial</option>
-                        <option value="Helvetica">Helvetica</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Georgia">Georgia</option>
+                        <option value="Arial" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Arial</option>
+                        <option value="Helvetica" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Helvetica</option>
+                        <option value="Times New Roman" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Times New Roman</option>
+                        <option value="Courier New" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Courier New</option>
+                        <option value="Verdana" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Verdana</option>
+                        <option value="Georgia" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Georgia</option>
                       </select>
                       {/* Cor da fonte */}
                       <label className="text-xs mr-1">Cor</label>
@@ -2863,7 +1478,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       placeholder="Ex: M25.5, I10, etc."
                     />
                   </div>
-
+                  <div>
+                    <Label htmlFor="exame">Exame</Label>
+                    <Input
+                      id="exame"
+                      value={campos.exame}
+                      onChange={(e) => setCampos(prev => ({ ...prev, exame: e.target.value }))}
+                      placeholder="Exame realizado"
+                    />
+                  </div>
                   <div>
                     <Label htmlFor="diagnostico">Diagnóstico</Label>
                     <Textarea
@@ -2874,7 +1497,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       rows={3}
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="conclusao">Conclusão</Label>
                     <Textarea
@@ -2885,7 +1507,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       rows={3}
                     />
                   </div>
-
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <input
@@ -2896,7 +1517,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       />
                       <Label htmlFor="mostrar-data">Mostrar data no laudo</Label>
                     </div>
-
                     <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -2907,33 +1527,7 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       <Label htmlFor="mostrar-assinatura">Mostrar assinatura no laudo</Label>
                     </div>
                   </div>
-
-                  {/* Assinatura Digital */}
-                  <div>
-                    <Label>Assinatura Digital</Label>
-                    <div className="mt-2 p-4 border border-border rounded-lg bg-muted">
-                      <SignatureCanvas
-                        ref={sigCanvasRef}
-                        penColor="#000"
-                        backgroundColor="#fff"
-                        canvasProps={{ 
-                          width: 400, 
-                          height: 150, 
-                          className: "border rounded bg-background"
-                        }}
-                      />
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => sigCanvasRef.current?.clear()}
-                          className="cursor-pointer hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
-                        >
-                          Limpar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Assinatura Digital removida dos campos */}
                 </div>
               )}
             </div>
@@ -2954,6 +1548,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       {campos.exame && (
                         <h3 className="text-md font-semibold mt-2">{campos.exame}</h3>
                       )}
+                      {campos.cid && (
+                        <h3 className="text-md font-semibold mt-2">CID: {campos.cid}</h3>
+                      )}
+                      {campos.diagnostico && (
+                        <h3 className="text-md font-semibold mt-2">Diagnóstico: {campos.diagnostico}</h3>
+                      )}
+                      {campos.conclusao && (
+                        <h3 className="text-md font-semibold mt-2">Conclusão: {campos.conclusao}</h3>
+                      )}
                       {campos.mostrarData && (
                         <p className="text-sm text-muted-foreground mt-1">
                           Data: {new Date().toLocaleDateString('pt-BR')}
@@ -2967,18 +1570,25 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                         <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
                         {isNewLaudo && pacienteSelecionado ? (
                           <>
-                            <p><strong>Nome:</strong> {pacienteSelecionado.nome}</p>
-                            <p><strong>ID:</strong> {pacienteSelecionado.id}</p>
-                            <p><strong>CPF:</strong> {pacienteSelecionado.cpf}</p>
-                            <p><strong>Idade:</strong> {pacienteSelecionado.idade} anos</p>
-                            <p><strong>Sexo:</strong> {pacienteSelecionado.sexo}</p>
-                            {campos.cid && <p><strong>CID:</strong> {campos.cid}</p>}
+                            <p><strong>Nome:</strong> {getPatientName(pacienteSelecionado)}</p>
+                            <p><strong>ID:</strong> {getPatientId(pacienteSelecionado)}</p>
+                            <p><strong>CPF:</strong> {getPatientCpf(pacienteSelecionado)}</p>
+                            <p><strong>Idade:</strong> {getPatientAge(pacienteSelecionado)} anos</p>
+                            <p><strong>Sexo:</strong> {getPatientSex(pacienteSelecionado)}</p>
+                            <p><strong>CID:</strong> {campos.cid || '---'}</p>
+                            <p><strong>Diagnóstico:</strong> {campos.diagnostico || '---'}</p>
+                            <p><strong>Conclusão:</strong> {campos.conclusao || '---'}</p>
                           </>
                         ) : (
                           <>
-                            <p><strong>Nome:</strong> {laudo?.paciente?.nome}</p>
-                            <p><strong>ID:</strong> {laudo?.paciente?.id}</p>
-                            {campos.cid && <p><strong>CID:</strong> {campos.cid}</p>}
+                            <p><strong>Nome:</strong> {getPatientName(laudo?.paciente)}</p>
+                            <p><strong>ID:</strong> {getPatientId(laudo?.paciente)}</p>
+                            <p><strong>CPF:</strong> {getPatientCpf(laudo?.paciente)}</p>
+                            <p><strong>Idade:</strong> {getPatientAge(laudo?.paciente)} anos</p>
+                            <p><strong>Sexo:</strong> {getPatientSex(laudo?.paciente)}</p>
+                            <p><strong>CID:</strong> {campos.cid || laudo?.cid || '---'}</p>
+                            <p><strong>Diagnóstico:</strong> {campos.diagnostico || laudo?.diagnostico || '---'}</p>
+                            <p><strong>Conclusão:</strong> {campos.conclusao || laudo?.conclusao || '---'}</p>
                           </>
                         )}
                       </div>
@@ -3010,10 +1620,15 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                       </div>
                     )}
 
-                    {/* Assinatura */}
+                    {/* Assinatura Digital em tempo real */}
                     {campos.mostrarAssinatura && (
                       <div className="mt-8 text-center">
-                        <div className="h-16 border-b border-border mb-2"></div>
+                        {assinaturaImg && assinaturaImg.length > 30 ? (
+                          <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-16 object-contain mb-2" />
+                        ) : (
+                          <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
+                        )}
+                        <div className="border-b border-border mb-2"></div>
                         <p className="text-sm">Dr. Carlos Andrade</p>
                         <p className="text-xs text-muted-foreground">CRM 000000</p>
                       </div>
@@ -3037,7 +1652,46 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
                 <Button variant="outline" className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
                   Salvar Rascunho
                 </Button>
-                <Button variant="default">
+                <Button
+                  variant="default"
+                  onClick={async () => {
+                    if (!isNewLaudo) return; // só cria novo laudo
+                    try {
+                      // Monta os dados do laudo conforme CreateReportData do Supabase
+                      // Preencher campos obrigatórios com valores válidos
+                      const userId = user?.id || '00000000-0000-0000-0000-000000000001'; // fallback seguro
+                      const novoLaudo = {
+                        patient_id: pacienteSelecionado?.id, // agora sempre UUID real do paciente
+                        order_number: '',
+                        exam: campos.exame || '',
+                        diagnosis: campos.diagnostico || '',
+                        conclusion: campos.conclusao || '',
+                        cid_code: campos.cid || '',
+                        content_html: content,
+                        content_json: {},
+                        status: 'draft',
+                        requested_by: userId,
+                        due_at: new Date().toISOString(),
+                        hide_date: !campos.mostrarData,
+                        hide_signature: !campos.mostrarAssinatura,
+                        created_by: userId,
+                      };
+                      const resp = await import('@/lib/reports').then(m => m.criarRelatorio(novoLaudo, token || undefined));
+                      toast({
+                        title: 'Laudo criado com sucesso!',
+                        description: 'O laudo foi liberado e salvo.',
+                        variant: 'default',
+                      });
+                      onClose();
+                    } catch (err) {
+                      toast({
+                        title: 'Erro ao criar laudo',
+                        description: (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err) || 'Tente novamente.',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                >
                   {isNewLaudo ? "Liberar Laudo" : "Atualizar Laudo"}
                 </Button>
               </div>
@@ -3112,429 +1766,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     </div>
   );
 
-  // Função para renderizar a seção de relatórios médicos
-  const renderRelatoriosMedicosSection = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Relatórios Médicos</h2>
-        {editandoRelatorio && (
-          <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-            Cancelar Edição
-          </Button>
-        )}
-      </div>
-
-      {/* Formulário de Relatório Médico */}
-      <div className="bg-card shadow-md rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4 text-foreground">
-          {editandoRelatorio ? 'Editar Relatório Médico' : 'Novo Relatório Médico'}
-        </h3>
-        
-        <div className="grid gap-6">
-          {/* Identificação do Profissional */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-primary border-b pb-2">Identificação do Profissional</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="profissionalNome">Nome do Profissional</Label>
-                <Input
-                  id="profissionalNome"
-                  value={relatorioMedico.profissionalNome}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="profissionalCrm">CRM e Especialidade</Label>
-                <Input
-                  id="profissionalCrm"
-                  value={relatorioMedico.profissionalCrm}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Identificação do Paciente - USANDO API REAL */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="text-md font-medium text-primary">Identificação do Paciente</h4>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={carregarPacientesReais}
-                disabled={carregandoPacientes}
-                className="flex items-center gap-2 text-xs"
-              >
-                🔄 {carregandoPacientes ? 'Carregando...' : 'Recarregar Pacientes'}
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="pacienteNome">Nome do Paciente *</Label>
-                <Select
-                  value={pacienteSelecionadoReport?.id || ''}
-                  onValueChange={(value) => {
-                    const paciente = pacientesReais.find(p => p.id === value);
-                    if (paciente) {
-                      selecionarPacienteParaRelatorio(paciente);
-                    }
-                  }}
-                  onOpenChange={(open) => {
-                    // Carregar pacientes quando o dropdown for aberto pela primeira vez
-                    if (open && pacientesReais.length === 0 && !carregandoPacientes) {
-                      console.log('🔄 [REPORTS] Dropdown aberto - carregando pacientes...');
-                      carregarPacientesReais();
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={carregandoPacientes ? "Carregando..." : "Selecione o paciente"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {carregandoPacientes ? (
-                      <SelectItem value="loading" disabled>Carregando pacientes...</SelectItem>
-                    ) : pacientesReais.length === 0 ? (
-                      <SelectItem value="empty" disabled>Nenhum paciente encontrado</SelectItem>
-                    ) : (
-                      pacientesReais.map((paciente) => (
-                        <SelectItem key={paciente.id} value={paciente.id}>
-                          {paciente.full_name} - {paciente.cpf || 'CPF não informado'}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pacienteCpf">CPF do Paciente</Label>
-                <Input
-                  id="pacienteCpf"
-                  value={relatorioMedico.pacienteCpf}
-                  disabled
-                  className="bg-muted"
-                  placeholder="CPF será preenchido automaticamente"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pacienteIdade">Idade</Label>
-                <Input
-                  id="pacienteIdade"
-                  type="text"
-                  value={relatorioMedico.pacienteIdade}
-                  disabled
-                  className="bg-muted"
-                  placeholder="Idade será calculada automaticamente"
-                />
-              </div>
-            </div>
-            
-            {/* Informações adicionais do paciente selecionado */}
-            {pacienteSelecionadoReport && (
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <h5 className="font-medium text-sm text-muted-foreground mb-2">Informações do Paciente Selecionado:</h5>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Nome Completo:</span><br />
-                    <span>{pacienteSelecionadoReport.full_name}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Email:</span><br />
-                    <span>{pacienteSelecionadoReport.email || 'Não informado'}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Telefone:</span><br />
-                    <span>{pacienteSelecionadoReport.phone_mobile || 'Não informado'}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Informações do Relatório */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-primary border-b pb-2">Informações do Relatório</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="motivoRelatorio">Motivo do Relatório *</Label>
-                <Textarea
-                  id="motivoRelatorio"
-                  value={relatorioMedico.motivoRelatorio}
-                  onChange={(e) => handleRelatorioChange('motivoRelatorio', e.target.value)}
-                  placeholder="Descreva o motivo para a elaboração deste relatório médico..."
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cid">CID</Label>
-                <Input
-                  id="cid"
-                  value={relatorioMedico.cid}
-                  onChange={(e) => handleRelatorioChange('cid', e.target.value)}
-                  placeholder="Ex: A00, B20, C34..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dataRelatorio">Data do Relatório</Label>
-                <Input
-                  id="dataRelatorio"
-                  type="date"
-                  value={relatorioMedico.dataRelatorio}
-                  onChange={(e) => handleRelatorioChange('dataRelatorio', e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="historicoClinico">Histórico Clínico Conciso</Label>
-              <Textarea
-                id="historicoClinico"
-                value={relatorioMedico.historicoClinico}
-                onChange={(e) => handleRelatorioChange('historicoClinico', e.target.value)}
-                placeholder="Resumo do histórico clínico relevante do paciente..."
-                rows={4}
-              />
-            </div>
-          </div>
-
-          {/* Sinais, Sintomas e Exames */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-primary border-b pb-2">Sinais, Sintomas e Exames</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sinaisSintomas">Sinais e Sintomas</Label>
-                <Textarea
-                  id="sinaisSintomas"
-                  value={relatorioMedico.sinaisSintomas}
-                  onChange={(e) => handleRelatorioChange('sinaisSintomas', e.target.value)}
-                  placeholder="Descreva os sinais e sintomas observados..."
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="examesRealizados">Exames Realizados</Label>
-                <Textarea
-                  id="examesRealizados"
-                  value={relatorioMedico.examesRealizados}
-                  onChange={(e) => handleRelatorioChange('examesRealizados', e.target.value)}
-                  placeholder="Liste os exames realizados..."
-                  rows={4}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="resultadosExames">Resultados Relevantes dos Exames</Label>
-              <Textarea
-                id="resultadosExames"
-                value={relatorioMedico.resultadosExames}
-                onChange={(e) => handleRelatorioChange('resultadosExames', e.target.value)}
-                placeholder="Descreva os resultados mais relevantes dos exames..."
-                rows={3}
-              />
-            </div>
-          </div>
-
-          {/* Diagnósticos e Prognóstico */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-primary border-b pb-2">Diagnósticos e Prognóstico</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="diagnosticos">Diagnóstico(s)</Label>
-                <Textarea
-                  id="diagnosticos"
-                  value={relatorioMedico.diagnosticos}
-                  onChange={(e) => handleRelatorioChange('diagnosticos', e.target.value)}
-                  placeholder="Informe o(s) diagnóstico(s) estabelecido(s)..."
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="prognostico">Prognóstico (quando cabível)</Label>
-                <Textarea
-                  id="prognostico"
-                  value={relatorioMedico.prognostico}
-                  onChange={(e) => handleRelatorioChange('prognostico', e.target.value)}
-                  placeholder="Descreva o prognóstico, se aplicável..."
-                  rows={4}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Tratamentos e Recomendações */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-primary border-b pb-2">Tratamentos e Recomendações</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tratamentosRealizados">Tratamentos já Realizados</Label>
-                <Textarea
-                  id="tratamentosRealizados"
-                  value={relatorioMedico.tratamentosRealizados}
-                  onChange={(e) => handleRelatorioChange('tratamentosRealizados', e.target.value)}
-                  placeholder="Descreva os tratamentos já realizados..."
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="recomendacoes">Recomendações Objetivas</Label>
-                <Textarea
-                  id="recomendacoes"
-                  value={relatorioMedico.recomendacoes}
-                  onChange={(e) => handleRelatorioChange('recomendacoes', e.target.value)}
-                  placeholder="Informe as recomendações objetivas..."
-                  rows={4}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Botões de Ação */}
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={handleCancelarEdicaoRelatorio} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
-              Cancelar
-            </Button>
-            <Button 
-              onClick={salvarRelatorioAPI} 
-              className="flex items-center gap-2"
-              disabled={reportsApi.loading || !pacienteSelecionadoReport}
-            >
-              <FileCheck className="h-4 w-4" />
-              {reportsApi.loading ? 'Salvando...' : (editandoRelatorio ? 'Atualizar Relatório' : 'Salvar Relatório')}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de Relatórios da API */}
-      <div className="bg-card shadow-md rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-foreground">Relatórios Médicos</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={carregarRelatorios}
-            disabled={reportsApi.loading}
-            className="flex items-center gap-2"
-          >
-            <FileCheck className="h-4 w-4" />
-            {reportsApi.loading ? 'Carregando...' : 'Atualizar'}
-          </Button>
-        </div>
-        
-        {reportsApi.error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
-            <p className="text-destructive text-sm">{reportsApi.error}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={reportsApi.clearError}
-              className="mt-2"
-            >
-              Limpar erro
-            </Button>
-          </div>
-        )}
-        
-        {reportsApi.loading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50 animate-pulse" />
-            <p className="text-lg mb-2">Carregando relatórios...</p>
-          </div>
-        ) : reportsApi.reports.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <FileCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-lg mb-2">Nenhum relatório médico encontrado</p>
-            <p className="text-sm">Os relatórios salvos aparecerão aqui</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {reportsApi.reports.filter(relatorio => relatorio != null).map((relatorio, idx) => {
-              // Buscar dados do paciente pelos pacientes carregados
-              const pacienteEncontrado = pacientesReais.find(p => p.id === relatorio?.patient_id);
-              const nomeExibir = relatorio?.patient?.full_name || pacienteEncontrado?.full_name || 'Paciente não identificado';
-              const cpfExibir = relatorio?.patient?.cpf || pacienteEncontrado?.cpf || 'Não informado';
-              
-              return (
-                <div key={relatorio?.id ? `report-${relatorio.id}-${idx}` : `report-idx-${idx}`} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-semibold text-lg">
-                        {nomeExibir}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        CPF: {cpfExibir} • 
-                        Tipo: {relatorio?.report_type || 'Relatório Médico'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Data do relatório: {relatorio?.report_date ? new Date(relatorio.report_date).toLocaleDateString('pt-BR') : 'Data não informada'}
-                      </p>
-                      <p className="text-xs text-muted-foreground/70">
-                        Criado em: {relatorio?.created_at ? new Date(relatorio.created_at).toLocaleDateString('pt-BR') : 'Data não informada'}
-                      </p>
-                      <p className="text-sm text-foreground/80 mt-2 line-clamp-2">
-                        <strong>Motivo:</strong> {relatorio?.chief_complaint || 'Não informado'}
-                      </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => relatorio?.id && reportsApi.loadReportById(relatorio.id)}
-                      className="flex items-center gap-1"
-                      disabled={!relatorio?.id}
-                    >
-                      <Eye className="h-3 w-3" />
-                      Visualizar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => relatorio?.id && reportsApi.deleteExistingReport(relatorio.id)}
-                      className="flex items-center gap-1"
-                      disabled={reportsApi.loading || !relatorio?.id}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                      Excluir
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-primary">Queixa Principal:</span>
-                    <p className="text-foreground mt-1 line-clamp-3">{relatorio.chief_complaint}</p>
-                  </div>
-                  
-                  {relatorio.diagnosis && (
-                    <div>
-                      <span className="font-medium text-primary">Diagnóstico(s):</span>
-                      <p className="text-foreground mt-1 line-clamp-3">{relatorio.diagnosis}</p>
-                    </div>
-                  )}
-                  
-                  {relatorio.objective_recommendations && (
-                    <div className="md:col-span-2">
-                      <span className="font-medium text-primary">Recomendações:</span>
-                      <p className="text-foreground mt-1 line-clamp-3">{relatorio.objective_recommendations}</p>
-                    </div>
-                  )}
-                  
-                  {relatorio.icd_code && (
-                    <div>
-                      <span className="font-medium text-primary">CID:</span>
-                      <p className="text-foreground mt-1">{relatorio.icd_code}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
   
   const renderPerfilSection = () => (
     <div className="space-y-6">
@@ -3704,16 +1935,38 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
     switch (activeSection) {
       case 'calendario':
         return renderCalendarioSection();
-      case 'pacientes':
-  return <PacientesSection handleAbrirProntuario={handleAbrirProntuario} setActiveSection={setActiveSection} />;
-      case 'prontuario':
-        return renderProntuarioSection();
+  case 'pacientes':
+    return (
+      <section className="bg-card shadow-md rounded-lg border border-border p-6">
+        <h2 className="text-2xl font-bold mb-4">Pacientes</h2>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>CPF</TableHead>
+                <TableHead>Idade</TableHead>
+                <TableHead>Status do Laudo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pacientes.map((paciente) => (
+                <TableRow key={paciente.cpf}>
+                  <TableCell>{paciente.nome}</TableCell>
+                  <TableCell>{paciente.cpf}</TableCell>
+                  <TableCell>{paciente.idade}</TableCell>
+                  <TableCell>{paciente.statusLaudo}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+    );
       case 'laudos':
         return renderLaudosSection();
       case 'comunicacao':
         return renderComunicacaoSection();
-      case 'relatorios-medicos':
-        return renderRelatoriosMedicosSection();
       case 'perfil':
         return renderPerfilSection();
       default:
@@ -3774,14 +2027,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
               Pacientes
             </Button>
             <Button 
-              variant={activeSection === 'prontuario' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
-              onClick={() => setActiveSection('prontuario')}
-            >
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Prontuário
-            </Button>
-            <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
               onClick={() => setActiveSection('laudos')}
@@ -3796,14 +2041,6 @@ Nevo melanocítico benigno. Seguimento clínico recomendado.
             >
               <MessageSquare className="mr-2 h-4 w-4" />
               Comunicação
-            </Button>
-            <Button 
-              variant={activeSection === 'relatorios-medicos' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
-              onClick={() => setActiveSection('relatorios-medicos')}
-            >
-              <FileCheck className="mr-2 h-4 w-4" />
-              Relatórios Médicos
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 

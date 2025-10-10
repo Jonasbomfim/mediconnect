@@ -4,60 +4,66 @@ export interface ApiError {
 	code?: string;
 }
 // Este arquivo foi renomeado de report.ts para report-types.ts para evitar confusão com outros arquivos de lógica.
-// Tipos para o endpoint de Relatórios Médicos
+// Tipos para o endpoint Supabase de Relatórios Médicos
 export interface Report {
 	id: string;
 	patient_id: string;
-	doctor_id: string;
-	report_type: string;
-	chief_complaint: string;
-	clinical_history: string;
-	symptoms_and_signs: string;
-	physical_examination: string;
-	complementary_exams: string;
-	exam_results: string;
+	order_number: string;
+	exam: string;
 	diagnosis: string;
-	prognosis?: string;
-	treatment_performed: string;
-	objective_recommendations: string;
-	icd_code?: string;
-	report_date: string;
+	conclusion: string;
+	cid_code: string;
+	content_html: string;
+	content_json: any;
+	status: string;
+	requested_by: string;
+	due_at: string;
+	hide_date: boolean;
+	hide_signature: boolean;
 	created_at: string;
 	updated_at: string;
-  
-	// Dados expandidos (quando incluir dados relacionados)
-	patient?: {
-		id: string;
-		full_name: string;
-		cpf?: string;
-		birth_date?: string;
-	};
-  
-	doctor?: {
-		id: string;
-		full_name: string;
-		crm?: string;
-		specialty?: string;
-	};
+	created_by: string;
 }
+
+export interface CreateReportData {
+	patient_id: string;
+		order_number: string;
+	exam: string;
+	diagnosis: string;
+	conclusion: string;
+	cid_code: string;
+	content_html: string;
+	content_json: any;
+		status: string;
+	requested_by: string;
+	due_at: string;
+		hide_date: boolean;
+		hide_signature: boolean;
+	created_by: string;
+}
+
+export interface UpdateReportData extends Partial<CreateReportData> {
+	updated_at?: string;
+}
+
+export type ReportsResponse = Report[];
+export type ReportResponse = Report;
 
 // Dados para criar um novo relatório
 export interface CreateReportData {
-	patient_id: string;
-	doctor_id: string;
-	report_type: string;
-	chief_complaint: string;
-	clinical_history: string;
-	symptoms_and_signs: string;
-	physical_examination: string;
-	complementary_exams: string;
-	exam_results: string;
-	diagnosis: string;
-	prognosis?: string;
-	treatment_performed: string;
-	objective_recommendations: string;
-	icd_code?: string;
-	report_date: string;
+		patient_id: string;
+		order_number: string;
+		exam: string;
+		diagnosis: string;
+		conclusion: string;
+		cid_code: string;
+		content_html: string;
+		content_json: any;
+		status: string;
+		requested_by: string;
+		due_at: string;
+		hide_date: boolean;
+		hide_signature: boolean;
 }
 
 // Dados para atualizar um relatório existente
@@ -66,18 +72,6 @@ export interface UpdateReportData extends Partial<CreateReportData> {
 }
 
 // Resposta da API ao listar relatórios
-export interface ReportsResponse {
-	data: Report[];
-	success: boolean;
-	message?: string;
-}
-
-// Resposta da API ao criar/atualizar um relatório
-export interface ReportResponse {
-	data: Report;
-	success: boolean;
-	message?: string;
-}
 
 // Dados do formulário (adaptado para a estrutura do front-end existente)
 export interface ReportFormData {
@@ -86,15 +80,19 @@ export interface ReportFormData {
 	profissionalCrm: string;
   
 	// Identificação do Paciente  
-	pacienteId: string;
-	pacienteNome: string;
-	pacienteCpf: string;
-	pacienteIdade: string;
-  
-	// Informações do Relatório
-	motivoRelatorio: string;
-	cid?: string;
-	dataRelatorio: string;
+	patient_id: string;
+	report_type: string;
+	symptoms_and_signs: string;
+	diagnosis: string;
+	prognosis?: string;
+	treatment_performed: string;
+	icd_code?: string;
+	report_date: string;
+	hipotesesDiagnosticas: string;
+	condutaMedica: string;
+	prescricoes: string;
+	retornoAgendado: string;
+		// cid10: string; // Removed, not present in schema
   
 	// Histórico Clínico
 	historicoClinico: string;
@@ -104,4 +102,4 @@ export interface ReportFormData {
 	examesRealizados: string;
 	resultadosExames: string;
 	// ...restante do código...
-
+}

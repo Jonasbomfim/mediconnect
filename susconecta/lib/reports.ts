@@ -45,29 +45,29 @@ import {
   CreateReportData, 
   UpdateReportData, 
   ReportsResponse, 
-  ReportResponse,
-  ApiError 
+  ReportResponse
 } from '@/types/report-types';
 
-// URL base da API Mock
-const BASE_API_RELATORIOS = 'https://mock.apidog.com/m1/1053378-0-default/rest/v1/reports';
+// Definição local para ApiError
+type ApiError = {
+  message: string;
+  code: string;
+};
 
-// Cabeçalhos base para as requisições
-function obterCabecalhos(): HeadersInit {
+// URL base da API Supabase
+const BASE_API_RELATORIOS = 'https://yuanqfswhberkoevtmfr.supabase.co/rest/v1/reports';
+
+// Cabeçalhos base para as requisições Supabase
+function obterCabecalhos(token?: string): HeadersInit {
   const cabecalhos: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ',
+    'Prefer': 'return=representation',
   };
-
-  // Adiciona token de autenticação do localStorage se disponível
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      cabecalhos['Authorization'] = `Bearer ${token}`;
-    }
+  if (token) {
+    cabecalhos['Authorization'] = `Bearer ${token}`;
   }
-
   return cabecalhos;
 }
 
@@ -139,13 +139,15 @@ export async function listarRelatorios(filtros?: { patient_id?: string; status?:
 export async function buscarRelatorioPorId(id: string): Promise<Report> {
   try {
     console.log('🔍 [API RELATÓRIOS] Buscando relatório ID:', id);
-    const resposta = await fetch(`${BASE_API_RELATORIOS}/${id}`, {
+    const resposta = await fetch(`${BASE_API_RELATORIOS}?id=eq.${id}`, {
       method: 'GET',
       headers: obterCabecalhos(),
     });
-    const resultado = await tratarRespostaApi<ReportResponse>(resposta);
-    console.log('✅ [API RELATÓRIOS] Relatório encontrado:', resultado.data);
-    return resultado.data;
+    const resultado = await tratarRespostaApi<Report[]>(resposta);
+    const relatorio = Array.isArray(resultado) && resultado.length > 0 ? resultado[0] : null;
+    console.log('✅ [API RELATÓRIOS] Relatório encontrado:', relatorio);
+    if (!relatorio) throw new Error('Relatório não encontrado');
+    return relatorio;
   } catch (erro) {
     console.error('❌ [API RELATÓRIOS] Erro ao buscar relatório:', erro);
     throw erro;
@@ -155,60 +157,30 @@ export async function buscarRelatorioPorId(id: string): Promise<Report> {
 /**
  * Cria um novo relatório médico
  */
-export async function criarRelatorio(dadosRelatorio: CreateReportData): Promise<Report> {
-  try {
-    console.log('📝 [API RELATÓRIOS] Criando novo relatório...');
-    console.log('📤 [API RELATÓRIOS] Dados enviados:', dadosRelatorio);
-    const resposta = await fetch(BASE_API_RELATORIOS, {
-      method: 'POST',
-      headers: obterCabecalhos(),
-      body: JSON.stringify(dadosRelatorio),
-    });
-    console.log('📝 [API RELATÓRIOS] Status da criação:', resposta.status);
-    console.log('📝 [API RELATÓRIOS] Response OK:', resposta.ok);
-    console.log('📝 [API RELATÓRIOS] Response URL:', resposta.url);
-    if (!resposta.ok) {
-      let mensagemErro = `HTTP ${resposta.status}: ${resposta.statusText}`;
-      try {
-        const dadosErro = await resposta.json();
-        mensagemErro = dadosErro.message || dadosErro.error || mensagemErro;
-        console.log('📝 [API RELATÓRIOS] Erro da API:', dadosErro);
-      } catch (e) {
-        console.log('📝 [API RELATÓRIOS] Não foi possível parsear erro como JSON');
-      }
-      const erro: ApiError = {
-        message: mensagemErro,
-        code: resposta.status.toString(),
-      };
-      throw erro;
-    }
-    const resultadoBruto = await resposta.json();
-    console.log('📝 [API RELATÓRIOS] Resposta bruta da criação:', resultadoBruto);
-    console.log('📝 [API RELATÓRIOS] Tipo da resposta:', typeof resultadoBruto);
-    console.log('📝 [API RELATÓRIOS] Chaves da resposta:', Object.keys(resultadoBruto || {}));
-    let relatorioCriado: Report;
-    // Verifica formato da resposta similar ao listarRelatorios
-    if (resultadoBruto && resultadoBruto.data) {
-      relatorioCriado = resultadoBruto.data;
-    } else if (resultadoBruto && resultadoBruto.id) {
-      relatorioCriado = resultadoBruto;
-    } else if (Array.isArray(resultadoBruto) && resultadoBruto.length > 0) {
-      relatorioCriado = resultadoBruto[0];
-    } else {
-      console.warn('📝 [API RELATÓRIOS] Formato de resposta inesperado, criando relatório local');
-      relatorioCriado = {
-        id: 'local-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...dadosRelatorio
-      };
-    }
-    console.log('✅ [API RELATÓRIOS] Relatório processado:', relatorioCriado);
-    return relatorioCriado;
-  } catch (erro) {
-    console.error('❌ [API RELATÓRIOS] Erro ao criar relatório:', erro);
+export async function criarRelatorio(dadosRelatorio: CreateReportData, token?: string): Promise<Report> {
+  const resposta = await fetch(BASE_API_RELATORIOS, {
+    method: 'POST',
+    headers: obterCabecalhos(token),
+    body: JSON.stringify(dadosRelatorio),
+  });
+  if (!resposta.ok) {
+    let mensagemErro = `HTTP ${resposta.status}: ${resposta.statusText}`;
+    try {
+      const dadosErro = await resposta.json();
+      mensagemErro = dadosErro.message || dadosErro.error || mensagemErro;
+    } catch (e) {}
+    const erro: any = {
+      message: mensagemErro,
+      code: resposta.status.toString(),
+    };
     throw erro;
   }
+  const resultado = await resposta.json();
+  // Supabase retorna array
+  if (Array.isArray(resultado) && resultado.length > 0) {
+    return resultado[0];
+  }
+  throw new Error('Resposta inesperada da API Supabase');
 }
 
 /**
@@ -218,14 +190,16 @@ export async function atualizarRelatorio(id: string, dadosRelatorio: UpdateRepor
   try {
     console.log('📝 [API RELATÓRIOS] Atualizando relatório ID:', id);
     console.log('📤 [API RELATÓRIOS] Dados:', dadosRelatorio);
-    const resposta = await fetch(`${BASE_API_RELATORIOS}/${id}`, {
+    const resposta = await fetch(`${BASE_API_RELATORIOS}?id=eq.${id}`, {
       method: 'PATCH',
       headers: obterCabecalhos(),
       body: JSON.stringify(dadosRelatorio),
     });
-    const resultado = await tratarRespostaApi<ReportResponse>(resposta);
-    console.log('✅ [API RELATÓRIOS] Relatório atualizado:', resultado.data);
-    return resultado.data;
+    const resultado = await tratarRespostaApi<Report[]>(resposta);
+    const relatorio = Array.isArray(resultado) && resultado.length > 0 ? resultado[0] : null;
+    console.log('✅ [API RELATÓRIOS] Relatório atualizado:', relatorio);
+    if (!relatorio) throw new Error('Relatório não encontrado');
+    return relatorio;
   } catch (erro) {
     console.error('❌ [API RELATÓRIOS] Erro ao atualizar relatório:', erro);
     throw erro;
@@ -256,13 +230,13 @@ export async function deletarRelatorio(id: string): Promise<void> {
 export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<Report[]> {
   try {
     console.log('👤 [API RELATÓRIOS] Buscando relatórios do paciente:', idPaciente);
-    const resposta = await fetch(`${BASE_API_RELATORIOS}?patient_id=${idPaciente}`, {
+    const resposta = await fetch(`${BASE_API_RELATORIOS}?patient_id=eq.${idPaciente}`, {
       method: 'GET',
       headers: obterCabecalhos(),
     });
-    const resultado = await tratarRespostaApi<ReportsResponse>(resposta);
-    console.log('✅ [API RELATÓRIOS] Relatórios do paciente encontrados:', resultado.data?.length || 0);
-    return resultado.data || [];
+    const resultado = await tratarRespostaApi<Report[]>(resposta);
+    console.log('✅ [API RELATÓRIOS] Relatórios do paciente encontrados:', resultado.length);
+    return resultado;
   } catch (erro) {
     console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios do paciente:', erro);
     throw erro;
@@ -275,13 +249,13 @@ export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<R
 export async function listarRelatoriosPorMedico(idMedico: string): Promise<Report[]> {
   try {
     console.log('👨‍⚕️ [API RELATÓRIOS] Buscando relatórios do médico:', idMedico);
-    const resposta = await fetch(`${BASE_API_RELATORIOS}?doctor_id=${idMedico}`, {
+    const resposta = await fetch(`${BASE_API_RELATORIOS}?requested_by=eq.${idMedico}`, {
       method: 'GET',
       headers: obterCabecalhos(),
     });
-    const resultado = await tratarRespostaApi<ReportsResponse>(resposta);
-    console.log('✅ [API RELATÓRIOS] Relatórios do médico encontrados:', resultado.data?.length || 0);
-    return resultado.data || [];
+    const resultado = await tratarRespostaApi<Report[]>(resposta);
+    console.log('✅ [API RELATÓRIOS] Relatórios do médico encontrados:', resultado.length);
+    return resultado;
   } catch (erro) {
     console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios do médico:', erro);
     throw erro;

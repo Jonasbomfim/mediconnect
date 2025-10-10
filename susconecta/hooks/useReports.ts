@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   Report, 
   CreateReportData, 
-  UpdateReportData,
-  ApiError 
+  UpdateReportData
 } from '@/types/report-types';
 import {
   listarRelatorios,

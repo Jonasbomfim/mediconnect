@@ -24,9 +24,7 @@ import {
   listarAnexos,
   removerAnexo,
   buscarPacientePorId,
-  criarUsuario,
-  gerarSenhaAleatoria,
-  CreateUserResponse,
+  criarUsuarioPaciente,
   criarPaciente,
 } from "@/lib/api";
 
@@ -106,8 +104,13 @@ export function PatientRegistrationForm({
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
   
   // Estados para o dialog de credenciais
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [tempCredentials, setTempCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    email: string;
+    password: string;
+    userName: string;
+    userType: 'médico' | 'paciente';
+  } | null>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Paciente" : "Editar Paciente"), [mode]);
 
@@ -273,43 +276,41 @@ export function PatientRegistrationForm({
         console.log("✅ Perfil do paciente criado:", savedPatientProfile);
 
         if (form.email && form.email.includes('@')) {
-          const tempPassword = gerarSenhaAleatoria();
-          const userInput = {
-            email: form.email,
-            password: tempPassword,
-            full_name: form.nome,
-            phone: form.telefone,
-            role: 'user' as const,
-          };
-
-          console.log("🔐 Criando usuário de autenticação com payload:", userInput);
-          
+          console.log("🔐 Criando usuário de autenticação (paciente)...");
           try {
-            const userResponse = await criarUsuario(userInput);
+            const userResponse = await criarUsuarioPaciente({
+              email: form.email,
+              full_name: form.nome,
+              phone_mobile: form.telefone,
+            });
 
             if (userResponse.success && userResponse.user) {
               console.log("✅ Usuário de autenticação criado:", userResponse.user);
-              
-              // Mostra credenciais (NÃO fecha o formulário ainda)
-              setTempCredentials({ email: form.email, password: tempPassword });
-              setDialogOpen(true);
-              
+
+              // Mostra credenciais no dialog usando as credenciais retornadas
+              setCredentials({
+                email: userResponse.email ?? form.email,
+                password: userResponse.password ?? '',
+                userName: form.nome,
+                userType: 'paciente',
+              });
+              setShowCredentialsDialog(true);
+
               // Limpa formulário mas NÃO fecha ainda - fechará quando o dialog de credenciais fechar
               setForm(initial);
               setPhotoPreview(null);
               setServerAnexos([]);
               onSaved?.(savedPatientProfile);
-              // NÃO chama onClose ou onOpenChange aqui - deixa o dialog de credenciais fazer isso
-              return; 
+              return;
             } else {
               throw new Error((userResponse as any).message || "Falhou ao criar o usuário de acesso.");
             }
           } catch (userError: any) {
-            console.error("❌ Erro ao criar usuário via função server-side:", userError);
-            
+            console.error("❌ Erro ao criar usuário via signup:", userError);
+
             // Mensagem de erro específica para email duplicado
             const errorMsg = userError?.message || String(userError);
-            
+
             if (errorMsg.toLowerCase().includes('already registered') || 
                 errorMsg.toLowerCase().includes('já está cadastrado') ||
                 errorMsg.toLowerCase().includes('já existe')) {
@@ -318,18 +319,6 @@ export function PatientRegistrationForm({
                 `✅ O perfil do paciente foi salvo com sucesso.\n\n` +
                 `Para criar acesso ao sistema, use um email diferente ou recupere a senha do email existente.`
               );
-            } else if (errorMsg.toLowerCase().includes('failed to assign user role') ||
-                       errorMsg.toLowerCase().includes('atribuir permissões')) {
-              alert(
-                `⚠️ PROBLEMA NA CONFIGURAÇÃO DO SISTEMA\n\n` +
-                `✅ O perfil do paciente foi salvo com sucesso.\n\n` +
-                `❌ Porém, houve falha ao atribuir permissões de acesso.\n\n` +
-                `Esse erro indica que a Edge Function do Supabase não está configurada corretamente.\n\n` +
-                `Entre em contato com o administrador do sistema para:\n` +
-                `1. Verificar se a service role key está configurada\n` +
-                `2. Verificar as permissões da tabela user_roles\n` +
-                `3. Revisar o código da Edge Function create-user`
-              );
             } else {
               alert(
                 `✅ Paciente cadastrado com sucesso!\n\n` +
@@ -337,7 +326,7 @@ export function PatientRegistrationForm({
                 `O cadastro do paciente foi salvo, mas será necessário criar o acesso manualmente.`
               );
             }
-            
+
             // Limpa formulário e fecha
             setForm(initial);
             setPhotoPreview(null);
@@ -715,14 +704,14 @@ export function PatientRegistrationForm({
         <div className="space-y-6">{content}</div>
         
         {/* Dialog de credenciais */}
-        {tempCredentials && (
+        {credentials && (
           <CredentialsDialog
-            open={dialogOpen}
+            open={showCredentialsDialog}
             onOpenChange={(open) => {
-              setDialogOpen(open);
+              setShowCredentialsDialog(open);
               if (!open) {
                 // Quando o dialog de credenciais fecha, fecha o formulário também
-                setTempCredentials(null);
+                setCredentials(null);
                 if (inline) {
                   onClose?.();
                 } else {
@@ -730,10 +719,10 @@ export function PatientRegistrationForm({
                 }
               }
             }}
-            email={tempCredentials.email}
-            password={tempCredentials.password}
-            userName={form.nome}
-            userType="paciente"
+            email={credentials.email}
+            password={credentials.password}
+            userName={credentials.userName}
+            userType={credentials.userType}
           />
         )}
       </>
@@ -754,20 +743,20 @@ export function PatientRegistrationForm({
       </Dialog>
       
       {/* Dialog de credenciais */}
-      {tempCredentials && (
+      {credentials && (
         <CredentialsDialog
-          open={dialogOpen}
+          open={showCredentialsDialog}
           onOpenChange={(open) => {
-            setDialogOpen(open);
+            setShowCredentialsDialog(open);
             if (!open) {
-              setTempCredentials(null);
+              setCredentials(null);
               onOpenChange?.(false);
             }
           }}
-          email={tempCredentials.email}
-          password={tempCredentials.password}
-          userName={form.nome}
-          userType="paciente"
+          email={credentials.email}
+          password={credentials.password}
+          userName={credentials.userName}
+          userType={credentials.userType}
         />
       )}
     </>

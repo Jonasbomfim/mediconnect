@@ -24,9 +24,7 @@ import {
   removerAnexoMedico,
   MedicoInput,
   Medico,
-  criarUsuario,
-  criarUsuarioDirectAuth,
-  assignRoleServerSide,
+  criarUsuarioMedico,
   gerarSenhaAleatoria,
 } from "@/lib/api";
 ;
@@ -157,8 +155,13 @@ export function DoctorRegistrationForm({
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
   
   // Estados para o dialog de credenciais
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [tempCredentials, setTempCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    email: string;
+    password: string;
+    userName: string;
+    userType: 'médico' | 'paciente';
+  } | null>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Médico" : "Editar Médico"), [mode]);
 
@@ -395,38 +398,84 @@ async function handleSubmit(ev: React.FormEvent) {
       else onOpenChange?.(false);
 
     } else {
-      // --- NOVA LÓGICA DE CRIAÇÃO ---
+      // --- FLUXO DE CRIAÇÃO DE MÉDICO ---
+      console.log('🏥 [CRIAR MÉDICO] Iniciando processo completo...');
+      
       const medicoPayload = toPayload();
+      console.log("Enviando os dados para a API:", medicoPayload);
+      
+      // 1. Cria o perfil do médico na tabela doctors
       const savedDoctorProfile = await criarMedico(medicoPayload);
       console.log("✅ Perfil do médico criado:", savedDoctorProfile);
 
-      // ⚠️ IMPORTANTE: A criação de usuário de autenticação foi DESABILITADA temporariamente
-      // porque a Edge Function /functions/v1/create-user está retornando erro 500 ao
-      // tentar atribuir o role "medico" ao usuário.
-      //
-      // Para habilitar novamente, o backend precisa corrigir a Edge Function ou
-      // configurar as permissões corretas na tabela user_roles.
-      //
-      // Por ora, apenas o perfil do médico será salvo na tabela "doctors".
-      // O acesso ao sistema precisa ser criado manualmente pelo administrador.
+      // 2. Cria usuário no Supabase Auth (direto via /auth/v1/signup)
+      console.log('🔐 Criando usuário de autenticação...');
       
-      console.log("⚠️ Criação de usuário Auth desabilitada - salvando apenas perfil do médico");
-      
-      alert(
-        `✅ Médico cadastrado com sucesso!\n\n` +
-        `📋 Perfil salvo na base de dados.\n\n` +
-        `⚠️ IMPORTANTE: O acesso ao sistema (login) precisa ser criado manualmente.\n\n` +
-        `Motivo: A função de criação automática de usuários está com problema no backend.\n` +
-        `Entre em contato com o administrador do sistema para criar o acesso.`
-      );
-      
-      // Limpa formulário e fecha
-      setForm(initial);
-      setPhotoPreview(null);
-      setServerAnexos([]);
-      onSaved?.(savedDoctorProfile);
-      if (inline) onClose?.();
-      else onOpenChange?.(false);
+      try {
+        const authResponse = await criarUsuarioMedico({
+          email: form.email,
+          full_name: form.full_name,
+          phone_mobile: form.celular || '',
+        });
+        
+        if (authResponse.success && authResponse.user) {
+          console.log('✅ Usuário Auth criado:', authResponse.user.id);
+          
+          // 3. Exibe popup com credenciais
+          setCredentials({
+            email: authResponse.email,
+            password: authResponse.password,
+            userName: form.full_name,
+            userType: 'médico',
+          });
+          setShowCredentialsDialog(true);
+          
+          // 4. Limpa formulário
+          setForm(initial);
+          setPhotoPreview(null);
+          setServerAnexos([]);
+          
+          // 5. Notifica componente pai
+          onSaved?.(savedDoctorProfile);
+        } else {
+          throw new Error('Falha ao criar usuário de autenticação');
+        }
+        
+      } catch (authError: any) {
+        console.error('❌ Erro ao criar usuário Auth:', authError);
+        
+        const errorMsg = authError?.message || String(authError);
+        
+        // Mensagens específicas de erro
+        if (errorMsg.toLowerCase().includes('already registered') || 
+            errorMsg.toLowerCase().includes('already been registered') ||
+            errorMsg.toLowerCase().includes('já está cadastrado')) {
+          alert(
+            `⚠️ EMAIL JÁ CADASTRADO\n\n` +
+            `O email "${form.email}" já possui uma conta no sistema.\n\n` +
+            `✅ O perfil do médico "${form.full_name}" foi salvo com sucesso.\n\n` +
+            `❌ Porém, não foi possível criar o login porque este email já está em uso.\n\n` +
+            `SOLUÇÃO:\n` +
+            `• Use um email diferente para este médico, OU\n` +
+            `• Se o médico já tem conta, edite o perfil e vincule ao usuário existente`
+          );
+        } else {
+          alert(
+            `⚠️ Médico cadastrado com sucesso, mas houve um problema ao criar o acesso ao sistema.\n\n` +
+            `✅ Perfil do médico salvo: ${form.full_name}\n\n` +
+            `❌ Erro ao criar login: ${errorMsg}\n\n` +
+            `Por favor, entre em contato com o administrador para criar o acesso manualmente.`
+          );
+        }
+        
+        // Limpa formulário mesmo com erro
+        setForm(initial);
+        setPhotoPreview(null);
+        setServerAnexos([]);
+        onSaved?.(savedDoctorProfile);
+        if (inline) onClose?.();
+        else onOpenChange?.(false);
+      }
     }
   } catch (err: any) {
     console.error("❌ Erro no handleSubmit:", err);
@@ -990,14 +1039,14 @@ async function handleSubmit(ev: React.FormEvent) {
         <div className="space-y-6">{content}</div>
         
         {/* Dialog de credenciais */}
-        {tempCredentials && (
+        {credentials && (
           <CredentialsDialog
-            open={dialogOpen}
+            open={showCredentialsDialog}
             onOpenChange={(open) => {
-              setDialogOpen(open);
+              setShowCredentialsDialog(open);
               if (!open) {
                 // Quando o dialog de credenciais fecha, fecha o formulário também
-                setTempCredentials(null);
+                setCredentials(null);
                 if (inline) {
                   onClose?.();
                 } else {
@@ -1005,10 +1054,10 @@ async function handleSubmit(ev: React.FormEvent) {
                 }
               }
             }}
-            email={tempCredentials.email}
-            password={tempCredentials.password}
-            userName={form.full_name}
-            userType="médico"
+            email={credentials.email}
+            password={credentials.password}
+            userName={credentials.userName}
+            userType={credentials.userType}
           />
         )}
       </>
@@ -1029,20 +1078,20 @@ async function handleSubmit(ev: React.FormEvent) {
       </Dialog>
       
       {/* Dialog de credenciais */}
-      {tempCredentials && (
+      {credentials && (
         <CredentialsDialog
-          open={dialogOpen}
+          open={showCredentialsDialog}
           onOpenChange={(open) => {
-            setDialogOpen(open);
+            setShowCredentialsDialog(open);
             if (!open) {
-              setTempCredentials(null);
+              setCredentials(null);
               onOpenChange?.(false);
             }
           }}
-          email={tempCredentials.email}
-          password={tempCredentials.password}
-          userName={form.full_name}
-          userType="médico"
+          email={credentials.email}
+          password={credentials.password}
+          userName={credentials.userName}
+          userType={credentials.userType}
         />
       )}
     </>

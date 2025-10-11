@@ -940,4 +940,251 @@ security:
   - bearer: []
 
 ```
+# Fazer login e obter token JWT
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /auth/v1/token:
+    post:
+      summary: Fazer login e obter token JWT
+      deprecated: false
+      description: >-
+        Autentica o usuário e retorna um token JWT para usar em outras
+        requisições.
+      tags:
+        - Authentication
+      parameters:
+        - name: grant_type
+          in: query
+          description: ''
+          required: true
+          schema:
+            type: string
+            enum:
+              - password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples: {}
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          headers: {}
+          x-apidog-name: OK
+        '400':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema: &ref_0
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Bad Request
+        '401':
+          description: Email ou senha incorretos
+          content:
+            application/json:
+              schema: *ref_0
+          headers: {}
+          x-apidog-name: Unauthorized
+      security:
+        - bearer: []
+      x-apidog-folder: Authentication
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940510-run
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          examples:
+            - usuario@exemplo.com
+        password:
+          type: string
+          minLength: 6
+          examples:
+            - senha123
+      x-apidog-orders:
+        - email
+        - password
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Token JWT para autenticação
+          examples:
+            - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          examples:
+            - bearer
+        expires_in:
+          type: integer
+          description: Tempo de expiração do token em segundos
+          examples:
+            - 3600
+        refresh_token:
+          type: string
+          description: Token para renovar o access_token
+        user:
+          $ref: '#/components/schemas/AuthUser'
+      x-apidog-orders:
+        - access_token
+        - token_type
+        - expires_in
+        - refresh_token
+        - user
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        email_confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      x-apidog-orders:
+        - id
+        - email
+        - email_confirmed_at
+        - created_at
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Logout do usuário
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /auth/v1/logout:
+    post:
+      summary: Logout do usuário
+      deprecated: false
+      description: Encerrar sessão do usuário
+      tags:
+        - Authentication
+        - Authentication
+      parameters: []
+      responses:
+        '204':
+          description: Logout realizado com sucesso
+          headers: {}
+          x-apidog-name: No Content
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Unauthorized
+      security:
+        - bearer: []
+      x-apidog-folder: Authentication
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940511-run
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
 

@@ -771,7 +771,7 @@ const ProfissionalPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground mb-2">Gerenciamento de Laudo</h1>
-              <p className="text-muted-foreground">Nesta seção você pode gerenciar todos os laudos gerados através da integração.</p>
+              <p className="text-muted-foreground">Nesta seção você pode gerenciar todos os laudos gerados.</p>
             </div>
             <Button 
               onClick={() => setIsCreatingNew(true)}
@@ -816,7 +816,7 @@ const ProfissionalPage = () => {
               </div>
 
               <div className="flex gap-2">
-                {/* date range buttons: Hoje / Semana / Mês */}
+                {/* date range buttons: Semana / Mês */}
                 <DateRangeButtons />
               </div>
 

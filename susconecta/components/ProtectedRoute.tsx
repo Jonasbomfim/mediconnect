@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import type { UserType } from '@/types/auth'
@@ -17,8 +17,12 @@ export default function ProtectedRoute({
   const { authStatus, user } = useAuth()
   const router = useRouter()
   const isRedirecting = useRef(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // marca que o componente já montou no cliente
+    setMounted(true)
+
     // Evitar múltiplos redirects
     if (isRedirecting.current) return
 
@@ -85,6 +89,9 @@ export default function ProtectedRoute({
 
   // Durante loading, mostrar spinner
   if (authStatus === 'loading') {
+    // evitar render no servidor para não causar mismatch de hidratação
+    if (!mounted) return null
+
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -97,6 +104,9 @@ export default function ProtectedRoute({
 
   // Se não autenticado ou redirecionando, mostrar spinner
   if (authStatus === 'unauthenticated' || isRedirecting.current) {
+    // evitar render no servidor para não causar mismatch de hidratação
+    if (!mounted) return null
+
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
-import { assignRoleToUser, listAssignmentsForPatient } from "@/lib/assignment";
+import { assignRoleToUser, listAssignmentsForPatient, PatientAssignmentRole } from "@/lib/assignment";
 import { listarProfissionais } from "@/lib/api";
 
 type Props = {
@@ -22,7 +22,8 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
   const { toast } = useToast();
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
-  const [role, setRole] = useState<string>("doctor");
+  // default to Portuguese role values expected by the backend
+  const [role, setRole] = useState<PatientAssignmentRole>("medico");
   const [loading, setLoading] = useState(false);
   const [existing, setExisting] = useState<any[]>([]);
 
@@ -48,11 +49,11 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
   }, [open, patientId]);
 
   async function handleSave() {
-    if (!selectedProfessional) return toast({ title: 'Selecione um profissional', variant: 'warning' });
+  if (!selectedProfessional) return toast({ title: 'Selecione um profissional', variant: 'default' });
     setLoading(true);
     try {
       await assignRoleToUser({ patient_id: patientId, user_id: selectedProfessional, role });
-      toast({ title: 'Atribuição criada', variant: 'success' });
+  toast({ title: 'Atribuição criada', variant: 'default' });
       onSaved && onSaved();
       onClose();
     } catch (err: any) {
@@ -87,8 +88,19 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
 
           <div>
             <Label>Role</Label>
-            <Input value={role} onChange={(e) => setRole(e.target.value)} />
-            <div className="text-xs text-muted-foreground mt-1">Ex: doctor, nurse</div>
+            <Input
+              value={role}
+              onChange={(e) => {
+                const v = String(e.target.value || '').toLowerCase().trim();
+                // Map common english values to portuguese expected by backend
+                if (v === 'doctor') return setRole('medico');
+                if (v === 'nurse') return setRole('enfermeiro');
+                if (v === 'medico' || v === 'enfermeiro') return setRole(v as PatientAssignmentRole);
+                // fallback: keep current role (ignore unknown input)
+                return setRole(role);
+              }}
+            />
+            <div className="text-xs text-muted-foreground mt-1">Ex: medico, enfermeiro (inglês: doctor → medico)</div>
           </div>
 
           {existing && existing.length > 0 && (

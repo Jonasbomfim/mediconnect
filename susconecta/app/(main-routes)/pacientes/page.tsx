@@ -317,6 +317,16 @@ export default function PacientesPage() {
         </Dialog>
       )}
 
+      {/* Assignment dialog */}
+      {assignDialogOpen && assignPatientId && (
+        <AssignmentForm
+          patientId={assignPatientId}
+          open={assignDialogOpen}
+          onClose={() => { setAssignDialogOpen(false); setAssignPatientId(null); }}
+          onSaved={() => { setAssignDialogOpen(false); setAssignPatientId(null); loadAll(); }}
+        />
+      )}
+
       <div className="text-sm text-muted-foreground">Mostrando {filtered.length} de {patients.length}</div>
     </div>
   );

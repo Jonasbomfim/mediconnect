@@ -838,6 +838,12 @@ export async function buscarMedicosPorIds(ids: Array<string | number>): Promise<
   return unique;
 }
 
+// Alias/backwards-compat: listarProfissionais usado por components
+export async function listarProfissionais(params?: { page?: number; limit?: number; q?: string; }): Promise<Medico[]> {
+  // Reuse listarMedicos implementation to avoid duplication
+  return await listarMedicos(params);
+}
+
 // Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
   console.log("Enviando os dados para a API:", input);  // Log para depuração

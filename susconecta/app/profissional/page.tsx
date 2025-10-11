@@ -737,23 +737,45 @@ const ProfissionalPage = () => {
       );
     }
 
-    // carregar laudos ao montar
+    // carregar laudos ao montar - somente dos pacientes atribuídos ao médico logado
     useEffect(() => {
       let mounted = true;
       (async () => {
         try {
-          await loadReports();
+          // obter assignments para o usuário logado
+          const assignments = await import('@/lib/assignment').then(m => m.listAssignmentsForUser(user?.id || ''));
+          const patientIds = Array.isArray(assignments) ? assignments.map(a => String(a.patient_id)).filter(Boolean) : [];
+
+          if (patientIds.length === 0) {
+            if (mounted) setLaudos([]);
+            return;
+          }
+
+          // carregar relatórios para cada paciente encontrado (useReports não tem batch by multiple ids, então carregamos por paciente)
+          const allReports: any[] = [];
+          for (const pid of patientIds) {
+            try {
+              const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
+              if (Array.isArray(rels)) allReports.push(...rels);
+            } catch (err) {
+              console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
+            }
+          }
+
+          if (mounted) {
+            setLaudos(allReports);
+          }
         } catch (e) {
-          // erro tratado no hook
+          console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);
+          if (mounted) setLaudos(reports || []);
         }
-        if (mounted) setLaudos(reports || []);
       })();
       return () => { mounted = false; };
-    }, [loadReports]);
+    }, [user?.id]);
 
-    // sincroniza quando reports mudarem no hook
+    // sincroniza quando reports mudarem no hook (fallback)
     useEffect(() => {
-      setLaudos(reports || []);
+      if (!laudos || laudos.length === 0) setLaudos(reports || []);
     }, [reports]);
 
   const [activeTab, setActiveTab] = useState("descobrir");

@@ -14,11 +14,8 @@ export type ApiOk<T = any> = {
     total?: number;
   };
 };
-
-// ===== TIPOS COMUNS =====
 export type Endereco = {
   cep?: string;
-  logradouro?: string;
   numero?: string;
   complemento?: string;
   bairro?: string;
@@ -182,17 +179,62 @@ function withPrefer(h: Record<string, string>, prefer: string) {
   return { ...h, Prefer: prefer };
 }
 
+// Helper: fetch seguro que tenta urls alternativas caso a requisição primária falhe
+async function fetchWithFallback<T = any>(url: string, headers: Record<string, string>, altUrls?: string[]): Promise<T | null> {
+  try {
+    console.debug('[fetchWithFallback] tentando URL:', url);
+    const res = await fetch(url, { method: 'GET', headers });
+    if (res.ok) {
+      return await parse<T>(res);
+    }
+    const raw = await res.clone().text().catch(() => '');
+    console.warn('[fetchWithFallback] falha na URL primária:', url, 'status:', res.status, 'raw:', raw);
+    if (!altUrls || !altUrls.length) return null;
+    for (const alt of altUrls) {
+      try {
+        console.debug('[fetchWithFallback] tentando fallback URL:', alt);
+        const r2 = await fetch(alt, { method: 'GET', headers });
+        if (r2.ok) return await parse<T>(r2);
+        const raw2 = await r2.clone().text().catch(() => '');
+        console.warn('[fetchWithFallback] fallback falhou:', alt, 'status:', r2.status, 'raw:', raw2);
+      } catch (e) {
+        console.warn('[fetchWithFallback] erro no fallback:', alt, e);
+      }
+    }
+    return null;
+  } catch (e) {
+    console.warn('[fetchWithFallback] erro fetch primario:', url, e);
+    if (!altUrls || !altUrls.length) return null;
+    for (const alt of altUrls) {
+      try {
+        const r2 = await fetch(alt, { method: 'GET', headers });
+        if (r2.ok) return await parse<T>(r2);
+      } catch (_) {
+        // ignore
+      }
+    }
+    return null;
+  }
+}
+
 // Parse genérico
 async function parse<T>(res: Response): Promise<T> {
   let json: any = null;
   try {
     json = await res.json();
   } catch (err) {
-    console.error("Erro ao parsear a resposta:", err);
+    console.error("Erro ao parsear a resposta como JSON:", err);
   }
 
   if (!res.ok) {
-    console.error("[API ERROR]", res.url, res.status, json);
+    // Tenta também ler o body como texto cru para obter mensagens detalhadas
+    let rawText = '';
+    try {
+      rawText = await res.clone().text();
+    } catch (tErr) {
+      // ignore
+    }
+    console.error("[API ERROR]", res.url, res.status, json, "raw:", rawText);
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message || json.error)) ?? res.statusText;
     
@@ -270,14 +312,19 @@ export async function listarPacientes(params?: {
 }): Promise<Paciente[]> {
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q);
+  let url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients`;
+  const qsString = qs.toString();
+  if (qsString) url += `?${qsString}`;
 
-  const url = `${REST}/patients${qs.toString() ? `?${qs.toString()}` : ""}`;
+  // Use baseHeaders() so the current user token (from local/session storage) and apikey are sent
+  const headers: HeadersInit = {
+    ...baseHeaders(),
+    ...rangeHeaders(params?.page, params?.limit),
+  };
+
   const res = await fetch(url, {
     method: "GET",
-    headers: {
-      ...baseHeaders(),
-      ...rangeHeaders(params?.page, params?.limit),
-    },
+    headers,
   });
   return await parse<Paciente[]>(res);
 }
@@ -324,8 +371,12 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      const url = `${REST}/patients?${query}&limit=10`;
-      const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+      const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?${query}&limit=10`;
+      const headers = baseHeaders();
+      const masked = (headers['Authorization'] as string | undefined) ? `${String(headers['Authorization']).slice(0,6)}...${String(headers['Authorization']).slice(-6)}` : null;
+      console.debug('[buscarPacientes] URL:', url);
+      console.debug('[buscarPacientes] Headers (masked):', { ...headers, Authorization: masked ? '<<masked>>' : undefined });
+      const res = await fetch(url, { method: "GET", headers });
       const arr = await parse<Paciente[]>(res);
       
       if (arr?.length > 0) {
@@ -345,20 +396,159 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
 }
 
 export async function buscarPacientePorId(id: string | number): Promise<Paciente> {
-  // Se for string e não for só número, coloca aspas duplas (para UUID/texto)
-  let idParam: string | number = id;
-  if (typeof id === 'string' && isNaN(Number(id))) {
-    idParam = `\"${id}\"`;
+  const idParam = String(id);
+  const headers = baseHeaders();
+
+  // Tenta buscar por id (UUID ou string) primeiro
+  try {
+    const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?id=eq.${encodeURIComponent(idParam)}`;
+    console.debug('[buscarPacientePorId] tentando por id URL:', url);
+    const arr = await fetchWithFallback<Paciente[]>(url, headers);
+    if (arr && arr.length) return arr[0];
+  } catch (e) {
+    // continue to next strategies
   }
-  const url = `${REST}/patients?id=eq.${idParam}`;
-  const res = await fetch(url, { method: "GET", headers: baseHeaders() });
-  const arr = await parse<Paciente[]>(res);
-  if (!arr?.length) throw new Error("404: Paciente não encontrado");
-  return arr[0];
+
+  // Se for string e não numérico, talvez foi passado um nome — tentar por full_name / social_name
+  if (typeof id === 'string' && isNaN(Number(id))) {
+    const q = encodeURIComponent(String(id));
+    const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?full_name=ilike.*${q}*&limit=5`;
+    const alt = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?social_name=ilike.*${q}*&limit=5`;
+    console.debug('[buscarPacientePorId] tentando por nome URL:', url);
+    const arr2 = await fetchWithFallback<Paciente[]>(url, headers, [alt]);
+    if (arr2 && arr2.length) return arr2[0];
+  }
+
+  throw new Error('404: Paciente não encontrado');
+}
+
+// ===== RELATÓRIOS =====
+export type Report = {
+  id: string;
+  patient_id?: string;
+  order_number?: string;
+  exam?: string;
+  diagnosis?: string;
+  conclusion?: string;
+  cid_code?: string;
+  content_html?: string;
+  content_json?: any;
+  status?: string;
+  requested_by?: string;
+  due_at?: string;
+  hide_date?: boolean;
+  hide_signature?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+};
+
+/**
+ * Buscar relatório por ID (tenta múltiplas estratégias: id, order_number, patient_id)
+ * Retorna o primeiro relatório encontrado ou lança erro 404 quando não achar.
+ */
+export async function buscarRelatorioPorId(id: string | number): Promise<Report> {
+  const sId = String(id);
+  const headers = baseHeaders();
+
+  // 1) tenta por id (UUID ou campo id)
+  try {
+    const urlById = `${REST}/reports?id=eq.${encodeURIComponent(sId)}`;
+    console.debug('[buscarRelatorioPorId] tentando por id URL:', urlById);
+    const arr = await fetchWithFallback<Report[]>(urlById, headers);
+    if (arr && arr.length) return arr[0];
+  } catch (e) {
+    console.warn('[buscarRelatorioPorId] falha ao buscar por id:', e);
+  }
+
+  // 2) tenta por order_number (caso o usuário cole um código legível)
+  try {
+    const urlByOrder = `${REST}/reports?order_number=eq.${encodeURIComponent(sId)}`;
+    console.debug('[buscarRelatorioPorId] tentando por order_number URL:', urlByOrder);
+    const arr2 = await fetchWithFallback<Report[]>(urlByOrder, headers);
+    if (arr2 && arr2.length) return arr2[0];
+  } catch (e) {
+    console.warn('[buscarRelatorioPorId] falha ao buscar por order_number:', e);
+  }
+
+  // 3) tenta por patient_id (caso o usuário passe um patient_id em vez do report id)
+  try {
+    const urlByPatient = `${REST}/reports?patient_id=eq.${encodeURIComponent(sId)}`;
+    console.debug('[buscarRelatorioPorId] tentando por patient_id URL:', urlByPatient);
+    const arr3 = await fetchWithFallback<Report[]>(urlByPatient, headers);
+    if (arr3 && arr3.length) return arr3[0];
+  } catch (e) {
+    console.warn('[buscarRelatorioPorId] falha ao buscar por patient_id:', e);
+  }
+
+  // Não encontrado
+  throw new Error('404: Relatório não encontrado');
+}
+
+
+// Buscar vários pacientes por uma lista de IDs (usa query in.(...))
+export async function buscarPacientesPorIds(ids: Array<string | number>): Promise<Paciente[]> {
+  if (!ids || !ids.length) return [];
+  // Separe valores que parecem UUIDs daqueles que são nomes/texto
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  const uuids: string[] = [];
+  const names: string[] = [];
+  for (const id of ids) {
+    const s = String(id).trim();
+    if (!s) continue;
+    if (uuidRegex.test(s)) uuids.push(s);
+    else names.push(s);
+  }
+
+  const results: Paciente[] = [];
+
+  // Buscar por UUIDs (coluna id)
+  if (uuids.length) {
+    const uuidsParam = uuids.join(',');
+    const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?id=in.(${uuidsParam})&limit=100`;
+    try {
+      const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+      const arr = await parse<Paciente[]>(res);
+      if (arr && arr.length) results.push(...arr);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // Buscar por nomes (coluna full_name)
+  if (names.length) {
+    // Em vez de usar in.(...) (que exige aspas e quebra com encoding),
+    // fazemos uma requisição por nome usando ilike para cada nome.
+    for (const name of names) {
+      try {
+        const q = encodeURIComponent(name);
+        const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?full_name=ilike.*${q}*&limit=100`;
+        const alt = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?social_name=ilike.*${q}*&limit=100`;
+        const headers = baseHeaders();
+        console.debug('[buscarPacientesPorIds] URL (patient by name):', url);
+        const arr = await fetchWithFallback<Paciente[]>(url, headers, [alt]);
+        if (arr && arr.length) results.push(...arr);
+      } catch (e) {
+        // ignore individual name failures
+      }
+    }
+  }
+
+  // Remover duplicados pelo id
+  const seen = new Set<string>();
+  const unique: Paciente[] = [];
+  for (const p of results) {
+    if (!p || !p.id) continue;
+    if (!seen.has(p.id)) {
+      seen.add(p.id);
+      unique.push(p);
+    }
+  }
+  return unique;
 }
 
 export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
-  const url = `${REST}/patients`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients`;
   const res = await fetch(url, {
     method: "POST",
     headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
@@ -369,7 +559,7 @@ export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
 }
 
 export async function atualizarPaciente(id: string | number, input: PacienteInput): Promise<Paciente> {
-  const url = `${REST}/patients?id=eq.${id}`;
+  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?id=eq.${id}`;
   const res = await fetch(url, {
     method: "PATCH",
     headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
@@ -497,7 +687,11 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   for (const query of queries) {
     try {
       const url = `${REST}/doctors?${query}&limit=10`;
-      const res = await fetch(url, { method: "GET", headers: baseHeaders() });
+      const headers = baseHeaders();
+      const masked = (headers['Authorization'] as string | undefined) ? `${String(headers['Authorization']).slice(0,6)}...${String(headers['Authorization']).slice(-6)}` : null;
+      console.debug('[buscarMedicos] URL:', url);
+      console.debug('[buscarMedicos] Headers (masked):', { ...headers, Authorization: masked ? '<<masked>>' : undefined });
+      const res = await fetch(url, { method: 'GET', headers });
       const arr = await parse<Medico[]>(res);
       
       if (arr?.length > 0) {
@@ -516,50 +710,132 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   return results.slice(0, 20); // Limita a 20 resultados
 }
 
-export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
+export async function buscarMedicoPorId(id: string | number): Promise<Medico | null> {
   // Primeiro tenta buscar no Supabase (dados reais)
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  const isString = typeof id === 'string';
+  const sId = String(id);
+
+  // Helper para escape de aspas
+  const escapeQuotes = (v: string) => v.replace(/"/g, '\\"');
+
   try {
-    const url = `${REST}/doctors?id=eq.${id}`;
-    const res = await fetch(url, { method: "GET", headers: baseHeaders() });
-    const arr = await parse<Medico[]>(res);
-    if (arr && arr.length > 0) {
-      console.log('Médico encontrado no Supabase:', arr[0]);
-      console.log('Campo especialidade no médico:', {
-        especialidade: arr[0].especialidade,
-        specialty: (arr[0] as any).specialty,
-        hasEspecialidade: !!arr[0].especialidade,
-        hasSpecialty: !!((arr[0] as any).specialty)
-      });
-      return arr[0];
+    // 1) Se parece UUID, busca por id direto
+    if (isString && uuidRegex.test(sId)) {
+      const url = `${REST}/doctors?id=eq.${encodeURIComponent(sId)}`;
+      console.debug('[buscarMedicoPorId] tentando por id URL:', url);
+      const arr = await fetchWithFallback<Medico[]>(url, baseHeaders());
+      if (arr && arr.length > 0) return arr[0];
+    }
+
+    // 2) Se for string não numérica (um nome), tente buscar por full_name e nome_social
+    if (isString && isNaN(Number(sId))) {
+      const quoted = `"${escapeQuotes(sId)}"`;
+      // tentar por full_name usando ilike para evitar 400 com espaços/caracteres
+      try {
+        const q = encodeURIComponent(sId);
+        const url = `${REST}/doctors?full_name=ilike.*${q}*&limit=5`;
+        const alt = `${REST}/doctors?nome_social=ilike.*${q}*&limit=5`;
+        const arr = await fetchWithFallback<Medico[]>(url, baseHeaders(), [alt, `${REST}/doctors?social_name=ilike.*${q}*&limit=5`]);
+        if (arr && arr.length > 0) return arr[0];
+      } catch (e) {
+        // ignore and try next
+      }
+
+      // tentar nome_social também com ilike
+      // (já tratado acima via fetchWithFallback)
+    }
+
+    // 3) Por fim, tentar buscar por id (como último recurso)
+    try {
+      const idParam = encodeURIComponent(sId);
+      const url3 = `${REST}/doctors?id=eq.${idParam}`;
+      const arr3 = await fetchWithFallback<Medico[]>(url3, baseHeaders());
+      if (arr3 && arr3.length > 0) return arr3[0];
+    } catch (e) {
+      // continue to mock fallback
     }
   } catch (error) {
     console.warn('Erro ao buscar no Supabase, tentando mock API:', error);
   }
-  
+
   // Se não encontrar no Supabase, tenta o mock API
   try {
-    const url = `https://mock.apidog.com/m1/1053378-0-default/rest/v1/doctors/${id}`;
-    const res = await fetch(url, { 
-      method: "GET", 
-      headers: {
-        "Accept": "application/json"
+    const mockUrl = `https://yuanqog.com/m1/1053378-0-default/rest/v1/doctors/${encodeURIComponent(String(id))}`;
+    console.debug('[buscarMedicoPorId] tentando mock API URL:', mockUrl);
+    try {
+      const medico = await fetchWithFallback<any>(mockUrl, { Accept: 'application/json' });
+      if (medico) {
+        console.log('✅ Médico encontrado no Mock API:', medico);
+        return medico as Medico;
       }
-    });
-    
-    if (!res.ok) {
-      if (res.status === 404) {
-        throw new Error("404: Médico não encontrado");
-      }
-      throw new Error(`Erro ao buscar médico: ${res.status} ${res.statusText}`);
+      // fetchWithFallback returned null -> not found
+      console.warn('[buscarMedicoPorId] mock API returned no result for id:', id);
+      return null;
+    } catch (fetchErr) {
+      console.warn('[buscarMedicoPorId] mock API fetch failed or returned no result:', fetchErr);
+      return null;
     }
-    
-  const medico = await res.json();
-  console.log('Médico encontrado no Mock API:', medico);
-    return medico as Medico;
   } catch (error) {
-    console.error('Erro ao buscar médico em ambas as APIs:', error);
-    throw new Error("404: Médico não encontrado");
+    console.error('❌ Erro ao buscar médico em ambas as APIs:', error);
+    return null;
   }
+}
+
+// Buscar vários médicos por IDs
+export async function buscarMedicosPorIds(ids: Array<string | number>): Promise<Medico[]> {
+  if (!ids || !ids.length) return [];
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  const uuids: string[] = [];
+  const names: string[] = [];
+  for (const id of ids) {
+    const s = String(id).trim();
+    if (!s) continue;
+    if (uuidRegex.test(s)) uuids.push(s);
+    else names.push(s);
+  }
+
+  const results: Medico[] = [];
+
+  if (uuids.length) {
+    const uuidsParam = uuids.join(',');
+    const url = `${REST}/doctors?id=in.(${uuidsParam})&limit=200`;
+    try {
+      const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+      const arr = await parse<Medico[]>(res);
+      if (arr && arr.length) results.push(...arr);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (names.length) {
+    // Evitar in.(...) com aspas — fazer uma requisição por nome usando ilike
+    for (const name of names) {
+      try {
+        const q = encodeURIComponent(name);
+        const url = `${REST}/doctors?full_name=ilike.*${q}*&limit=200`;
+        const alt = `${REST}/doctors?nome_social=ilike.*${q}*&limit=200`;
+        const headers = baseHeaders();
+        console.debug('[buscarMedicosPorIds] URL (doctor by name):', url);
+        const arr = await fetchWithFallback<Medico[]>(url, headers, [alt, `${REST}/doctors?social_name=ilike.*${q}*&limit=200`]);
+        if (arr && arr.length) results.push(...arr);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const unique: Medico[] = [];
+  for (const d of results) {
+    if (!d || !d.id) continue;
+    if (!seen.has(d.id)) {
+      seen.add(d.id);
+      unique.push(d);
+    }
+  }
+  return unique;
 }
 
 // Dentro de lib/api.ts
@@ -1206,7 +1482,7 @@ export async function removerFotoMedico(_id: string | number): Promise<void> {}
 
 // ===== PERFIS DE USUÁRIOS =====
 export async function listarPerfis(): Promise<Profile[]> {
-  const url = `https://mock.apidog.com/m1/1053378-0-default/rest/v1/profiles`;
+  const url = `https://yuanq1/1053378-0-default/rest/v1/profiles`;
   const res = await fetch(url, {
     method: "GET",
     headers: baseHeaders(),

@@ -254,7 +254,7 @@ class HttpClient {
 }
 
 // Instância única do cliente HTTP
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mock.apidog.com/m1/1053378-0-default'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://yuanqog.com/m1/1053378-0-default'
 export const httpClient = new HttpClient(API_BASE_URL)
 
 export default httpClient

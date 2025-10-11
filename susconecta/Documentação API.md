@@ -1188,3 +1188,1378 @@ security:
 
 ```
 
+# Listar perfis de usuários
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/profiles:
+    get:
+      summary: Listar perfis de usuários
+      deprecated: false
+      description: ''
+      tags:
+        - Perfis
+        - Perfis
+      parameters:
+        - name: apikey
+          in: header
+          description: Chave da API Supabase
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de perfis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Profile'
+          headers: {}
+          x-apidog-name: OK
+      security:
+        - bearer: []
+      x-apidog-folder: Perfis
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940522-run
+components:
+  schemas:
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+          examples:
+            - Dr. João Silva
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          examples:
+            - '+5511999999999'
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        disabled:
+          type: boolean
+          examples:
+            - false
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apidog-orders:
+        - id
+        - full_name
+        - email
+        - phone
+        - avatar_url
+        - disabled
+        - created_at
+        - updated_at
+      x-apidog-ignore-properties: []
+      nullable: true
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Atualizar perfil do usuário
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/profiles:
+    patch:
+      summary: Atualizar perfil do usuário
+      deprecated: false
+      description: ''
+      tags:
+        - Perfis
+        - Perfis
+      parameters:
+        - name: apikey
+          in: header
+          description: Chave da API Supabase
+          required: true
+          example: ''
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+      responses:
+        '200':
+          description: Perfil atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          headers: {}
+          x-apidog-name: OK
+      security:
+        - bearer: []
+      x-apidog-folder: Perfis
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940523-run
+components:
+  schemas:
+    ProfileInput:
+      type: object
+      properties:
+        full_name:
+          type: string
+        avatar_url:
+          type: string
+        phone:
+          type: string
+      x-apidog-orders:
+        - full_name
+        - avatar_url
+        - phone
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+          examples:
+            - Dr. João Silva
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          examples:
+            - '+5511999999999'
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        disabled:
+          type: boolean
+          examples:
+            - false
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apidog-orders:
+        - id
+        - full_name
+        - email
+        - phone
+        - avatar_url
+        - disabled
+        - created_at
+        - updated_at
+      x-apidog-ignore-properties: []
+      nullable: true
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Obter paciente por ID
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/patients/{id}:
+    get:
+      summary: Obter paciente por ID
+      deprecated: false
+      description: Retorna dados de um paciente específico
+      tags:
+        - Pacientes
+        - Pacientes
+      parameters:
+        - name: id
+          in: path
+          description: ID do paciente
+          required: true
+          example: ''
+          schema:
+            type: string
+            format: uuid
+        - name: apikey
+          in: header
+          description: Chave da API Supabase
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dados do paciente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+          headers: {}
+          x-apidog-name: OK
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema: &ref_0
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Unauthorized
+        '404':
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema: *ref_0
+          headers: {}
+          x-apidog-name: Not Found
+      security:
+        - bearer: []
+      x-apidog-folder: Pacientes
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940515-run
+components:
+  schemas:
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+        full_name:
+          type: string
+          examples:
+            - Maria Santos Silva
+        cpf:
+          type: string
+          examples:
+            - '12345678901'
+        email:
+          type: string
+          format: email
+          examples:
+            - maria@email.com
+        phone_mobile:
+          type: string
+          examples:
+            - (11) 99999-9999
+        birth_date:
+          type: string
+          format: date
+          examples:
+            - '1980-01-15'
+        social_name:
+          type: string
+          examples:
+            - Maria Santos
+        sex:
+          type: string
+          examples:
+            - F
+        blood_type:
+          type: string
+          examples:
+            - A+
+        weight_kg:
+          type: number
+          examples:
+            - 65.5
+        height_m:
+          type: number
+          examples:
+            - 1.65
+        bmi:
+          type: number
+          examples:
+            - 24.1
+        street:
+          type: string
+          examples:
+            - Rua das Flores, 123
+        number:
+          type: string
+          examples:
+            - '123'
+        complement:
+          type: string
+          examples:
+            - Apt 45
+        neighborhood:
+          type: string
+          examples:
+            - Centro
+        city:
+          type: string
+          examples:
+            - São Paulo
+        state:
+          type: string
+          examples:
+            - SP
+        cep:
+          type: string
+          examples:
+            - 01234-567
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        created_by:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+      x-apidog-orders:
+        - id
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+        - birth_date
+        - social_name
+        - sex
+        - blood_type
+        - weight_kg
+        - height_m
+        - bmi
+        - street
+        - number
+        - complement
+        - neighborhood
+        - city
+        - state
+        - cep
+        - created_at
+        - updated_at
+        - created_by
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Atualizar paciente
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/patients/{id}:
+    patch:
+      summary: Atualizar paciente
+      deprecated: false
+      description: Atualizar dados de um paciente existente
+      tags:
+        - Pacientes
+        - Pacientes
+      parameters:
+        - name: id
+          in: path
+          description: ID do paciente
+          required: true
+          example: ''
+          schema:
+            type: string
+            format: uuid
+        - name: apikey
+          in: header
+          description: Chave da API Supabase
+          required: true
+          example: ''
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientInput'
+      responses:
+        '200':
+          description: Paciente atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+          headers: {}
+          x-apidog-name: OK
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema: &ref_0
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Unauthorized
+        '404':
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema: *ref_0
+          headers: {}
+          x-apidog-name: Not Found
+      security:
+        - bearer: []
+      x-apidog-folder: Pacientes
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940516-run
+components:
+  schemas:
+    PatientInput:
+      type: object
+      required:
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+      properties:
+        full_name:
+          type: string
+          examples:
+            - Maria Santos Silva
+        cpf:
+          type: string
+          examples:
+            - '12345678901'
+        email:
+          type: string
+          format: email
+          examples:
+            - maria@email.com
+        phone_mobile:
+          type: string
+          examples:
+            - (11) 99999-9999
+        birth_date:
+          type: string
+          format: date
+          examples:
+            - '1980-01-15'
+        social_name:
+          type: string
+        sex:
+          type: string
+          examples:
+            - F
+        blood_type:
+          type: string
+        weight_kg:
+          type: number
+        height_m:
+          type: number
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        cep:
+          type: string
+      x-apidog-orders:
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+        - birth_date
+        - social_name
+        - sex
+        - blood_type
+        - weight_kg
+        - height_m
+        - street
+        - number
+        - complement
+        - neighborhood
+        - city
+        - state
+        - cep
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+        full_name:
+          type: string
+          examples:
+            - Maria Santos Silva
+        cpf:
+          type: string
+          examples:
+            - '12345678901'
+        email:
+          type: string
+          format: email
+          examples:
+            - maria@email.com
+        phone_mobile:
+          type: string
+          examples:
+            - (11) 99999-9999
+        birth_date:
+          type: string
+          format: date
+          examples:
+            - '1980-01-15'
+        social_name:
+          type: string
+          examples:
+            - Maria Santos
+        sex:
+          type: string
+          examples:
+            - F
+        blood_type:
+          type: string
+          examples:
+            - A+
+        weight_kg:
+          type: number
+          examples:
+            - 65.5
+        height_m:
+          type: number
+          examples:
+            - 1.65
+        bmi:
+          type: number
+          examples:
+            - 24.1
+        street:
+          type: string
+          examples:
+            - Rua das Flores, 123
+        number:
+          type: string
+          examples:
+            - '123'
+        complement:
+          type: string
+          examples:
+            - Apt 45
+        neighborhood:
+          type: string
+          examples:
+            - Centro
+        city:
+          type: string
+          examples:
+            - São Paulo
+        state:
+          type: string
+          examples:
+            - SP
+        cep:
+          type: string
+          examples:
+            - 01234-567
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        created_by:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+      x-apidog-orders:
+        - id
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+        - birth_date
+        - social_name
+        - sex
+        - blood_type
+        - weight_kg
+        - height_m
+        - bmi
+        - street
+        - number
+        - complement
+        - neighborhood
+        - city
+        - state
+        - cep
+        - created_at
+        - updated_at
+        - created_by
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Deletar paciente
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/patients/{id}:
+    delete:
+      summary: Deletar paciente
+      deprecated: false
+      description: Remover um paciente do sistema (apenas admins/gestores)
+      tags:
+        - Pacientes
+        - Pacientes
+      parameters:
+        - name: id
+          in: path
+          description: ID do paciente
+          required: true
+          example: ''
+          schema:
+            type: string
+            format: uuid
+        - name: apikey
+          in: header
+          description: Chave da API Supabase
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Paciente deletado com sucesso
+          headers: {}
+          x-apidog-name: No Content
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema: &ref_0
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Unauthorized
+        '403':
+          description: Sem permissão
+          content:
+            application/json:
+              schema: *ref_0
+          headers: {}
+          x-apidog-name: Forbidden
+        '404':
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema: *ref_0
+          headers: {}
+          x-apidog-name: Not Found
+      security:
+        - bearer: []
+      x-apidog-folder: Pacientes
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940517-run
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Criar novo paciente
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/patients:
+    post:
+      summary: Criar novo paciente
+      deprecated: false
+      description: Cadastrar um novo paciente no sistema
+      tags:
+        - Pacientes
+        - Pacientes
+      parameters:
+        - name: apikey
+          in: header
+          description: Chave da API Supabase
+          required: true
+          example: '{{API_KEY}}'
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientInput'
+            example:
+              full_name: Maria Santos
+              cpf: '12345678901'
+              email: maria@email.com
+              phone_mobile: (11) 99999-9999
+              birth_date: '1980-01-15'
+      responses:
+        '201':
+          description: Paciente criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+          headers: {}
+          x-apidog-name: Created
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema: &ref_0
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Bad Request
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema: *ref_0
+          headers: {}
+          x-apidog-name: Unauthorized
+      security:
+        - bearer: []
+      x-apidog-folder: Pacientes
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940514-run
+components:
+  schemas:
+    PatientInput:
+      type: object
+      required:
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+      properties:
+        full_name:
+          type: string
+          examples:
+            - Maria Santos Silva
+        cpf:
+          type: string
+          examples:
+            - '12345678901'
+        email:
+          type: string
+          format: email
+          examples:
+            - maria@email.com
+        phone_mobile:
+          type: string
+          examples:
+            - (11) 99999-9999
+        birth_date:
+          type: string
+          format: date
+          examples:
+            - '1980-01-15'
+        social_name:
+          type: string
+        sex:
+          type: string
+          examples:
+            - F
+        blood_type:
+          type: string
+        weight_kg:
+          type: number
+        height_m:
+          type: number
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        cep:
+          type: string
+      x-apidog-orders:
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+        - birth_date
+        - social_name
+        - sex
+        - blood_type
+        - weight_kg
+        - height_m
+        - street
+        - number
+        - complement
+        - neighborhood
+        - city
+        - state
+        - cep
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+        full_name:
+          type: string
+          examples:
+            - Maria Santos Silva
+        cpf:
+          type: string
+          examples:
+            - '12345678901'
+        email:
+          type: string
+          format: email
+          examples:
+            - maria@email.com
+        phone_mobile:
+          type: string
+          examples:
+            - (11) 99999-9999
+        birth_date:
+          type: string
+          format: date
+          examples:
+            - '1980-01-15'
+        social_name:
+          type: string
+          examples:
+            - Maria Santos
+        sex:
+          type: string
+          examples:
+            - F
+        blood_type:
+          type: string
+          examples:
+            - A+
+        weight_kg:
+          type: number
+          examples:
+            - 65.5
+        height_m:
+          type: number
+          examples:
+            - 1.65
+        bmi:
+          type: number
+          examples:
+            - 24.1
+        street:
+          type: string
+          examples:
+            - Rua das Flores, 123
+        number:
+          type: string
+          examples:
+            - '123'
+        complement:
+          type: string
+          examples:
+            - Apt 45
+        neighborhood:
+          type: string
+          examples:
+            - Centro
+        city:
+          type: string
+          examples:
+            - São Paulo
+        state:
+          type: string
+          examples:
+            - SP
+        cep:
+          type: string
+          examples:
+            - 01234-567
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        created_by:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+      x-apidog-orders:
+        - id
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+        - birth_date
+        - social_name
+        - sex
+        - blood_type
+        - weight_kg
+        - height_m
+        - bmi
+        - street
+        - number
+        - complement
+        - neighborhood
+        - city
+        - state
+        - cep
+        - created_at
+        - updated_at
+        - created_by
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```
+
+# Listar pacientes
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /rest/v1/patients:
+    get:
+      summary: Listar pacientes
+      deprecated: false
+      description: Retorna lista de pacientes com base nas permissões do usuário
+      tags:
+        - Pacientes
+        - Pacientes
+      parameters:
+        - name: apikey
+          in: header
+          description: ''
+          required: false
+          example: '{{apikey}}'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de pacientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Patient'
+          headers: {}
+          x-apidog-name: OK
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers: {}
+          x-apidog-name: Unauthorized
+      security:
+        - bearer: []
+      x-apidog-folder: Pacientes
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/1053378/apis/api-21940513-run
+components:
+  schemas:
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+        full_name:
+          type: string
+          examples:
+            - Maria Santos Silva
+        cpf:
+          type: string
+          examples:
+            - '12345678901'
+        email:
+          type: string
+          format: email
+          examples:
+            - maria@email.com
+        phone_mobile:
+          type: string
+          examples:
+            - (11) 99999-9999
+        birth_date:
+          type: string
+          format: date
+          examples:
+            - '1980-01-15'
+        social_name:
+          type: string
+          examples:
+            - Maria Santos
+        sex:
+          type: string
+          examples:
+            - F
+        blood_type:
+          type: string
+          examples:
+            - A+
+        weight_kg:
+          type: number
+          examples:
+            - 65.5
+        height_m:
+          type: number
+          examples:
+            - 1.65
+        bmi:
+          type: number
+          examples:
+            - 24.1
+        street:
+          type: string
+          examples:
+            - Rua das Flores, 123
+        number:
+          type: string
+          examples:
+            - '123'
+        complement:
+          type: string
+          examples:
+            - Apt 45
+        neighborhood:
+          type: string
+          examples:
+            - Centro
+        city:
+          type: string
+          examples:
+            - São Paulo
+        state:
+          type: string
+          examples:
+            - SP
+        cep:
+          type: string
+          examples:
+            - 01234-567
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2024-01-15T10:30:00Z'
+        created_by:
+          type: string
+          format: uuid
+          examples:
+            - 12345678-1234-1234-1234-123456789012
+      x-apidog-orders:
+        - id
+        - full_name
+        - cpf
+        - email
+        - phone_mobile
+        - birth_date
+        - social_name
+        - sex
+        - blood_type
+        - weight_kg
+        - height_m
+        - bmi
+        - street
+        - number
+        - complement
+        - neighborhood
+        - city
+        - state
+        - cep
+        - created_at
+        - updated_at
+        - created_by
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      x-apidog-orders:
+        - error
+        - message
+        - code
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    bearerAuth:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido no login
+    bearer:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://yuanqfswhberkoevtmfr.supabase.co
+    description: Prod Env
+  - url: ''
+    description: Cloud Mock
+security:
+  - bearer: []
+
+```

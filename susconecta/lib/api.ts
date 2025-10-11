@@ -1481,12 +1481,67 @@ export async function uploadFotoMedico(_id: string | number, _file: File): Promi
 export async function removerFotoMedico(_id: string | number): Promise<void> {}
 
 // ===== PERFIS DE USUÁRIOS =====
-export async function listarPerfis(): Promise<Profile[]> {
-  const url = `https://yuanq1/1053378-0-default/rest/v1/profiles`;
+export async function listarPerfis(params?: { page?: number; limit?: number; q?: string; }): Promise<Profile[]> {
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set('q', params.q);
+  const url = `${REST}/profiles${qs.toString() ? `?${qs.toString()}` : ''}`;
   const res = await fetch(url, {
-    method: "GET",
-    headers: baseHeaders(),
+    method: 'GET',
+    headers: { ...baseHeaders(), ...rangeHeaders(params?.page, params?.limit) },
   });
   return await parse<Profile[]>(res);
+}
+
+export async function buscarPerfilPorId(id: string | number): Promise<Profile> {
+  const idParam = String(id);
+  const headers = baseHeaders();
+
+  // 1) tentar por id
+  try {
+    const url = `${REST}/profiles?id=eq.${encodeURIComponent(idParam)}`;
+    const arr = await fetchWithFallback<Profile[]>(url, headers);
+    if (arr && arr.length) return arr[0];
+  } catch (e) {
+    // continuar para próxima estratégia
+  }
+
+  // 2) tentar por full_name quando for string legível
+  if (typeof id === 'string' && isNaN(Number(id))) {
+    const q = encodeURIComponent(String(id));
+    const url = `${REST}/profiles?full_name=ilike.*${q}*&limit=5`;
+    const alt = `${REST}/profiles?email=ilike.*${q}*&limit=5`;
+    const arr2 = await fetchWithFallback<Profile[]>(url, headers, [alt]);
+    if (arr2 && arr2.length) return arr2[0];
+  }
+
+  throw new Error('404: Perfil não encontrado');
+}
+
+export async function criarPerfil(input: ProfileInput): Promise<Profile> {
+  const url = `${REST}/profiles`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(input),
+  });
+  const arr = await parse<Profile[] | Profile>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as Profile);
+}
+
+export async function atualizarPerfil(id: string | number, input: ProfileInput): Promise<Profile> {
+  const url = `${REST}/profiles?id=eq.${id}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(input),
+  });
+  const arr = await parse<Profile[] | Profile>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as Profile);
+}
+
+export async function excluirPerfil(id: string | number): Promise<void> {
+  const url = `${REST}/profiles?id=eq.${id}`;
+  const res = await fetch(url, { method: 'DELETE', headers: baseHeaders() });
+  await parse<any>(res);
 }
 

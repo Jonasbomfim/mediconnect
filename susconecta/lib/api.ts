@@ -397,6 +397,70 @@ export async function buscarPacientePorId(id: string | number): Promise<Paciente
   throw new Error('404: Paciente não encontrado');
 }
 
+// ===== RELATÓRIOS =====
+export type Report = {
+  id: string;
+  patient_id?: string;
+  order_number?: string;
+  exam?: string;
+  diagnosis?: string;
+  conclusion?: string;
+  cid_code?: string;
+  content_html?: string;
+  content_json?: any;
+  status?: string;
+  requested_by?: string;
+  due_at?: string;
+  hide_date?: boolean;
+  hide_signature?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+};
+
+/**
+ * Buscar relatório por ID (tenta múltiplas estratégias: id, order_number, patient_id)
+ * Retorna o primeiro relatório encontrado ou lança erro 404 quando não achar.
+ */
+export async function buscarRelatorioPorId(id: string | number): Promise<Report> {
+  const sId = String(id);
+  const headers = baseHeaders();
+
+  // 1) tenta por id (UUID ou campo id)
+  try {
+    const urlById = `${REST}/reports?id=eq.${encodeURIComponent(sId)}`;
+    console.debug('[buscarRelatorioPorId] tentando por id URL:', urlById);
+    const arr = await fetchWithFallback<Report[]>(urlById, headers);
+    if (arr && arr.length) return arr[0];
+  } catch (e) {
+    console.warn('[buscarRelatorioPorId] falha ao buscar por id:', e);
+  }
+
+  // 2) tenta por order_number (caso o usuário cole um código legível)
+  try {
+    const urlByOrder = `${REST}/reports?order_number=eq.${encodeURIComponent(sId)}`;
+    console.debug('[buscarRelatorioPorId] tentando por order_number URL:', urlByOrder);
+    const arr2 = await fetchWithFallback<Report[]>(urlByOrder, headers);
+    if (arr2 && arr2.length) return arr2[0];
+  } catch (e) {
+    console.warn('[buscarRelatorioPorId] falha ao buscar por order_number:', e);
+  }
+
+  // 3) tenta por patient_id (caso o usuário passe um patient_id em vez do report id)
+  try {
+    const urlByPatient = `${REST}/reports?patient_id=eq.${encodeURIComponent(sId)}`;
+    console.debug('[buscarRelatorioPorId] tentando por patient_id URL:', urlByPatient);
+    const arr3 = await fetchWithFallback<Report[]>(urlByPatient, headers);
+    if (arr3 && arr3.length) return arr3[0];
+  } catch (e) {
+    console.warn('[buscarRelatorioPorId] falha ao buscar por patient_id:', e);
+  }
+
+  // Não encontrado
+  throw new Error('404: Relatório não encontrado');
+}
+
+
 // Buscar vários pacientes por uma lista de IDs (usa query in.(...))
 export async function buscarPacientesPorIds(ids: Array<string | number>): Promise<Paciente[]> {
   if (!ids || !ids.length) return [];

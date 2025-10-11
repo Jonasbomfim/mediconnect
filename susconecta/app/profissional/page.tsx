@@ -4,7 +4,7 @@ import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
-import { buscarPacientes, listarPacientes, buscarPacientePorId, type Paciente } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, type Paciente, buscarRelatorioPorId } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
@@ -149,6 +149,8 @@ const ProfissionalPage = () => {
     hide_date: true,
     hide_signature: true
   });
+
+  
   
   const [events, setEvents] = useState<any[]>([
     
@@ -398,14 +400,7 @@ const ProfissionalPage = () => {
             >
               <ChevronRight className="h-4 w-4 hover:!text-white" />
             </Button>
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-              className="ml-4 px-3 py-1 text-sm hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
-            >
-              Hoje
-            </Button>
+            
           </div>
           <div className="text-sm text-gray-600 dark:text-muted-foreground">
             {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''} agendada{todayEvents.length !== 1 ? 's' : ''}
@@ -504,20 +499,18 @@ const ProfissionalPage = () => {
 
   const { reports, loadReports, loading: reportsLoading, createNewReport, updateExistingReport } = useReports();
     const [laudos, setLaudos] = useState<any[]>([]);
-  const [selectedRange, setSelectedRange] = useState<'todos'|'hoje'|'semana'|'mes'|'custom'>('mes');
+  const [selectedRange, setSelectedRange] = useState<'todos'|'semana'|'mes'|'custom'>('mes');
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
 
     // helper to check if a date string is in range
-    const isInRange = (dateStr: string | undefined, range: 'todos'|'hoje'|'semana'|'mes'|'custom') => {
+    const isInRange = (dateStr: string | undefined, range: 'todos'|'semana'|'mes'|'custom') => {
       if (range === 'todos') return true;
       if (!dateStr) return false;
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return false;
       const now = new Date();
-      if (range === 'hoje') {
-        return d.toDateString() === now.toDateString();
-      }
+      
       if (range === 'semana') {
         const start = new Date(now);
         start.setDate(now.getDate() - now.getDay()); // sunday start
@@ -537,12 +530,7 @@ const ProfissionalPage = () => {
         setEndDate(null);
         return;
       }
-      if (selectedRange === 'hoje') {
-        const iso = now.toISOString().slice(0,10);
-        setStartDate(iso);
-        setEndDate(iso);
-        return;
-      }
+      
       if (selectedRange === 'semana') {
         const start = new Date(now);
         start.setDate(now.getDate() - now.getDay()); // sunday
@@ -591,14 +579,6 @@ const ProfissionalPage = () => {
             Todos
           </Button>
           <Button
-            variant={selectedRange === 'hoje' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedRange('hoje')}
-            className="hover:bg-blue-50"
-          >
-            Hoje
-          </Button>
-          <Button
             variant={selectedRange === 'semana' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('semana')}
@@ -615,6 +595,145 @@ const ProfissionalPage = () => {
             Mês
           </Button>
         </>
+      );
+    }
+
+    // SearchBox inserido aqui para acessar reports, setLaudos e loadReports
+    function SearchBox() {
+      const [searchTerm, setSearchTerm] = useState('');
+      const [searching, setSearching] = useState(false);
+      const { token } = useAuth();
+
+      const isMaybeId = (s: string) => {
+        const t = s.trim();
+        if (!t) return false;
+        if (t.includes('-') && t.length > 10) return true;
+        if (t.toUpperCase().startsWith('REL-')) return true;
+        const digits = t.replace(/\D/g, '');
+        if (digits.length >= 8) return true;
+        return false;
+      };
+
+      const doSearch = async () => {
+        const term = searchTerm.trim();
+        if (!term) return;
+        setSearching(true);
+        try {
+          if (isMaybeId(term)) {
+            try {
+              const r = await buscarRelatorioPorId(term);
+              if (r) {
+                // If token exists, attempt batch enrichment like useReports
+                const enriched: any = { ...r };
+
+                // Collect possible patient/doctor ids from payload
+                const pidCandidates: string[] = [];
+                const didCandidates: string[] = [];
+                const pid = (r as any).patient_id ?? (r as any).patient ?? (r as any).paciente ?? null;
+                if (pid) pidCandidates.push(String(pid));
+                const possiblePatientName = (r as any).patient_name ?? (r as any).patient_full_name ?? (r as any).paciente?.full_name ?? (r as any).paciente?.nome ?? null;
+                if (possiblePatientName) {
+                  enriched.paciente = enriched.paciente ?? {};
+                  enriched.paciente.full_name = possiblePatientName;
+                }
+
+                const did = (r as any).requested_by ?? (r as any).created_by ?? (r as any).executante ?? null;
+                if (did) didCandidates.push(String(did));
+
+                // If token available, perform batch fetch to get full patient/doctor objects
+                if (token) {
+                  try {
+                    if (pidCandidates.length) {
+                      const patients = await buscarPacientesPorIds(pidCandidates);
+                      if (patients && patients.length) {
+                        const p = patients[0];
+                        enriched.paciente = enriched.paciente ?? {};
+                        enriched.paciente.full_name = enriched.paciente.full_name || p.full_name || (p as any).nome;
+                        enriched.paciente.id = enriched.paciente.id || p.id;
+                        enriched.paciente.cpf = enriched.paciente.cpf || p.cpf;
+                      }
+                    }
+                    if (didCandidates.length) {
+                      const doctors = await buscarMedicosPorIds(didCandidates);
+                      if (doctors && doctors.length) {
+                        const d = doctors[0];
+                        enriched.executante = enriched.executante || d.full_name || (d as any).nome;
+                      }
+                    }
+                  } catch (e) {
+                    // fallback: continue with payload-only enrichment
+                    console.warn('[SearchBox] batch enrichment failed, falling back to payload-only enrichment', e);
+                  }
+                }
+
+                // Final payload-only fallbacks (ensure id/cpf/order_number are populated)
+                const possiblePatientId = (r as any).paciente?.id ?? (r as any).patient?.id ?? (r as any).patient_id ?? (r as any).patientId ?? (r as any).id ?? undefined;
+                if (possiblePatientId && !enriched.paciente?.id) {
+                  enriched.paciente = enriched.paciente ?? {};
+                  enriched.paciente.id = possiblePatientId;
+                }
+                const possibleCpf = (r as any).patient_cpf ?? (r as any).paciente?.cpf ?? (r as any).patient?.cpf ?? null;
+                if (possibleCpf) {
+                  enriched.paciente = enriched.paciente ?? {};
+                  enriched.paciente.cpf = possibleCpf;
+                }
+                const execName = (r as any).requested_by_name ?? (r as any).requester_name ?? (r as any).requestedByName ?? (r as any).executante_name ?? (r as any).created_by_name ?? (r as any).createdByName ?? (r as any).executante ?? (r as any).requested_by ?? (r as any).created_by ?? '';
+                if (execName) enriched.executante = enriched.executante || execName;
+                if ((r as any).order_number) enriched.order_number = (r as any).order_number;
+
+                setLaudos([enriched]);
+                return;
+              }
+            } catch (err: any) {
+              console.warn('Relatório não encontrado por ID:', err);
+            }
+          }
+
+          const lower = term.toLowerCase();
+          const filtered = (reports || []).filter((x: any) => {
+            const name = (x.paciente?.full_name || x.patient_name || x.patient_full_name || x.order_number || x.exame || x.exam || '').toString().toLowerCase();
+            return name.includes(lower);
+          });
+          if (filtered.length) setLaudos(filtered);
+          else setLaudos([]);
+        } finally {
+          setSearching(false);
+        }
+      };
+
+      const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') doSearch();
+      };
+
+      const handleClear = async () => {
+        setSearchTerm('');
+        await loadReports();
+        setLaudos(reports || []);
+      };
+
+      return (
+        <div>
+          <div className="relative">
+            <Input
+              placeholder="Buscar paciente / pedido / ID"
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleKey}
+            />
+            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <Button size="sm" onClick={doSearch} disabled={searching}>
+              Buscar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleClear}>
+              Limpar
+            </Button>
+          </div>
+        </div>
       );
     }
 
@@ -683,13 +802,8 @@ const ProfissionalPage = () => {
           <div className="p-4 border-b border-border">
             <div className="flex flex-wrap items-center gap-4">
               <div className="relative flex-1 min-w-[200px]">
-                <Input 
-                  placeholder="Buscar paciente/pedido"
-                  className="pl-10"
-                />
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                {/* Search input integrado com busca por ID */}
+                <SearchBox />
               </div>
               
               <div className="flex items-center gap-2">
@@ -707,11 +821,6 @@ const ProfissionalPage = () => {
               </div>
 
               {/* Filtros e pesquisa removidos por solicitação */}
-
-              <Button variant="default" size="sm" className="hover:bg-blue-600 dark:hover:bg-primary/90">
-                <Download className="w-4 h-4 mr-1" />
-                Exportar
-              </Button>
             </div>
           </div>
 
@@ -760,7 +869,6 @@ const ProfissionalPage = () => {
                         <div className="text-sm">
                           <div className="flex items-center gap-1">
                             <User className="w-3 h-3" />
-                            <span className="font-mono text-xs">{getReportPatientId(laudo) || '-'}</span>
                           </div>
                           <div className="font-medium">{getReportPatientName(laudo) || '—'}</div>
                           <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : ''}</div>
@@ -818,7 +926,7 @@ const ProfissionalPage = () => {
                       </div>
                       <div className="mt-2">
                         <div className="font-semibold">{getReportPatientName(laudo) || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : getReportPatientId(laudo) || '-'}</div>
+                        <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : ''}</div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end ml-4">

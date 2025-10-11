@@ -273,10 +273,10 @@ export function PatientRegistrationForm({
         // --- NOVA LÓGICA DE CRIAÇÃO ---
         const patientPayload = toPayload();
         const savedPatientProfile = await criarPaciente(patientPayload);
-        console.log("✅ Perfil do paciente criado:", savedPatientProfile);
+        console.log(" Perfil do paciente criado:", savedPatientProfile);
 
         if (form.email && form.email.includes('@')) {
-          console.log("🔐 Criando usuário de autenticação (paciente)...");
+          console.log(" Criando usuário de autenticação (paciente)...");
           try {
             const userResponse = await criarUsuarioPaciente({
               email: form.email,
@@ -285,7 +285,7 @@ export function PatientRegistrationForm({
             });
 
             if (userResponse.success && userResponse.user) {
-              console.log("✅ Usuário de autenticação criado:", userResponse.user);
+              console.log(" Usuário de autenticação criado:", userResponse.user);
 
               // Mostra credenciais no dialog usando as credenciais retornadas
               setCredentials({
@@ -306,7 +306,7 @@ export function PatientRegistrationForm({
               throw new Error((userResponse as any).message || "Falhou ao criar o usuário de acesso.");
             }
           } catch (userError: any) {
-            console.error("❌ Erro ao criar usuário via signup:", userError);
+            console.error(" Erro ao criar usuário via signup:", userError);
 
             // Mensagem de erro específica para email duplicado
             const errorMsg = userError?.message || String(userError);
@@ -315,14 +315,14 @@ export function PatientRegistrationForm({
                 errorMsg.toLowerCase().includes('já está cadastrado') ||
                 errorMsg.toLowerCase().includes('já existe')) {
               alert(
-                `⚠️ Este email já está cadastrado no sistema.\n\n` +
-                `✅ O perfil do paciente foi salvo com sucesso.\n\n` +
+                ` Este email já está cadastrado no sistema.\n\n` +
+                ` O perfil do paciente foi salvo com sucesso.\n\n` +
                 `Para criar acesso ao sistema, use um email diferente ou recupere a senha do email existente.`
               );
             } else {
               alert(
-                `✅ Paciente cadastrado com sucesso!\n\n` +
-                `⚠️ Porém houve um problema ao criar o acesso:\n${errorMsg}\n\n` +
+                ` Paciente cadastrado com sucesso!\n\n` +
+                ` Porém houve um problema ao criar o acesso:\n${errorMsg}\n\n` +
                 `O cadastro do paciente foi salvo, mas será necessário criar o acesso manualmente.`
               );
             }

@@ -523,8 +523,8 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
     const res = await fetch(url, { method: "GET", headers: baseHeaders() });
     const arr = await parse<Medico[]>(res);
     if (arr && arr.length > 0) {
-      console.log('✅ Médico encontrado no Supabase:', arr[0]);
-      console.log('🔍 Campo especialidade no médico:', {
+      console.log('Médico encontrado no Supabase:', arr[0]);
+      console.log('Campo especialidade no médico:', {
         especialidade: arr[0].especialidade,
         specialty: (arr[0] as any).specialty,
         hasEspecialidade: !!arr[0].especialidade,
@@ -533,7 +533,7 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
       return arr[0];
     }
   } catch (error) {
-    console.warn('⚠️ Erro ao buscar no Supabase, tentando mock API:', error);
+    console.warn('Erro ao buscar no Supabase, tentando mock API:', error);
   }
   
   // Se não encontrar no Supabase, tenta o mock API
@@ -553,11 +553,11 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico> {
       throw new Error(`Erro ao buscar médico: ${res.status} ${res.statusText}`);
     }
     
-    const medico = await res.json();
-    console.log('✅ Médico encontrado no Mock API:', medico);
+  const medico = await res.json();
+  console.log('Médico encontrado no Mock API:', medico);
     return medico as Medico;
   } catch (error) {
-    console.error('❌ Erro ao buscar médico em ambas as APIs:', error);
+    console.error('Erro ao buscar médico em ambas as APIs:', error);
     throw new Error("404: Médico não encontrado");
   }
 }
@@ -581,8 +581,8 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
 
 
 export async function atualizarMedico(id: string | number, input: MedicoInput): Promise<Medico> {
-  console.log(`🔄 Tentando atualizar médico ID: ${id}`);
-  console.log(`📤 Payload original:`, input);
+  console.log(`Tentando atualizar médico ID: ${id}`);
+  console.log(`Payload original:`, input);
   
   // Criar um payload limpo apenas com campos básicos que sabemos que existem
   const cleanPayload = {
@@ -600,12 +600,12 @@ export async function atualizarMedico(id: string | number, input: MedicoInput): 
     active: input.active ?? true
   };
   
-  console.log(`📤 Payload limpo:`, cleanPayload);
+  console.log(`Payload limpo:`, cleanPayload);
   
   // Atualizar apenas no Supabase (dados reais)
   try {
     const url = `${REST}/doctors?id=eq.${id}`;
-    console.log(`🌐 URL de atualização: ${url}`);
+  console.log(`URL de atualização: ${url}`);
     
     const res = await fetch(url, {
       method: "PATCH",
@@ -613,17 +613,17 @@ export async function atualizarMedico(id: string | number, input: MedicoInput): 
       body: JSON.stringify(cleanPayload),
     });
     
-    console.log(`📡 Resposta do servidor: ${res.status} ${res.statusText}`);
+  console.log(`Resposta do servidor: ${res.status} ${res.statusText}`);
     
-    if (res.ok) {
-      const arr = await parse<Medico[] | Medico>(res);
-      const result = Array.isArray(arr) ? arr[0] : (arr as Medico);
-      console.log('✅ Médico atualizado no Supabase:', result);
+  if (res.ok) {
+  const arr = await parse<Medico[] | Medico>(res);
+  const result = Array.isArray(arr) ? arr[0] : (arr as Medico);
+  console.log('Médico atualizado no Supabase:', result);
       return result;
     } else {
       // Vamos tentar ver o erro detalhado
       const errorText = await res.text();
-      console.error(`❌ Erro detalhado do Supabase:`, {
+  console.error(`Erro detalhado do Supabase:`, {
         status: res.status,
         statusText: res.statusText,
         response: errorText,
@@ -632,7 +632,7 @@ export async function atualizarMedico(id: string | number, input: MedicoInput): 
       throw new Error(`Supabase error: ${res.status} ${res.statusText} - ${errorText}`);
     }
   } catch (error) {
-    console.error('❌ Erro ao atualizar médico:', error);
+    console.error('Erro ao atualizar médico:', error);
     throw error;
   }
 }
@@ -682,20 +682,6 @@ export async function listarPatientAssignments(params?: { page?: number; limit?:
   return await parse<PatientAssignment[]>(res);
 }
 
-// NOTE: role assignments MUST be done server-side with service role credentials.
-// The client should NOT attempt to POST to /rest/v1/user_roles because this
-// endpoint typically requires elevated permissions (service role) and is not
-// exposed in the public OpenAPI for client usage. Any role assignment must be
-// implemented in an authenticated server function (Edge Function) and called
-// from the backend. Keeping a client-side POST here caused confusion with the
-// API documentation which only lists GET for `/rest/v1/user_roles`.
-
-// If you need to retry role assignment from the frontend, call your backend
-// service (e.g. an Edge Function) that performs the assignment using the
-// service role key. Do not add client-side POSTs to `user_roles`.
-
-// Nota: o endpoint POST /rest/v1/patient_assignments não existe na documentação fornecida.
-// Se for necessário criar assignments, isso deve ser feito via função server-side segura.
 
 export type User = {
   id: string;
@@ -816,7 +802,7 @@ export async function criarUsuarioDirectAuth(input: {
   role: UserRoleEnum;
   userType?: 'profissional' | 'paciente';
 }): Promise<CreateUserWithPasswordResponse> {
-  console.log('🔐 [DIRECT AUTH] Criando usuário diretamente via Supabase Auth...');
+  console.log('[DIRECT AUTH] Criando usuário diretamente via Supabase Auth...');
   
   const signupUrl = `${API_BASE}/auth/v1/signup`;
   
@@ -856,7 +842,7 @@ export async function criarUsuarioDirectAuth(input: {
     const responseData = await response.json();
     const userId = responseData.user?.id || responseData.id;
     
-    console.log('✅ [DIRECT AUTH] Usuário criado:', userId);
+  console.log('[DIRECT AUTH] Usuário criado:', userId);
     
     // NOTE: Role assignments MUST be done by the backend (Edge Function or server)
     // when creating the user. The frontend should NOT attempt to assign roles.
@@ -876,7 +862,7 @@ export async function criarUsuarioDirectAuth(input: {
     };
     
   } catch (error: any) {
-    console.error('❌ [DIRECT AUTH] Erro ao criar usuário:', error);
+    console.error('[DIRECT AUTH] Erro ao criar usuário:', error);
     throw error;
   }
 }
@@ -895,11 +881,11 @@ export async function criarUsuarioMedico(medico: {
   
   const senha = gerarSenhaAleatoria();
   
-  console.log('🏥 [CRIAR MÉDICO] Iniciando criação no Supabase Auth...');
-  console.log('📧 Email:', medico.email);
-  console.log('👤 Nome:', medico.full_name);
-  console.log('📱 Telefone:', medico.phone_mobile);
-  console.log('🔑 Senha gerada:', senha);
+  console.log('[CRIAR MÉDICO] Iniciando criação no Supabase Auth...');
+  console.log('Email:', medico.email);
+  console.log('Nome:', medico.full_name);
+  console.log('Telefone:', medico.phone_mobile);
+  console.log('Senha gerada:', senha);
   
   // Endpoint do Supabase Auth (mesmo que auth.ts usa)
   const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
@@ -914,7 +900,7 @@ export async function criarUsuarioMedico(medico: {
     }
   };
   
-  console.log('📤 [CRIAR MÉDICO] Enviando para:', signupUrl);
+  console.log('[CRIAR MÉDICO] Enviando para:', signupUrl);
   
   try {
     const response = await fetch(signupUrl, {
@@ -927,11 +913,11 @@ export async function criarUsuarioMedico(medico: {
       body: JSON.stringify(payload),
     });
     
-    console.log('📋 [CRIAR MÉDICO] Status da resposta:', response.status, response.statusText);
+  console.log('[CRIAR MÉDICO] Status da resposta:', response.status, response.statusText);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ [CRIAR MÉDICO] Erro na resposta:', errorText);
+  console.error('[CRIAR MÉDICO] Erro na resposta:', errorText);
       
       // Tenta parsear o erro para pegar mensagem específica
       let errorMsg = `Erro ao criar usuário (${response.status})`;
@@ -955,17 +941,17 @@ export async function criarUsuarioMedico(medico: {
     }
     
     const responseData = await response.json();
-    console.log('✅ [CRIAR MÉDICO] Usuário criado com sucesso no Supabase Auth!');
-    console.log('🆔 User ID:', responseData.user?.id || responseData.id);
+    console.log('[CRIAR MÉDICO] Usuário criado com sucesso no Supabase Auth!');
+  console.log('User ID:', responseData.user?.id || responseData.id);
     
     // 🔧 AUTO-CONFIRMAR EMAIL: Fazer login automático logo após criar usuário
     // Isso força o Supabase a confirmar o email automaticamente
     if (responseData.user?.email_confirmed_at === null || !responseData.user?.email_confirmed_at) {
-      console.warn('⚠️ [CRIAR MÉDICO] Email NÃO confirmado - tentando auto-confirmar via login...');
+  console.warn('[CRIAR MÉDICO] Email NÃO confirmado - tentando auto-confirmar via login...');
       
       try {
         const loginUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`;
-        console.log('🔧 [AUTO-CONFIRMAR] Fazendo login automático para confirmar email...');
+  console.log('[AUTO-CONFIRMAR] Fazendo login automático para confirmar email...');
         
         const loginResponse = await fetch(loginUrl, {
           method: 'POST',
@@ -981,8 +967,8 @@ export async function criarUsuarioMedico(medico: {
         
         if (loginResponse.ok) {
           const loginData = await loginResponse.json();
-          console.log('✅ [AUTO-CONFIRMAR] Login automático realizado com sucesso!');
-          console.log('📦 [AUTO-CONFIRMAR] Email confirmado:', loginData.user?.email_confirmed_at ? 'SIM ✅' : 'NÃO ❌');
+          console.log('[AUTO-CONFIRMAR] Login automático realizado com sucesso!');
+          console.log('[AUTO-CONFIRMAR] Email confirmado:', loginData.user?.email_confirmed_at ? 'SIM' : 'NÃO');
           
           // Atualizar responseData com dados do login (que tem email confirmado)
           if (loginData.user) {
@@ -990,24 +976,24 @@ export async function criarUsuarioMedico(medico: {
           }
         } else {
           const errorText = await loginResponse.text();
-          console.error('❌ [AUTO-CONFIRMAR] Falha no login automático:', loginResponse.status, errorText);
-          console.warn('⚠️ [AUTO-CONFIRMAR] Usuário pode não conseguir fazer login imediatamente!');
+          console.error('[AUTO-CONFIRMAR] Falha no login automático:', loginResponse.status, errorText);
+          console.warn('[AUTO-CONFIRMAR] Usuário pode não conseguir fazer login imediatamente!');
         }
       } catch (confirmError) {
-        console.error('❌ [AUTO-CONFIRMAR] Erro ao tentar fazer login automático:', confirmError);
-        console.warn('⚠️ [AUTO-CONFIRMAR] Continuando sem confirmação automática...');
+          console.error('[AUTO-CONFIRMAR] Erro ao tentar fazer login automático:', confirmError);
+          console.warn('[AUTO-CONFIRMAR] Continuando sem confirmação automática...');
       }
-    } else {
-      console.log('✅ [CRIAR MÉDICO] Email confirmado automaticamente!');
+  } else {
+  console.log('[CRIAR MÉDICO] Email confirmado automaticamente!');
     }
     
     // Log bem visível com as credenciais para teste
-    console.log('🔐🔐🔐 ========================================');
-    console.log('🔐 CREDENCIAIS DO MÉDICO CRIADO:');
-    console.log('🔐 Email:', medico.email);
-    console.log('🔐 Senha:', senha);
-    console.log('🔐 Pode fazer login?', responseData.user?.email_confirmed_at ? 'SIM ✅' : 'NÃO ❌ (precisa confirmar email)');
-    console.log('🔐 ========================================');
+  console.log('========================================');
+  console.log('CREDENCIAIS DO MÉDICO CRIADO:');
+  console.log('Email:', medico.email);
+  console.log('Senha:', senha);
+  console.log('Pode fazer login?', responseData.user?.email_confirmed_at ? 'SIM' : 'NÃO (precisa confirmar email)');
+  console.log('========================================');
     
     return {
       success: true,
@@ -1017,7 +1003,7 @@ export async function criarUsuarioMedico(medico: {
     };
     
   } catch (error: any) {
-    console.error('❌ [CRIAR MÉDICO] Erro ao criar usuário:', error);
+    console.error('[CRIAR MÉDICO] Erro ao criar usuário:', error);
     throw error;
   }
 }
@@ -1031,11 +1017,11 @@ export async function criarUsuarioPaciente(paciente: {
   
   const senha = gerarSenhaAleatoria();
   
-  console.log('🏥 [CRIAR PACIENTE] Iniciando criação no Supabase Auth...');
-  console.log('📧 Email:', paciente.email);
-  console.log('👤 Nome:', paciente.full_name);
-  console.log('📱 Telefone:', paciente.phone_mobile);
-  console.log('🔑 Senha gerada:', senha);
+  console.log('[CRIAR PACIENTE] Iniciando criação no Supabase Auth...');
+  console.log('Email:', paciente.email);
+  console.log('Nome:', paciente.full_name);
+  console.log('Telefone:', paciente.phone_mobile);
+  console.log('Senha gerada:', senha);
   
   // Endpoint do Supabase Auth (mesmo que auth.ts usa)
   const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
@@ -1050,7 +1036,7 @@ export async function criarUsuarioPaciente(paciente: {
     }
   };
   
-  console.log('📤 [CRIAR PACIENTE] Enviando para:', signupUrl);
+  console.log('[CRIAR PACIENTE] Enviando para:', signupUrl);
   
   try {
     const response = await fetch(signupUrl, {
@@ -1063,11 +1049,11 @@ export async function criarUsuarioPaciente(paciente: {
       body: JSON.stringify(payload),
     });
     
-    console.log('📋 [CRIAR PACIENTE] Status da resposta:', response.status, response.statusText);
+  console.log('[CRIAR PACIENTE] Status da resposta:', response.status, response.statusText);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ [CRIAR PACIENTE] Erro na resposta:', errorText);
+  console.error('[CRIAR PACIENTE] Erro na resposta:', errorText);
       
       // Tenta parsear o erro para pegar mensagem específica
       let errorMsg = `Erro ao criar usuário (${response.status})`;
@@ -1091,14 +1077,14 @@ export async function criarUsuarioPaciente(paciente: {
     }
     
     const responseData = await response.json();
-    console.log('✅ [CRIAR PACIENTE] Usuário criado com sucesso no Supabase Auth!');
-    console.log('🆔 User ID:', responseData.user?.id || responseData.id);
-    console.log('📦 [CRIAR PACIENTE] Resposta completa do Supabase:', JSON.stringify(responseData, null, 2));
+    console.log('[CRIAR PACIENTE] Usuário criado com sucesso no Supabase Auth!');
+  console.log('User ID:', responseData.user?.id || responseData.id);
+  console.log('[CRIAR PACIENTE] Resposta completa do Supabase:', JSON.stringify(responseData, null, 2));
     
     // VERIFICAÇÃO CRÍTICA: O usuário foi realmente criado?
     if (!responseData.user && !responseData.id) {
-      console.error('⚠️⚠️⚠️ AVISO: Supabase retornou sucesso mas SEM user ID!');
-      console.error('Isso pode significar que o usuário NÃO foi criado de verdade!');
+      console.error('AVISO: Supabase retornou sucesso mas sem user ID!');
+      console.error('Isso pode significar que o usuário não foi criado de verdade!');
     }
     
     const userId = responseData.user?.id || responseData.id;
@@ -1106,11 +1092,11 @@ export async function criarUsuarioPaciente(paciente: {
     // 🔧 AUTO-CONFIRMAR EMAIL: Fazer login automático logo após criar usuário
     // Isso força o Supabase a confirmar o email automaticamente
     if (responseData.user?.email_confirmed_at === null || !responseData.user?.email_confirmed_at) {
-      console.warn('⚠️ [CRIAR PACIENTE] Email NÃO confirmado - tentando auto-confirmar via login...');
+  console.warn('[CRIAR PACIENTE] Email NÃO confirmado - tentando auto-confirmar via login...');
       
       try {
         const loginUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`;
-        console.log('🔧 [AUTO-CONFIRMAR] Fazendo login automático para confirmar email...');
+  console.log('[AUTO-CONFIRMAR] Fazendo login automático para confirmar email...');
         
         const loginResponse = await fetch(loginUrl, {
           method: 'POST',
@@ -1124,15 +1110,15 @@ export async function criarUsuarioPaciente(paciente: {
           }),
         });
         
-        console.log('🔍 [AUTO-CONFIRMAR] Status do login automático:', loginResponse.status);
+  console.log('[AUTO-CONFIRMAR] Status do login automático:', loginResponse.status);
         
         if (loginResponse.ok) {
           const loginData = await loginResponse.json();
-          console.log('✅ [AUTO-CONFIRMAR] Login automático realizado com sucesso!');
-          console.log('📦 [AUTO-CONFIRMAR] Dados completos do login:', JSON.stringify(loginData, undefined, 2));
-          console.log('📧 [AUTO-CONFIRMAR] Email confirmado:', loginData.user?.email_confirmed_at ? 'SIM ✅' : 'NÃO ❌');
-          console.log('👤 [AUTO-CONFIRMAR] UserType no metadata:', loginData.user?.user_metadata?.userType);
-          console.log('🎯 [AUTO-CONFIRMAR] Email verified:', loginData.user?.user_metadata?.email_verified);
+          console.log('[AUTO-CONFIRMAR] Login automático realizado com sucesso!');
+          console.log('[AUTO-CONFIRMAR] Dados completos do login:', JSON.stringify(loginData, undefined, 2));
+          console.log('[AUTO-CONFIRMAR] Email confirmado:', loginData.user?.email_confirmed_at ? 'SIM' : 'NÃO');
+          console.log('[AUTO-CONFIRMAR] UserType no metadata:', loginData.user?.user_metadata?.userType);
+          console.log('[AUTO-CONFIRMAR] Email verified:', loginData.user?.user_metadata?.email_verified);
           
           // Atualizar responseData com dados do login (que tem email confirmado)
           if (loginData.user) {
@@ -1140,33 +1126,33 @@ export async function criarUsuarioPaciente(paciente: {
           }
         } else {
           const errorText = await loginResponse.text();
-          console.error('❌ [AUTO-CONFIRMAR] Falha no login automático:', loginResponse.status, errorText);
-          console.warn('⚠️ [AUTO-CONFIRMAR] Usuário pode não conseguir fazer login imediatamente!');
+          console.error('[AUTO-CONFIRMAR] Falha no login automático:', loginResponse.status, errorText);
+          console.warn('[AUTO-CONFIRMAR] Usuário pode não conseguir fazer login imediatamente!');
           
           // Tentar parsear o erro para entender melhor
           try {
             const errorData = JSON.parse(errorText);
-            console.error('📋 [AUTO-CONFIRMAR] Detalhes do erro:', errorData);
+            console.error('[AUTO-CONFIRMAR] Detalhes do erro:', errorData);
           } catch (e) {
-            console.error('📋 [AUTO-CONFIRMAR] Erro não é JSON:', errorText);
+            console.error('[AUTO-CONFIRMAR] Erro não é JSON:', errorText);
           }
         }
       } catch (confirmError) {
-        console.error('❌ [AUTO-CONFIRMAR] Erro ao tentar fazer login automático:', confirmError);
-        console.warn('⚠️ [AUTO-CONFIRMAR] Continuando sem confirmação automática...');
+  console.error('[AUTO-CONFIRMAR] Erro ao tentar fazer login automático:', confirmError);
+  console.warn('[AUTO-CONFIRMAR] Continuando sem confirmação automática...');
       }
-    } else {
-      console.log('✅ [CRIAR PACIENTE] Email confirmado automaticamente!');
+  } else {
+  console.log('[CRIAR PACIENTE] Email confirmado automaticamente!');
     }
     
     // Log bem visível com as credenciais para teste
-    console.log('🔐🔐🔐 ========================================');
-    console.log('🔐 CREDENCIAIS DO PACIENTE CRIADO:');
-    console.log('🔐 Email:', paciente.email);
-    console.log('🔐 Senha:', senha);
-    console.log('🔐 UserType:', 'paciente');
-    console.log('🔐 Pode fazer login?', responseData.user?.email_confirmed_at ? 'SIM ✅' : 'NÃO ❌ (precisa confirmar email)');
-    console.log('🔐 ========================================');
+  console.log('========================================');
+  console.log('CREDENCIAIS DO PACIENTE CRIADO:');
+  console.log('Email:', paciente.email);
+  console.log('Senha:', senha);
+  console.log('UserType:', 'paciente');
+  console.log('Pode fazer login?', responseData.user?.email_confirmed_at ? 'SIM' : 'NÃO (precisa confirmar email)');
+  console.log('========================================');
     
     return {
       success: true,
@@ -1176,7 +1162,7 @@ export async function criarUsuarioPaciente(paciente: {
     };
     
   } catch (error: any) {
-    console.error('❌ [CRIAR PACIENTE] Erro ao criar usuário:', error);
+    console.error('[CRIAR PACIENTE] Erro ao criar usuário:', error);
     throw error;
   }
 }

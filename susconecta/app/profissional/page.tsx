@@ -715,59 +715,115 @@ const ProfissionalPage = () => {
             </div>
           </div>
 
-          {/* Tabela */}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pedido</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Prazo</TableHead>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Executante/Solicitante</TableHead>
-                  <TableHead>Exame/Classificação</TableHead>
-                  <TableHead>Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLaudos.map((laudo) => (
-                  <TableRow key={laudo.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {laudo.urgente && (
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        )}
-                        <span className="font-mono text-sm">
-                          {getReportPatientName(laudo) || laudo.order_number || getShortId(laudo.id)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{formatReportDate(getReportDate(laudo))}</div>
-                        <div className="text-xs text-muted-foreground">{laudo?.hora || new Date(laudo?.data || laudo?.created_at || laudo?.due_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{laudo?.prazo ?? laudo?.due_at ? formatReportDate(laudo?.due_at ?? laudo?.prazo) : '-'}</div>
-                        <div className="text-xs text-muted-foreground">{laudo?.prazo_hora ?? laudo?.due_time ?? '-'}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          <span className="font-mono text-xs">{getReportPatientId(laudo) || '-'}</span>
+          {/* Tabela para desktop e cards empilháveis para mobile */}
+          <div>
+            {/* Desktop / tablet (md+) - tabela com scroll horizontal */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Prazo</TableHead>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Executante/Solicitante</TableHead>
+                    <TableHead>Exame/Classificação</TableHead>
+                    <TableHead>Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLaudos.map((laudo) => (
+                    <TableRow key={laudo.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {laudo.urgente && (
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          )}
+                          <span className="font-mono text-sm">
+                            {getReportPatientName(laudo) || laudo.order_number || getShortId(laudo.id)}
+                          </span>
                         </div>
-                        <div className="font-medium">{getReportPatientName(laudo) || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : ''}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{formatReportDate(getReportDate(laudo))}</div>
+                          <div className="text-xs text-muted-foreground">{laudo?.hora || new Date(laudo?.data || laudo?.created_at || laudo?.due_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{laudo?.prazo ?? laudo?.due_at ? formatReportDate(laudo?.due_at ?? laudo?.prazo) : '-'}</div>
+                          <div className="text-xs text-muted-foreground">{laudo?.prazo_hora ?? laudo?.due_time ?? '-'}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            <span className="font-mono text-xs">{getReportPatientId(laudo) || '-'}</span>
+                          </div>
+                          <div className="font-medium">{getReportPatientName(laudo) || '—'}</div>
+                          <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : ''}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{getReportExecutor(laudo) || '-'}</TableCell>
+                      <TableCell className="text-sm">{getReportExam(laudo) || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setLaudoSelecionado(laudo);
+                              setIsViewing(true);
+                            }}
+                            className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver Laudo
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              setPatientForLaudo(laudo);
+                              setIsEditingLaudoForPatient(true);
+                            }}
+                            className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
+                            title="Editar laudo para este paciente"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Editar Laudo
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile - cards empilháveis */}
+            <div className="md:hidden space-y-3">
+              {filteredLaudos.map((laudo) => (
+                <div key={laudo.id} className="bg-card p-4 rounded-lg border border-border shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium">{getReportExam(laudo) || '-'}</div>
+                          <div className="text-xs text-muted-foreground">{formatReportDate(getReportDate(laudo))} {laudo?.hora ? `• ${laudo.hora}` : ''}</div>
+                        </div>
+                        <div className="ml-3 text-xs font-mono text-muted-foreground">{getReportPatientName(laudo) ? getShortId(laudo.id) : ''}</div>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{getReportExecutor(laudo) || '-'}</TableCell>
-                    <TableCell className="text-sm">{getReportExam(laudo) || "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="mt-2">
+                        <div className="font-semibold">{getReportPatientName(laudo) || '—'}</div>
+                        <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : getReportPatientId(laudo) || '-'}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end ml-4">
+                      <div className="text-sm">{getReportExecutor(laudo) || '-'}</div>
+                      <div className="flex gap-2 mt-3">
                         <Button
                           variant="outline"
                           size="sm"
@@ -775,10 +831,9 @@ const ProfissionalPage = () => {
                             setLaudoSelecionado(laudo);
                             setIsViewing(true);
                           }}
-                          className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
+                          className="flex items-center gap-1"
                         >
                           <Eye className="w-4 h-4" />
-                          Ver Laudo
                         </Button>
                         <Button
                           variant="default"
@@ -788,17 +843,16 @@ const ProfissionalPage = () => {
                             setIsEditingLaudoForPatient(true);
                           }}
                           className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
-                          title="Editar laudo para este paciente"
+                          title="Editar laudo"
                         >
                           <Edit className="w-4 h-4" />
-                          Editar Laudo
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -842,7 +896,7 @@ const ProfissionalPage = () => {
   function LaudoViewer({ laudo, onClose }: { laudo: any; onClose: () => void }) {
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-background rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-background rounded-lg shadow-xl w-full h-full md:h-auto md:rounded-lg md:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div>
@@ -1232,7 +1286,7 @@ const ProfissionalPage = () => {
 
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-background rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-background rounded-none md:rounded-lg shadow-xl w-full h-full md:h-auto md:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="border-b border-border">
             <div className="flex items-center justify-between p-4">

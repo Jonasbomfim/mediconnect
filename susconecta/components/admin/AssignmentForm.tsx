@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
 import { assignRoleToUser, listAssignmentsForPatient, PatientAssignmentRole } from "@/lib/assignment";
+import { useAuth } from '@/hooks/useAuth';
 import { listarProfissionais } from "@/lib/api";
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
 
 export default function AssignmentForm({ patientId, open, onClose, onSaved }: Props) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
   // default to Portuguese role values expected by the backend
@@ -52,8 +54,8 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
   if (!selectedProfessional) return toast({ title: 'Selecione um profissional', variant: 'default' });
     setLoading(true);
     try {
-      await assignRoleToUser({ patient_id: patientId, user_id: selectedProfessional, role });
-  toast({ title: 'Atribuição criada', variant: 'default' });
+      await assignRoleToUser({ patient_id: patientId, user_id: String(selectedProfessional), role, created_by: user?.id ?? null });
+      toast({ title: 'Atribuição criada', variant: 'default' });
       onSaved && onSaved();
       onClose();
     } catch (err: any) {
@@ -80,7 +82,8 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
               </SelectTrigger>
               <SelectContent>
                 {professionals.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>{p.full_name || p.name || p.email || p.id}</SelectItem>
+                  // prefer the auth user id (p.user_id) when available; fallback to p.id
+                  <SelectItem key={p.id} value={String(p.user_id ?? p.id)}>{p.full_name || p.name || p.email || p.user_id || p.id}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

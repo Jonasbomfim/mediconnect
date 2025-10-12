@@ -751,19 +751,37 @@ const ProfissionalPage = () => {
             return;
           }
 
-          // carregar relatórios para cada paciente encontrado (useReports não tem batch by multiple ids, então carregamos por paciente)
-          const allReports: any[] = [];
-          for (const pid of patientIds) {
-            try {
-              const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
-              if (Array.isArray(rels)) allReports.push(...rels);
-            } catch (err) {
-              console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
+          // Tentar carregar todos os relatórios em uma única chamada usando in.(...)
+          try {
+            const reportsMod = await import('@/lib/reports');
+            if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
+              const batch = await reportsMod.listarRelatoriosPorPacientes(patientIds);
+              if (mounted) setLaudos(batch || []);
+            } else {
+              // fallback: 请求 por paciente individual
+              const allReports: any[] = [];
+              for (const pid of patientIds) {
+                try {
+                  const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
+                  if (Array.isArray(rels)) allReports.push(...rels);
+                } catch (err) {
+                  console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
+                }
+              }
+              if (mounted) setLaudos(allReports);
             }
-          }
-
-          if (mounted) {
-            setLaudos(allReports);
+          } catch (err) {
+            console.warn('[LaudoManager] erro ao carregar relatórios em batch, tentando por paciente individual', err);
+            const allReports: any[] = [];
+            for (const pid of patientIds) {
+              try {
+                const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
+                if (Array.isArray(rels)) allReports.push(...rels);
+              } catch (e) {
+                console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, e);
+              }
+            }
+            if (mounted) setLaudos(allReports);
           }
         } catch (e) {
           console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);

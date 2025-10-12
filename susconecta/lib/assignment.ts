@@ -13,14 +13,14 @@ export interface PatientAssignment {
   user_id: string;
   role: PatientAssignmentRole;
   created_at: string;
-  created_by: string;
+  created_by: string | null;
 }
 
 export interface CreateAssignmentInput {
   patient_id: string;
   user_id: string;
   role: PatientAssignmentRole;
-  created_by?: string;
+  created_by?: string | null;
 }
 
 // ===== CONSTANTES =====
@@ -140,7 +140,7 @@ export async function listAssignmentsForPatient(patientId: string): Promise<Pati
  */
 export async function listAssignmentsForUser(userId: string): Promise<PatientAssignment[]> {
   console.log(`🔍 [ASSIGNMENT] Listando atribuições para o usuário: ${userId}`);
-  const url = `${ASSIGNMENTS_URL}?user_id=eq.${userId}`;
+  const url = `${ASSIGNMENTS_URL}?user_id=eq.${encodeURIComponent(userId)}`;
 
   try {
     const headers = getHeaders();

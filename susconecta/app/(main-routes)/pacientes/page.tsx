@@ -207,7 +207,7 @@ export default function PacientesPage() {
               onKeyDown={(e) => e.key === "Enter" && handleBuscarServidor()}
             />
           </div>
-          <Button variant="secondary" onClick={handleBuscarServidor} className="hover:bg-primary hover:text-white">Buscar</Button>
+          <Button variant="secondary" onClick={() => void handleBuscarServidor()} className="hover:bg-primary hover:text-white">Buscar</Button>
           <Button onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             Novo paciente

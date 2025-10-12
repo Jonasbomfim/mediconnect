@@ -7,12 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
 
 
-import { listarMedicos, excluirMedico, buscarMedicos, buscarMedicoPorId, Medico } from "@/lib/api";
+import { listarMedicos, excluirMedico, buscarMedicos, buscarMedicoPorId, buscarPacientesPorIds, Medico } from "@/lib/api";
+import { listAssignmentsForUser } from '@/lib/assignment';
 
 function normalizeMedico(m: any): Medico {
   return {
@@ -64,6 +65,10 @@ export default function DoutoresPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingDoctor, setViewingDoctor] = useState<Medico | null>(null);
+  const [assignedDialogOpen, setAssignedDialogOpen] = useState(false);
+  const [assignedPatients, setAssignedPatients] = useState<any[]>([]);
+  const [assignedLoading, setAssignedLoading] = useState(false);
+  const [assignedDoctor, setAssignedDoctor] = useState<Medico | null>(null);
   const [searchResults, setSearchResults] = useState<Medico[]>([]);
   const [searchMode, setSearchMode] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -179,7 +184,7 @@ export default function DoutoresPage() {
 
   // Handler para o botão de busca
   function handleClickBuscar() {
-    handleBuscarServidor();
+    void handleBuscarServidor();
   }
 
   useEffect(() => {
@@ -251,6 +256,28 @@ export default function DoutoresPage() {
 
   function handleView(doctor: Medico) {
     setViewingDoctor(doctor);
+  }
+
+  async function handleViewAssignedPatients(doctor: Medico) {
+    setAssignedDoctor(doctor);
+    setAssignedLoading(true);
+    setAssignedPatients([]);
+    try {
+      const assigns = await listAssignmentsForUser(String(doctor.user_id ?? doctor.id));
+      const patientIds = Array.isArray(assigns) ? assigns.map((a:any) => String(a.patient_id)).filter(Boolean) : [];
+      if (patientIds.length) {
+        const patients = await buscarPacientesPorIds(patientIds);
+        setAssignedPatients(patients || []);
+      } else {
+        setAssignedPatients([]);
+      }
+    } catch (e) {
+      console.warn('[DoutoresPage] erro ao carregar pacientes atribuídos:', e);
+      setAssignedPatients([]);
+    } finally {
+      setAssignedLoading(false);
+      setAssignedDialogOpen(true);
+    }
   }
 
   
@@ -326,9 +353,9 @@ export default function DoutoresPage() {
                 onKeyDown={handleSearchKeyDown}
               />
             </div>
-            <Button
+            <Button 
               variant="secondary"
-              onClick={handleBuscarServidor}
+              onClick={() => void handleBuscarServidor()}
               disabled={loading}
               className="hover:bg-primary hover:text-white"
             >
@@ -394,11 +421,18 @@ export default function DoutoresPage() {
                           <span className="sr-only">Abrir menu</span>
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleView(doctor)}>
                           <Eye className="mr-2 h-4 w-4" />
                           Ver
                         </DropdownMenuItem>
+                        
+                        {/* Ver pacientes atribuídos ao médico */}
+                        <DropdownMenuItem onClick={() => handleViewAssignedPatients(doctor)}>
+                          <Users className="mr-2 h-4 w-4" />
+                          Ver pacientes atribuídos
+                        </DropdownMenuItem>
+
                         <DropdownMenuItem onClick={() => handleEdit(String(doctor.id))}>
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
@@ -466,6 +500,36 @@ export default function DoutoresPage() {
       <div className="text-sm text-muted-foreground">
         Mostrando {displayedDoctors.length} {searchMode ? 'resultado(s) da busca' : `de ${doctors.length}`}
       </div>
+      {/* Dialog para pacientes atribuídos */}
+      <Dialog open={assignedDialogOpen} onOpenChange={(open) => { if (!open) { setAssignedDialogOpen(false); setAssignedPatients([]); setAssignedDoctor(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pacientes atribuídos{assignedDoctor ? ` - ${assignedDoctor.full_name}` : ''}</DialogTitle>
+            <DialogDescription>
+              Lista de pacientes atribuídos a este médico.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {assignedLoading ? (
+              <div>Carregando pacientes...</div>
+            ) : assignedPatients && assignedPatients.length ? (
+              <div className="space-y-2">
+                {assignedPatients.map((p:any) => (
+                  <div key={p.id} className="p-2 border rounded">
+                    <div className="font-medium">{p.full_name ?? p.nome ?? p.name ?? '(sem nome)'}</div>
+                    <div className="text-xs text-muted-foreground">ID: {p.id} {p.cpf ? `• CPF: ${p.cpf}` : ''}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div>Nenhum paciente atribuído encontrado.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setAssignedDialogOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

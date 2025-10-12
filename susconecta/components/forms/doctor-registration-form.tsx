@@ -173,6 +173,10 @@ export function DoctorRegistrationForm({
         console.log("[DoctorForm] Carregando médico ID:", doctorId);
         const medico = await buscarMedicoPorId(String(doctorId));
         console.log("[DoctorForm] Dados recebidos do API:", medico);
+            if (!medico) {
+              console.warn('[DoctorForm] Médico não encontrado para ID:', doctorId);
+              return;
+            }
         console.log("[DoctorForm] Campos principais:", {
           full_name: medico.full_name,
           crm: medico.crm,
@@ -411,16 +415,35 @@ async function handleSubmit(ev: React.FormEvent) {
       // 2. Cria usuário no Supabase Auth (direto via /auth/v1/signup)
       console.log('🔐 Criando usuário de autenticação...');
       
-      try {
+        try {
         const authResponse = await criarUsuarioMedico({
           email: form.email,
           full_name: form.full_name,
           phone_mobile: form.celular || '',
         });
-        
+
         if (authResponse.success && authResponse.user) {
           console.log('✅ Usuário Auth criado:', authResponse.user.id);
-          
+
+          // Attempt to link the created auth user id to the doctors record
+          try {
+            // savedDoctorProfile may be an array or object depending on API
+            const docId = (savedDoctorProfile && (savedDoctorProfile.id || (Array.isArray(savedDoctorProfile) ? savedDoctorProfile[0]?.id : undefined))) || null;
+            if (docId) {
+              console.log('[DoctorForm] Vinculando user_id ao médico:', { doctorId: docId, userId: authResponse.user.id });
+              // dynamic import to avoid circular deps in some bundlers
+              const api = await import('@/lib/api');
+              if (api && typeof api.vincularUserIdMedico === 'function') {
+                await api.vincularUserIdMedico(String(docId), String(authResponse.user.id));
+                console.log('[DoctorForm] user_id vinculado com sucesso.');
+              }
+            } else {
+              console.warn('[DoctorForm] Não foi possível determinar o ID do médico para vincular user_id. Doctor profile:', savedDoctorProfile);
+            }
+          } catch (linkErr) {
+            console.warn('[DoctorForm] Falha ao vincular user_id ao médico:', linkErr);
+          }
+
           // 3. Exibe popup com credenciais
           setCredentials({
             email: authResponse.email,
@@ -429,18 +452,18 @@ async function handleSubmit(ev: React.FormEvent) {
             userType: 'médico',
           });
           setShowCredentialsDialog(true);
-          
+
           // 4. Limpa formulário
           setForm(initial);
           setPhotoPreview(null);
           setServerAnexos([]);
-          
+
           // 5. Notifica componente pai
           onSaved?.(savedDoctorProfile);
         } else {
           throw new Error('Falha ao criar usuário de autenticação');
         }
-        
+
       } catch (authError: any) {
         console.error('❌ Erro ao criar usuário Auth:', authError);
         

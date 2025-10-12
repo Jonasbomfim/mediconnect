@@ -312,3 +312,68 @@ export async function listarRelatoriosPorMedico(idMedico: string): Promise<Repor
     throw erro;
   }
 }
+
+/**
+ * Lista relatórios para vários pacientes em uma única chamada (usa in.(...)).
+ * Retorna array vazio se nenhum id for fornecido.
+ */
+export async function listarRelatoriosPorPacientes(ids: string[]): Promise<Report[]> {
+  try {
+    if (!ids || !ids.length) return [];
+    // sanitize ids and remove empties
+    const cleaned = ids.map(i => String(i).trim()).filter(Boolean);
+    if (!cleaned.length) return [];
+
+    // monta cláusula in.(id1,id2,...)
+    const inClause = cleaned.join(',');
+    const url = `${BASE_API_RELATORIOS}?patient_id=in.(${inClause})`;
+    const headers = obterCabecalhos();
+    const masked = (headers as any)['Authorization'] ? '<<masked>>' : undefined;
+    console.debug('[listarRelatoriosPorPacientes] URL:', url);
+    console.debug('[listarRelatoriosPorPacientes] Headers (masked):', { ...headers, Authorization: masked ? '<<masked>>' : undefined });
+
+    const resposta = await fetch(url, { method: 'GET', headers });
+    const resultado = await tratarRespostaApi<Report[]>(resposta);
+    console.log('✅ [API RELATÓRIOS] Relatórios encontrados para pacientes:', resultado.length);
+    return resultado;
+  } catch (erro) {
+    console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios para vários pacientes:', erro);
+    throw erro;
+  }
+}
+
+/**
+ * Lista relatórios apenas para pacientes que foram atribuídos ao médico (userId).
+ * - Recupera as atribuições via `listAssignmentsForUser(userId)`
+ * - Extrai os patient_id e chama `listarRelatoriosPorPacientes` em batch
+ */
+export async function listarRelatoriosParaMedicoAtribuido(userId?: string): Promise<Report[]> {
+  try {
+    if (!userId) {
+      console.warn('[listarRelatoriosParaMedicoAtribuido] userId ausente, retornando array vazio');
+      return [];
+    }
+
+    console.log('[listarRelatoriosParaMedicoAtribuido] buscando assignments para user:', userId);
+    // importe dinamicamente para evitar possíveis ciclos
+    const assignmentMod = await import('./assignment');
+    const assigns = await assignmentMod.listAssignmentsForUser(String(userId));
+    if (!assigns || !Array.isArray(assigns) || assigns.length === 0) {
+      console.log('[listarRelatoriosParaMedicoAtribuido] nenhum paciente atribuído encontrado para user:', userId);
+      return [];
+    }
+
+    const patientIds = Array.from(new Set(assigns.map((a: any) => String(a.patient_id)).filter(Boolean)));
+    if (!patientIds.length) {
+      console.log('[listarRelatoriosParaMedicoAtribuido] nenhuma patient_id válida encontrada nas atribuições');
+      return [];
+    }
+
+    console.log('[listarRelatoriosParaMedicoAtribuido] carregando relatórios para pacientes:', patientIds);
+    const rels = await listarRelatoriosPorPacientes(patientIds);
+    return rels || [];
+  } catch (err) {
+    console.error('[listarRelatoriosParaMedicoAtribuido] erro:', err);
+    throw err;
+  }
+}

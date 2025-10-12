@@ -859,6 +859,39 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
   return Array.isArray(arr) ? arr[0] : (arr as Medico);  // Retorno do médico
 }
 
+/**
+ * Vincula um user_id (auth user id) a um registro de médico existente.
+ * Retorna o médico atualizado.
+ */
+export async function vincularUserIdMedico(medicoId: string | number, userId: string): Promise<Medico> {
+  const url = `${REST}/doctors?id=eq.${encodeURIComponent(String(medicoId))}`;
+  const payload = { user_id: String(userId) };
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(payload),
+  });
+  const arr = await parse<Medico[] | Medico>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as Medico);
+}
+
+
+/**
+ * Vincula um user_id (auth user id) a um registro de paciente existente.
+ * Retorna o paciente atualizado.
+ */
+export async function vincularUserIdPaciente(pacienteId: string | number, userId: string): Promise<Paciente> {
+  const url = `${REST}/patients?id=eq.${encodeURIComponent(String(pacienteId))}`;
+  const payload = { user_id: String(userId) };
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(payload),
+  });
+  const arr = await parse<Paciente[] | Paciente>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+}
+
 
 
 

@@ -296,6 +296,24 @@ export function PatientRegistrationForm({
               });
               setShowCredentialsDialog(true);
 
+              // Tenta vincular o user_id ao perfil do paciente recém-criado
+              try {
+                const apiMod = await import('@/lib/api');
+                const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id);
+                const userId = (userResponse.user as any)?.id || (userResponse.user as any)?.user_id || (userResponse.user as any)?.id;
+                if (pacienteId && userId && typeof apiMod.vincularUserIdPaciente === 'function') {
+                  console.log('[PatientForm] Vinculando user_id ao paciente:', pacienteId, userId);
+                  try {
+                    await apiMod.vincularUserIdPaciente(pacienteId, String(userId));
+                    console.log('[PatientForm] user_id vinculado com sucesso ao paciente');
+                  } catch (linkErr) {
+                    console.warn('[PatientForm] Falha ao vincular user_id ao paciente:', linkErr);
+                  }
+                }
+              } catch (dynErr) {
+                console.warn('[PatientForm] Não foi possível importar helper para vincular user_id:', dynErr);
+              }
+
               // Limpa formulário mas NÃO fecha ainda - fechará quando o dialog de credenciais fechar
               setForm(initial);
               setPhotoPreview(null);

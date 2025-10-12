@@ -26,7 +26,7 @@ interface UseReportsReturn {
   
   // Ações
   loadReports: () => Promise<void>;
-  loadReportById: (id: string) => Promise<void>;
+  loadReportById: (id: string) => Promise<Report>;
   createNewReport: (data: CreateReportData) => Promise<Report>;
   updateExistingReport: (id: string, data: UpdateReportData) => Promise<Report>;
   deleteExistingReport: (id: string) => Promise<void>;
@@ -205,15 +205,17 @@ export function useReports(): UseReportsReturn {
   }, [handleError]);
 
   // Carregar um relatório específico
-  const loadReportById = useCallback(async (id: string) => {
+  const loadReportById = useCallback(async (id: string): Promise<Report> => {
     setLoading(true);
     setError(null);
     
     try {
       const report = await buscarRelatorioPorId(id);
       setSelectedReport(report);
+      return report;
     } catch (err) {
       handleError(err);
+      throw err;
     } finally {
       setLoading(false);
     }

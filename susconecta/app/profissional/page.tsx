@@ -4,7 +4,7 @@ import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
-import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, type Paciente, buscarRelatorioPorId } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
@@ -48,17 +48,9 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
 });
 
-const pacientes = [
-  { nome: "Ana Souza", cpf: "123.456.789-00", idade: 42, statusLaudo: "Finalizado" },
-  { nome: "Bruno Lima", cpf: "987.654.321-00", idade: 33, statusLaudo: "Pendente" },
-  { nome: "Carla Menezes", cpf: "111.222.333-44", idade: 67, statusLaudo: "Rascunho" },
-];
+// pacientes will be loaded inside the component (hooks must run in component body)
 
-const medico = {
-  nome: "Dr. Carlos Andrade",
-  identificacao: "CRM 000000 • Cardiologia e Dermatologia",
-  fotoUrl: "",
-}
+// removed static medico placeholder; will load real profile for logged-in user
 
 
 const colorsByType = {
@@ -119,17 +111,111 @@ const ProfissionalPage = () => {
   
   // Estados para o perfil do médico
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [doctorId, setDoctorId] = useState<string | null>(null);
+  // Removemos o placeholder extenso — inicializamos com valores minimalistas e vazios.
   const [profileData, setProfileData] = useState({
-    nome: "Dr. Carlos Andrade",
-    email: user?.email || "carlos.andrade@hospital.com",
-    telefone: "(11) 99999-9999",
-    endereco: "Rua das Flores, 123 - Centro",
-    cidade: "São Paulo",
-    cep: "01234-567",
-    crm: "CRM 000000",
-    especialidade: "Cardiologia e Dermatologia",
-    biografia: "Médico especialista em cardiologia e dermatologia com mais de 15 anos de experiência em tratamentos clínicos e cirúrgicos."
+    nome: '',
+    email: user?.email || '',
+    telefone: '',
+    endereco: '',
+    cidade: '',
+    cep: '',
+    crm: '',
+    especialidade: '',
+  // biografia field removed — not present in Medico records
+    fotoUrl: ''
   });
+
+  // pacientes carregados dinamicamente (hooks devem ficar dentro do componente)
+  const [pacientes, setPacientes] = useState<any[]>([]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!user || !user.id) {
+          if (mounted) setPacientes([]);
+          return;
+        }
+
+        const assignmentsMod = await import('@/lib/assignment');
+        if (!assignmentsMod || typeof assignmentsMod.listAssignmentsForUser !== 'function') {
+          if (mounted) setPacientes([]);
+          return;
+        }
+
+        const assignments = await assignmentsMod.listAssignmentsForUser(user.id || '');
+        const patientIds = Array.isArray(assignments) ? assignments.map((a:any) => String(a.patient_id)).filter(Boolean) : [];
+        if (!patientIds.length) {
+          if (mounted) setPacientes([]);
+          return;
+        }
+
+        const patients = await buscarPacientesPorIds(patientIds);
+        const normalized = (patients || []).map((p: any) => ({
+          ...p,
+          nome: p.full_name ?? (p as any).nome ?? '',
+          cpf: p.cpf ?? '',
+          idade: getPatientAge(p) // preencher idade para a tabela de pacientes
+        }));
+        if (mounted) setPacientes(normalized);
+      } catch (err) {
+        console.warn('[ProfissionalPage] falha ao carregar pacientes atribuídos:', err);
+        if (mounted) setPacientes([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [user?.id, doctorId]);
+
+  // Carregar perfil do médico correspondente ao usuário logado
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!user || !user.email) return;
+        // Tenta buscar médicos pelo email do usuário (buscarMedicos lida com queries por email)
+        const docs = await buscarMedicos(user.email);
+        if (!mounted) return;
+        if (Array.isArray(docs) && docs.length > 0) {
+          // preferir registro cujo user_id bate com user.id
+          let chosen = docs.find(d => String((d as any).user_id) === String(user.id)) || docs[0];
+          if (chosen) {
+            // store the doctor's id so we can update it later
+            try { setDoctorId((chosen as any).id ?? null); } catch {};
+            // Especialidade pode vir como 'specialty' (inglês), 'especialidade' (pt),
+            // ou até uma lista/array. Normalizamos para string.
+            const rawSpecialty = (chosen as any).specialty ?? (chosen as any).especialidade ?? (chosen as any).especialidades ?? (chosen as any).especiality;
+            let specialtyStr = '';
+            if (Array.isArray(rawSpecialty)) {
+              specialtyStr = rawSpecialty.join(', ');
+            } else if (rawSpecialty) {
+              specialtyStr = String(rawSpecialty);
+            }
+
+            // Foto pode vir como 'foto_url' ou 'fotoUrl' ou 'avatar_url'
+            const foto = (chosen as any).foto_url || (chosen as any).fotoUrl || (chosen as any).avatar_url || '';
+
+            setProfileData((prev) => ({
+              ...prev,
+              nome: (chosen as any).full_name || (chosen as any).nome_social || prev.nome || user?.email?.split('@')[0] || '',
+              email: (chosen as any).email || user?.email || prev.email,
+              telefone: (chosen as any).phone_mobile || (chosen as any).celular || (chosen as any).telefone || (chosen as any).phone || (chosen as any).mobile || (user as any)?.user_metadata?.phone || prev.telefone,
+              endereco: (chosen as any).street || (chosen as any).endereco || prev.endereco,
+              cidade: (chosen as any).city || (chosen as any).cidade || prev.cidade,
+              cep: (chosen as any).cep || prev.cep,
+              crm: (chosen as any).crm ? `CRM ${(chosen as any).crm}` : (prev.crm || ''),
+              especialidade: specialtyStr || prev.especialidade || '',
+              // biografia removed: prefer to ignore observacoes/curriculo_url here
+              // (if needed elsewhere, render directly from chosen.observacoes)
+              fotoUrl: foto || prev.fotoUrl || ''
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn('[ProfissionalPage] falha ao carregar perfil do médico pelo email:', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [user?.id, user?.email]);
 
 
 
@@ -251,8 +337,37 @@ const ProfissionalPage = () => {
   };
 
   const handleSaveProfile = () => {
-    setIsEditingProfile(false);
-    alert('Perfil atualizado com sucesso!');
+    (async () => {
+      if (!doctorId) {
+        alert('Não foi possível localizar o registro do médico para atualizar.');
+        setIsEditingProfile(false);
+        return;
+      }
+
+      // Build payload mapping UI fields to DB columns
+      const payload: any = {};
+      if (profileData.email) payload.email = profileData.email;
+      if (profileData.telefone) payload.phone_mobile = profileData.telefone;
+      if (profileData.endereco) payload.street = profileData.endereco;
+      if (profileData.cidade) payload.city = profileData.cidade;
+      if (profileData.cep) payload.cep = profileData.cep;
+      if (profileData.especialidade) payload.specialty = profileData.especialidade || profileData.especialidade;
+      if (profileData.fotoUrl) payload.foto_url = profileData.fotoUrl;
+
+      // Don't allow updating full_name or crm from this UI
+
+      try {
+        const updated = await atualizarMedico(doctorId, payload as any);
+        console.debug('[ProfissionalPage] médico atualizado:', updated);
+        alert('Perfil atualizado com sucesso!');
+      } catch (err: any) {
+        console.error('[ProfissionalPage] falha ao atualizar médico:', err);
+        // Mostrar mensagem amigável (o erro já é tratado em lib/api)
+        alert(err?.message || 'Falha ao atualizar perfil. Verifique logs.');
+      } finally {
+        setIsEditingProfile(false);
+      }
+    })();
   };
 
   const handleCancelEdit = () => {
@@ -756,7 +871,23 @@ const ProfissionalPage = () => {
             const reportsMod = await import('@/lib/reports');
             if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
               const batch = await reportsMod.listarRelatoriosPorPacientes(patientIds);
-              if (mounted) setLaudos(batch || []);
+              // Enrich reports with paciente objects so UI shows name/cpf immediately
+              const enriched = await (async (reportsArr: any[]) => {
+                if (!reportsArr || !reportsArr.length) return reportsArr;
+                const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+                if (!pids.length) return reportsArr;
+                try {
+                  const patients = await buscarPacientesPorIds(pids);
+                  const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+                  return reportsArr.map(r => {
+                    const pid = String(getReportPatientId(r));
+                    return { ...r, paciente: r.paciente ?? map.get(pid) ?? r.paciente };
+                  });
+                } catch (e) {
+                  return reportsArr;
+                }
+              })(batch);
+              if (mounted) setLaudos(enriched || []);
             } else {
               // fallback: 请求 por paciente individual
               const allReports: any[] = [];
@@ -768,7 +899,20 @@ const ProfissionalPage = () => {
                   console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
                 }
               }
-              if (mounted) setLaudos(allReports);
+              // enrich fallback results too
+              const enrichedAll = await (async (reportsArr: any[]) => {
+                if (!reportsArr || !reportsArr.length) return reportsArr;
+                const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+                if (!pids.length) return reportsArr;
+                try {
+                  const patients = await buscarPacientesPorIds(pids);
+                  const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+                  return reportsArr.map(r => ({ ...r, paciente: r.paciente ?? map.get(String(getReportPatientId(r))) ?? r.paciente }));
+                } catch (e) {
+                  return reportsArr;
+                }
+              })(allReports);
+              if (mounted) setLaudos(enrichedAll);
             }
           } catch (err) {
             console.warn('[LaudoManager] erro ao carregar relatórios em batch, tentando por paciente individual', err);
@@ -781,7 +925,19 @@ const ProfissionalPage = () => {
                 console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, e);
               }
             }
-            if (mounted) setLaudos(allReports);
+            const enrichedAll = await (async (reportsArr: any[]) => {
+              if (!reportsArr || !reportsArr.length) return reportsArr;
+              const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+              if (!pids.length) return reportsArr;
+              try {
+                const patients = await buscarPacientesPorIds(pids);
+                const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+                return reportsArr.map(r => ({ ...r, paciente: r.paciente ?? map.get(String(getReportPatientId(r))) ?? r.paciente }));
+              } catch (e) {
+                return reportsArr;
+              }
+            })(allReports);
+            if (mounted) setLaudos(enrichedAll);
           }
         } catch (e) {
           console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);
@@ -1135,11 +1291,11 @@ const ProfissionalPage = () => {
                 <div className="mt-8 text-center border-t pt-4">
                 <div className="h-16 mb-2"></div>
                 {(() => {
-                  const signatureName = laudo?.created_by_name ?? laudo?.createdByName ?? ((laudo?.created_by && user?.id && laudo.created_by === user.id) ? 'Squad-20' : medico.nome ?? 'Squad-20');
+                  const signatureName = laudo?.created_by_name ?? laudo?.createdByName ?? ((laudo?.created_by && user?.id && laudo.created_by === user.id) ? profileData.nome : (laudo?.created_by_name || profileData.nome));
                   return (
                     <>
                       <p className="text-sm font-semibold">{signatureName}</p>
-                      <p className="text-xs text-muted-foreground">CRM 000000 - {laudo.especialidade}</p>
+                      <p className="text-xs text-muted-foreground">{profileData.crm || 'CRM não informado'} - {laudo.especialidade}</p>
                       <p className="text-xs text-muted-foreground mt-1">Data: {formatReportDate(getReportDate(laudo))}</p>
                     </>
                   );
@@ -2255,20 +2411,7 @@ const ProfissionalPage = () => {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="biografia">Biografia</Label>
-            {isEditingProfile ? (
-              <Textarea
-                id="biografia"
-                value={profileData.biografia}
-                onChange={(e) => handleProfileChange('biografia', e.target.value)}
-                rows={4}
-                placeholder="Descreva sua experiência profissional..."
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
-            )}
-          </div>
+          {/* Biografia removida: não é um campo no registro de médico */}
         </div>
       </div>
 
@@ -2312,16 +2455,14 @@ const ProfissionalPage = () => {
                 <TableHead>Nome</TableHead>
                 <TableHead>CPF</TableHead>
                 <TableHead>Idade</TableHead>
-                <TableHead>Status do Laudo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pacientes.map((paciente) => (
-                <TableRow key={paciente.cpf}>
+                <TableRow key={paciente.id ?? paciente.cpf}>
                   <TableCell>{paciente.nome}</TableCell>
                   <TableCell>{paciente.cpf}</TableCell>
-                  <TableCell>{paciente.idade}</TableCell>
-                  <TableCell>{paciente.statusLaudo}</TableCell>
+                  <TableCell>{getPatientAge(paciente) ? `${getPatientAge(paciente)} anos` : '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -2346,15 +2487,15 @@ const ProfissionalPage = () => {
         <header className="bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={medico.fotoUrl} alt={medico.nome} />
+              <AvatarImage src={(profileData as any).fotoUrl || undefined} alt={profileData.nome} />
               <AvatarFallback className="bg-muted">
                 <User className="h-5 w-5" />
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
-              <h2 className="text-lg font-semibold leading-none truncate">{medico.nome}</h2>
-              <p className="text-sm text-muted-foreground truncate">{medico.identificacao}</p>
+              <h2 className="text-lg font-semibold leading-none truncate">{profileData.nome}</h2>
+              <p className="text-sm text-muted-foreground truncate">{(profileData.crm ? profileData.crm : '') + (profileData.especialidade ? ` • ${profileData.especialidade}` : '')}</p>
               {user?.email && (
                 <p className="text-xs text-muted-foreground truncate">Logado como: {user.email}</p>
               )}

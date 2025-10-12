@@ -338,6 +338,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   
   const searchTerm = termo.toLowerCase().trim();
   const digitsOnly = searchTerm.replace(/\D/g, '');
+  const q = encodeURIComponent(searchTerm);
   
   // Monta queries para buscar em múltiplos campos
   const queries = [];
@@ -371,7 +372,11 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?${query}&limit=10`;
+            const [key, val] = String(query).split('=');
+            const params = new URLSearchParams();
+            if (key && typeof val !== 'undefined') params.set(key, val);
+            params.set('limit', '10');
+            const url = `${REST}/patients?${params.toString()}`;
       const headers = baseHeaders();
       const masked = (headers['Authorization'] as string | undefined) ? `${String(headers['Authorization']).slice(0,6)}...${String(headers['Authorization']).slice(-6)}` : null;
       console.debug('[buscarPacientes] URL:', url);
@@ -412,8 +417,14 @@ export async function buscarPacientePorId(id: string | number): Promise<Paciente
   // Se for string e não numérico, talvez foi passado um nome — tentar por full_name / social_name
   if (typeof id === 'string' && isNaN(Number(id))) {
     const q = encodeURIComponent(String(id));
-    const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?full_name=ilike.*${q}*&limit=5`;
-    const alt = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?social_name=ilike.*${q}*&limit=5`;
+          const params = new URLSearchParams();
+          params.set('full_name', `ilike.*${String(id)}*`);
+          params.set('limit', '5');
+          const url = `${REST}/patients?${params.toString()}`;
+          const altParams = new URLSearchParams();
+          altParams.set('social_name', `ilike.*${String(id)}*`);
+          altParams.set('limit', '5');
+          const alt = `${REST}/patients?${altParams.toString()}`;
     console.debug('[buscarPacientePorId] tentando por nome URL:', url);
     const arr2 = await fetchWithFallback<Paciente[]>(url, headers, [alt]);
     if (arr2 && arr2.length) return arr2[0];
@@ -521,9 +532,14 @@ export async function buscarPacientesPorIds(ids: Array<string | number>): Promis
     // fazemos uma requisição por nome usando ilike para cada nome.
     for (const name of names) {
       try {
-        const q = encodeURIComponent(name);
-        const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?full_name=ilike.*${q}*&limit=100`;
-        const alt = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients?social_name=ilike.*${q}*&limit=100`;
+        const params = new URLSearchParams();
+        params.set('full_name', `ilike.*${name}*`);
+        params.set('limit', '100');
+        const url = `${REST}/patients?${params.toString()}`;
+        const altParams = new URLSearchParams();
+        altParams.set('social_name', `ilike.*${name}*`);
+        altParams.set('limit', '100');
+        const alt = `${REST}/patients?${altParams.toString()}`;
         const headers = baseHeaders();
         console.debug('[buscarPacientesPorIds] URL (patient by name):', url);
         const arr = await fetchWithFallback<Paciente[]>(url, headers, [alt]);
@@ -650,13 +666,15 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   
   const searchTerm = termo.toLowerCase().trim();
   const digitsOnly = searchTerm.replace(/\D/g, '');
+  // Do not pre-encode the searchTerm here; we'll let URLSearchParams handle encoding
+  const q = searchTerm;
   
   // Monta queries para buscar em múltiplos campos
   const queries = [];
   
   // Busca por ID se parece com UUID
   if (searchTerm.includes('-') && searchTerm.length > 10) {
-    queries.push(`id=eq.${searchTerm}`);
+    queries.push(`id=eq.${encodeURIComponent(searchTerm)}`);
   }
   
   // Busca por CRM (com e sem formatação)
@@ -666,19 +684,26 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   
   // Busca por nome (usando ilike para busca case-insensitive)
   if (searchTerm.length >= 2) {
-    queries.push(`full_name=ilike.*${searchTerm}*`);
-    queries.push(`nome_social=ilike.*${searchTerm}*`);
+    queries.push(`full_name=ilike.*${q}*`);
+    queries.push(`nome_social=ilike.*${q}*`);
   }
   
   // Busca por email se contém @
   if (searchTerm.includes('@')) {
-    queries.push(`email=ilike.*${searchTerm}*`);
+    // Quando o usuário pesquisa por email (contendo '@'), limitar as queries apenas ao campo email.
+    // Em alguns esquemas de banco / views, buscar por outros campos com um email pode provocar
+    // erros de requisição (400) dependendo das colunas e políticas. Reduzimos o escopo para evitar 400s.
+    queries.length = 0; // limpar queries anteriores
+    queries.push(`email=ilike.*${q}*`);
   }
   
   // Busca por especialidade
   if (searchTerm.length >= 2) {
-    queries.push(`specialty=ilike.*${searchTerm}*`);
+    queries.push(`specialty=ilike.*${q}*`);
   }
+
+  // debug: mostrar queries construídas
+  console.debug('[buscarMedicos] queries construídas:', queries);
   
   const results: Medico[] = [];
   const seenIds = new Set<string>();
@@ -686,9 +711,16 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      const url = `${REST}/doctors?${query}&limit=10`;
+      // Build the URL safely using URLSearchParams so special characters (like @) are encoded correctly
+      // query is like 'nome_social=ilike.*something*' -> split into key/value
+      const [key, val] = String(query).split('=');
+      const params = new URLSearchParams();
+      if (key && typeof val !== 'undefined') params.set(key, val);
+      params.set('limit', '10');
+      const url = `${REST}/doctors?${params.toString()}`;
       const headers = baseHeaders();
       const masked = (headers['Authorization'] as string | undefined) ? `${String(headers['Authorization']).slice(0,6)}...${String(headers['Authorization']).slice(-6)}` : null;
+      console.debug('[buscarMedicos] URL params:', params.toString());
       console.debug('[buscarMedicos] URL:', url);
       console.debug('[buscarMedicos] Headers (masked):', { ...headers, Authorization: masked ? '<<masked>>' : undefined });
       const res = await fetch(url, { method: 'GET', headers });
@@ -734,9 +766,19 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico | n
       // tentar por full_name usando ilike para evitar 400 com espaços/caracteres
       try {
         const q = encodeURIComponent(sId);
-        const url = `${REST}/doctors?full_name=ilike.*${q}*&limit=5`;
-        const alt = `${REST}/doctors?nome_social=ilike.*${q}*&limit=5`;
-        const arr = await fetchWithFallback<Medico[]>(url, baseHeaders(), [alt, `${REST}/doctors?social_name=ilike.*${q}*&limit=5`]);
+              const params = new URLSearchParams();
+              params.set('full_name', `ilike.*${q}*`);
+              params.set('limit', '5');
+              const url = `${REST}/doctors?${params.toString()}`;
+              const altParams = new URLSearchParams();
+              altParams.set('nome_social', `ilike.*${q}*`);
+              altParams.set('limit', '5');
+              const alt = `${REST}/doctors?${altParams.toString()}`;
+  const socialAltParams = new URLSearchParams();
+  socialAltParams.set('social_name', `ilike.*${sId}*`);
+  socialAltParams.set('limit', '5');
+  const socialAlt = `${REST}/doctors?${socialAltParams.toString()}`;
+  const arr = await fetchWithFallback<Medico[]>(url, baseHeaders(), [alt, socialAlt]);
         if (arr && arr.length > 0) return arr[0];
       } catch (e) {
         // ignore and try next
@@ -813,12 +855,21 @@ export async function buscarMedicosPorIds(ids: Array<string | number>): Promise<
     // Evitar in.(...) com aspas — fazer uma requisição por nome usando ilike
     for (const name of names) {
       try {
-        const q = encodeURIComponent(name);
-        const url = `${REST}/doctors?full_name=ilike.*${q}*&limit=200`;
-        const alt = `${REST}/doctors?nome_social=ilike.*${q}*&limit=200`;
+        const params = new URLSearchParams();
+        params.set('full_name', `ilike.*${name}*`);
+        params.set('limit', '200');
+        const url = `${REST}/doctors?${params.toString()}`;
+        const altParams = new URLSearchParams();
+        altParams.set('nome_social', `ilike.*${name}*`);
+        altParams.set('limit', '200');
+        const alt = `${REST}/doctors?${altParams.toString()}`;
         const headers = baseHeaders();
         console.debug('[buscarMedicosPorIds] URL (doctor by name):', url);
-        const arr = await fetchWithFallback<Medico[]>(url, headers, [alt, `${REST}/doctors?social_name=ilike.*${q}*&limit=200`]);
+  const socialAltParams = new URLSearchParams();
+  socialAltParams.set('social_name', `ilike.*${name}*`);
+  socialAltParams.set('limit', '200');
+  const socialAlt = `${REST}/doctors?${socialAltParams.toString()}`;
+  const arr = await fetchWithFallback<Medico[]>(url, headers, [alt, socialAlt]);
         if (arr && arr.length) results.push(...arr);
       } catch (e) {
         // ignore
@@ -1546,9 +1597,14 @@ export async function buscarPerfilPorId(id: string | number): Promise<Profile> {
 
   // 2) tentar por full_name quando for string legível
   if (typeof id === 'string' && isNaN(Number(id))) {
-    const q = encodeURIComponent(String(id));
-    const url = `${REST}/profiles?full_name=ilike.*${q}*&limit=5`;
-    const alt = `${REST}/profiles?email=ilike.*${q}*&limit=5`;
+    const params = new URLSearchParams();
+    params.set('full_name', `ilike.*${String(id)}*`);
+    params.set('limit', '5');
+    const url = `${REST}/profiles?${params.toString()}`;
+    const altParams = new URLSearchParams();
+    altParams.set('email', `ilike.*${String(id)}*`);
+    altParams.set('limit', '5');
+    const alt = `${REST}/profiles?${altParams.toString()}`;
     const arr2 = await fetchWithFallback<Profile[]>(url, headers, [alt]);
     if (arr2 && arr2.length) return arr2[0];
   }

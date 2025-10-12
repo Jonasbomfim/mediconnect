@@ -613,13 +613,13 @@ const ProfissionalPage = () => {
       { id: "92953542", nome: "Carla Menezes", cpf: "111.222.333-44", idade: 67, sexo: "Feminino" },
     ]);
 
-  const { reports, loadReports, loading: reportsLoading, createNewReport, updateExistingReport } = useReports();
+  const { reports, loadReports, loadReportById, loading: reportsLoading, createNewReport, updateExistingReport } = useReports();
     const [laudos, setLaudos] = useState<any[]>([]);
   const [selectedRange, setSelectedRange] = useState<'todos'|'semana'|'mes'|'custom'>('mes');
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
 
-    // helper to check if a date string is in range
+  // helper to check if a date string is in range
     const isInRange = (dateStr: string | undefined, range: 'todos'|'semana'|'mes'|'custom') => {
       if (range === 'todos') return true;
       if (!dateStr) return false;
@@ -636,6 +636,27 @@ const ProfissionalPage = () => {
       }
       // mes
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    };
+
+    // helper: ensure report has paciente object populated (fetch by id if necessary)
+    const ensurePaciente = async (report: any) => {
+      if (!report) return report;
+      try {
+        if (!report.paciente) {
+          const pid = report.patient_id ?? report.patient ?? report.paciente ?? null;
+          if (pid) {
+            try {
+              const p = await buscarPacientePorId(String(pid));
+              if (p) report.paciente = p;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      return report;
     };
 
     // When selectedRange changes (and isn't custom), compute start/end dates
@@ -832,7 +853,7 @@ const ProfissionalPage = () => {
           <div className="relative">
             <Input
               placeholder="Buscar paciente / pedido / ID"
-              className="pl-10"
+              className="pl-10 h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleKey}
@@ -872,6 +893,11 @@ const ProfissionalPage = () => {
             const reportsMod = await import('@/lib/reports');
             if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
               const batch = await reportsMod.listarRelatoriosPorPacientes(patientIds);
+              // Filtrar apenas relatórios criados/solicitados por este usuário (evita mostrar laudos de outros médicos)
+              const mineOnly = (batch || []).filter((r: any) => {
+                const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
+                return user?.id && requester && requester === user.id;
+              });
               // Enrich reports with paciente objects so UI shows name/cpf immediately
               const enriched = await (async (reportsArr: any[]) => {
                 if (!reportsArr || !reportsArr.length) return reportsArr;
@@ -887,7 +913,7 @@ const ProfissionalPage = () => {
                 } catch (e) {
                   return reportsArr;
                 }
-              })(batch);
+              })(mineOnly);
               if (mounted) setLaudos(enriched || []);
             } else {
               // fallback: 请求 por paciente individual
@@ -895,7 +921,14 @@ const ProfissionalPage = () => {
               for (const pid of patientIds) {
                 try {
                   const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
-                  if (Array.isArray(rels)) allReports.push(...rels);
+                  if (Array.isArray(rels) && rels.length) {
+                    // filtrar por autor (requested_by / created_by / executante)
+                    const mine = rels.filter((r: any) => {
+                      const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
+                      return user?.id && requester && requester === user.id;
+                    });
+                    if (mine.length) allReports.push(...mine);
+                  }
                 } catch (err) {
                   console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
                 }
@@ -921,7 +954,13 @@ const ProfissionalPage = () => {
             for (const pid of patientIds) {
               try {
                 const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
-                if (Array.isArray(rels)) allReports.push(...rels);
+                if (Array.isArray(rels) && rels.length) {
+                  const mine = rels.filter((r: any) => {
+                    const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
+                    return user?.id && requester && requester === user.id;
+                  });
+                  if (mine.length) allReports.push(...mine);
+                }
               } catch (e) {
                 console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, e);
               }
@@ -952,6 +991,21 @@ const ProfissionalPage = () => {
     useEffect(() => {
       if (!laudos || laudos.length === 0) setLaudos(reports || []);
     }, [reports]);
+
+      // Sort reports newest-first (more recent dates at the top)
+      const sortedLaudos = React.useMemo(() => {
+        const arr = (filteredLaudos || []).slice();
+        arr.sort((a: any, b: any) => {
+          try {
+            const da = new Date(getReportDate(a) || 0).getTime() || 0;
+            const db = new Date(getReportDate(b) || 0).getTime() || 0;
+            return db - da;
+          } catch (e) {
+            return 0;
+          }
+        });
+        return arr;
+      }, [filteredLaudos]);
 
   const [activeTab, setActiveTab] = useState("descobrir");
     const [laudoSelecionado, setLaudoSelecionado] = useState<any>(null);
@@ -1006,13 +1060,13 @@ const ProfissionalPage = () => {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 text-sm">
                   <CalendarIcon className="w-4 h-4" />
-                  <Input type="date" value={startDate ?? ''} onChange={(e) => { setStartDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm" />
-                  <span>-</span>
-                  <Input type="date" value={endDate ?? ''} onChange={(e) => { setEndDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm" />
+                  <Input type="date" value={startDate ?? ''} onChange={(e) => { setStartDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm h-10" />
+                  <span className="inline-flex items-center px-1 text-sm">-</span>
+                  <Input type="date" value={endDate ?? ''} onChange={(e) => { setEndDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm h-10" />
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 {/* date range buttons: Semana / Mês */}
                 <DateRangeButtons />
               </div>
@@ -1038,8 +1092,8 @@ const ProfissionalPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLaudos.map((laudo) => (
-                    <TableRow key={laudo.id}>
+                  {sortedLaudos.map((laudo, idx) => (
+                    <TableRow key={`${(laudo?.id ?? laudo?.order_number ?? getReportPatientId(laudo) ?? 'laudo')}-${idx}`}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {laudo.urgente && (
@@ -1058,8 +1112,24 @@ const ProfissionalPage = () => {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{laudo?.prazo ?? laudo?.due_at ? formatReportDate(laudo?.due_at ?? laudo?.prazo) : '-'}</div>
-                          <div className="text-xs text-muted-foreground">{laudo?.prazo_hora ?? laudo?.due_time ?? '-'}</div>
+                          <div>{(laudo?.prazo ?? laudo?.due_at) ? formatReportDate(laudo?.due_at ?? laudo?.prazo) : '-'}</div>
+                          <div className="text-xs text-muted-foreground">{
+                            (() => {
+                              // prefer explicit fields
+                              const explicit = laudo?.prazo_hora ?? laudo?.due_time ?? laudo?.hora ?? null;
+                              if (explicit) return explicit;
+                              // fallback: try to parse due_at / prazo datetime and extract time
+                              const due = laudo?.due_at ?? laudo?.prazo ?? laudo?.dueDate ?? laudo?.data ?? null;
+                              if (!due) return '-';
+                              try {
+                                const d = new Date(due);
+                                if (isNaN(d.getTime())) return '-';
+                                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                              } catch (e) {
+                                return '-';
+                              }
+                            })()
+                          }</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1071,16 +1141,32 @@ const ProfissionalPage = () => {
                           <div className="text-xs text-muted-foreground">{getReportPatientCpf(laudo) ? `CPF: ${getReportPatientCpf(laudo)}` : ''}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{getReportExecutor(laudo) || '-'}</TableCell>
+                      <TableCell className="text-sm">{
+                        (() => {
+                          const possibleName = laudo.requested_by_name ?? laudo.requester_name ?? laudo.requestedByName ?? laudo.executante_name ?? laudo.executante ?? laudo.executante_name ?? laudo.executante;
+                          if (possibleName && typeof possibleName === 'string' && possibleName.trim().length) return possibleName;
+                          const possibleId = (laudo.requested_by ?? laudo.created_by ?? laudo.executante ?? laudo.requestedBy ?? laudo.createdBy) || '';
+                          if (possibleId && user?.id && possibleId === user.id) return (profileData as any)?.nome || user?.name || possibleId;
+                          return possibleName || possibleId || '-';
+                        })()
+                      }</TableCell>
                       <TableCell className="text-sm">{getReportExam(laudo) || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setLaudoSelecionado(laudo);
-                              setIsViewing(true);
+                            onClick={async () => {
+                              try {
+                                const full = (laudo?.id || laudo?.order_number) ? await loadReportById(String(laudo?.id ?? laudo?.order_number)) : laudo;
+                                await ensurePaciente(full);
+                                setLaudoSelecionado(full);
+                                setIsViewing(true);
+                              } catch (e) {
+                                // fallback
+                                setLaudoSelecionado(laudo);
+                                setIsViewing(true);
+                              }
                             }}
                             className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
                           >
@@ -1110,8 +1196,8 @@ const ProfissionalPage = () => {
 
             {/* Mobile - cards empilháveis */}
             <div className="md:hidden space-y-3">
-              {filteredLaudos.map((laudo) => (
-                <div key={laudo.id} className="bg-card p-4 rounded-lg border border-border shadow-sm">
+              {sortedLaudos.map((laudo, idx) => (
+                <div key={`${(laudo?.id ?? laudo?.order_number ?? getReportPatientId(laudo) ?? 'laudo-mobile')}-${idx}`} className="bg-card p-4 rounded-lg border border-border shadow-sm">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
@@ -1127,7 +1213,15 @@ const ProfissionalPage = () => {
                       </div>
                     </div>
                     <div className="flex flex-col items-end ml-4">
-                      <div className="text-sm">{getReportExecutor(laudo) || '-'}</div>
+                      <div className="text-sm">{
+                        (() => {
+                          const possibleName = laudo.requested_by_name ?? laudo.requester_name ?? laudo.requestedByName ?? laudo.executante_name ?? laudo.executante ?? laudo.executante_name ?? laudo.executante;
+                          if (possibleName && typeof possibleName === 'string' && possibleName.trim().length) return possibleName;
+                          const possibleId = (laudo.requested_by ?? laudo.created_by ?? laudo.executante ?? laudo.requestedBy ?? laudo.createdBy) || '';
+                          if (possibleId && user?.id && possibleId === user.id) return (profileData as any)?.nome || user?.name || possibleId;
+                          return possibleName || possibleId || '-';
+                        })()
+                      }</div>
                       <div className="flex gap-2 mt-3">
                         <Button
                           variant="outline"
@@ -1169,29 +1263,69 @@ const ProfissionalPage = () => {
         {/* Editor para Novo Laudo */}
         {isCreatingNew && (
           <LaudoEditor
-            pacientes={pacientesDisponiveis}
-            onClose={() => setIsCreatingNew(false)}
-            isNewLaudo={true}
-            createNewReport={createNewReport}
-            updateExistingReport={updateExistingReport}
-            reloadReports={loadReports}
-            onSaved={(r:any) => { setLaudoSelecionado(r); setIsViewing(true); }}
-          />
+              pacientes={pacientesDisponiveis}
+              onClose={() => setIsCreatingNew(false)}
+              isNewLaudo={true}
+              createNewReport={createNewReport}
+              updateExistingReport={updateExistingReport}
+              reloadReports={loadReports}
+              onSaved={async (r:any) => {
+                try {
+                  // If report has an id, fetch full report and open viewer
+                  if (r && (r.id || r.order_number)) {
+                    const id = r.id ?? r.order_number;
+                    const full = await loadReportById(String(id));
+                    await ensurePaciente(full);
+                    // prepend to laudos list so it appears immediately
+                    setLaudos(prev => [full, ...(prev || [])]);
+                    setLaudoSelecionado(full);
+                    setIsViewing(true);
+                  } else {
+                    setLaudoSelecionado(r);
+                    setIsViewing(true);
+                  }
+                  // refresh global reports list too
+                  try { await loadReports(); } catch {}
+                } catch (e) {
+                  // fallback: open what we have
+                  setLaudoSelecionado(r);
+                  setIsViewing(true);
+                }
+              }}
+            />
         )}
 
         {/* Editor para Paciente Específico */}
         {isEditingForPatient && selectedPatientForLaudo && (
           <LaudoEditor
-            pacientes={[selectedPatientForLaudo.paciente || selectedPatientForLaudo]}
-            laudo={selectedPatientForLaudo}
-            onClose={onClosePatientEditor || (() => {})}
-            isNewLaudo={!selectedPatientForLaudo?.id}
-            preSelectedPatient={selectedPatientForLaudo.paciente || selectedPatientForLaudo}
-            createNewReport={createNewReport}
-            updateExistingReport={updateExistingReport}
-            reloadReports={loadReports}
-            onSaved={(r:any) => { setLaudoSelecionado(r); setIsViewing(true); }}
-          />
+              pacientes={[selectedPatientForLaudo.paciente || selectedPatientForLaudo]}
+              laudo={selectedPatientForLaudo}
+              onClose={onClosePatientEditor || (() => {})}
+              isNewLaudo={!selectedPatientForLaudo?.id}
+              preSelectedPatient={selectedPatientForLaudo.paciente || selectedPatientForLaudo}
+              createNewReport={createNewReport}
+              updateExistingReport={updateExistingReport}
+              reloadReports={loadReports}
+              onSaved={async (r:any) => {
+                try {
+                  if (r && (r.id || r.order_number)) {
+                    const id = r.id ?? r.order_number;
+                    const full = await loadReportById(String(id));
+                    await ensurePaciente(full);
+                    setLaudos(prev => [full, ...(prev || [])]);
+                    setLaudoSelecionado(full);
+                    setIsViewing(true);
+                  } else {
+                    setLaudoSelecionado(r);
+                    setIsViewing(true);
+                  }
+                  try { await loadReports(); } catch {}
+                } catch (e) {
+                  setLaudoSelecionado(r);
+                  setIsViewing(true);
+                }
+              }}
+            />
         )}
       </div>
     );
@@ -1231,7 +1365,6 @@ const ProfissionalPage = () => {
                 <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <p><strong>Nome:</strong> {getPatientName(laudo?.paciente) || getPatientName(laudo) || '-'}</p>
-                  <p><strong>ID:</strong> {getPatientId(laudo?.paciente) ?? getPatientId(laudo) ?? '-'}</p>
                   <p><strong>CPF:</strong> {getPatientCpf(laudo?.paciente) ?? laudo?.patient_cpf ?? '-'}</p>
                   <p><strong>Idade:</strong> {getPatientAge(laudo?.paciente) ? `${getPatientAge(laudo?.paciente)} anos` : (getPatientAge(laudo) ? `${getPatientAge(laudo)} anos` : '-')}</p>
                   <p><strong>Sexo:</strong> {getPatientSex(laudo?.paciente) ?? getPatientSex(laudo) ?? '-'}</p>
@@ -1296,7 +1429,7 @@ const ProfissionalPage = () => {
                   return (
                     <>
                       <p className="text-sm font-semibold">{signatureName}</p>
-                      <p className="text-xs text-muted-foreground">{profileData.crm || 'CRM não informado'} - {laudo.especialidade}</p>
+                      <p className="text-xs text-muted-foreground">{profileData.crm ? `CRM: ${String(profileData.crm).replace(/^(?:CRM\s*)+/i, '').trim()}` : 'CRM não informado'}{laudo.especialidade ? ` - ${laudo.especialidade}` : ''}</p>
                       <p className="text-xs text-muted-foreground mt-1">Data: {formatReportDate(getReportDate(laudo))}</p>
                     </>
                   );
@@ -1307,10 +1440,7 @@ const ProfissionalPage = () => {
 
           {/* Footer */}
           <div className="p-4 border-t border-border bg-muted/20">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground">
-                Status: {laudo.status} | Executante: {laudo.executante}
-              </div>
+            <div className="flex items-center justify-end">
               <Button onClick={onClose}>
                 Fechar
               </Button>
@@ -2499,7 +2629,7 @@ const ProfissionalPage = () => {
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
               <h2 className="text-lg font-semibold leading-none truncate">{profileData.nome}</h2>
-              <p className="text-sm text-muted-foreground truncate">{(profileData.crm ? profileData.crm : '') + (profileData.especialidade ? ` • ${profileData.especialidade}` : '')}</p>
+              <p className="text-sm text-muted-foreground truncate">{(profileData.crm ? `CRM: ${profileData.crm}` : '') + (profileData.especialidade ? ` • ${profileData.especialidade}` : '')}</p>
               {user?.email && (
                 <p className="text-xs text-muted-foreground truncate">Logado como: {user.email}</p>
               )}

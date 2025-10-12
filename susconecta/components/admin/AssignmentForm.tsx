@@ -89,22 +89,7 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
             </Select>
           </div>
 
-          <div>
-            <Label>Role</Label>
-            <Input
-              value={role}
-              onChange={(e) => {
-                const v = String(e.target.value || '').toLowerCase().trim();
-                // Map common english values to portuguese expected by backend
-                if (v === 'doctor') return setRole('medico');
-                if (v === 'nurse') return setRole('enfermeiro');
-                if (v === 'medico' || v === 'enfermeiro') return setRole(v as PatientAssignmentRole);
-                // fallback: keep current role (ignore unknown input)
-                return setRole(role);
-              }}
-            />
-            <div className="text-xs text-muted-foreground mt-1">Ex: medico, enfermeiro (inglês: doctor → medico)</div>
-          </div>
+          {/* role input removed - only professional select remains; role defaults to 'medico' on submit */}
 
           {existing && existing.length > 0 && (
             <div>

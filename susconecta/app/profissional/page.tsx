@@ -202,7 +202,8 @@ const ProfissionalPage = () => {
               endereco: (chosen as any).street || (chosen as any).endereco || prev.endereco,
               cidade: (chosen as any).city || (chosen as any).cidade || prev.cidade,
               cep: (chosen as any).cep || prev.cep,
-              crm: (chosen as any).crm ? `CRM ${(chosen as any).crm}` : (prev.crm || ''),
+              // store raw CRM (only the number) to avoid double-prefixing when rendering
+              crm: (chosen as any).crm ? String((chosen as any).crm).replace(/^(?:CRM\s*)+/i, '').trim() : (prev.crm || ''),
               especialidade: specialtyStr || prev.especialidade || '',
               // biografia removed: prefer to ignore observacoes/curriculo_url here
               // (if needed elsewhere, render directly from chosen.observacoes)
@@ -1330,7 +1331,11 @@ const ProfissionalPage = () => {
     const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
     const [listaPacientes, setListaPacientes] = useState<any[]>([]);
   // Novo: campos para solicitante e prazo
-  const [solicitante, setSolicitante] = useState<string>(user?.id || "");
+  // solicitanteId será enviado ao backend (sempre o id do usuário logado)
+  const [solicitanteId, setSolicitanteId] = useState<string>(user?.id || "");
+  // displaySolicitante é apenas para exibição (nome do usuário) e NÃO é enviado ao backend
+  // Prefer profileData.nome (nome do médico carregado) — cai back para user.name ou email
+  const displaySolicitante = ((profileData as any) && ((profileData as any).nome || (profileData as any).nome_social)) || user?.name || (user?.profile as any)?.full_name || user?.email || '';
   const [prazoDate, setPrazoDate] = useState<string>("");
   const [prazoTime, setPrazoTime] = useState<string>("");
 
@@ -1442,9 +1447,14 @@ const ProfissionalPage = () => {
           }
         }
 
-        // preencher solicitante/prazo quando existe laudo (edição)
-        const possibleName = laudo.requested_by_name ?? laudo.requester_name ?? laudo.requestedByName ?? laudo.executante_name ?? laudo.executante?.nome ?? laudo.requested_by ?? laudo.created_by_name ?? user?.id ?? "";
-        setSolicitante(possibleName);
+        // preencher solicitanteId/prazo quando existe laudo (edição)
+        // preferimos manter o solicitanteId como o user id; se o laudo tiver requested_by que pareça um id, usamos ele
+        const possibleRequestedById = laudo.requested_by ?? laudo.created_by ?? null;
+        if (possibleRequestedById && typeof possibleRequestedById === 'string' && possibleRequestedById.length > 5) {
+          setSolicitanteId(possibleRequestedById);
+        } else {
+          setSolicitanteId(user?.id || "");
+        }
 
         const dueRaw = laudo.due_at ?? laudo.prazo ?? laudo.dueDate ?? laudo.data ?? null;
         if (dueRaw) {
@@ -1661,9 +1671,10 @@ const ProfissionalPage = () => {
                 {/* Novos campos: Solicitante e Prazo */}
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="solicitante">Solicitante (ID)</Label>
-                    <Input id="solicitante" value={solicitante} onChange={(e) => setSolicitante(e.target.value)} placeholder="Nome ou ID do solicitante (opcional)" />
-                    <p className="text-xs text-muted-foreground mt-1">Se vazio, o usuário logado será usado como solicitante.</p>
+                    <Label htmlFor="solicitante">Solicitante</Label>
+                    {/* Mostrar o nome do usuário logado de forma estática (não editável) */}
+                    <Input id="solicitante" value={displaySolicitante} readOnly disabled />
+                    
                   </div>
                   <div>
                     <Label htmlFor="prazoDate">Prazo do Laudo</Label>
@@ -2081,8 +2092,11 @@ const ProfissionalPage = () => {
                             <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
                           )}
                           <div className="border-b border-border mb-2"></div>
-                          <p className="text-sm">{user?.name ? user.name : 'Squad-20'}</p>
-                          <p className="text-xs text-muted-foreground">CRM 000000</p>
+                          <p className="text-sm">{((profileData as any)?.nome || (profileData as any)?.nome_social) || user?.name || 'Squad-20'}</p>
+                          {(((profileData as any)?.crm) || ((user?.profile as any)?.crm)) ? (
+                            // Ensure we render a single 'CRM ' prefix followed by the raw number
+                            <p className="text-xs text-muted-foreground">CRM {(((profileData as any)?.crm) || (user?.profile as any)?.crm).toString().replace(/^(?:CRM\s*)+/i, '').trim()}</p>
+                          ) : null}
                         </div>
                     )}
                   </div>
@@ -2125,7 +2139,7 @@ const ProfissionalPage = () => {
                         content_html: content,
                         content_json: {},
                         // status intentionally omitted — não enviar 'draft'
-                        requested_by: solicitante || userId,
+                        requested_by: solicitanteId || userId,
                         due_at: composedDueAt ?? new Date().toISOString(),
                         hide_date: !campos.mostrarData,
                         hide_signature: !campos.mostrarAssinatura,

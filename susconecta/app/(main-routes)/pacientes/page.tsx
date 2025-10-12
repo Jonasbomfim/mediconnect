@@ -12,6 +12,7 @@ import { MoreHorizontal, Plus, Search, Eye, Edit, Trash2, ArrowLeft } from "luci
 
 import { Paciente, Endereco, listarPacientes, buscarPacientes, buscarPacientePorId, excluirPaciente } from "@/lib/api";
 import { PatientRegistrationForm } from "@/components/forms/patient-registration-form";
+import AssignmentForm from "@/components/admin/AssignmentForm";
 
 
 function normalizePaciente(p: any): Paciente {
@@ -46,6 +47,8 @@ export default function PacientesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingPatient, setViewingPatient] = useState<Paciente | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignPatientId, setAssignPatientId] = useState<string | null>(null);
 
   async function loadAll() {
     try {
@@ -204,7 +207,7 @@ export default function PacientesPage() {
               onKeyDown={(e) => e.key === "Enter" && handleBuscarServidor()}
             />
           </div>
-          <Button variant="secondary" onClick={handleBuscarServidor} className="hover:bg-primary hover:text-white">Buscar</Button>
+          <Button variant="secondary" onClick={() => void handleBuscarServidor()} className="hover:bg-primary hover:text-white">Buscar</Button>
           <Button onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             Novo paciente
@@ -253,6 +256,10 @@ export default function PacientesPage() {
                         <DropdownMenuItem onClick={() => handleDelete(String(p.id))} className="text-destructive">
                           <Trash2 className="mr-2 h-4 w-4" />
                           Excluir
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setAssignPatientId(String(p.id)); setAssignDialogOpen(true); }}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Atribuir profissional
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -308,6 +315,16 @@ export default function PacientesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Assignment dialog */}
+      {assignDialogOpen && assignPatientId && (
+        <AssignmentForm
+          patientId={assignPatientId}
+          open={assignDialogOpen}
+          onClose={() => { setAssignDialogOpen(false); setAssignPatientId(null); }}
+          onSaved={() => { setAssignDialogOpen(false); setAssignPatientId(null); loadAll(); }}
+        />
       )}
 
       <div className="text-sm text-muted-foreground">Mostrando {filtered.length} de {patients.length}</div>

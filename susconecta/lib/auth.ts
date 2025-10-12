@@ -6,7 +6,7 @@ import type {
   UserData 
 } from '@/types/auth';
 
-import { API_CONFIG, AUTH_ENDPOINTS, DEFAULT_HEADERS, API_KEY, buildApiUrl } from '@/lib/config';
+import { API_CONFIG, AUTH_ENDPOINTS, DEFAULT_HEADERS, buildApiUrl } from '@/lib/config';
 import { debugRequest } from '@/lib/debug-utils';
 import { ENV_CONFIG } from '@/lib/env-config';
 
@@ -31,7 +31,7 @@ function getAuthHeaders(token: string): Record<string, string> {
   return {
     "Content-Type": "application/json",
     "Accept": "application/json",
-    "apikey": API_KEY,
+    "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
     "Authorization": `Bearer ${token}`,
   };
 }
@@ -43,7 +43,7 @@ function getLoginHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
     "Accept": "application/json",
-    "apikey": API_KEY,
+    "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
   };
 }
 
@@ -267,7 +267,7 @@ export async function refreshAuthToken(refreshToken: string): Promise<RefreshTok
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json", 
-        "apikey": API_KEY,
+        "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });

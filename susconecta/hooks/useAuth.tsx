@@ -2,6 +2,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { loginUser, logoutUser, AuthenticationError } from '@/lib/auth'
+import { getUserInfo } from '@/lib/api'
+import { ENV_CONFIG } from '@/lib/env-config'
 import { isExpired, parseJwt } from '@/lib/jwt'
 import { httpClient } from '@/lib/http'
 import type { 
@@ -118,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return
             }
           } catch (refreshError) {
-            console.log('❌ [AUTH] Falha no refresh automático')
+            console.log(' [AUTH] Falha no refresh automático')
             await new Promise(resolve => setTimeout(resolve, 400))
           }
         }
@@ -130,6 +132,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Restaurar sessão válida
       const userData = JSON.parse(storedUser) as UserData
       setToken(storedToken)
+      // Tentar buscar profile consolidado (user-info) e mesclar
+      try {
+        const info = await getUserInfo()
+        if (info?.profile) {
+          const mapped = {
+            cpf: (info.profile as any).cpf ?? userData.profile?.cpf,
+            crm: (info.profile as any).crm ?? userData.profile?.crm,
+            telefone: info.profile.phone ?? userData.profile?.telefone,
+            foto_url: info.profile.avatar_url ?? userData.profile?.foto_url,
+          }
+          if (userData.profile) {
+            userData.profile = { ...userData.profile, ...mapped }
+          } else {
+            userData.profile = mapped
+          }
+          // Persistir o usuário atualizado no localStorage para evitar
+          // que 'auth_user.profile' fique vazio após um reload completo
+          try {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(userData))
+            }
+          } catch (e) {
+            console.warn('[AUTH] Falha ao persistir user (profile) no localStorage:', e)
+          }
+        }
+      } catch (err) {
+        console.warn('[AUTH] Falha ao buscar user-info na restauração de sessão:', err)
+      }
+
       setUser(userData)
       setAuthStatus('authenticated')
 
@@ -158,6 +189,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const response = await loginUser(email, password, userType)
       
+      // Após receber token, buscar roles/permissions reais e reconciliar userType
+      try {
+        const infoRes = await fetch(`${ENV_CONFIG.SUPABASE_URL}/functions/v1/user-info`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${response.access_token}`,
+            'apikey': ENV_CONFIG.SUPABASE_ANON_KEY,
+          }
+        })
+
+        if (infoRes.ok) {
+          const info = await infoRes.json().catch(() => null)
+          const roles: string[] = Array.isArray(info?.roles) ? info.roles : (info?.roles ? [info.roles] : [])
+
+          // Derivar tipo de usuário a partir dos roles
+          let derived: UserType = 'paciente'
+          if (roles.includes('admin') || roles.includes('gestor') || roles.includes('secretaria')) {
+            derived = 'administrador'
+          } else if (roles.includes('medico') || roles.includes('enfermeiro')) {
+            derived = 'profissional'
+          }
+
+          // Atualizar userType caso seja diferente
+          if (response.user && response.user.userType !== derived) {
+            response.user.userType = derived
+            console.log('[AUTH] userType reconciled from roles ->', derived)
+          }
+        } else {
+          console.warn('[AUTH] Falha ao obter user-info para reconciliar roles:', infoRes.status)
+        }
+      } catch (err) {
+        console.warn('[AUTH] Erro ao buscar user-info após login (não crítico):', err)
+      }
+
+      // Após login, tentar buscar profile consolidado e mesclar antes de persistir
+      try {
+        const info = await getUserInfo()
+        if (info?.profile && response.user) {
+          const mapped = {
+            cpf: (info.profile as any).cpf ?? response.user.profile?.cpf,
+            crm: (info.profile as any).crm ?? response.user.profile?.crm,
+            telefone: info.profile.phone ?? response.user.profile?.telefone,
+            foto_url: info.profile.avatar_url ?? response.user.profile?.foto_url,
+          }
+          if (response.user.profile) {
+            response.user.profile = { ...response.user.profile, ...mapped }
+          } else {
+            response.user.profile = mapped
+          }
+        }
+      } catch (err) {
+        console.warn('[AUTH] Falha ao buscar user-info após login (não crítico):', err)
+      }
+
       saveAuthData(
         response.access_token,
         response.user,

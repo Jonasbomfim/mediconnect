@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +17,6 @@ import {
   Paciente,
   PacienteInput,
   buscarCepAPI,
-  criarPaciente,
   atualizarPaciente,
   uploadFotoPaciente,
   removerFotoPaciente,
@@ -27,14 +25,12 @@ import {
   removerAnexo,
   buscarPacientePorId,
   criarUsuarioPaciente,
-  CreateUserWithPasswordResponse,
+  criarPaciente,
 } from "@/lib/api";
 
 import { validarCPFLocal } from "@/lib/utils";
 import { verificarCpfDuplicado } from "@/lib/api";
-import { CredentialsDialog } from "@/components/credentials-dialog"; 
-
-
+import { CredentialsDialog } from "@/components/credentials-dialog";
 
 type Mode = "create" | "edit";
 
@@ -55,7 +51,7 @@ type FormData = {
   cpf: string;
   rg: string;
   sexo: string;
-  birth_date: string;   // 👈 corrigido
+  birth_date: string;
   email: string;
   telefone: string;
   cep: string;
@@ -76,7 +72,7 @@ const initial: FormData = {
   cpf: "",
   rg: "",
   sexo: "",
-  birth_date: "",   // 👈 corrigido
+  birth_date: "",
   email: "",
   telefone: "",
   cep: "",
@@ -89,8 +85,6 @@ const initial: FormData = {
   observacoes: "",
   anexos: [],
 };
-
-
 
 export function PatientRegistrationForm({
   open = true,
@@ -110,13 +104,16 @@ export function PatientRegistrationForm({
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
   
   // Estados para o dialog de credenciais
-  const [showCredentials, setShowCredentials] = useState(false);
-  const [credentials, setCredentials] = useState<CreateUserWithPasswordResponse | null>(null);
-  const [savedPatient, setSavedPatient] = useState<Paciente | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    email: string;
+    password: string;
+    userName: string;
+    userType: 'médico' | 'paciente';
+  } | null>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Paciente" : "Editar Paciente"), [mode]);
 
-  
   useEffect(() => {
     async function load() {
       if (mode !== "edit" || patientId == null) return;
@@ -125,26 +122,26 @@ export function PatientRegistrationForm({
         const p = await buscarPacientePorId(String(patientId));
         console.log("[PatientForm] Dados recebidos:", p);
         setForm((s) => ({
-  ...s,
-  nome: p.full_name || "",        // 👈 trocar nome → full_name
-  nome_social: p.social_name || "",
-  cpf: p.cpf || "",
-  rg: p.rg || "",
-  sexo: p.sex || "",
-  birth_date: p.birth_date ? (() => {
-    try { return format(parseISO(String(p.birth_date)), 'dd/MM/yyyy'); } catch { return String(p.birth_date); }
-  })() : "",
-  telefone: p.phone_mobile || "",
-  email: p.email || "",
-  cep: p.cep || "",
-  logradouro: p.street || "",
-  numero: p.number || "",
-  complemento: p.complement || "",
-  bairro: p.neighborhood || "",
-  cidade: p.city || "",
-  estado: p.state || "",
-  observacoes: p.notes || "",
-}));
+          ...s,
+          nome: p.full_name || "",
+          nome_social: p.social_name || "",
+          cpf: p.cpf || "",
+          rg: p.rg || "",
+          sexo: p.sex || "",
+          birth_date: p.birth_date ? (() => {
+            try { return format(parseISO(String(p.birth_date)), 'dd/MM/yyyy'); } catch { return String(p.birth_date); }
+          })() : "",
+          telefone: p.phone_mobile || "",
+          email: p.email || "",
+          cep: p.cep || "",
+          logradouro: p.street || "",
+          numero: p.number || "",
+          complemento: p.complement || "",
+          bairro: p.neighborhood || "",
+          cidade: p.city || "",
+          estado: p.state || "",
+          observacoes: p.notes || "",
+        }));
 
         const ax = await listarAnexos(String(patientId)).catch(() => []);
         setServerAnexos(Array.isArray(ax) ? ax : []);
@@ -197,181 +194,183 @@ export function PatientRegistrationForm({
     const e: Record<string, string> = {};
     if (!form.nome.trim()) e.nome = "Nome é obrigatório";
     if (!form.cpf.trim()) e.cpf = "CPF é obrigatório";
+    if (mode === 'create' && !form.email.trim()) e.email = "Email é obrigatório para criar um usuário";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
   function toPayload(): PacienteInput {
-  // converte dd/MM/yyyy para ISO (yyyy-MM-dd) se possível
-  let isoDate: string | null = null;
-  try {
-    const parts = String(form.birth_date).split(/\D+/).filter(Boolean);
-    if (parts.length === 3) {
-      const [d, m, y] = parts;
-      const date = new Date(Number(y), Number(m) - 1, Number(d));
-      if (!isNaN(date.getTime())) {
-        isoDate = date.toISOString().slice(0, 10);
+    let isoDate: string | null = null;
+    try {
+      const parts = String(form.birth_date).split(/\D+/).filter(Boolean);
+      if (parts.length === 3) {
+        const [d, m, y] = parts;
+        const date = new Date(Number(y), Number(m) - 1, Number(d));
+        if (!isNaN(date.getTime())) {
+          isoDate = date.toISOString().slice(0, 10);
+        }
       }
-    }
-  } catch {}
+    } catch {}
 
-  return {
-    full_name: form.nome,   // 👈 troca 'nome' por 'full_name'
-    social_name: form.nome_social || null,
-    cpf: form.cpf,
-    rg: form.rg || null,
-    sex: form.sexo || null,
-    birth_date: isoDate,   // enviar ISO ou null
-    phone_mobile: form.telefone || null,
-    email: form.email || null,
-    cep: form.cep || null,
-    street: form.logradouro || null,
-    number: form.numero || null,
-    complement: form.complemento || null,
-    neighborhood: form.bairro || null,
-    city: form.cidade || null,
-    state: form.estado || null,
-    notes: form.observacoes || null,
-  };
-}
-
-
+    return {
+      full_name: form.nome,
+      social_name: form.nome_social || null,
+      cpf: form.cpf,
+      rg: form.rg || null,
+      sex: form.sexo || null,
+      birth_date: isoDate,
+      phone_mobile: form.telefone || null,
+      email: form.email || null,
+      cep: form.cep || null,
+      street: form.logradouro || null,
+      number: form.numero || null,
+      complement: form.complemento || null,
+      neighborhood: form.bairro || null,
+      city: form.cidade || null,
+      state: form.estado || null,
+      notes: form.observacoes || null,
+    };
+  }
 
   async function handleSubmit(ev: React.FormEvent) {
     ev.preventDefault();
     if (!validateLocal()) return;
 
-    
     try {
-  // 1) validação local
-  if (!validarCPFLocal(form.cpf)) {
-    setErrors((e) => ({ ...e, cpf: "CPF inválido" }));
-    return;
-  }
-
-  // 2) checar duplicidade no banco (apenas se criando novo paciente)
-  if (mode === "create") {
-    const existe = await verificarCpfDuplicado(form.cpf);
-    if (existe) {
-      setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" }));
+      if (!validarCPFLocal(form.cpf)) {
+        setErrors((e) => ({ ...e, cpf: "CPF inválido" }));
+        return;
+      }
+      if (mode === "create") {
+        const existe = await verificarCpfDuplicado(form.cpf);
+        if (existe) {
+          setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" }));
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao validar CPF", err);
+      setErrors({ submit: "Erro ao validar CPF." });
       return;
     }
-  }
-} catch (err) {
-  console.error("Erro ao validar CPF", err);
-}
-
 
     setSubmitting(true);
     try {
-      const payload = toPayload();
-
-      let saved: Paciente;
-      if (mode === "create") {
-        saved = await criarPaciente(payload);
-      } else {
+      if (mode === "edit") {
         if (patientId == null) throw new Error("Paciente inexistente para edição");
-        saved = await atualizarPaciente(String(patientId), payload);
-      }
-
-      if (form.photo && saved?.id) {
-        try {
-          await uploadFotoPaciente(saved.id, form.photo);
-        } catch {}
-      }
-
-      if (form.anexos.length && saved?.id) {
-        for (const f of form.anexos) {
-          try {
-            await adicionarAnexo(saved.id, f);
-          } catch {}
-        }
-      }
-
-      // Se for criação de novo paciente e tiver email válido, cria usuário
-      if (mode === "create" && form.email && form.email.includes('@')) {
-        console.log("🔐 Iniciando criação de usuário para o paciente...");
-        console.log("📧 Email:", form.email);
-        console.log("👤 Nome:", form.nome);
-        console.log("📱 Telefone:", form.telefone);
+        const payload = toPayload();
+        const saved = await atualizarPaciente(String(patientId), payload);
+        onSaved?.(saved);
+        alert("Paciente atualizado com sucesso!");
         
-        try {
-          const userCredentials = await criarUsuarioPaciente({
-            email: form.email,
-            full_name: form.nome,
-            phone_mobile: form.telefone,
-          });
-          
-          console.log("✅ Usuário criado com sucesso!", userCredentials);
-          console.log("🔑 Senha gerada:", userCredentials.password);
-          
-          // Armazena as credenciais e mostra o dialog
-          console.log("📋 Antes de setCredentials - credentials atual:", credentials);
-          console.log("📋 Antes de setShowCredentials - showCredentials atual:", showCredentials);
-          
-          setCredentials(userCredentials);
-          setShowCredentials(true);
-          
-          console.log("📋 Depois de set - credentials:", userCredentials);
-          console.log("📋 Depois de set - showCredentials: true");
-          console.log("📋 Modo inline?", inline);
-          console.log("📋 userCredentials completo:", JSON.stringify(userCredentials));
-          
-          // Força re-render
-          setTimeout(() => {
-            console.log("⏰ Timeout - credentials:", credentials);
-            console.log("⏰ Timeout - showCredentials:", showCredentials);
-          }, 100);
-          
-          console.log("📋 Credenciais definidas, dialog deve aparecer!");
-          
-          // Salva o paciente para chamar onSaved depois
-          setSavedPatient(saved);
-          
-          // ⚠️ NÃO chama onSaved aqui! O dialog vai chamar quando fechar.
-          // Se chamar agora, o formulário fecha e o dialog desaparece.
-          console.log("⚠️ NÃO chamando onSaved ainda - aguardando dialog fechar");
-          
-          // RETORNA AQUI para não executar o código abaixo
-          return;
-          
-        } catch (userError: any) {
-          console.error("❌ ERRO ao criar usuário:", userError);
-          console.error("📋 Stack trace:", userError?.stack);
-          const errorMessage = userError?.message || "Erro desconhecido";
-          console.error("� Mensagem:", errorMessage);
-          
-          // Mostra erro mas fecha o formulário normalmente
-          alert(`Paciente cadastrado com sucesso!\n\n⚠️ Porém, houve erro ao criar usuário de acesso:\n${errorMessage}\n\nVerifique os logs do console (F12) para mais detalhes.`);
-          
-          // Fecha o formulário mesmo com erro na criação de usuário
-          setForm(initial);
-          setPhotoPreview(null);
-          setServerAnexos([]);
-          
-          if (inline) onClose?.();
-          else onOpenChange?.(false);
-        }
-      } else {
-        console.log("⚠️ Não criará usuário. Motivo:");
-        console.log("  - Mode:", mode);
-        console.log("  - Email:", form.email);
-        console.log("  - Tem @:", form.email?.includes('@'));
-        
-        // Se não for criar usuário, fecha normalmente
         setForm(initial);
         setPhotoPreview(null);
         setServerAnexos([]);
-        
         if (inline) onClose?.();
         else onOpenChange?.(false);
 
-        alert(mode === "create" ? "Paciente cadastrado!" : "Paciente atualizado!");
-      }
+      } else {
+        // --- NOVA LÓGICA DE CRIAÇÃO ---
+        const patientPayload = toPayload();
+        const savedPatientProfile = await criarPaciente(patientPayload);
+        console.log(" Perfil do paciente criado:", savedPatientProfile);
 
-      onSaved?.(saved);
+        if (form.email && form.email.includes('@')) {
+          console.log(" Criando usuário de autenticação (paciente)...");
+          try {
+            const userResponse = await criarUsuarioPaciente({
+              email: form.email,
+              full_name: form.nome,
+              phone_mobile: form.telefone,
+            });
+
+            if (userResponse.success && userResponse.user) {
+              console.log(" Usuário de autenticação criado:", userResponse.user);
+
+              // Mostra credenciais no dialog usando as credenciais retornadas
+              setCredentials({
+                email: userResponse.email ?? form.email,
+                password: userResponse.password ?? '',
+                userName: form.nome,
+                userType: 'paciente',
+              });
+              setShowCredentialsDialog(true);
+
+              // Tenta vincular o user_id ao perfil do paciente recém-criado
+              try {
+                const apiMod = await import('@/lib/api');
+                const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id);
+                const userId = (userResponse.user as any)?.id || (userResponse.user as any)?.user_id || (userResponse.user as any)?.id;
+                if (pacienteId && userId && typeof apiMod.vincularUserIdPaciente === 'function') {
+                  console.log('[PatientForm] Vinculando user_id ao paciente:', pacienteId, userId);
+                  try {
+                    await apiMod.vincularUserIdPaciente(pacienteId, String(userId));
+                    console.log('[PatientForm] user_id vinculado com sucesso ao paciente');
+                  } catch (linkErr) {
+                    console.warn('[PatientForm] Falha ao vincular user_id ao paciente:', linkErr);
+                  }
+                }
+              } catch (dynErr) {
+                console.warn('[PatientForm] Não foi possível importar helper para vincular user_id:', dynErr);
+              }
+
+              // Limpa formulário mas NÃO fecha ainda - fechará quando o dialog de credenciais fechar
+              setForm(initial);
+              setPhotoPreview(null);
+              setServerAnexos([]);
+              onSaved?.(savedPatientProfile);
+              return;
+            } else {
+              throw new Error((userResponse as any).message || "Falhou ao criar o usuário de acesso.");
+            }
+          } catch (userError: any) {
+            console.error(" Erro ao criar usuário via signup:", userError);
+
+            // Mensagem de erro específica para email duplicado
+            const errorMsg = userError?.message || String(userError);
+
+            if (errorMsg.toLowerCase().includes('already registered') || 
+                errorMsg.toLowerCase().includes('já está cadastrado') ||
+                errorMsg.toLowerCase().includes('já existe')) {
+              alert(
+                ` Este email já está cadastrado no sistema.\n\n` +
+                ` O perfil do paciente foi salvo com sucesso.\n\n` +
+                `Para criar acesso ao sistema, use um email diferente ou recupere a senha do email existente.`
+              );
+            } else {
+              alert(
+                ` Paciente cadastrado com sucesso!\n\n` +
+                ` Porém houve um problema ao criar o acesso:\n${errorMsg}\n\n` +
+                `O cadastro do paciente foi salvo, mas será necessário criar o acesso manualmente.`
+              );
+            }
+
+            // Limpa formulário e fecha
+            setForm(initial);
+            setPhotoPreview(null);
+            setServerAnexos([]);
+            onSaved?.(savedPatientProfile);
+            if (inline) onClose?.();
+            else onOpenChange?.(false);
+            return;
+          }
+        } else {
+          alert("Paciente cadastrado com sucesso (sem usuário de acesso - email não fornecido).");
+          onSaved?.(savedPatientProfile);
+          setForm(initial);
+          setPhotoPreview(null);
+          setServerAnexos([]);
+          if (inline) onClose?.();
+          else onOpenChange?.(false);
+        }
+      }
     } catch (err: any) {
-      setErrors({ submit: err?.message || "Erro ao salvar paciente." });
+      console.error("❌ Erro no handleSubmit:", err);
+      // Exibe mensagem amigável ao usuário
+      const userMessage = err?.message?.includes("toPayload") || err?.message?.includes("is not defined")
+        ? "Erro ao processar os dados do formulário. Por favor, verifique os campos e tente novamente."
+        : err?.message || "Erro ao salvar paciente. Por favor, tente novamente.";
+      setErrors({ submit: userMessage });
     } finally {
       setSubmitting(false);
     }
@@ -430,7 +429,6 @@ export function PatientRegistrationForm({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {}
         <Collapsible open={expanded.dados} onOpenChange={() => setExpanded((s) => ({ ...s, dados: !s.dados }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -449,7 +447,6 @@ export function PatientRegistrationForm({
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 border-2 border-dashed border-muted-foreground rounded-lg flex items-center justify-center overflow-hidden">
                     {photoPreview ? (
-                      
                       <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <FileImage className="h-8 w-8 text-muted-foreground" />
@@ -524,12 +521,10 @@ export function PatientRegistrationForm({
                       placeholder="dd/mm/aaaa"
                       value={form.birth_date}
                       onChange={(e) => {
-                        // permita apenas números e '/'
                         const v = e.target.value.replace(/[^0-9\/]/g, "").slice(0, 10);
                         setField("birth_date", v);
                       }}
                       onBlur={() => {
-                        // tenta formatar automaticamente se for uma data válida
                         const raw = form.birth_date;
                         const parts = raw.split(/\D+/).filter(Boolean);
                         if (parts.length === 3) {
@@ -545,7 +540,6 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {}
         <Collapsible open={expanded.contato} onOpenChange={() => setExpanded((s) => ({ ...s, contato: !s.contato }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -562,6 +556,7 @@ export function PatientRegistrationForm({
                   <div className="space-y-2">
                     <Label>E-mail</Label>
                     <Input value={form.email} onChange={(e) => setField("email", e.target.value)} />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Telefone</Label>
@@ -573,7 +568,6 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {}
         <Collapsible open={expanded.endereco} onOpenChange={() => setExpanded((s) => ({ ...s, endereco: !s.endereco }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -642,7 +636,6 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {}
         <Collapsible open={expanded.obs} onOpenChange={() => setExpanded((s) => ({ ...s, obs: !s.obs }))}>
           <Card>
             <CollapsibleTrigger asChild>
@@ -709,7 +702,6 @@ export function PatientRegistrationForm({
           </Card>
         </Collapsible>
 
-        {}
         <div className="flex justify-end gap-4 pt-6 border-t">
           <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
             <XCircle className="mr-2 h-4 w-4" />
@@ -729,38 +721,26 @@ export function PatientRegistrationForm({
       <>
         <div className="space-y-6">{content}</div>
         
-        {/* Debug */}
-        {console.log("🎨 RENDER inline - credentials:", credentials, "showCredentials:", showCredentials)}
-        
         {/* Dialog de credenciais */}
         {credentials && (
           <CredentialsDialog
-            open={showCredentials}
+            open={showCredentialsDialog}
             onOpenChange={(open) => {
-              console.log("🔄 CredentialsDialog onOpenChange:", open);
-              setShowCredentials(open);
+              setShowCredentialsDialog(open);
               if (!open) {
-                console.log("🔄 Dialog fechando - chamando onSaved e limpando formulário");
-                
-                // Chama onSaved com o paciente salvo
-                if (savedPatient) {
-                  console.log("✅ Chamando onSaved com paciente:", savedPatient.id);
-                  onSaved?.(savedPatient);
-                }
-                
-                // Limpa o formulário e fecha
-                setForm(initial);
-                setPhotoPreview(null);
-                setServerAnexos([]);
+                // Quando o dialog de credenciais fecha, fecha o formulário também
                 setCredentials(null);
-                setSavedPatient(null);
-                onClose?.();
+                if (inline) {
+                  onClose?.();
+                } else {
+                  onOpenChange?.(false);
+                }
               }
             }}
             email={credentials.email}
             password={credentials.password}
-            userName={form.nome}
-            userType="paciente"
+            userName={credentials.userName}
+            userType={credentials.userType}
           />
         )}
       </>
@@ -769,8 +749,6 @@ export function PatientRegistrationForm({
 
   return (
     <>
-      {console.log("🎨 RENDER dialog - credentials:", credentials, "showCredentials:", showCredentials)}
-      
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -785,22 +763,18 @@ export function PatientRegistrationForm({
       {/* Dialog de credenciais */}
       {credentials && (
         <CredentialsDialog
-          open={showCredentials}
+          open={showCredentialsDialog}
           onOpenChange={(open) => {
-            setShowCredentials(open);
+            setShowCredentialsDialog(open);
             if (!open) {
-              // Quando fechar o dialog, limpa o formulário e fecha o modal principal
-              setForm(initial);
-              setPhotoPreview(null);
-              setServerAnexos([]);
               setCredentials(null);
               onOpenChange?.(false);
             }
           }}
           email={credentials.email}
           password={credentials.password}
-          userName={form.nome}
-          userType="paciente"
+          userName={credentials.userName}
+          userType={credentials.userType}
         />
       )}
     </>

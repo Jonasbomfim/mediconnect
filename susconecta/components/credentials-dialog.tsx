@@ -65,13 +65,6 @@ export function CredentialsDialog({
           </AlertDescription>
         </Alert>
 
-        <Alert className="bg-blue-50 border-blue-200">
-          <AlertDescription className="text-blue-900">
-            <strong>📧 Confirme o email:</strong> Um email de confirmação foi enviado para <strong>{email}</strong>. 
-            O {userType} deve clicar no link de confirmação antes de fazer o primeiro login.
-          </AlertDescription>
-        </Alert>
-
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email de Acesso</Label>
@@ -127,30 +120,6 @@ export function CredentialsDialog({
               </Button>
             </div>
           </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-900">
-          <strong>Próximos passos:</strong>
-          <ol className="list-decimal list-inside mt-2 space-y-1">
-            <li>Compartilhe estas credenciais com o {userType}</li>
-            <li>
-              <strong className="text-blue-700">O {userType} deve confirmar o email</strong> clicando no link enviado para{" "}
-              <strong>{email}</strong> (verifique também a pasta de spam)
-            </li>
-            <li>
-              Após confirmar o email, o {userType} deve acessar:{" "}
-              <code className="bg-blue-100 px-1 py-0.5 rounded text-xs font-mono">
-                {userType === "médico" ? "/login" : "/login-paciente"}
-              </code>
-            </li>
-            <li>
-              Após o login, terá acesso à área:{" "}
-              <code className="bg-blue-100 px-1 py-0.5 rounded text-xs font-mono">
-                {userType === "médico" ? "/profissional" : "/paciente"}
-              </code>
-            </li>
-            <li>Recomende trocar a senha no primeiro acesso</li>
-          </ol>
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">

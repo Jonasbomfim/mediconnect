@@ -55,9 +55,12 @@ type Medico = {
   opinioes: { id: number; paciente: string; data: string; nota: number; comentario: string }[]
 }
 
+type MedicoBase = Omit<Medico, 'experiencia' | 'planosSaude' | 'consultorios' | 'servicos' | 'opinioes'> &
+  Partial<Pick<Medico, 'experiencia' | 'planosSaude' | 'consultorios' | 'servicos' | 'opinioes'>>;
+
 const especialidadesHero = ['Psicólogo', 'Médico clínico geral', 'Pediatra', 'Dentista', 'Ginecologista', 'Veja mais']
 
-const medicosBase: Medico[] = [
+const medicosBase: MedicoBase[] = [
   {
     id: 1,
     nome: 'Paula Pontes',
@@ -578,7 +581,6 @@ export default function ResultadosPage() {
   const [especialidadeHero, setEspecialidadeHero] = useState<string>(params.get('especialidade') || 'Psicólogo')
   const [convenio, setConvenio] = useState<string>('Todos')
   const [bairro, setBairro] = useState<string>('Todos')
-  const [modalFiltrosAberto, setModalFiltrosAberto] = useState(false)
   const [agendasExpandida, setAgendasExpandida] = useState<Record<number, boolean>>({})
   const [medicoSelecionado, setMedicoSelecionado] = useState<Medico | null>(null)
   const [abaDetalhe, setAbaDetalhe] = useState('experiencia')

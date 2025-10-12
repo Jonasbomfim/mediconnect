@@ -1847,16 +1847,6 @@ const ProfissionalPage = () => {
                       <Button variant="outline" size="sm" onClick={() => formatText('outdent')} title="Diminuir recuo" className="px-1">←</Button>
                       {/* Desfazer/Refazer */}
                       <Button variant="outline" size="sm" onClick={handleUndo} title="Desfazer" className="px-1">↺</Button>
-                      <Button variant="outline" size="sm" onClick={handleRedo} title="Refazer" className="px-1">↻</Button>
-                      {/* Negrito, itálico, sublinhado */}
-                      <Button variant="outline" size="sm" onClick={() => formatText("bold") } title="Negrito" className="hover:bg-blue-50 dark:hover:bg-accent"><strong>B</strong></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText("italic") } title="Itálico" className="hover:bg-blue-50 dark:hover:bg-accent"><em>I</em></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText("underline") } title="Sublinhado" className="hover:bg-blue-50 dark:hover:bg-accent"><u>U</u></Button>
-                    </div>
-
-                    {/* Templates */}
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground mb-2">Frases rápidas:</p>
                       <div className="flex flex-wrap gap-1">
                         {templates.map((template, idx) => (
                           <Button
@@ -2593,7 +2583,7 @@ const ProfissionalPage = () => {
                     <SelectValue placeholder="Selecione o paciente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pacientes.map((paciente) => (
+                    {pacientes && pacientes.map((paciente) => (
                       <SelectItem key={paciente.cpf} value={paciente.nome}>
                         {paciente.nome} - {paciente.cpf}
                       </SelectItem>

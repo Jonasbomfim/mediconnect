@@ -25,6 +25,12 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Body
     if (!body || !body.user_id || !body.role) return NextResponse.json({ error: 'user_id and role required' }, { status: 400 })
 
+    // Business rule: there is no separate 'paciente' role — patients are any user.
+    // Prevent creation/assignment of a 'paciente' role to avoid confusion.
+    if (body.role === 'paciente') {
+      return NextResponse.json({ error: "role 'paciente' must not be created or assigned; patients are regular users" }, { status: 400 })
+    }
+
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null
 

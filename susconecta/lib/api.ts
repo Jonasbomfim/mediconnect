@@ -1,6 +1,7 @@
 // lib/api.ts
 
 import { ENV_CONFIG } from '@/lib/env-config';
+import { AUTH_STORAGE_KEYS } from '@/types/auth'
 // Use ENV_CONFIG for SUPABASE URL and anon key in frontend
 
 export type ApiOk<T = any> = {
@@ -145,6 +146,284 @@ export type MedicoInput = {
   created_by?: string | null;
   updated_by?: string | null;
 };
+
+// ===== DISPONIBILIDADE (Doctor Availability) =====
+export type DoctorAvailabilityCreate = {
+  doctor_id: string;
+  weekday: 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo';
+  start_time: string; // 'HH:MM:SS'
+  end_time: string; // 'HH:MM:SS'
+  slot_minutes?: number;
+  appointment_type?: 'presencial' | 'telemedicina';
+  active?: boolean;
+};
+
+export type DoctorAvailability = DoctorAvailabilityCreate & {
+  id: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string | null;
+};
+
+export type DoctorAvailabilityUpdate = Partial<{
+  weekday: 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo' | string;
+  start_time: string;
+  end_time: string;
+  slot_minutes: number;
+  appointment_type: 'presencial' | 'telemedicina' | string;
+  active: boolean;
+}>;
+
+/**
+ * Cria uma disponibilidade de médico (POST /rest/v1/doctor_availability)
+ */
+export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Promise<DoctorAvailability> {
+  // Apply sensible defaults
+  // Map weekday to the server-expected enum value if necessary. Some deployments use
+  // English weekday names (monday..sunday) as the enum values; the UI uses
+  // Portuguese values (segunda..domingo). Normalize and convert here so POST
+  // doesn't fail with Postgres `invalid input value for enum weekday`.
+  const mapWeekdayForServer = (w?: string) => {
+    if (!w) return w;
+    const key = w.toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+    const map: Record<string, string> = {
+      'segunda': 'monday',
+      'terca': 'tuesday',
+      'quarta': 'wednesday',
+      'quinta': 'thursday',
+      'sexta': 'friday',
+      'sabado': 'saturday',
+      'domingo': 'sunday',
+      // allow common english names through
+      'monday': 'monday',
+      'tuesday': 'tuesday',
+      'wednesday': 'wednesday',
+      'thursday': 'thursday',
+      'friday': 'friday',
+      'saturday': 'saturday',
+      'sunday': 'sunday',
+    };
+    return map[key] ?? w;
+  };
+
+  // Determine created_by: try localStorage first, then fall back to calling user-info
+  let createdBy: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        createdBy = parsed?.id ?? parsed?.user?.id ?? null;
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+  }
+
+  if (!createdBy) {
+    try {
+      const info = await getUserInfo();
+      createdBy = info?.user?.id ?? null;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (!createdBy) {
+    throw new Error('Não foi possível determinar o usuário atual (created_by). Faça login novamente antes de criar uma disponibilidade.');
+  }
+
+  const payload: any = {
+    slot_minutes: input.slot_minutes ?? 30,
+    appointment_type: input.appointment_type ?? 'presencial',
+    active: typeof input.active === 'undefined' ? true : input.active,
+    doctor_id: input.doctor_id,
+    weekday: mapWeekdayForServer(input.weekday),
+    start_time: input.start_time,
+    end_time: input.end_time,
+  };
+
+  const url = `${REST}/doctor_availability`;
+  // Try several payload permutations to tolerate different server enum/time formats.
+  const attempts = [] as Array<{ weekdayVal: string | undefined; withSeconds: boolean }>;
+  const mappedWeekday = mapWeekdayForServer(input.weekday);
+  const originalWeekday = input.weekday;
+  attempts.push({ weekdayVal: mappedWeekday, withSeconds: true });
+  attempts.push({ weekdayVal: originalWeekday, withSeconds: true });
+  attempts.push({ weekdayVal: mappedWeekday, withSeconds: false });
+  attempts.push({ weekdayVal: originalWeekday, withSeconds: false });
+
+  let lastRes: Response | null = null;
+  for (const at of attempts) {
+    const start = at.withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
+    const end = at.withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
+    const tryPayload: any = {
+      slot_minutes: input.slot_minutes ?? 30,
+      appointment_type: input.appointment_type ?? 'presencial',
+      active: typeof input.active === 'undefined' ? true : input.active,
+      doctor_id: input.doctor_id,
+      weekday: at.weekdayVal,
+      start_time: start,
+      end_time: end,
+      created_by: createdBy,
+    };
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+        body: JSON.stringify(tryPayload),
+      });
+      lastRes = res;
+      if (res.ok) {
+        const arr = await parse<DoctorAvailability[] | DoctorAvailability>(res);
+        return Array.isArray(arr) ? arr[0] : (arr as DoctorAvailability);
+      }
+
+      // If server returned a 4xx, try next permutation; for 5xx, bail out and throw the error from parse()
+      if (res.status >= 500) {
+        // Let parse produce the error with friendly messaging
+        return await parse<DoctorAvailability>(res);
+      }
+
+      // Log a warning and continue to next attempt
+      const raw = await res.clone().text().catch(() => '');
+      console.warn('[criarDisponibilidade] tentativa falhou', { status: res.status, weekday: at.weekdayVal, withSeconds: at.withSeconds, raw });
+      // continue to next attempt
+    } catch (e) {
+      console.warn('[criarDisponibilidade] fetch erro na tentativa', e);
+      // continue to next attempt
+    }
+  }
+
+  // All attempts failed — throw using the last response to get friendly message from parse()
+  if (lastRes) {
+    return await parse<DoctorAvailability>(lastRes);
+  }
+  throw new Error('Falha ao criar disponibilidade: nenhuma resposta do servidor.');
+}
+
+/**
+ * Lista disponibilidades. Se doctorId for passado, filtra por médico.
+ */
+export async function listarDisponibilidades(params?: { doctorId?: string; active?: boolean }): Promise<DoctorAvailability[]> {
+  const qs = new URLSearchParams();
+  if (params?.doctorId) qs.set('doctor_id', `eq.${encodeURIComponent(String(params.doctorId))}`);
+  if (typeof params?.active !== 'undefined') qs.set('active', `eq.${params.active ? 'true' : 'false'}`);
+
+  const url = `${REST}/doctor_availability${qs.toString() ? `?${qs.toString()}` : ''}`;
+  const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+  return await parse<DoctorAvailability[]>(res);
+}
+
+
+/**
+ * Atualiza uma disponibilidade existente (PATCH /rest/v1/doctor_availability?id=eq.<id>)
+ */
+export async function atualizarDisponibilidade(id: string, input: DoctorAvailabilityUpdate): Promise<DoctorAvailability> {
+  if (!id) throw new Error('ID da disponibilidade é obrigatório');
+
+  const mapWeekdayForServer = (w?: string) => {
+    if (!w) return w;
+    const key = w.toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+    const map: Record<string, string> = {
+      'segunda': 'monday',
+      'terca': 'tuesday',
+      'quarta': 'wednesday',
+      'quinta': 'thursday',
+      'sexta': 'friday',
+      'sabado': 'saturday',
+      'domingo': 'sunday',
+      'monday': 'monday',
+      'tuesday': 'tuesday',
+      'wednesday': 'wednesday',
+      'thursday': 'thursday',
+      'friday': 'friday',
+      'saturday': 'saturday',
+      'sunday': 'sunday',
+    };
+    return map[key] ?? w;
+  };
+
+  // determine updated_by
+  let updatedBy: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        updatedBy = parsed?.id ?? parsed?.user?.id ?? null;
+      }
+    } catch (e) {}
+  }
+  if (!updatedBy) {
+    try {
+      const info = await getUserInfo();
+      updatedBy = info?.user?.id ?? null;
+    } catch (e) {}
+  }
+
+  const restUrl = `${REST}/doctor_availability?id=eq.${encodeURIComponent(String(id))}`;
+
+  // Build candidate payloads (weekday mapped/original, with/without seconds)
+  const candidates: Array<DoctorAvailabilityUpdate> = [];
+  const wk = input.weekday ? mapWeekdayForServer(String(input.weekday)) : undefined;
+  // preferred candidate
+  candidates.push({ ...input, weekday: wk });
+  // original weekday if different
+  if (input.weekday && String(input.weekday) !== wk) candidates.push({ ...input, weekday: input.weekday });
+  // times without seconds
+  const stripSeconds = (t?: string) => t ? String(t).replace(/:00$/,'') : t;
+  candidates.push({ ...input, start_time: stripSeconds(input.start_time), end_time: stripSeconds(input.end_time), weekday: wk });
+
+  let lastRes: Response | null = null;
+  for (const cand of candidates) {
+    const payload: any = { ...cand };
+    if (updatedBy) payload.updated_by = updatedBy;
+
+    try {
+      const res = await fetch(restUrl, {
+        method: 'PATCH',
+        headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+        body: JSON.stringify(payload),
+      });
+      lastRes = res;
+      if (res.ok) {
+        const arr = await parse<DoctorAvailability[] | DoctorAvailability>(res);
+        return Array.isArray(arr) ? arr[0] : (arr as DoctorAvailability);
+      }
+      if (res.status >= 500) return await parse<DoctorAvailability>(res);
+      const raw = await res.clone().text().catch(() => '');
+      console.warn('[atualizarDisponibilidade] tentativa falhou', { status: res.status, payload, raw });
+    } catch (e) {
+      console.warn('[atualizarDisponibilidade] erro fetch', e);
+    }
+  }
+
+  if (lastRes) return await parse<DoctorAvailability>(lastRes);
+  throw new Error('Falha ao atualizar disponibilidade: sem resposta do servidor');
+}
+
+/**
+ * Deleta uma disponibilidade por ID (DELETE /rest/v1/doctor_availability?id=eq.<id>)
+ */
+export async function deletarDisponibilidade(id: string): Promise<void> {
+  if (!id) throw new Error('ID da disponibilidade é obrigatório');
+  const url = `${REST}/doctor_availability?id=eq.${encodeURIComponent(String(id))}`;
+  // Request minimal return to get a 204 No Content when the delete succeeds.
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
+  });
+
+  if (res.status === 204) return;
+  // Some deployments may return 200 with a representation — accept that too
+  if (res.status === 200) return;
+  // Otherwise surface a friendly error using parse()
+  await parse(res as Response);
+}
+
 
 
 

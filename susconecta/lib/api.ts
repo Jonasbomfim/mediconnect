@@ -865,19 +865,38 @@ export async function atualizarPaciente(id: string | number, input: PacienteInpu
 }
 
 export async function excluirPaciente(id: string | number): Promise<void> {
-  // Antes de excluir, verificar se existem relatórios vinculados a este paciente
+  // Antes de excluir, verificar se existem relatórios ou atribuições vinculadas a este paciente
+  let reportsCount = 0;
+  let assignmentsCount = 0;
+
   try {
     // Import dinâmico para evitar ciclos durante bundling
     const reportsMod = await import('./reports');
     if (reportsMod && typeof reportsMod.listarRelatoriosPorPaciente === 'function') {
       const rels = await reportsMod.listarRelatoriosPorPaciente(String(id)).catch(() => []);
-      if (Array.isArray(rels) && rels.length > 0) {
-        throw new Error('Não é possível excluir este paciente: existem relatórios vinculados. Remova ou reatribua esses relatórios antes de excluir o paciente.');
-      }
+      if (Array.isArray(rels)) reportsCount = rels.length;
     }
   } catch (err) {
-    // Se a checagem falhar por algum motivo, apenas logamos e continuamos para a tentativa de exclusão
     console.warn('[API] Falha ao checar relatórios vinculados antes da exclusão:', err);
+  }
+
+  try {
+    const assignMod = await import('./assignment');
+    if (assignMod && typeof assignMod.listAssignmentsForPatient === 'function') {
+      const assigns = await assignMod.listAssignmentsForPatient(String(id)).catch(() => []);
+      if (Array.isArray(assigns)) assignmentsCount = assigns.length;
+    }
+  } catch (err) {
+    console.warn('[API] Falha ao checar atribuições de paciente antes da exclusão:', err);
+  }
+
+  const totalDeps = (reportsCount || 0) + (assignmentsCount || 0);
+  if (totalDeps > 0) {
+    const parts: string[] = [];
+    if (reportsCount > 0) parts.push(`${reportsCount} relatório${reportsCount !== 1 ? 's' : ''}`);
+    if (assignmentsCount > 0) parts.push(`${assignmentsCount} atribuição${assignmentsCount !== 1 ? 'ões' : ''}`);
+    const depsText = parts.join(' e ');
+    throw new Error(`Não é possível excluir este paciente: existem ${depsText} vinculad${totalDeps !== 1 ? 'os' : 'o'}. Remova ou reatribua essas dependências antes de excluir o paciente.`);
   }
 
   const url = `${REST}/patients?id=eq.${id}`;

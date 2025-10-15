@@ -50,6 +50,15 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
     if (open) load();
   }, [open, patientId]);
 
+  // Resolve a display name for a professional id (user_id or id)
+  function resolveProfessionalName(userId: string | number | null | undefined) {
+    if (!userId) return String(userId ?? '')
+    const uid = String(userId)
+    const found = professionals.find(p => String(p.user_id ?? p.id) === uid)
+    if (found) return found.full_name || found.name || found.email || String(found.user_id ?? found.id)
+    return uid
+  }
+
   async function handleSave() {
   if (!selectedProfessional) return toast({ title: 'Selecione um profissional', variant: 'default' });
     setLoading(true);
@@ -96,7 +105,7 @@ export default function AssignmentForm({ patientId, open, onClose, onSaved }: Pr
               <Label>Atribuições existentes</Label>
               <ul className="pl-4 list-disc text-sm text-muted-foreground">
                 {existing.map((it) => (
-                  <li key={it.id}>{it.user_id} — {it.role}</li>
+                  <li key={it.id}>{resolveProfessionalName(it.user_id)} — {it.role}</li>
                 ))}
               </ul>
             </div>

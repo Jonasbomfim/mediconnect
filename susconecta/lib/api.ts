@@ -1618,6 +1618,19 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
+  // When running in the browser, call our Next.js proxy to avoid CORS/preflight
+  // issues that some Edge Functions may have. On server-side, call the function
+  // directly.
+  if (typeof window !== 'undefined') {
+    const proxyUrl = '/api/create-user'
+    const res = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    return await parse<CreateUserResponse>(res as Response)
+  }
+
   const url = `${API_BASE}/functions/v1/create-user`;
   const res = await fetch(url, {
     method: "POST",
@@ -1709,298 +1722,94 @@ export async function criarUsuarioDirectAuth(input: {
 // ============================================
 
 // Criar usuário para MÉDICO no Supabase Auth (sistema de autenticação)
-export async function criarUsuarioMedico(medico: {
-  email: string;
-  full_name: string;
-  phone_mobile: string;
-}): Promise<CreateUserWithPasswordResponse> {
-  
+export async function criarUsuarioMedico(medico: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
+  // Prefer server-side creation (new OpenAPI create-user) so roles are assigned
+  // correctly (and magic link is sent). Fallback to direct Supabase signup if
+  // the server function is unavailable.
+  try {
+    const res = await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any });
+    return res;
+  } catch (err) {
+    console.warn('[CRIAR MÉDICO] Falha no endpoint server-side create-user, tentando fallback direto no Supabase Auth:', err);
+    // Fallback: create directly in Supabase Auth (old behavior)
+  }
+
+  // --- Fallback to previous direct signup ---
   const senha = gerarSenhaAleatoria();
-  
-  console.log('[CRIAR MÉDICO] Iniciando criação no Supabase Auth...');
-  console.log('Email:', medico.email);
-  console.log('Nome:', medico.full_name);
-  console.log('Telefone:', medico.phone_mobile);
-  console.log('Senha gerada:', senha);
-  
-  // Endpoint do Supabase Auth (mesmo que auth.ts usa)
   const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-  
   const payload = {
     email: medico.email,
     password: senha,
     data: {
-      userType: 'profissional', // Para login em /login -> /profissional
+      userType: 'profissional',
       full_name: medico.full_name,
       phone: medico.phone_mobile,
     }
   };
-  
-  console.log('[CRIAR MÉDICO] Enviando para:', signupUrl);
-  
-  try {
-    const response = await fetch(signupUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-    
-  console.log('[CRIAR MÉDICO] Status da resposta:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-  console.error('[CRIAR MÉDICO] Erro na resposta:', errorText);
-      
-      // Tenta parsear o erro para pegar mensagem específica
-      let errorMsg = `Erro ao criar usuário (${response.status})`;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg;
-        
-        // Mensagens amigáveis para erros comuns
-        if (errorMsg.includes('already registered') || errorMsg.includes('already exists')) {
-          errorMsg = 'Este email já está cadastrado no sistema';
-        } else if (errorMsg.includes('invalid email')) {
-          errorMsg = 'Formato de email inválido';
-        } else if (errorMsg.includes('weak password')) {
-          errorMsg = 'Senha muito fraca';
-        }
-      } catch (e) {
-        // Se não conseguir parsear, usa mensagem genérica
-      }
-      
-      throw new Error(errorMsg);
-    }
-    
-    const responseData = await response.json();
-    console.log('[CRIAR MÉDICO] Usuário criado com sucesso no Supabase Auth!');
-  console.log('User ID:', responseData.user?.id || responseData.id);
-    
-    // 🔧 AUTO-CONFIRMAR EMAIL: Fazer login automático logo após criar usuário
-    // Isso força o Supabase a confirmar o email automaticamente
-    if (responseData.user?.email_confirmed_at === null || !responseData.user?.email_confirmed_at) {
-  console.warn('[CRIAR MÉDICO] Email NÃO confirmado - tentando auto-confirmar via login...');
-      
-      try {
-        const loginUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`;
-  console.log('[AUTO-CONFIRMAR] Fazendo login automático para confirmar email...');
-        
-        const loginResponse = await fetch(loginUrl, {
-          method: 'POST',
-          headers: {
-            'apikey': ENV_CONFIG.SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: medico.email,
-            password: senha,
-          }),
-        });
-        
-        if (loginResponse.ok) {
-          const loginData = await loginResponse.json();
-          console.log('[AUTO-CONFIRMAR] Login automático realizado com sucesso!');
-          console.log('[AUTO-CONFIRMAR] Email confirmado:', loginData.user?.email_confirmed_at ? 'SIM' : 'NÃO');
-          
-          // Atualizar responseData com dados do login (que tem email confirmado)
-          if (loginData.user) {
-            responseData.user = loginData.user;
-          }
-        } else {
-          const errorText = await loginResponse.text();
-          console.error('[AUTO-CONFIRMAR] Falha no login automático:', loginResponse.status, errorText);
-          console.warn('[AUTO-CONFIRMAR] Usuário pode não conseguir fazer login imediatamente!');
-        }
-      } catch (confirmError) {
-          console.error('[AUTO-CONFIRMAR] Erro ao tentar fazer login automático:', confirmError);
-          console.warn('[AUTO-CONFIRMAR] Continuando sem confirmação automática...');
-      }
-  } else {
-  console.log('[CRIAR MÉDICO] Email confirmado automaticamente!');
-    }
-    
-    // Log bem visível com as credenciais para teste
-  console.log('========================================');
-  console.log('CREDENCIAIS DO MÉDICO CRIADO:');
-  console.log('Email:', medico.email);
-  console.log('Senha:', senha);
-  console.log('Pode fazer login?', responseData.user?.email_confirmed_at ? 'SIM' : 'NÃO (precisa confirmar email)');
-  console.log('========================================');
-    
-    return {
-      success: true,
-      user: responseData.user || responseData,
-      email: medico.email,
-      password: senha,
-    };
-    
-  } catch (error: any) {
-    console.error('[CRIAR MÉDICO] Erro ao criar usuário:', error);
-    throw error;
+
+  const response = await fetch(signupUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = `Erro ao criar usuário (${response.status})`;
+    try { const errorData = JSON.parse(errorText); errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg; } catch {}
+    throw new Error(errorMsg);
   }
+
+  const responseData = await response.json();
+  return { success: true, user: responseData.user || responseData, email: medico.email, password: senha };
 }
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
-export async function criarUsuarioPaciente(paciente: {
-  email: string;
-  full_name: string;
-  phone_mobile: string;
-}): Promise<CreateUserWithPasswordResponse> {
-  
+export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
+  // Prefer server-side creation (OpenAPI create-user) to assign role 'paciente'.
+  try {
+    const res = await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any });
+    return res;
+  } catch (err) {
+    console.warn('[CRIAR PACIENTE] Falha no endpoint server-side create-user, tentando fallback direto no Supabase Auth:', err);
+  }
+
+  // Fallback to previous direct signup behavior
   const senha = gerarSenhaAleatoria();
-  
-  console.log('[CRIAR PACIENTE] Iniciando criação no Supabase Auth...');
-  console.log('Email:', paciente.email);
-  console.log('Nome:', paciente.full_name);
-  console.log('Telefone:', paciente.phone_mobile);
-  console.log('Senha gerada:', senha);
-  
-  // Endpoint do Supabase Auth (mesmo que auth.ts usa)
   const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-  
   const payload = {
     email: paciente.email,
     password: senha,
     data: {
-      userType: 'paciente', // Para login em /login-paciente -> /paciente
+      userType: 'paciente',
       full_name: paciente.full_name,
       phone: paciente.phone_mobile,
     }
   };
-  
-  console.log('[CRIAR PACIENTE] Enviando para:', signupUrl);
-  
-  try {
-    const response = await fetch(signupUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-    
-  console.log('[CRIAR PACIENTE] Status da resposta:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-  console.error('[CRIAR PACIENTE] Erro na resposta:', errorText);
-      
-      // Tenta parsear o erro para pegar mensagem específica
-      let errorMsg = `Erro ao criar usuário (${response.status})`;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg;
-        
-        // Mensagens amigáveis para erros comuns
-        if (errorMsg.includes('already registered') || errorMsg.includes('already exists')) {
-          errorMsg = 'Este email já está cadastrado no sistema';
-        } else if (errorMsg.includes('invalid email')) {
-          errorMsg = 'Formato de email inválido';
-        } else if (errorMsg.includes('weak password')) {
-          errorMsg = 'Senha muito fraca';
-        }
-      } catch (e) {
-        // Se não conseguir parsear, usa mensagem genérica
-      }
-      
-      throw new Error(errorMsg);
-    }
-    
-    const responseData = await response.json();
-    console.log('[CRIAR PACIENTE] Usuário criado com sucesso no Supabase Auth!');
-  console.log('User ID:', responseData.user?.id || responseData.id);
-  console.log('[CRIAR PACIENTE] Resposta completa do Supabase:', JSON.stringify(responseData, null, 2));
-    
-    // VERIFICAÇÃO CRÍTICA: O usuário foi realmente criado?
-    if (!responseData.user && !responseData.id) {
-      console.error('AVISO: Supabase retornou sucesso mas sem user ID!');
-      console.error('Isso pode significar que o usuário não foi criado de verdade!');
-    }
-    
-    const userId = responseData.user?.id || responseData.id;
-    
-    // 🔧 AUTO-CONFIRMAR EMAIL: Fazer login automático logo após criar usuário
-    // Isso força o Supabase a confirmar o email automaticamente
-    if (responseData.user?.email_confirmed_at === null || !responseData.user?.email_confirmed_at) {
-  console.warn('[CRIAR PACIENTE] Email NÃO confirmado - tentando auto-confirmar via login...');
-      
-      try {
-        const loginUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`;
-  console.log('[AUTO-CONFIRMAR] Fazendo login automático para confirmar email...');
-        
-        const loginResponse = await fetch(loginUrl, {
-          method: 'POST',
-          headers: {
-            'apikey': ENV_CONFIG.SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: paciente.email,
-            password: senha,
-          }),
-        });
-        
-  console.log('[AUTO-CONFIRMAR] Status do login automático:', loginResponse.status);
-        
-        if (loginResponse.ok) {
-          const loginData = await loginResponse.json();
-          console.log('[AUTO-CONFIRMAR] Login automático realizado com sucesso!');
-          console.log('[AUTO-CONFIRMAR] Dados completos do login:', JSON.stringify(loginData, undefined, 2));
-          console.log('[AUTO-CONFIRMAR] Email confirmado:', loginData.user?.email_confirmed_at ? 'SIM' : 'NÃO');
-          console.log('[AUTO-CONFIRMAR] UserType no metadata:', loginData.user?.user_metadata?.userType);
-          console.log('[AUTO-CONFIRMAR] Email verified:', loginData.user?.user_metadata?.email_verified);
-          
-          // Atualizar responseData com dados do login (que tem email confirmado)
-          if (loginData.user) {
-            responseData.user = loginData.user;
-          }
-        } else {
-          const errorText = await loginResponse.text();
-          console.error('[AUTO-CONFIRMAR] Falha no login automático:', loginResponse.status, errorText);
-          console.warn('[AUTO-CONFIRMAR] Usuário pode não conseguir fazer login imediatamente!');
-          
-          // Tentar parsear o erro para entender melhor
-          try {
-            const errorData = JSON.parse(errorText);
-            console.error('[AUTO-CONFIRMAR] Detalhes do erro:', errorData);
-          } catch (e) {
-            console.error('[AUTO-CONFIRMAR] Erro não é JSON:', errorText);
-          }
-        }
-      } catch (confirmError) {
-  console.error('[AUTO-CONFIRMAR] Erro ao tentar fazer login automático:', confirmError);
-  console.warn('[AUTO-CONFIRMAR] Continuando sem confirmação automática...');
-      }
-  } else {
-  console.log('[CRIAR PACIENTE] Email confirmado automaticamente!');
-    }
-    
-    // Log bem visível com as credenciais para teste
-  console.log('========================================');
-  console.log('CREDENCIAIS DO PACIENTE CRIADO:');
-  console.log('Email:', paciente.email);
-  console.log('Senha:', senha);
-  console.log('UserType:', 'paciente');
-  console.log('Pode fazer login?', responseData.user?.email_confirmed_at ? 'SIM' : 'NÃO (precisa confirmar email)');
-  console.log('========================================');
-    
-    return {
-      success: true,
-      user: responseData.user || responseData,
-      email: paciente.email,
-      password: senha,
-    };
-    
-  } catch (error: any) {
-    console.error('[CRIAR PACIENTE] Erro ao criar usuário:', error);
-    throw error;
+
+  const response = await fetch(signupUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = `Erro ao criar usuário (${response.status})`;
+    try { const errorData = JSON.parse(errorText); errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg; } catch {}
+    throw new Error(errorMsg);
   }
+
+  const responseData = await response.json();
+  return { success: true, user: responseData.user || responseData, email: paciente.email, password: senha };
 }
 
 // ===== CEP (usado nos formulários) =====

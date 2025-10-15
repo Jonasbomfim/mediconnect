@@ -89,7 +89,10 @@ export async function loginUser(
   password: string, 
   userType: 'profissional' | 'paciente' | 'administrador'
 ): Promise<LoginResponse> {
-  let url = AUTH_ENDPOINTS.LOGIN;
+  // Use server-side AUTH_ENDPOINTS.LOGIN by default. When running in the browser
+  // prefer the local proxy that forwards to the OpenAPI signin: `/api/signin-user`.
+  const isBrowser = typeof window !== 'undefined';
+  const url = isBrowser ? '/api/signin-user' : AUTH_ENDPOINTS.LOGIN;
   
   const payload = {
     email,
@@ -104,9 +107,9 @@ export async function loginUser(
     timestamp: new Date().toLocaleTimeString() 
   });
   
-  console.log('🔑 [AUTH-API] Credenciais sendo usadas no login:');
+  // Log only non-sensitive info; never log passwords
+  console.log('🔑 [AUTH-API] Credenciais sendo usadas no login (redacted):');
   console.log('📧 Email:', email);
-  console.log('🔐 Senha:', password);
   console.log('👤 UserType:', userType);
 
   // Delay para visualizar na aba Network
@@ -118,17 +121,82 @@ export async function loginUser(
     // Debug: Log request sem credenciais sensíveis
     debugRequest('POST', url, getLoginHeaders(), payload);
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getLoginHeaders(),
-      body: JSON.stringify(payload),
-    });
+    // Helper to perform a login fetch and return response (no processing here)
+    async function doLoginFetch(targetUrl: string) {
+      try {
+        return await fetch(targetUrl, {
+          method: 'POST',
+          headers: getLoginHeaders(),
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        // bubble up the error to the caller
+        throw err;
+      }
+    }
+
+    let response: Response;
+    try {
+      response = await doLoginFetch(url);
+    } catch (networkError) {
+      console.warn('[AUTH-API] Network error when calling', url, networkError);
+      // Try fallback to server endpoints if available
+      const fallback1 = AUTH_ENDPOINTS.LOGIN;
+      const fallback2 = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signin`;
+      let tried = [] as string[];
+
+      try {
+        tried.push(fallback1);
+        response = await doLoginFetch(fallback1);
+      } catch (e1) {
+        console.warn('[AUTH-API] Fallback1 failed', fallback1, e1);
+        try {
+          tried.push(fallback2);
+          response = await doLoginFetch(fallback2);
+        } catch (e2) {
+          console.error('[AUTH-API] All fallbacks failed', { tried, e1, e2 });
+          throw new AuthenticationError(
+            'Não foi possível contatar o serviço de autenticação (todos os caminhos falharam)',
+            'AUTH_NETWORK_ERROR',
+            { tried }
+          );
+        }
+      }
+    }
 
     console.log(`[AUTH-API] Login response: ${response.status} ${response.statusText}`, {
       url: response.url,
       status: response.status,
       timestamp: new Date().toLocaleTimeString()
     });
+
+    // If proxy returned 404, try direct fallbacks (in case the proxy route is missing)
+    if (response.status === 404) {
+      console.warn('[AUTH-API] Proxy returned 404, attempting direct login fallbacks');
+      const fallback1 = AUTH_ENDPOINTS.LOGIN;
+      const fallback2 = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signin`;
+      let fallbackResponse: Response | null = null;
+      try {
+        fallbackResponse = await doLoginFetch(fallback1);
+      } catch (e) {
+        console.warn('[AUTH-API] fallback1 failed', fallback1, e);
+      }
+
+      if (!fallbackResponse || fallbackResponse.status === 404) {
+        try {
+          fallbackResponse = await doLoginFetch(fallback2);
+        } catch (e) {
+          console.warn('[AUTH-API] fallback2 failed', fallback2, e);
+        }
+      }
+
+      if (fallbackResponse) {
+        response = fallbackResponse;
+        console.log('[AUTH-API] Used fallback response', { url: response.url, status: response.status });
+      } else {
+        console.error('[AUTH-API] No fallback produced a valid response');
+      }
+    }
 
     // Se falhar, mostrar detalhes do erro
     if (!response.ok) {
@@ -147,6 +215,16 @@ export async function loginUser(
 
     // Delay adicional para ver status code
     await new Promise(resolve => setTimeout(resolve, 50));
+
+    // If after trying fallbacks we still have a 404, make the error explicit and actionable
+    if (response.status === 404) {
+      console.error('[AUTH-API] Final response was 404 (Not Found). Likely the local proxy route is missing or Next dev server is not running.', { url: response.url });
+      throw new AuthenticationError(
+        'Signin endpoint not found (404). Ensure Next.js dev server is running and the route `/api/signin-user` exists.',
+        'SIGNIN_NOT_FOUND',
+        { url: response.url }
+      );
+    }
 
     const data = await processResponse<any>(response);
     

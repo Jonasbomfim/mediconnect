@@ -234,6 +234,83 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
     throw new Error('Não foi possível determinar o usuário atual (created_by). Faça login novamente antes de criar uma disponibilidade.');
   }
 
+  // --- Prevent creating an availability if a blocking exception exists ---
+  // We fetch exceptions for this doctor and check upcoming exceptions (from today)
+  // that either block the whole day (start_time/end_time null) or overlap the
+  // requested time window on any matching future date within the next year.
+  try {
+    const exceptions = await listarExcecoes({ doctorId: input.doctor_id });
+    const today = new Date();
+    const oneYearAhead = new Date();
+    oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
+
+    const parseTimeToMinutes = (t?: string | null) => {
+      if (!t) return null;
+      const parts = String(t).split(':').map((p) => Number(p));
+      if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
+        return parts[0] * 60 + parts[1];
+      }
+      return null;
+    };
+
+    // requested availability interval in minutes (relative to a day)
+    const reqStart = parseTimeToMinutes(input.start_time);
+    const reqEnd = parseTimeToMinutes(input.end_time);
+
+    const weekdayKey = (w?: string) => {
+      if (!w) return w;
+      const k = String(w).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+      const map: Record<string,string> = {
+        'segunda':'monday','terca':'tuesday','quarta':'wednesday','quinta':'thursday','sexta':'friday','sabado':'saturday','domingo':'sunday',
+        'monday':'monday','tuesday':'tuesday','wednesday':'wednesday','thursday':'thursday','friday':'friday','saturday':'saturday','sunday':'sunday'
+      };
+      return map[k] ?? k;
+    };
+
+    for (const ex of exceptions || []) {
+      try {
+        if (!ex || !ex.date) continue;
+        const exDate = new Date(ex.date + 'T00:00:00');
+        if (isNaN(exDate.getTime())) continue;
+        // only consider future exceptions within one year
+        if (exDate < today || exDate > oneYearAhead) continue;
+
+        // if the exception is of kind 'bloqueio' it blocks times
+        if (ex.kind !== 'bloqueio') continue;
+
+        // map exDate weekday to server weekday mapping
+        const exWeekday = weekdayKey(exDate.toLocaleDateString('en-US', { weekday: 'long' }));
+        const reqWeekday = weekdayKey(input.weekday);
+
+        // We only consider exceptions that fall on the same weekday as the requested availability
+        if (exWeekday !== reqWeekday) continue;
+
+        // If exception has no start_time/end_time -> blocks whole day
+        if (!ex.start_time && !ex.end_time) {
+          throw new Error(`Existe uma exceção de bloqueio no dia ${ex.date}. Não é possível criar disponibilidade para este dia.`);
+        }
+
+        // otherwise check time overlap
+        const exStart = parseTimeToMinutes(ex.start_time ?? undefined);
+        const exEnd = parseTimeToMinutes(ex.end_time ?? undefined);
+
+        if (reqStart != null && reqEnd != null && exStart != null && exEnd != null) {
+          // overlap if reqStart < exEnd && exStart < reqEnd
+          if (reqStart < exEnd && exStart < reqEnd) {
+            throw new Error(`A disponibilidade conflita com uma exceção de bloqueio em ${ex.date} (${ex.start_time}–${ex.end_time}).`);
+          }
+        }
+      } catch (inner) {
+        // rethrow to be handled below
+        throw inner;
+      }
+    }
+  } catch (e) {
+    // If listarExcecoes failed (network etc), surface that error; it's safer
+    // to prevent creation if we cannot verify exceptions? We'll rethrow.
+    if (e instanceof Error) throw e;
+  }
+
   const payload: any = {
     slot_minutes: input.slot_minutes ?? 30,
     appointment_type: input.appointment_type ?? 'presencial',
@@ -421,6 +498,101 @@ export async function deletarDisponibilidade(id: string): Promise<void> {
   // Some deployments may return 200 with a representation — accept that too
   if (res.status === 200) return;
   // Otherwise surface a friendly error using parse()
+  await parse(res as Response);
+}
+
+// ===== EXCEÇÕES (Doctor Exceptions) =====
+export type DoctorExceptionCreate = {
+  doctor_id: string;
+  date: string; // YYYY-MM-DD
+  start_time?: string | null; // HH:MM:SS (optional)
+  end_time?: string | null; // HH:MM:SS (optional)
+  kind: 'bloqueio' | 'liberacao';
+  reason?: string | null;
+};
+
+export type DoctorException = DoctorExceptionCreate & {
+  id: string;
+  created_at?: string;
+  created_by?: string | null;
+};
+
+/**
+ * Cria uma exceção para um médico (POST /rest/v1/doctor_exceptions)
+ */
+export async function criarExcecao(input: DoctorExceptionCreate): Promise<DoctorException> {
+  // populate created_by as other functions do
+  let createdBy: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        createdBy = parsed?.id ?? parsed?.user?.id ?? null;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (!createdBy) {
+    try {
+      const info = await getUserInfo();
+      createdBy = info?.user?.id ?? null;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (!createdBy) {
+    throw new Error('Não foi possível determinar o usuário atual (created_by). Faça login novamente antes de criar uma exceção.');
+  }
+
+  const payload: any = {
+    doctor_id: input.doctor_id,
+    date: input.date,
+    start_time: input.start_time ?? null,
+    end_time: input.end_time ?? null,
+    kind: input.kind,
+    reason: input.reason ?? null,
+    created_by: createdBy,
+  };
+
+  const url = `${REST}/doctor_exceptions`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(payload),
+  });
+
+  const arr = await parse<DoctorException[] | DoctorException>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as DoctorException);
+}
+
+/**
+ * Lista exceções. Se doctorId for passado, filtra por médico; se date for passado, filtra por data.
+ */
+export async function listarExcecoes(params?: { doctorId?: string; date?: string }): Promise<DoctorException[]> {
+  const qs = new URLSearchParams();
+  if (params?.doctorId) qs.set('doctor_id', `eq.${encodeURIComponent(String(params.doctorId))}`);
+  if (params?.date) qs.set('date', `eq.${encodeURIComponent(String(params.date))}`);
+  const url = `${REST}/doctor_exceptions${qs.toString() ? `?${qs.toString()}` : ''}`;
+  const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+  return await parse<DoctorException[]>(res);
+}
+
+/**
+ * Deleta uma exceção por ID (DELETE /rest/v1/doctor_exceptions?id=eq.<id>)
+ */
+export async function deletarExcecao(id: string): Promise<void> {
+  if (!id) throw new Error('ID da exceção é obrigatório');
+  const url = `${REST}/doctor_exceptions?id=eq.${encodeURIComponent(String(id))}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
+  });
+
+  if (res.status === 204) return;
+  if (res.status === 200) return;
   await parse(res as Response);
 }
 

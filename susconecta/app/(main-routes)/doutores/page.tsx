@@ -11,7 +11,8 @@ import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye, Users } fro
 import { Badge } from "@/components/ui/badge";
 import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
 import AvailabilityForm from '@/components/forms/availability-form'
-import { listarDisponibilidades, DoctorAvailability, deletarDisponibilidade } from '@/lib/api'
+import ExceptionForm from '@/components/forms/exception-form'
+import { listarDisponibilidades, DoctorAvailability, deletarDisponibilidade, listarExcecoes, DoctorException, deletarExcecao } from '@/lib/api'
 
 
 import { listarMedicos, excluirMedico, buscarMedicos, buscarMedicoPorId, buscarPacientesPorIds, Medico } from "@/lib/api";
@@ -98,6 +99,10 @@ export default function DoutoresPage() {
   const [availabilities, setAvailabilities] = useState<DoctorAvailability[]>([]);
   const [availLoading, setAvailLoading] = useState(false);
   const [editingAvailability, setEditingAvailability] = useState<DoctorAvailability | null>(null);
+  const [exceptions, setExceptions] = useState<DoctorException[]>([]);
+  const [exceptionsLoading, setExceptionsLoading] = useState(false);
+  const [exceptionViewingFor, setExceptionViewingFor] = useState<Medico | null>(null);
+  const [exceptionOpenFor, setExceptionOpenFor] = useState<Medico | null>(null);
   const [searchResults, setSearchResults] = useState<Medico[]>([]);
   const [searchMode, setSearchMode] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -480,6 +485,11 @@ export default function DoutoresPage() {
                           Criar disponibilidade
                         </DropdownMenuItem>
 
+                        <DropdownMenuItem onClick={() => setExceptionOpenFor(doctor)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Criar exceção
+                        </DropdownMenuItem>
+
                         <DropdownMenuItem onClick={async () => {
                           setAvailLoading(true);
                           try {
@@ -494,6 +504,22 @@ export default function DoutoresPage() {
                         }}>
                           <Users className="mr-2 h-4 w-4" />
                           Ver disponibilidades
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem onClick={async () => {
+                          setExceptionsLoading(true);
+                          try {
+                            const list = await listarExcecoes({ doctorId: doctor.id });
+                            setExceptions(list || []);
+                            setExceptionViewingFor(doctor);
+                          } catch (e) {
+                            console.warn('Erro ao listar exceções:', e);
+                          } finally {
+                            setExceptionsLoading(false);
+                          }
+                        }}>
+                          <Users className="mr-2 h-4 w-4" />
+                          Ver exceções
                         </DropdownMenuItem>
 
                         <DropdownMenuItem onClick={() => handleEdit(String(doctor.id))}>
@@ -570,6 +596,15 @@ export default function DoutoresPage() {
         />
       )}
 
+      {exceptionOpenFor && (
+        <ExceptionForm
+          open={!!exceptionOpenFor}
+          onOpenChange={(open) => { if (!open) setExceptionOpenFor(null); }}
+          doctorId={exceptionOpenFor?.id}
+          onSaved={(saved) => { console.log('Exceção criada', saved); setExceptionOpenFor(null); /* reload availabilities in case a full-day block affects listing */ reloadAvailabilities(exceptionOpenFor?.id); }}
+        />
+      )}
+
       {/* Edit availability modal */}
       {editingAvailability && (
         <AvailabilityForm
@@ -628,6 +663,56 @@ export default function DoutoresPage() {
 
             <DialogFooter>
               <Button onClick={() => { setAvailabilityViewingFor(null); setAvailabilities([]); }}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Ver exceções dialog */}
+      {exceptionViewingFor && (
+        <Dialog open={!!exceptionViewingFor} onOpenChange={(open) => { if (!open) { setExceptionViewingFor(null); setExceptions([]); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Exceções - {exceptionViewingFor.full_name}</DialogTitle>
+              <DialogDescription>
+                Lista de exceções (bloqueios/liberações) do médico selecionado.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4">
+              {exceptionsLoading ? (
+                <div>Carregando exceções…</div>
+              ) : exceptions && exceptions.length ? (
+                <div className="space-y-2">
+                  {exceptions.map((ex) => (
+                    <div key={String(ex.id)} className="p-2 border rounded flex justify-between items-start">
+                      <div>
+                        <div className="font-medium">{ex.date} {ex.start_time ? `• ${ex.start_time}` : ''} {ex.end_time ? `— ${ex.end_time}` : ''}</div>
+                        <div className="text-xs text-muted-foreground">Tipo: {ex.kind} • Motivo: {ex.reason || '—'}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          if (!confirm('Excluir esta exceção?')) return;
+                          try {
+                            await deletarExcecao(String(ex.id));
+                            const list = await listarExcecoes({ doctorId: exceptionViewingFor?.id });
+                            setExceptions(list || []);
+                          } catch (e) {
+                            console.warn('Erro ao deletar exceção:', e);
+                            alert((e as any)?.message || 'Erro ao deletar exceção');
+                          }
+                        }}>Excluir</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>Nenhuma exceção encontrada.</div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => { setExceptionViewingFor(null); setExceptions([]); }}>Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

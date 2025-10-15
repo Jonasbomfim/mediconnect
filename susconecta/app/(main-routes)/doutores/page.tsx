@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
+import AvailabilityForm from '@/components/forms/availability-form'
+import { listarDisponibilidades, DoctorAvailability, deletarDisponibilidade } from '@/lib/api'
 
 
 import { listarMedicos, excluirMedico, buscarMedicos, buscarMedicoPorId, buscarPacientesPorIds, Medico } from "@/lib/api";
@@ -57,6 +59,28 @@ function normalizeMedico(m: any): Medico {
   };
 }
 
+function translateWeekday(w?: string) {
+  if (!w) return '';
+  const key = w.toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+  const map: Record<string, string> = {
+    'segunda': 'Segunda',
+    'terca': 'Terça',
+    'quarta': 'Quarta',
+    'quinta': 'Quinta',
+    'sexta': 'Sexta',
+    'sabado': 'Sábado',
+    'domingo': 'Domingo',
+    'monday': 'Segunda',
+    'tuesday': 'Terça',
+    'wednesday': 'Quarta',
+    'thursday': 'Quinta',
+    'friday': 'Sexta',
+    'saturday': 'Sábado',
+    'sunday': 'Domingo',
+  };
+  return map[key] ?? w;
+}
+
 
 export default function DoutoresPage() {
   const [doctors, setDoctors] = useState<Medico[]>([]);
@@ -69,6 +93,11 @@ export default function DoutoresPage() {
   const [assignedPatients, setAssignedPatients] = useState<any[]>([]);
   const [assignedLoading, setAssignedLoading] = useState(false);
   const [assignedDoctor, setAssignedDoctor] = useState<Medico | null>(null);
+  const [availabilityOpenFor, setAvailabilityOpenFor] = useState<Medico | null>(null);
+  const [availabilityViewingFor, setAvailabilityViewingFor] = useState<Medico | null>(null);
+  const [availabilities, setAvailabilities] = useState<DoctorAvailability[]>([]);
+  const [availLoading, setAvailLoading] = useState(false);
+  const [editingAvailability, setEditingAvailability] = useState<DoctorAvailability | null>(null);
   const [searchResults, setSearchResults] = useState<Medico[]>([]);
   const [searchMode, setSearchMode] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -280,6 +309,19 @@ export default function DoutoresPage() {
     }
   }
 
+  async function reloadAvailabilities(doctorId?: string) {
+    if (!doctorId) return;
+    setAvailLoading(true);
+    try {
+      const list = await listarDisponibilidades({ doctorId, active: true });
+      setAvailabilities(list || []);
+    } catch (e) {
+      console.warn('Erro ao recarregar disponibilidades:', e);
+    } finally {
+      setAvailLoading(false);
+    }
+  }
+
   
   async function handleDelete(id: string) {
     if (!confirm("Excluir este médico?")) return;
@@ -433,6 +475,27 @@ export default function DoutoresPage() {
                           Ver pacientes atribuídos
                         </DropdownMenuItem>
 
+                        <DropdownMenuItem onClick={() => setAvailabilityOpenFor(doctor)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Criar disponibilidade
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem onClick={async () => {
+                          setAvailLoading(true);
+                          try {
+                            const list = await listarDisponibilidades({ doctorId: doctor.id, active: true });
+                            setAvailabilities(list || []);
+                            setAvailabilityViewingFor(doctor);
+                          } catch (e) {
+                            console.warn('Erro ao listar disponibilidades:', e);
+                          } finally {
+                            setAvailLoading(false);
+                          }
+                        }}>
+                          <Users className="mr-2 h-4 w-4" />
+                          Ver disponibilidades
+                        </DropdownMenuItem>
+
                         <DropdownMenuItem onClick={() => handleEdit(String(doctor.id))}>
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
@@ -492,6 +555,79 @@ export default function DoutoresPage() {
             </div>
             <DialogFooter>
               <Button onClick={() => setViewingDoctor(null)}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Availability modal */}
+      {availabilityOpenFor && (
+        <AvailabilityForm
+          open={!!availabilityOpenFor}
+          onOpenChange={(open) => { if (!open) setAvailabilityOpenFor(null); }}
+          doctorId={availabilityOpenFor?.id}
+          onSaved={(saved) => { console.log('Disponibilidade salva', saved); setAvailabilityOpenFor(null); /* optionally reload list */ reloadAvailabilities(availabilityOpenFor?.id); }}
+        />
+      )}
+
+      {/* Edit availability modal */}
+      {editingAvailability && (
+        <AvailabilityForm
+          open={!!editingAvailability}
+          onOpenChange={(open) => { if (!open) setEditingAvailability(null); }}
+          doctorId={editingAvailability?.doctor_id ?? availabilityViewingFor?.id}
+          availability={editingAvailability}
+          mode="edit"
+          onSaved={(saved) => { console.log('Disponibilidade atualizada', saved); setEditingAvailability(null); reloadAvailabilities(editingAvailability?.doctor_id ?? availabilityViewingFor?.id); }}
+        />
+      )}
+
+      {/* Ver disponibilidades dialog */}
+      {availabilityViewingFor && (
+        <Dialog open={!!availabilityViewingFor} onOpenChange={(open) => { if (!open) { setAvailabilityViewingFor(null); setAvailabilities([]); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Disponibilidades - {availabilityViewingFor.full_name}</DialogTitle>
+              <DialogDescription>
+                Lista de disponibilidades públicas do médico selecionado.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4">
+              {availLoading ? (
+                <div>Carregando disponibilidades…</div>
+              ) : availabilities && availabilities.length ? (
+                <div className="space-y-2">
+                  {availabilities.map((a) => (
+                      <div key={String(a.id)} className="p-2 border rounded flex justify-between items-start">
+                        <div>
+                          <div className="font-medium">{translateWeekday(a.weekday)} • {a.start_time} — {a.end_time}</div>
+                          <div className="text-xs text-muted-foreground">Duração: {a.slot_minutes} min • Tipo: {a.appointment_type || '—'} • {a.active ? 'Ativa' : 'Inativa'}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setEditingAvailability(a)}>Editar</Button>
+                          <Button size="sm" variant="destructive" onClick={async () => {
+                            if (!confirm('Excluir esta disponibilidade?')) return;
+                            try {
+                              await deletarDisponibilidade(String(a.id));
+                              // reload
+                              reloadAvailabilities(availabilityViewingFor?.id ?? a.doctor_id);
+                            } catch (e) {
+                              console.warn('Erro ao deletar disponibilidade:', e);
+                              alert((e as any)?.message || 'Erro ao deletar disponibilidade');
+                            }
+                          }}>Excluir</Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div>Nenhuma disponibilidade encontrada.</div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => { setAvailabilityViewingFor(null); setAvailabilities([]); }}>Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

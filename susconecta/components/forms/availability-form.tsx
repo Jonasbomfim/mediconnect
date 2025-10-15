@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { criarDisponibilidade, atualizarDisponibilidade, DoctorAvailabilityCreate, DoctorAvailability, DoctorAvailabilityUpdate } from '@/lib/api'
+import { criarDisponibilidade, atualizarDisponibilidade, listarExcecoes, DoctorAvailabilityCreate, DoctorAvailability, DoctorAvailabilityUpdate, DoctorException } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 
 export interface AvailabilityFormProps {
@@ -28,6 +29,7 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
   const [active, setActive] = useState<boolean>(true)
   const [submitting, setSubmitting] = useState(false)
   const { toast } = useToast()
+  const [blockedException, setBlockedException] = useState<null | { date: string; reason?: string; times?: string }>(null)
 
   // When editing, populate state from availability prop
   useEffect(() => {
@@ -54,6 +56,73 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
 
     setSubmitting(true)
     try {
+      // Pre-check exceptions for this doctor to avoid creating an availability
+      // that is blocked by an existing exception. If a blocking exception is
+      // found we show a specific toast and abort the creation request.
+      try {
+        const exceptions: DoctorException[] = await listarExcecoes({ doctorId: String(doctorId) });
+        const today = new Date();
+        const oneYearAhead = new Date();
+        oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
+
+        const parseTimeToMinutes = (t?: string | null) => {
+          if (!t) return null;
+          const parts = String(t).split(':').map((p) => Number(p));
+          if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
+            return parts[0] * 60 + parts[1];
+          }
+          return null;
+        };
+
+        const reqStart = parseTimeToMinutes(`${startTime}:00`);
+        const reqEnd = parseTimeToMinutes(`${endTime}:00`);
+
+        const normalizeWeekday = (w?: string) => {
+          if (!w) return w;
+          const k = String(w).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+          const map: Record<string,string> = {
+            'segunda':'monday','terca':'tuesday','quarta':'wednesday','quinta':'thursday','sexta':'friday','sabado':'saturday','domingo':'sunday',
+            'monday':'monday','tuesday':'tuesday','wednesday':'wednesday','thursday':'thursday','friday':'friday','saturday':'saturday','sunday':'sunday'
+          };
+          return map[k] ?? k;
+        };
+
+        const reqWeekday = normalizeWeekday(weekday);
+
+        for (const ex of exceptions || []) {
+          if (!ex || !ex.date) continue;
+          const exDate = new Date(ex.date + 'T00:00:00');
+          if (isNaN(exDate.getTime())) continue;
+          if (exDate < today || exDate > oneYearAhead) continue;
+          if (ex.kind !== 'bloqueio') continue;
+
+          const exWeekday = normalizeWeekday(exDate.toLocaleDateString('en-US', { weekday: 'long' }));
+          if (exWeekday !== reqWeekday) continue;
+
+          // whole-day block
+          if (!ex.start_time && !ex.end_time) {
+            setBlockedException({ date: ex.date, reason: ex.reason ?? undefined, times: undefined })
+            setSubmitting(false);
+            return;
+          }
+
+          const exStart = parseTimeToMinutes(ex.start_time ?? undefined);
+          const exEnd = parseTimeToMinutes(ex.end_time ?? undefined);
+          if (reqStart != null && reqEnd != null && exStart != null && exEnd != null) {
+            if (reqStart < exEnd && exStart < reqEnd) {
+              setBlockedException({ date: ex.date, reason: ex.reason ?? undefined, times: `${ex.start_time}–${ex.end_time}` })
+              setSubmitting(false);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        // If checking exceptions fails, continue and let the API handle it. We
+        // intentionally do not block the flow here because failure to fetch
+        // exceptions shouldn't completely prevent admins from creating slots.
+        console.warn('Falha ao verificar exceções antes da criação:', e);
+      }
+
       if (mode === 'create') {
         const payload: DoctorAvailabilityCreate = {
           doctor_id: String(doctorId),
@@ -65,7 +134,7 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
           active,
         }
 
-        const saved = await criarDisponibilidade(payload)
+  const saved = await criarDisponibilidade(payload)
         const labelMap: Record<string,string> = {
           'segunda':'Segunda','terca':'Terça','quarta':'Quarta','quinta':'Quinta','sexta':'Sexta','sabado':'Sábado','domingo':'Domingo',
           'monday':'Segunda','tuesday':'Terça','wednesday':'Quarta','thursday':'Quinta','friday':'Sexta','saturday':'Sábado','sunday':'Domingo'
@@ -105,7 +174,10 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
     }
   }
 
+  const be = blockedException
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
@@ -175,6 +247,27 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
         </form>
       </DialogContent>
     </Dialog>
+    
+    <AlertDialog open={!!be} onOpenChange={(open) => { if (!open) setBlockedException(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Data bloqueada</AlertDialogTitle>
+        </AlertDialogHeader>
+        <div className="px-6 pb-6 pt-2">
+          {be ? (
+            <div className="space-y-2">
+              <p>Não é possível criar disponibilidade para o dia <strong>{be!.date}</strong>.</p>
+              {be!.times ? <p>Horário bloqueado: <strong>{be!.times}</strong></p> : null}
+              {be!.reason ? <p>Motivo: <strong>{be!.reason}</strong></p> : null}
+            </div>
+          ) : null}
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => setBlockedException(null)}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
 

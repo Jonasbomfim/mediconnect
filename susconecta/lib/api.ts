@@ -1623,10 +1623,11 @@ export async function criarUsuario(input: CreateUserInput): Promise<CreateUserRe
   // The OpenAPI for the new endpoint exposes POST /create-user at the
   // API root (API_BASE). Call that endpoint directly from the client.
   const url = `${API_BASE}/create-user`;
+  const functionsUrl = `${API_BASE}/functions/v1/create-user`;
 
   // Network/fetch errors (including CORS preflight failures) throw before we get a Response.
   // Catch them and provide a clearer, actionable error message for developers/operators.
-  let res: Response;
+  let res: Response | null = null;
   try {
     res = await fetch(url, {
       method: 'POST',
@@ -1635,14 +1636,38 @@ export async function criarUsuario(input: CreateUserInput): Promise<CreateUserRe
     });
   } catch (err: any) {
     console.error('[criarUsuario] fetch error for', url, err);
-    // Do not attempt client-side signup fallback. Role assignment and user creation
-    // must be performed by the backend endpoint `/create-user` which has the
-    // necessary privileges. Surface a clear error so operators can fix the
-    // backend (CORS / route availability) instead of silently creating an
-    // auth user without roles.
-    throw new Error(
-      'Falha ao contatar o endpoint /create-user. Não será feito fallback via /auth/v1/signup. Verifique se o endpoint /create-user existe, está acessível e se o CORS/OPTIONS está configurado corretamente. Detalhes: ' + (err?.message ?? String(err))
-    );
+    // Attempt functions fallback when primary endpoint can't be reached (network/CORS/route)
+    try {
+      console.warn('[criarUsuario] tentando fallback para', functionsUrl);
+      const res2 = await fetch(functionsUrl, {
+        method: 'POST',
+        headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      return await parse<CreateUserResponse>(res2 as Response);
+    } catch (err2: any) {
+      console.error('[criarUsuario] fallback functions also failed', err2);
+      throw new Error(
+        'Falha ao contatar o endpoint /create-user e o fallback /functions/v1/create-user também falhou. Verifique disponibilidade e CORS. Detalhes: ' +
+          (err?.message ?? String(err)) + ' | fallback: ' + (err2?.message ?? String(err2))
+      );
+    }
+  }
+
+  // If we got a response but it's 404 (route not found), try the functions path too
+  if (res && !res.ok && res.status === 404) {
+    try {
+      console.warn('[criarUsuario] /create-user returned 404; trying functions path', functionsUrl);
+      const res2 = await fetch(functionsUrl, {
+        method: 'POST',
+        headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      return await parse<CreateUserResponse>(res2 as Response);
+    } catch (err2: any) {
+      console.error('[criarUsuario] fallback functions failed after 404', err2);
+      // Fall through to parse original response to provide friendly error
+    }
   }
 
   return await parse<CreateUserResponse>(res as Response);

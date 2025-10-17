@@ -66,11 +66,16 @@ async function processResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorMessage = data?.message || data?.error || response.statusText || 'Erro na autenticação';
     const errorCode = data?.code || String(response.status);
-    
+
+    // Log raw text as well to help debug cases where JSON is empty or {}
+    let rawText = '';
+    try { rawText = await response.clone().text(); } catch (_) { rawText = '<unable to read raw text>'; }
+
     console.error('[AUTH ERROR]', {
       url: response.url,
       status: response.status,
       data,
+      rawText,
     });
 
     throw new AuthenticationError(errorMessage, errorCode, data);

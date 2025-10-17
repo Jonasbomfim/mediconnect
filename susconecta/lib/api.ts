@@ -1646,54 +1646,51 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
-  // Call the Edge Function directly (no proxy). The backend function is
-  // responsible for role assignment and any service-role operations.
-  // The OpenAPI for the new endpoint exposes POST /create-user at the
-  // API root (API_BASE). Call that endpoint directly from the client.
-  const url = `${API_BASE}/create-user`;
+  // Prefer calling the Functions path first in environments where /create-user
+  // is not mapped at the API root (this avoids expected 404 noise). Keep the
+  // root /create-user as a fallback for deployments that expose it.
   const functionsUrl = `${API_BASE}/functions/v1/create-user`;
+  const url = `${API_BASE}/create-user`;
 
-  // Network/fetch errors (including CORS preflight failures) throw before we get a Response.
-  // Catch them and provide a clearer, actionable error message for developers/operators.
   let res: Response | null = null;
   try {
-    res = await fetch(url, {
+    res = await fetch(functionsUrl, {
       method: 'POST',
       headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });
   } catch (err: any) {
-    console.error('[criarUsuario] fetch error for', url, err);
-    // Attempt functions fallback when primary endpoint can't be reached (network/CORS/route)
+    console.error('[criarUsuario] fetch error for', functionsUrl, err);
+    // Attempt root /create-user fallback when functions path can't be reached
     try {
-      console.warn('[criarUsuario] tentando fallback para', functionsUrl);
-      const res2 = await fetch(functionsUrl, {
+      console.warn('[criarUsuario] tentando fallback para', url);
+      const res2 = await fetch(url, {
         method: 'POST',
         headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
       return await parse<CreateUserResponse>(res2 as Response);
     } catch (err2: any) {
-      console.error('[criarUsuario] fallback functions also failed', err2);
+      console.error('[criarUsuario] fallback /create-user also failed', err2);
       throw new Error(
-        'Falha ao contatar o endpoint /create-user e o fallback /functions/v1/create-user também falhou. Verifique disponibilidade e CORS. Detalhes: ' +
+        'Falha ao contatar o endpoint /functions/v1/create-user e o fallback /create-user também falhou. Verifique disponibilidade e CORS. Detalhes: ' +
           (err?.message ?? String(err)) + ' | fallback: ' + (err2?.message ?? String(err2))
       );
     }
   }
 
-  // If we got a response but it's 404 (route not found), try the functions path too
+  // If we got a response but it's 404 (route not found), try the root path too
   if (res && !res.ok && res.status === 404) {
     try {
-      console.warn('[criarUsuario] /create-user returned 404; trying functions path', functionsUrl);
-      const res2 = await fetch(functionsUrl, {
+      console.warn('[criarUsuario] /functions/v1/create-user returned 404; trying root path', url);
+      const res2 = await fetch(url, {
         method: 'POST',
         headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
       return await parse<CreateUserResponse>(res2 as Response);
     } catch (err2: any) {
-      console.error('[criarUsuario] fallback functions failed after 404', err2);
+      console.error('[criarUsuario] fallback /create-user failed after 404', err2);
       // Fall through to parse original response to provide friendly error
     }
   }
@@ -1798,7 +1795,11 @@ export async function criarUsuarioMedico(medico: { email: string; full_name: str
   const redirectBase = 'https://mediconecta-app-liart.vercel.app';
   const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/profissional`;
   const redirect_url = emailRedirectTo;
-  return await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any, emailRedirectTo, redirect_url, target: 'medico' });
+  // generate a secure-ish random password on the client so the caller can receive it
+  const password = gerarSenhaAleatoria();
+  const resp = await criarUsuario({ email: medico.email, password, full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any, emailRedirectTo, redirect_url, target: 'medico' });
+  // Return backend response plus the generated password so the UI can show/save it
+  return { ...(resp as any), password };
 }
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
@@ -1807,7 +1808,11 @@ export async function criarUsuarioPaciente(paciente: { email: string; full_name:
   const redirectBase = 'https://mediconecta-app-liart.vercel.app';
   const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/paciente`;
   const redirect_url = emailRedirectTo;
-  return await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any, emailRedirectTo, redirect_url, target: 'paciente' });
+  // generate a secure-ish random password on the client so the caller can receive it
+  const password = gerarSenhaAleatoria();
+  const resp = await criarUsuario({ email: paciente.email, password, full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any, emailRedirectTo, redirect_url, target: 'paciente' });
+  // Return backend response plus the generated password so the UI can show/save it
+  return { ...(resp as any), password };
 }
 
 

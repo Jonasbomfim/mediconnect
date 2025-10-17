@@ -53,7 +53,7 @@ export default function PacientesPage() {
   async function loadAll() {
     try {
       setLoading(true);
-      const data = await listarPacientes({ page: 1, limit: 20 });
+      const data = await listarPacientes({ page: 1, limit: 50 });
       
       if (Array.isArray(data)) {
         setPatients(data.map(normalizePaciente));

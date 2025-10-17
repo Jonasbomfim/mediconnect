@@ -27,6 +27,7 @@ import {
   criarUsuarioPaciente,
   criarPaciente,
 } from "@/lib/api";
+import { getAvatarPublicUrl } from '@/lib/api';
 
 import { validarCPFLocal } from "@/lib/utils";
 import { verificarCpfDuplicado } from "@/lib/api";
@@ -99,6 +100,7 @@ export function PatientRegistrationForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false });
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isUploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
@@ -145,6 +147,22 @@ export function PatientRegistrationForm({
 
         const ax = await listarAnexos(String(patientId)).catch(() => []);
         setServerAnexos(Array.isArray(ax) ? ax : []);
+        // Try to detect existing public avatar (no file extension) and set preview
+        try {
+          const url = getAvatarPublicUrl(String(patientId));
+          try {
+            const head = await fetch(url, { method: 'HEAD' });
+            if (head.ok) { setPhotoPreview(url); }
+            else {
+              const get = await fetch(url, { method: 'GET' });
+              if (get.ok) { setPhotoPreview(url); }
+            }
+          } catch (inner) {
+            // ignore network/CORS errors while detecting
+          }
+        } catch (detectErr) {
+          // ignore detection errors
+        }
       } catch (err) {
         console.error("[PatientForm] Erro ao carregar paciente:", err);
       }
@@ -260,6 +278,28 @@ export function PatientRegistrationForm({
         if (patientId == null) throw new Error("Paciente inexistente para edição");
         const payload = toPayload();
         const saved = await atualizarPaciente(String(patientId), payload);
+        // If a new photo was selected locally, remove existing public avatar (if any) then upload the new one
+        if (form.photo) {
+          try {
+            setUploadingPhoto(true);
+            // Attempt to remove existing avatar first (no-op if none)
+            try {
+              await removerFotoPaciente(String(patientId));
+              // clear any cached preview so upload result will repopulate it
+              setPhotoPreview(null);
+            } catch (remErr) {
+              // If removal fails (permissions/CORS), continue to attempt upload — we don't want to block the user
+              console.warn('[PatientForm] aviso: falha ao remover avatar antes do upload:', remErr);
+            }
+            await uploadFotoPaciente(String(patientId), form.photo);
+          } catch (upErr) {
+            console.warn('[PatientForm] Falha ao enviar foto do paciente:', upErr);
+            // don't block the main update — show a warning
+            alert('Paciente atualizado, mas falha ao enviar a foto. Tente novamente.');
+          } finally {
+            setUploadingPhoto(false);
+          }
+        }
         onSaved?.(saved);
         alert("Paciente atualizado com sucesso!");
         
@@ -272,7 +312,7 @@ export function PatientRegistrationForm({
       } else {
         // --- NOVA LÓGICA DE CRIAÇÃO ---
         const patientPayload = toPayload();
-        const savedPatientProfile = await criarPaciente(patientPayload);
+  const savedPatientProfile = await criarPaciente(patientPayload);
         console.log(" Perfil do paciente criado:", savedPatientProfile);
 
         if (form.email && form.email.includes('@')) {
@@ -335,6 +375,22 @@ export function PatientRegistrationForm({
               setForm(initial);
               setPhotoPreview(null);
               setServerAnexos([]);
+              // If a photo was selected during creation, upload it now using the created patient id
+              if (form.photo) {
+                try {
+                  setUploadingPhoto(true);
+                  const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id);
+                  if (pacienteId) {
+                    await uploadFotoPaciente(String(pacienteId), form.photo);
+                  }
+                } catch (upErr) {
+                  console.warn('[PatientForm] Falha ao enviar foto do paciente após criação:', upErr);
+                  // Non-blocking: inform user
+                  alert('Paciente criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.');
+                } finally {
+                  setUploadingPhoto(false);
+                }
+              }
               onSaved?.(savedPatientProfile);
               return;
             } else {
@@ -419,10 +475,23 @@ export function PatientRegistrationForm({
   async function handleRemoverFotoServidor() {
     if (mode !== "edit" || !patientId) return;
     try {
+      setUploadingPhoto(true);
       await removerFotoPaciente(String(patientId));
-      alert("Foto removida.");
+      // clear preview and inform user
+      setPhotoPreview(null);
+      alert('Foto removida com sucesso.');
     } catch (e: any) {
-      alert(e?.message || "Não foi possível remover a foto.");
+      console.warn('[PatientForm] erro ao remover foto do servidor', e);
+      // Show detailed guidance for common cases
+      if (String(e?.message || '').includes('401')) {
+        alert('Falha ao remover a foto: não autenticado. Faça login novamente e tente novamente.\nDetalhe: ' + (e?.message || ''));
+      } else if (String(e?.message || '').includes('403')) {
+        alert('Falha ao remover a foto: sem permissão. Verifique as permissões do token e se o storage aceita esse usuário.\nDetalhe: ' + (e?.message || ''));
+      } else {
+        alert(e?.message || 'Não foi possível remover a foto do storage. Veja console para detalhes.');
+      }
+    } finally {
+      setUploadingPhoto(false);
     }
   }
 

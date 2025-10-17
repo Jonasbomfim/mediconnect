@@ -599,20 +599,24 @@ export async function deletarExcecao(id: string): Promise<void> {
 
 
 
-// ===== CONFIG =====
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? ENV_CONFIG.SUPABASE_URL;
 const REST = `${API_BASE}/rest/v1`;
 
+
+const DEFAULT_AUTH_CALLBACK = 'https://mediconecta-app-liart.vercel.app/auth/callback';
+
+const DEFAULT_LANDING = 'https://mediconecta-app-liart.vercel.app';
+
 // Helper to build/normalize redirect URLs
 function buildRedirectUrl(target?: 'paciente' | 'medico' | 'admin' | 'default', explicit?: string, redirectBase?: string) {
-  const DEFAULT_REDIRECT_BASE = redirectBase ?? 'https://mediconecta-app-liart.vercel.app';
+  const DEFAULT_REDIRECT_BASE = redirectBase ?? DEFAULT_LANDING;
   if (explicit) {
-    // If explicit is already absolute, return trimmed
+    
     try {
       const u = new URL(explicit);
       return u.toString().replace(/\/$/, '');
     } catch (e) {
-      // Not an absolute URL, fall through to build from base
     }
   }
 
@@ -692,21 +696,35 @@ async function fetchWithFallback<T = any>(url: string, headers: Record<string, s
 // Parse genérico
 async function parse<T>(res: Response): Promise<T> {
   let json: any = null;
+  let rawText = '';
   try {
+    // Attempt to parse JSON; many endpoints may return empty bodies (204/204) or plain text
+    // so guard against unexpected EOF during json parsing
     json = await res.json();
   } catch (err) {
-    console.error("Erro ao parsear a resposta como JSON:", err);
-  }
-
-  if (!res.ok) {
-    // Tenta também ler o body como texto cru para obter mensagens detalhadas
-    let rawText = '';
+    // Try to capture raw text for better diagnostics
     try {
       rawText = await res.clone().text();
     } catch (tErr) {
-      // ignore
+      rawText = '';
     }
-    console.error("[API ERROR]", res.url, res.status, json, "raw:", rawText);
+    if (rawText) {
+      console.warn('Resposta não-JSON recebida do servidor. raw text:', rawText);
+    } else {
+      console.warn('Resposta vazia ou inválida recebida do servidor; não foi possível parsear JSON:', err);
+    }
+  }
+
+  if (!res.ok) {
+    // If we didn't already collect rawText above, try to get it now for error messaging
+    if (!rawText) {
+      try {
+        rawText = await res.clone().text();
+      } catch (tErr) {
+        rawText = '';
+      }
+    }
+    console.error('[API ERROR]', res.url, res.status, json, 'raw:', rawText);
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message || json.error)) ?? res.statusText;
     
@@ -1423,15 +1441,41 @@ export async function vincularUserIdMedico(medicoId: string | number, userId: st
  * Retorna o paciente atualizado.
  */
 export async function vincularUserIdPaciente(pacienteId: string | number, userId: string): Promise<Paciente> {
-  const url = `${REST}/patients?id=eq.${encodeURIComponent(String(pacienteId))}`;
+  // Validate pacienteId looks like a UUID (basic check) or at least a non-empty string/number
+  const idStr = String(pacienteId || '').trim();
+  if (!idStr) throw new Error('ID do paciente inválido ao tentar vincular user_id.');
+
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  const looksLikeUuid = uuidRegex.test(idStr);
+  // Allow non-UUID ids (legacy) but log a debug warning when it's not UUID
+  if (!looksLikeUuid) console.warn('[vincularUserIdPaciente] pacienteId does not look like a UUID:', idStr);
+
+  const url = `${REST}/patients?id=eq.${encodeURIComponent(idStr)}`;
   const payload = { user_id: String(userId) };
+
+  // Debug-friendly masked headers
+  const headers = withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation');
+  const maskedHeaders = { ...headers } as Record<string, string>;
+  if (maskedHeaders.Authorization) {
+    const a = maskedHeaders.Authorization as string;
+    maskedHeaders.Authorization = a.slice(0,6) + '...' + a.slice(-6);
+  }
+  console.debug('[vincularUserIdPaciente] PATCH', url, 'payload:', { ...payload }, 'headers(masked):', maskedHeaders);
+
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    headers,
     body: JSON.stringify(payload),
   });
-  const arr = await parse<Paciente[] | Paciente>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+
+  // If parse throws, the existing parse() will log response details; ensure we also surface helpful context
+  try {
+    const arr = await parse<Paciente[] | Paciente>(res);
+    return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+  } catch (err) {
+    console.error('[vincularUserIdPaciente] erro ao vincular:', { pacienteId: idStr, userId, url });
+    throw err;
+  }
 }
 
 
@@ -1789,11 +1833,10 @@ export async function criarUsuarioDirectAuth(input: {
 
 // Criar usuário para MÉDICO no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioMedico(medico: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  // Rely on the server-side create-user endpoint (POST /create-user). The
-  // backend is responsible for role assignment and sending the magic link.
-  // Any error should be surfaced to the caller so it can be handled there.
-  const redirectBase = 'https://mediconecta-app-liart.vercel.app';
+  const redirectBase = DEFAULT_LANDING;
   const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/profissional`;
+  // Use the role-specific landing as the redirect_url so the magic link
+  // redirects users directly to the app path (e.g. /profissional).
   const redirect_url = emailRedirectTo;
   // generate a secure-ish random password on the client so the caller can receive it
   const password = gerarSenhaAleatoria();
@@ -1804,9 +1847,10 @@ export async function criarUsuarioMedico(medico: { email: string; full_name: str
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  // Rely on the server-side create-user endpoint (POST /create-user).
-  const redirectBase = 'https://mediconecta-app-liart.vercel.app';
+  const redirectBase = DEFAULT_LANDING;
   const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/paciente`;
+  // Use the role-specific landing as the redirect_url so the magic link
+  // redirects users directly to the app path (e.g. /paciente).
   const redirect_url = emailRedirectTo;
   // generate a secure-ish random password on the client so the caller can receive it
   const password = gerarSenhaAleatoria();
@@ -1886,13 +1930,135 @@ export async function buscarCepAPI(cep: string): Promise<{
 export async function listarAnexos(_id: string | number): Promise<any[]> { return []; }
 export async function adicionarAnexo(_id: string | number, _file: File): Promise<any> { return {}; }
 export async function removerAnexo(_id: string | number, _anexoId: string | number): Promise<void> {}
-export async function uploadFotoPaciente(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> { return {}; }
-export async function removerFotoPaciente(_id: string | number): Promise<void> {}
+/**
+ * Envia uma foto de avatar do paciente ao Supabase Storage.
+ * - Valida tipo (jpeg/png/webp) e tamanho (<= 2MB)
+ * - Faz POST multipart/form-data para /storage/v1/object/avatars/{userId}/avatar
+ * - Retorna o objeto { Key } quando upload for bem-sucedido
+ */
+export async function uploadFotoPaciente(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string; Key?: string }> {
+  const userId = String(_id);
+  if (!userId) throw new Error('ID do paciente é obrigatório para upload de foto');
+  if (!_file) throw new Error('Arquivo ausente');
+
+  // validações de formato e tamanho
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(_file.type)) {
+    throw new Error('Formato inválido. Aceitamos JPG, PNG ou WebP.');
+  }
+  const maxBytes = 2 * 1024 * 1024; // 2MB
+  if (_file.size > maxBytes) {
+    throw new Error('Arquivo muito grande. Máx 2MB.');
+  }
+
+  const extMap: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  };
+  const ext = extMap[_file.type] || 'jpg';
+
+  const objectPath = `avatars/${userId}/avatar.${ext}`;
+  const uploadUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/avatars/${encodeURIComponent(userId)}/avatar`;
+
+  // Build multipart form data
+  const form = new FormData();
+  form.append('file', _file, `avatar.${ext}`);
+
+  const headers: Record<string, string> = {
+    // Supabase requires the anon key in 'apikey' header for client-side uploads
+    apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+    // Accept json
+    Accept: 'application/json',
+  };
+  // if user is logged in, include Authorization header
+  const jwt = getAuthToken();
+  if (jwt) headers.Authorization = `Bearer ${jwt}`;
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers,
+    body: form as any,
+  });
+
+  // Supabase storage returns 200/201 with object info or error
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    console.error('[uploadFotoPaciente] upload falhou', { status: res.status, raw });
+    if (res.status === 401) throw new Error('Não autenticado');
+    if (res.status === 403) throw new Error('Sem permissão para fazer upload');
+    throw new Error('Falha no upload da imagem');
+  }
+
+  // Try to parse JSON response
+  let json: any = null;
+  try { json = await res.json(); } catch { json = null; }
+
+  // The API may not return a structured body; return the Key we constructed
+  const key = (json && (json.Key || json.key)) ?? objectPath;
+  const publicUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/public/${encodeURIComponent('avatars')}/${encodeURIComponent(userId)}/avatar.${ext}`;
+  return { foto_url: publicUrl, Key: key };
+}
+
+/**
+ * Retorna a URL pública do avatar do usuário (acesso público)
+ * Path conforme OpenAPI: /storage/v1/object/public/avatars/{userId}/avatar.{ext}
+ * @param userId - ID do usuário (UUID)
+ * @param ext - extensão do arquivo: 'jpg' | 'png' | 'webp' (default 'jpg')
+ */
+export function getAvatarPublicUrl(userId: string | number): string {
+  // Build the public avatar URL without file extension.
+  // Example: https://<project>.supabase.co/storage/v1/object/public/avatars/{userId}/avatar
+  const id = String(userId || '').trim();
+  if (!id) throw new Error('userId é obrigatório para obter URL pública do avatar');
+  const base = String(ENV_CONFIG.SUPABASE_URL).replace(/\/$/, '');
+  // Note: Supabase public object path does not require an extension in some setups
+  return `${base}/storage/v1/object/public/${encodeURIComponent('avatars')}/${encodeURIComponent(id)}/avatar`;
+}
+
+export async function removerFotoPaciente(_id: string | number): Promise<void> {
+  const userId = String(_id || '').trim();
+  if (!userId) throw new Error('ID do paciente é obrigatório para remover foto');
+  const deleteUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/avatars/${encodeURIComponent(userId)}/avatar`;
+  const headers: Record<string,string> = {
+    apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+    Accept: 'application/json',
+  };
+  const jwt = getAuthToken();
+  if (jwt) headers.Authorization = `Bearer ${jwt}`;
+
+  try {
+    console.debug('[removerFotoPaciente] Deleting avatar for user:', userId, 'url:', deleteUrl);
+    const res = await fetch(deleteUrl, { method: 'DELETE', headers });
+    if (!res.ok) {
+      const raw = await res.text().catch(() => '');
+      console.warn('[removerFotoPaciente] remoção falhou', { status: res.status, raw });
+      // Treat 404 as success (object already absent)
+      if (res.status === 404) return;
+      // Include status and server body in the error message to aid debugging
+      const bodySnippet = raw && raw.length > 0 ? raw : '<sem corpo na resposta>';
+      if (res.status === 401) throw new Error(`Não autenticado (401). Resposta: ${bodySnippet}`);
+      if (res.status === 403) throw new Error(`Sem permissão para remover a foto (403). Resposta: ${bodySnippet}`);
+      throw new Error(`Falha ao remover a foto do storage (status ${res.status}). Resposta: ${bodySnippet}`);
+    }
+    // success
+    return;
+  } catch (err) {
+    // bubble up for the caller to handle
+    throw err;
+  }
+}
 export async function listarAnexosMedico(_id: string | number): Promise<any[]> { return []; }
 export async function adicionarAnexoMedico(_id: string | number, _file: File): Promise<any> { return {}; }
 export async function removerAnexoMedico(_id: string | number, _anexoId: string | number): Promise<void> {}
-export async function uploadFotoMedico(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> { return {}; }
-export async function removerFotoMedico(_id: string | number): Promise<void> {}
+export async function uploadFotoMedico(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string; Key?: string }> {
+  // reuse same implementation as paciente but place under avatars/{userId}/avatar
+  return await uploadFotoPaciente(_id, _file);
+}
+export async function removerFotoMedico(_id: string | number): Promise<void> {
+  // reuse samme implementation
+  return await removerFotoPaciente(_id);
+}
 
 // ===== PERFIS DE USUÁRIOS =====
 export async function listarPerfis(params?: { page?: number; limit?: number; q?: string; }): Promise<Profile[]> {

@@ -69,7 +69,7 @@ export default function LoginPage() {
     setMagicMessage('')
 
     try {
-      const res = await sendMagicLink(credentials.email, { emailRedirectTo: `${window.location.origin}/` })
+      const res = await sendMagicLink(credentials.email, { target: 'medico' })
       setMagicMessage(res?.message ?? 'Magic link enviado. Verifique seu email.')
     } catch (err: any) {
       console.error('[MAGIC-LINK] erro ao enviar:', err)

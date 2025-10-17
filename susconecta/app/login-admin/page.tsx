@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
+import { sendMagicLink } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,9 @@ import { AuthenticationError } from '@/lib/auth'
 export default function LoginAdminPage() {
   const [credentials, setCredentials] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
+  const [magicMessage, setMagicMessage] = useState('')
+  const [magicError, setMagicError] = useState('')
+  const [magicLoading, setMagicLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { login } = useAuth()
@@ -41,6 +45,27 @@ export default function LoginAdminPage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSendMagicLink = async () => {
+    if (!credentials.email) {
+      setMagicError('Por favor, preencha o email antes de solicitar o magic link.')
+      return
+    }
+
+    setMagicLoading(true)
+    setMagicError('')
+    setMagicMessage('')
+
+    try {
+      const res = await sendMagicLink(credentials.email, { target: 'admin' })
+      setMagicMessage(res?.message ?? 'Magic link enviado. Verifique seu email.')
+    } catch (err: any) {
+      console.error('[MAGIC-LINK ADMIN] erro ao enviar:', err)
+      setMagicError(err?.message ?? String(err))
+    } finally {
+      setMagicLoading(false)
     }
   }
 
@@ -108,6 +133,25 @@ export default function LoginAdminPage() {
                 {loading ? 'Entrando...' : 'Entrar no Sistema Administrativo'}
               </Button>
             </form>
+            <div className="mt-4 space-y-2">
+              <div className="text-sm text-muted-foreground mb-2">Ou entre usando um magic link (sem senha)</div>
+
+              {magicError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{magicError}</AlertDescription>
+                </Alert>
+              )}
+
+              {magicMessage && (
+                <Alert>
+                  <AlertDescription>{magicMessage}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button className="w-full" onClick={handleSendMagicLink} disabled={magicLoading}>
+                {magicLoading ? 'Enviando magic link...' : 'Enviar magic link'}
+              </Button>
+            </div>
             
             <div className="mt-4 text-center">
               <Button variant="outline" asChild className="w-full hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200">

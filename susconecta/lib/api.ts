@@ -603,6 +603,27 @@ export async function deletarExcecao(id: string): Promise<void> {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? ENV_CONFIG.SUPABASE_URL;
 const REST = `${API_BASE}/rest/v1`;
 
+// Helper to build/normalize redirect URLs
+function buildRedirectUrl(target?: 'paciente' | 'medico' | 'admin' | 'default', explicit?: string, redirectBase?: string) {
+  const DEFAULT_REDIRECT_BASE = redirectBase ?? 'https://mediconecta-app-liart.vercel.app';
+  if (explicit) {
+    // If explicit is already absolute, return trimmed
+    try {
+      const u = new URL(explicit);
+      return u.toString().replace(/\/$/, '');
+    } catch (e) {
+      // Not an absolute URL, fall through to build from base
+    }
+  }
+
+  const base = DEFAULT_REDIRECT_BASE.replace(/\/$/, '');
+  let path = '/';
+  if (target === 'paciente') path = '/paciente';
+  else if (target === 'medico') path = '/profissional';
+  else if (target === 'admin') path = '/dashboard';
+  return `${base}${path}`;
+}
+
 // Token salvo no browser (aceita auth_token ou token)
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -1587,6 +1608,13 @@ export type CreateUserInput = {
   full_name: string;
   phone?: string | null;
   role: UserRoleEnum;
+  // Optional: when provided, backend can use this to send magic links that redirect
+  // to the given URL or interpret `target` to build a role-specific redirect.
+  emailRedirectTo?: string;
+  // Compatibility: some integrations expect `redirect_url` as the parameter name
+  // for the post-auth redirect. Include it so backend/functions receive it.
+  redirect_url?: string;
+  target?: 'paciente' | 'medico' | 'admin' | 'default';
 };
 
 export type CreatedUser = {
@@ -1767,28 +1795,35 @@ export async function criarUsuarioMedico(medico: { email: string; full_name: str
   // Rely on the server-side create-user endpoint (POST /create-user). The
   // backend is responsible for role assignment and sending the magic link.
   // Any error should be surfaced to the caller so it can be handled there.
-  return await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any });
+  const redirectBase = 'https://mediconecta-app-liart.vercel.app';
+  const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/profissional`;
+  const redirect_url = emailRedirectTo;
+  return await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any, emailRedirectTo, redirect_url, target: 'medico' });
 }
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
   // Rely on the server-side create-user endpoint (POST /create-user).
-  return await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any });
+  const redirectBase = 'https://mediconecta-app-liart.vercel.app';
+  const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/paciente`;
+  const redirect_url = emailRedirectTo;
+  return await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any, emailRedirectTo, redirect_url, target: 'paciente' });
 }
 
-/**
- * Envia um magic link (OTP) diretamente via Supabase Auth (cliente)
- * Sem componente server-side adicional. Use quando quiser autenticar
- * o usuário por email (senha não necessária).
- *
- * Observação: isto apenas envia o link de login. A atribuição de roles
- * continua sendo operação server-side e deve ser feita pelo backend.
- */
-export async function sendMagicLink(email: string, options?: { emailRedirectTo?: string }): Promise<{ success: boolean; message?: string }> {
+
+export async function sendMagicLink(
+  email: string,
+  options?: { emailRedirectTo?: string; target?: 'paciente' | 'medico' | 'admin' | 'default'; redirectBase?: string }
+): Promise<{ success: boolean; message?: string }> {
   if (!email) throw new Error('Email obrigatório para enviar magic link');
   const url = `${API_BASE}/auth/v1/otp`;
   const payload: any = { email };
-  if (options && options.emailRedirectTo) payload.options = { emailRedirectTo: options.emailRedirectTo };
+
+  const redirectUrl = buildRedirectUrl(options?.target, options?.emailRedirectTo, options?.redirectBase);
+  if (redirectUrl) {
+    // include both keys for broader compatibility across different Supabase setups
+    payload.options = { emailRedirectTo: redirectUrl, redirect_to: redirectUrl, redirect_url: redirectUrl };
+  }
 
   try {
     const res = await fetch(url, {

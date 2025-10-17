@@ -301,7 +301,24 @@ export function PatientRegistrationForm({
                 const apiMod = await import('@/lib/api');
                 const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id);
                 const userId = (userResponse.user as any)?.id || (userResponse.user as any)?.user_id || (userResponse.user as any)?.id;
-                if (pacienteId && userId && typeof apiMod.vincularUserIdPaciente === 'function') {
+
+                // Guard: verify userId is present and looks plausible before attempting to PATCH
+                const isPlausibleUserId = (id: any) => {
+                  if (!id) return false;
+                  const s = String(id).trim();
+                  if (!s) return false;
+                  // quick UUID v4-ish check (xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx) or numeric id fallback
+                  const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                  const numeric = /^\d+$/;
+                  return uuidV4.test(s) || numeric.test(s) || s.length >= 8;
+                };
+
+                if (!pacienteId) {
+                  console.warn('[PatientForm] pacienteId ausente; pulando vinculação de user_id');
+                } else if (!isPlausibleUserId(userId)) {
+                  // Do not attempt to PATCH when userId is missing/invalid to avoid 400s
+                  console.warn('[PatientForm] userId inválido ou ausente; não será feita a vinculação. userResponse:', userResponse);
+                } else if (typeof apiMod.vincularUserIdPaciente === 'function') {
                   console.log('[PatientForm] Vinculando user_id ao paciente:', pacienteId, userId);
                   try {
                     await apiMod.vincularUserIdPaciente(pacienteId, String(userId));

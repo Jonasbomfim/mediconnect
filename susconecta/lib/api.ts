@@ -1081,17 +1081,17 @@ export async function excluirPaciente(id: string | number): Promise<void> {
  * Este endpoint usa a service role key e valida se o requisitante é administrador.
  */
 export async function assignRoleServerSide(userId: string, role: string): Promise<any> {
-  const url = `/api/assign-role`;
-  const token = getAuthToken();
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ user_id: userId, role }),
-  });
-  return await parse<any>(res);
+  // Atribuição de roles é uma operação privilegiada que requer a
+  // service_role key do Supabase (ou equivalente) e validação de permissões
+  // server-side. Não execute isso do cliente.
+  //
+  // Antes este helper chamava `/api/assign-role` (um proxy server-side).
+  // Agora que o projeto deve usar apenas o endpoint público seguro de
+  // criação de usuários (OpenAPI `/create-user`), a atribuição deve ocorrer
+  // dentro desse endpoint no backend. Portanto este helper foi descontinuado
+  // no cliente para evitar qualquer tentativa de realizar operação
+  // privilegiada no navegador.
+  throw new Error('assignRoleServerSide is not available in the client. Use the backend /create-user endpoint which performs role assignment server-side.');
 }
 // ===== PACIENTES (Extra: verificação de CPF duplicado) =====
 export async function verificarCpfDuplicado(cpf: string): Promise<boolean> {
@@ -1618,26 +1618,34 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
-  // When running in the browser, call our Next.js proxy to avoid CORS/preflight
-  // issues that some Edge Functions may have. On server-side, call the function
-  // directly.
-  if (typeof window !== 'undefined') {
-    const proxyUrl = '/api/create-user'
-    const res = await fetch(proxyUrl, {
+  // Call the Edge Function directly (no proxy). The backend function is
+  // responsible for role assignment and any service-role operations.
+  // The OpenAPI for the new endpoint exposes POST /create-user at the
+  // API root (API_BASE). Call that endpoint directly from the client.
+  const url = `${API_BASE}/create-user`;
+
+  // Network/fetch errors (including CORS preflight failures) throw before we get a Response.
+  // Catch them and provide a clearer, actionable error message for developers/operators.
+  let res: Response;
+  try {
+    res = await fetch(url, {
       method: 'POST',
       headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
-    })
-    return await parse<CreateUserResponse>(res as Response)
+    });
+  } catch (err: any) {
+    console.error('[criarUsuario] fetch error for', url, err);
+    // Do not attempt client-side signup fallback. Role assignment and user creation
+    // must be performed by the backend endpoint `/create-user` which has the
+    // necessary privileges. Surface a clear error so operators can fix the
+    // backend (CORS / route availability) instead of silently creating an
+    // auth user without roles.
+    throw new Error(
+      'Falha ao contatar o endpoint /create-user. Não será feito fallback via /auth/v1/signup. Verifique se o endpoint /create-user existe, está acessível e se o CORS/OPTIONS está configurado corretamente. Detalhes: ' + (err?.message ?? String(err))
+    );
   }
 
-  const url = `${API_BASE}/functions/v1/create-user`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { ...baseHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  return await parse<CreateUserResponse>(res);
+  return await parse<CreateUserResponse>(res as Response);
 }
 
 // ===== ALTERNATIVA: Criar usuário diretamente via Supabase Auth =====
@@ -1689,14 +1697,22 @@ export async function criarUsuarioDirectAuth(input: {
     }
     
     const responseData = await response.json();
-    const userId = responseData.user?.id || responseData.id;
-    
-  console.log('[DIRECT AUTH] Usuário criado:', userId);
-    
+    // Try several common locations for the returned user id depending on Supabase configuration
+    const userId = responseData?.user?.id || responseData?.id || responseData?.data?.user?.id || responseData?.data?.id;
+
+    // If no user id was returned, treat this as a failure. Some Supabase setups (e.g. magic link / invite)
+    // may not return the user id immediately. In that case we cannot safely link the profile to a user.
+    if (!userId) {
+      console.warn('[DIRECT AUTH] signup response did not include a user id; response:', responseData);
+      throw new Error('Signup did not return a user id (provider may be configured for magic links or pending confirmation). Fallback cannot determine created user id.');
+    }
+
+    console.log('[DIRECT AUTH] Usuário criado:', userId);
+
     // NOTE: Role assignments MUST be done by the backend (Edge Function or server)
     // when creating the user. The frontend should NOT attempt to assign roles.
     // The backend should use the service role key to insert into user_roles table.
-    
+
     return {
       success: true,
       user: {
@@ -1723,93 +1739,57 @@ export async function criarUsuarioDirectAuth(input: {
 
 // Criar usuário para MÉDICO no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioMedico(medico: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  // Prefer server-side creation (new OpenAPI create-user) so roles are assigned
-  // correctly (and magic link is sent). Fallback to direct Supabase signup if
-  // the server function is unavailable.
-  try {
-    const res = await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any });
-    return res;
-  } catch (err) {
-    console.warn('[CRIAR MÉDICO] Falha no endpoint server-side create-user, tentando fallback direto no Supabase Auth:', err);
-    // Fallback: create directly in Supabase Auth (old behavior)
-  }
-
-  // --- Fallback to previous direct signup ---
-  const senha = gerarSenhaAleatoria();
-  const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-  const payload = {
-    email: medico.email,
-    password: senha,
-    data: {
-      userType: 'profissional',
-      full_name: medico.full_name,
-      phone: medico.phone_mobile,
-    }
-  };
-
-  const response = await fetch(signupUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMsg = `Erro ao criar usuário (${response.status})`;
-    try { const errorData = JSON.parse(errorText); errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg; } catch {}
-    throw new Error(errorMsg);
-  }
-
-  const responseData = await response.json();
-  return { success: true, user: responseData.user || responseData, email: medico.email, password: senha };
+  // Rely on the server-side create-user endpoint (POST /create-user). The
+  // backend is responsible for role assignment and sending the magic link.
+  // Any error should be surfaced to the caller so it can be handled there.
+  return await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any });
 }
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  // Prefer server-side creation (OpenAPI create-user) to assign role 'paciente'.
+  // Rely on the server-side create-user endpoint (POST /create-user).
+  return await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any });
+}
+
+/**
+ * Envia um magic link (OTP) diretamente via Supabase Auth (cliente)
+ * Sem componente server-side adicional. Use quando quiser autenticar
+ * o usuário por email (senha não necessária).
+ *
+ * Observação: isto apenas envia o link de login. A atribuição de roles
+ * continua sendo operação server-side e deve ser feita pelo backend.
+ */
+export async function sendMagicLink(email: string, options?: { emailRedirectTo?: string }): Promise<{ success: boolean; message?: string }> {
+  if (!email) throw new Error('Email obrigatório para enviar magic link');
+  const url = `${API_BASE}/auth/v1/otp`;
+  const payload: any = { email };
+  if (options && options.emailRedirectTo) payload.options = { emailRedirectTo: options.emailRedirectTo };
+
   try {
-    const res = await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any });
-    return res;
-  } catch (err) {
-    console.warn('[CRIAR PACIENTE] Falha no endpoint server-side create-user, tentando fallback direto no Supabase Auth:', err);
-  }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
 
-  // Fallback to previous direct signup behavior
-  const senha = gerarSenhaAleatoria();
-  const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-  const payload = {
-    email: paciente.email,
-    password: senha,
-    data: {
-      userType: 'paciente',
-      full_name: paciente.full_name,
-      phone: paciente.phone_mobile,
+    const text = await res.text();
+    let json: any = null;
+    try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+
+    if (!res.ok) {
+      const msg = (json && (json.error || json.msg || json.message)) ?? text ?? res.statusText;
+      throw new Error(String(msg));
     }
-  };
 
-  const response = await fetch(signupUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMsg = `Erro ao criar usuário (${response.status})`;
-    try { const errorData = JSON.parse(errorText); errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg; } catch {}
-    throw new Error(errorMsg);
+    return { success: true, message: (json && (json.message || json.msg)) ?? 'Magic link enviado. Verifique seu email.' };
+  } catch (err: any) {
+    console.error('[sendMagicLink] erro ao enviar magic link', err);
+    throw new Error(err?.message ?? 'Falha ao enviar magic link');
   }
-
-  const responseData = await response.json();
-  return { success: true, user: responseData.user || responseData, email: paciente.email, password: senha };
 }
 
 // ===== CEP (usado nos formulários) =====

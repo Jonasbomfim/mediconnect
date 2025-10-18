@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/select";
 
 import { mockProfessionals } from "@/lib/mocks/appointment-mocks";
-import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds } from "@/lib/api";
+import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento } from "@/lib/api";
 import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 
 const formatDate = (date: string | Date) => {
@@ -80,15 +80,17 @@ export default function ConsultasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
   const [viewingAppointment, setViewingAppointment] = useState<any | null>(null);
+  // Local form state used when editing. Keep hook at top-level to avoid Hooks order changes.
+  const [localForm, setLocalForm] = useState<any | null>(null);
 
   const mapAppointmentToFormData = (appointment: any) => {
-    const professional = mockProfessionals.find((p) => p.id === appointment.professional);
     const appointmentDate = new Date(appointment.time || appointment.scheduled_at || Date.now());
 
     return {
       id: appointment.id,
       patientName: appointment.patient,
-      professionalName: professional ? professional.name : "",
+      patientId: appointment.patient_id || appointment.patientId || null,
+      professionalName: appointment.professional || "",
       appointmentDate: appointmentDate.toISOString().split("T")[0],
       startTime: appointmentDate.toTimeString().split(" ")[0].substring(0, 5),
       endTime: new Date(appointmentDate.getTime() + (appointment.duration || 30) * 60000)
@@ -127,22 +129,72 @@ export default function ConsultasPage() {
   const handleCancel = () => {
     setEditingAppointment(null);
     setShowForm(false);
+    setLocalForm(null);
   };
 
-  const handleSave = (formData: any) => {
-    const updatedAppointment = {
-      id: formData.id,
-      patient: formData.patientName,
-      time: new Date(`${formData.appointmentDate}T${formData.startTime}`).toISOString(),
-      duration: 30,
-      type: formData.appointmentType as any,
-      status: formData.status as any,
-      professional: appointments.find((a) => a.id === formData.id)?.professional || "",
-      notes: formData.notes,
-    };
+  const handleSave = async (formData: any) => {
+    try {
+      // build scheduled_at ISO (formData.startTime is 'HH:MM')
+      const scheduled_at = new Date(`${formData.appointmentDate}T${formData.startTime}`).toISOString();
 
-    setAppointments((prev) => prev.map((a) => (a.id === updatedAppointment.id ? updatedAppointment : a)));
-    handleCancel();
+      // compute duration from start/end times when available
+      let duration_minutes = 30;
+      try {
+        if (formData.startTime && formData.endTime) {
+          const [sh, sm] = String(formData.startTime).split(":").map((n: string) => Number(n));
+          const [eh, em] = String(formData.endTime).split(":").map((n: string) => Number(n));
+          const start = (sh || 0) * 60 + (sm || 0);
+          const end = (eh || 0) * 60 + (em || 0);
+          if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) duration_minutes = end - start;
+        }
+      } catch (e) {
+        // fallback to default
+        duration_minutes = 30;
+      }
+
+      const payload: any = {
+        scheduled_at,
+        duration_minutes,
+        status: formData.status || undefined,
+        notes: formData.notes ?? null,
+        chief_complaint: formData.chief_complaint ?? null,
+        patient_notes: formData.patient_notes ?? null,
+        insurance_provider: formData.insurance_provider ?? null,
+        // convert local datetime-local inputs (which may be in 'YYYY-MM-DDTHH:MM' format) to proper ISO if present
+        checked_in_at: formData.checked_in_at ? new Date(formData.checked_in_at).toISOString() : null,
+        completed_at: formData.completed_at ? new Date(formData.completed_at).toISOString() : null,
+        cancelled_at: formData.cancelled_at ? new Date(formData.cancelled_at).toISOString() : null,
+        cancellation_reason: formData.cancellation_reason ?? null,
+      };
+
+      // Call PATCH endpoint
+      const updated = await atualizarAgendamento(formData.id, payload);
+
+      // Build UI-friendly row using server response and existing local fields
+      const existing = appointments.find((a) => a.id === formData.id) || {};
+      const mapped = {
+        id: updated.id,
+        patient: formData.patientName || existing.patient || '',
+        time: updated.scheduled_at || updated.created_at || scheduled_at,
+        duration: updated.duration_minutes || duration_minutes,
+        type: updated.appointment_type || formData.appointmentType || existing.type || 'presencial',
+        status: updated.status || formData.status || existing.status,
+        professional: existing.professional || formData.professionalName || '',
+        notes: updated.notes || updated.patient_notes || formData.notes || existing.notes || '',
+      };
+
+      setAppointments((prev) => prev.map((a) => (a.id === mapped.id ? mapped : a)));
+      handleCancel();
+    } catch (err) {
+      console.error('[ConsultasPage] Falha ao atualizar agendamento', err);
+      // Inform the user
+      try {
+        const msg = err instanceof Error ? err.message : String(err);
+        alert('Falha ao salvar alterações: ' + msg);
+      } catch (e) {
+        // ignore
+      }
+    }
   };
 
   useEffect(() => {
@@ -190,6 +242,7 @@ export default function ConsultasPage() {
           return {
             id: a.id,
             patient,
+            patient_id: a.patient_id,
             time: a.scheduled_at || a.created_at || "",
             duration: a.duration_minutes || 30,
             type: a.appointment_type || "presencial",
@@ -214,15 +267,23 @@ export default function ConsultasPage() {
     };
   }, []);
 
-  // editing view: render the calendar registration form with controlled data
-  if (showForm && editingAppointment) {
-    const [localForm, setLocalForm] = useState<any>(editingAppointment);
-    const onFormChange = (d: any) => setLocalForm(d);
+  // Keep localForm synchronized with editingAppointment
+  useEffect(() => {
+    if (showForm && editingAppointment) {
+      setLocalForm(editingAppointment);
+    }
+    if (!showForm) setLocalForm(null);
+  }, [showForm, editingAppointment]);
 
-    const saveLocal = () => {
-      handleSave(localForm);
-    };
+  const onFormChange = (d: any) => setLocalForm(d);
 
+  const saveLocal = async () => {
+    if (!localForm) return;
+    await handleSave(localForm);
+  };
+
+  // If editing, render the edit form as a focused view (keeps hooks stable)
+  if (showForm && localForm) {
     return (
       <div className="space-y-6 p-6 bg-background">
         <div className="flex items-center gap-4">

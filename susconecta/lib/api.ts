@@ -968,6 +968,36 @@ export type Appointment = {
   updated_by?: string | null;
 };
 
+// Payload for updating an appointment (PATCH /rest/v1/appointments/{id})
+export type AppointmentUpdate = Partial<{
+  scheduled_at: string;
+  duration_minutes: number;
+  status: 'requested' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | string;
+  chief_complaint: string | null;
+  notes: string | null;
+  patient_notes: string | null;
+  insurance_provider: string | null;
+  checked_in_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+}>;
+
+/**
+ * Atualiza um agendamento existente (PATCH /rest/v1/appointments?id=eq.<id>)
+ */
+export async function atualizarAgendamento(id: string | number, input: AppointmentUpdate): Promise<Appointment> {
+  if (!id) throw new Error('ID do agendamento é obrigatório');
+  const url = `${REST}/appointments?id=eq.${encodeURIComponent(String(id))}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(input),
+  });
+  const arr = await parse<Appointment[] | Appointment>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as Appointment);
+}
+
 /**
  * Lista agendamentos via REST (GET /rest/v1/appointments)
  * Aceita query string completa (ex: `?select=*&limit=100&order=scheduled_at.desc`)

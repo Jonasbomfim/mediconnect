@@ -944,6 +944,41 @@ export type Report = {
   created_by?: string;
 };
 
+// ===== AGENDAMENTOS =====
+export type Appointment = {
+  id: string;
+  order_number?: string | null;
+  patient_id?: string | null;
+  doctor_id?: string | null;
+  scheduled_at?: string | null;
+  duration_minutes?: number | null;
+  appointment_type?: string | null;
+  status?: string | null;
+  chief_complaint?: string | null;
+  patient_notes?: string | null;
+  notes?: string | null;
+  insurance_provider?: string | null;
+  checked_in_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancellation_reason?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+};
+
+/**
+ * Lista agendamentos via REST (GET /rest/v1/appointments)
+ * Aceita query string completa (ex: `?select=*&limit=100&order=scheduled_at.desc`)
+ */
+export async function listarAgendamentos(query?: string): Promise<Appointment[]> {
+  const qs = query && String(query).trim() ? (String(query).startsWith('?') ? query : `?${query}`) : '';
+  const url = `${REST}/appointments${qs}`;
+  const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+  return await parse<Appointment[]>(res);
+}
+
 /**
  * Buscar relatório por ID (tenta múltiplas estratégias: id, order_number, patient_id)
  * Retorna o primeiro relatório encontrado ou lança erro 404 quando não achar.

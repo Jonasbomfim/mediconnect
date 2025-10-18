@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/select";
 
 import { mockProfessionals } from "@/lib/mocks/appointment-mocks";
-import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento } from "@/lib/api";
+import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento, buscarAgendamentoPorId } from "@/lib/api";
 import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 
 const formatDate = (date: string | Date) => {
@@ -76,6 +76,7 @@ const capitalize = (s: string) => {
 
 export default function ConsultasPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [searchValue, setSearchValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
@@ -84,22 +85,28 @@ export default function ConsultasPage() {
   const [localForm, setLocalForm] = useState<any | null>(null);
 
   const mapAppointmentToFormData = (appointment: any) => {
-    const appointmentDate = new Date(appointment.time || appointment.scheduled_at || Date.now());
+    // prefer scheduled_at (ISO) if available
+    const scheduledBase = appointment.scheduled_at || appointment.time || appointment.created_at || null;
+    const baseDate = scheduledBase ? new Date(scheduledBase) : new Date();
+    const duration = appointment.duration_minutes ?? appointment.duration ?? 30;
+
+    // compute start and end times (HH:MM)
+    const appointmentDateStr = baseDate.toISOString().split("T")[0];
+    const startTime = `${String(baseDate.getHours()).padStart(2, '0')}:${String(baseDate.getMinutes()).padStart(2, '0')}`;
+    const endDate = new Date(baseDate.getTime() + duration * 60000);
+    const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
     return {
       id: appointment.id,
       patientName: appointment.patient,
       patientId: appointment.patient_id || appointment.patientId || null,
       professionalName: appointment.professional || "",
-      appointmentDate: appointmentDate.toISOString().split("T")[0],
-      startTime: appointmentDate.toTimeString().split(" ")[0].substring(0, 5),
-      endTime: new Date(appointmentDate.getTime() + (appointment.duration || 30) * 60000)
-        .toTimeString()
-        .split(" ")[0]
-        .substring(0, 5),
+      appointmentDate: appointmentDateStr,
+      startTime,
+      endTime,
       status: appointment.status,
-      appointmentType: appointment.type,
-      notes: appointment.notes || "",
+      appointmentType: appointment.appointment_type || appointment.type,
+      notes: appointment.notes || appointment.patient_notes || "",
       cpf: "",
       rg: "",
       birthDate: "",
@@ -107,6 +114,15 @@ export default function ConsultasPage() {
       phoneNumber: "",
       email: "",
       unit: "nei",
+      // API-editable fields (populate so the form shows existing values)
+      duration_minutes: duration,
+      chief_complaint: appointment.chief_complaint ?? null,
+      patient_notes: appointment.patient_notes ?? null,
+      insurance_provider: appointment.insurance_provider ?? null,
+      checked_in_at: appointment.checked_in_at ?? null,
+      completed_at: appointment.completed_at ?? null,
+      cancelled_at: appointment.cancelled_at ?? null,
+      cancellation_reason: appointment.cancellation_reason ?? appointment.cancellationReason ?? "",
     };
   };
 
@@ -175,12 +191,21 @@ export default function ConsultasPage() {
       const mapped = {
         id: updated.id,
         patient: formData.patientName || existing.patient || '',
-        time: updated.scheduled_at || updated.created_at || scheduled_at,
-        duration: updated.duration_minutes || duration_minutes,
-        type: updated.appointment_type || formData.appointmentType || existing.type || 'presencial',
-        status: updated.status || formData.status || existing.status,
+        patient_id: existing.patient_id ?? null,
+        // preserve server-side fields so future edits read them
+        scheduled_at: updated.scheduled_at ?? scheduled_at,
+        duration_minutes: updated.duration_minutes ?? duration_minutes,
+        appointment_type: updated.appointment_type ?? formData.appointmentType ?? existing.type ?? 'presencial',
+        status: updated.status ?? formData.status ?? existing.status,
         professional: existing.professional || formData.professionalName || '',
-        notes: updated.notes || updated.patient_notes || formData.notes || existing.notes || '',
+        notes: updated.notes ?? updated.patient_notes ?? formData.notes ?? existing.notes ?? '',
+        chief_complaint: updated.chief_complaint ?? formData.chief_complaint ?? existing.chief_complaint ?? null,
+        patient_notes: updated.patient_notes ?? formData.patient_notes ?? existing.patient_notes ?? null,
+        insurance_provider: updated.insurance_provider ?? formData.insurance_provider ?? existing.insurance_provider ?? null,
+        checked_in_at: updated.checked_in_at ?? formData.checked_in_at ?? existing.checked_in_at ?? null,
+        completed_at: updated.completed_at ?? formData.completed_at ?? existing.completed_at ?? null,
+        cancelled_at: updated.cancelled_at ?? formData.cancelled_at ?? existing.cancelled_at ?? null,
+        cancellation_reason: updated.cancellation_reason ?? formData.cancellation_reason ?? existing.cancellation_reason ?? null,
       };
 
       setAppointments((prev) => prev.map((a) => (a.id === mapped.id ? mapped : a)));
@@ -197,75 +222,170 @@ export default function ConsultasPage() {
     }
   };
 
+  // Fetch and map appointments (used at load and when clearing search)
+  const fetchAndMapAppointments = async () => {
+    const arr = await listarAgendamentos("select=*&order=scheduled_at.desc&limit=200");
+
+    // Collect unique patient_ids and doctor_ids
+    const patientIds = new Set<string>();
+    const doctorIds = new Set<string>();
+    for (const a of arr || []) {
+      if (a.patient_id) patientIds.add(String(a.patient_id));
+      if (a.doctor_id) doctorIds.add(String(a.doctor_id));
+    }
+
+    // Batch fetch patients and doctors
+    const patientsMap = new Map<string, any>();
+    const doctorsMap = new Map<string, any>();
+
+    try {
+      if (patientIds.size) {
+        const list = await buscarPacientesPorIds(Array.from(patientIds));
+        for (const p of list || []) patientsMap.set(String(p.id), p);
+      }
+    } catch (e) {
+      console.warn("[ConsultasPage] Falha ao buscar pacientes em lote", e);
+    }
+
+    try {
+      if (doctorIds.size) {
+        const list = await buscarMedicosPorIds(Array.from(doctorIds));
+        for (const d of list || []) doctorsMap.set(String(d.id), d);
+      }
+    } catch (e) {
+      console.warn("[ConsultasPage] Falha ao buscar médicos em lote", e);
+    }
+
+    // Map appointments using the maps
+    const mapped = (arr || []).map((a: any) => {
+      const patient = a.patient_id ? patientsMap.get(String(a.patient_id))?.full_name || String(a.patient_id) : "";
+      const professional = a.doctor_id ? doctorsMap.get(String(a.doctor_id))?.full_name || String(a.doctor_id) : "";
+      return {
+        id: a.id,
+        patient,
+        patient_id: a.patient_id,
+        // keep some server-side fields so edit can access them later
+        scheduled_at: a.scheduled_at ?? a.time ?? a.created_at ?? null,
+        duration_minutes: a.duration_minutes ?? a.duration ?? null,
+        appointment_type: a.appointment_type ?? a.type ?? null,
+        status: a.status ?? "requested",
+        professional,
+        notes: a.notes || a.patient_notes || "",
+        // additional editable fields
+        chief_complaint: a.chief_complaint ?? null,
+        patient_notes: a.patient_notes ?? null,
+        insurance_provider: a.insurance_provider ?? null,
+        checked_in_at: a.checked_in_at ?? null,
+        completed_at: a.completed_at ?? null,
+        cancelled_at: a.cancelled_at ?? null,
+        cancellation_reason: a.cancellation_reason ?? a.cancellationReason ?? null,
+      };
+    });
+
+    return mapped;
+  };
+
   useEffect(() => {
     let mounted = true;
-
-    async function load() {
+    (async () => {
       try {
-        const arr = await listarAgendamentos("select=*&order=scheduled_at.desc&limit=200");
+        const mapped = await fetchAndMapAppointments();
         if (!mounted) return;
-
-        // Collect unique patient_ids and doctor_ids
-        const patientIds = new Set<string>();
-        const doctorIds = new Set<string>();
-        for (const a of arr || []) {
-          if (a.patient_id) patientIds.add(String(a.patient_id));
-          if (a.doctor_id) doctorIds.add(String(a.doctor_id));
-        }
-
-        // Batch fetch patients and doctors
-        const patientsMap = new Map<string, any>();
-        const doctorsMap = new Map<string, any>();
-
-        try {
-          if (patientIds.size) {
-            const list = await buscarPacientesPorIds(Array.from(patientIds));
-            for (const p of list || []) patientsMap.set(String(p.id), p);
-          }
-        } catch (e) {
-          console.warn("[ConsultasPage] Falha ao buscar pacientes em lote", e);
-        }
-
-        try {
-          if (doctorIds.size) {
-            const list = await buscarMedicosPorIds(Array.from(doctorIds));
-            for (const d of list || []) doctorsMap.set(String(d.id), d);
-          }
-        } catch (e) {
-          console.warn("[ConsultasPage] Falha ao buscar médicos em lote", e);
-        }
-
-        // Map appointments using the maps
-        const mapped = (arr || []).map((a: any) => {
-          const patient = a.patient_id ? patientsMap.get(String(a.patient_id))?.full_name || String(a.patient_id) : "";
-          const professional = a.doctor_id ? doctorsMap.get(String(a.doctor_id))?.full_name || String(a.doctor_id) : "";
-          return {
-            id: a.id,
-            patient,
-            patient_id: a.patient_id,
-            time: a.scheduled_at || a.created_at || "",
-            duration: a.duration_minutes || 30,
-            type: a.appointment_type || "presencial",
-            status: a.status || "requested",
-            professional,
-            notes: a.notes || a.patient_notes || "",
-          };
-        });
-
         setAppointments(mapped);
         setIsLoading(false);
       } catch (err) {
         console.warn("[ConsultasPage] Falha ao carregar agendamentos, usando mocks", err);
+        if (!mounted) return;
         setAppointments([]);
         setIsLoading(false);
       }
-    }
-
-    load();
-    return () => {
-      mounted = false;
-    };
+    })();
+    return () => { mounted = false; };
   }, []);
+
+  // Search box: allow fetching a single appointment by ID when pressing Enter
+  const performSearch = async (val: string) => {
+    const trimmed = String(val || '').trim();
+    if (!trimmed) return;
+    setIsLoading(true);
+    try {
+      const ap = await buscarAgendamentoPorId(trimmed, '*');
+      // resolve patient and doctor names if possible
+      let patient = ap.patient_id || '';
+      let professional = ap.doctor_id || '';
+      try {
+        if (ap.patient_id) {
+          const list = await buscarPacientesPorIds([ap.patient_id]);
+          if (list && list.length) patient = list[0].full_name || String(ap.patient_id);
+        }
+      } catch (e) {
+        // ignore
+      }
+      try {
+        if (ap.doctor_id) {
+          const list = await buscarMedicosPorIds([ap.doctor_id]);
+          if (list && list.length) professional = list[0].full_name || String(ap.doctor_id);
+        }
+      } catch (e) {}
+
+      const mappedSingle = [{
+        id: ap.id,
+        patient,
+        patient_id: ap.patient_id,
+        scheduled_at: ap.scheduled_at,
+        duration_minutes: ap.duration_minutes ?? null,
+        appointment_type: ap.appointment_type ?? null,
+        status: ap.status ?? 'requested',
+        professional,
+        notes: ap.notes ?? ap.patient_notes ?? '',
+        chief_complaint: ap.chief_complaint ?? null,
+        patient_notes: ap.patient_notes ?? null,
+        insurance_provider: ap.insurance_provider ?? null,
+        checked_in_at: ap.checked_in_at ?? null,
+        completed_at: ap.completed_at ?? null,
+        cancelled_at: ap.cancelled_at ?? null,
+        cancellation_reason: ap.cancellation_reason ?? null,
+      }];
+
+      setAppointments(mappedSingle as any[]);
+    } catch (err) {
+      console.warn('[ConsultasPage] buscarAgendamentoPorId falhou:', err);
+      alert('Agendamento não encontrado');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      await performSearch(searchValue);
+    } else if (e.key === 'Escape') {
+      setSearchValue('');
+      setIsLoading(true);
+      try {
+        const mapped = await fetchAndMapAppointments();
+        setAppointments(mapped);
+      } catch (err) {
+        setAppointments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleClearSearch = async () => {
+    setSearchValue('');
+    setIsLoading(true);
+    try {
+      const mapped = await fetchAndMapAppointments();
+      setAppointments(mapped);
+    } catch (err) {
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Keep localForm synchronized with editingAppointment
   useEffect(() => {
@@ -325,9 +445,33 @@ export default function ConsultasPage() {
           <CardTitle>Consultas Agendadas</CardTitle>
           <CardDescription>Visualize, filtre e gerencie todas as consultas da clínica.</CardDescription>
           <div className="pt-4 flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[250px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Buscar por..." className="pl-8 w-full" />
+            <div className="flex-1 min-w-[250px] flex gap-2 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Buscar por..."
+                  className="pl-8 pr-4 w-full shadow-sm border border-border bg-transparent mr-2"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                />
+              </div>
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-3 rounded-md bg-muted/10 hover:bg-muted/20 border border-border shadow-sm"
+                  onClick={() => performSearch(searchValue)}
+                  aria-label="Buscar agendamento"
+                >
+                  <Search className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Buscar</span>
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 px-3" onClick={handleClearSearch}>
+                  Limpar
+                </Button>
+              </div>
             </div>
             <Select>
               <SelectTrigger className="w-[180px]">

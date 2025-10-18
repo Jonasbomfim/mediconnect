@@ -1010,6 +1010,23 @@ export async function listarAgendamentos(query?: string): Promise<Appointment[]>
 }
 
 /**
+ * Buscar agendamento por ID (GET /rest/v1/appointments?id=eq.<id>)
+ * Retorna o primeiro agendamento encontrado ou lança erro 404.
+ */
+export async function buscarAgendamentoPorId(id: string | number, select: string = '*'): Promise<Appointment> {
+  const sId = String(id || '').trim();
+  if (!sId) throw new Error('ID é obrigatório para buscar agendamento');
+  const params = new URLSearchParams();
+  if (select) params.set('select', select);
+  params.set('limit', '1');
+  const url = `${REST}/appointments?id=eq.${encodeURIComponent(sId)}&${params.toString()}`;
+  const headers = baseHeaders();
+  const arr = await fetchWithFallback<Appointment[]>(url, headers);
+  if (arr && arr.length) return arr[0];
+  throw new Error('404: Agendamento não encontrado');
+}
+
+/**
  * Buscar relatório por ID (tenta múltiplas estratégias: id, order_number, patient_id)
  * Retorna o primeiro relatório encontrado ou lança erro 404 quando não achar.
  */

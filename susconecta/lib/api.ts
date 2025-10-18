@@ -724,13 +724,32 @@ async function parse<T>(res: Response): Promise<T> {
         rawText = '';
       }
     }
-    console.error('[API ERROR]', res.url, res.status, json, 'raw:', rawText);
+
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message || json.error)) ?? res.statusText;
-    
+
+    // Special-case authentication/authorization errors to reduce noisy logs
+    if (res.status === 401) {
+      // If the server returned an empty body, avoid dumping raw text to console.error
+      if (!rawText && !json) {
+        console.warn('[API AUTH] 401 Unauthorized for', res.url, '- no auth token or token expired.');
+      } else {
+        console.warn('[API AUTH] 401 Unauthorized for', res.url, 'response:', json ?? rawText);
+      }
+      throw new Error('Você não está autenticado. Faça login novamente.');
+    }
+
+    if (res.status === 403) {
+      console.warn('[API AUTH] 403 Forbidden for', res.url, (json ?? rawText) ? 'response: ' + (json ?? rawText) : '');
+      throw new Error('Você não tem permissão para executar esta ação.');
+    }
+
+    // For other errors, log a concise error and try to produce a friendly message
+    console.error('[API ERROR]', res.url, res.status, json ? json : 'no-json', rawText ? 'raw body present' : 'no raw body');
+
     // Mensagens amigáveis para erros comuns
     let friendlyMessage = msg;
-    
+
     // Erros de criação de usuário
     if (res.url?.includes('create-user')) {
       if (msg?.includes('Failed to assign user role')) {
@@ -741,28 +760,24 @@ async function parse<T>(res: Response): Promise<T> {
         friendlyMessage = 'Tipo de acesso inválido.';
       } else if (msg?.includes('Missing required fields')) {
         friendlyMessage = 'Campos obrigatórios não preenchidos.';
-      } else if (res.status === 401) {
-        friendlyMessage = 'Você não está autenticado. Faça login novamente.';
-      } else if (res.status === 403) {
-        friendlyMessage = 'Você não tem permissão para criar usuários.';
       } else if (res.status === 500) {
         friendlyMessage = 'Erro no servidor ao criar usuário. Entre em contato com o suporte.';
       }
     }
     // Erro de CPF duplicado
-    else if (code === '23505' && msg.includes('patients_cpf_key')) {
+    else if (code === '23505' && msg && msg.includes('patients_cpf_key')) {
       friendlyMessage = 'Já existe um paciente cadastrado com este CPF. Por favor, verifique se o paciente já está registrado no sistema ou use um CPF diferente.';
     }
     // Erro de email duplicado (paciente)
-    else if (code === '23505' && msg.includes('patients_email_key')) {
+    else if (code === '23505' && msg && msg.includes('patients_email_key')) {
       friendlyMessage = 'Já existe um paciente cadastrado com este email. Por favor, use um email diferente.';
     }
     // Erro de CRM duplicado (médico)
-    else if (code === '23505' && msg.includes('doctors_crm')) {
+    else if (code === '23505' && msg && msg.includes('doctors_crm')) {
       friendlyMessage = 'Já existe um médico cadastrado com este CRM. Por favor, verifique se o médico já está registrado no sistema.';
     }
     // Erro de email duplicado (médico)
-    else if (code === '23505' && msg.includes('doctors_email_key')) {
+    else if (code === '23505' && msg && msg.includes('doctors_email_key')) {
       friendlyMessage = 'Já existe um médico cadastrado com este email. Por favor, use um email diferente.';
     }
     // Outros erros de constraint unique
@@ -778,7 +793,7 @@ async function parse<T>(res: Response): Promise<T> {
         friendlyMessage = 'Registro referenciado em outra tabela. Remova referências dependentes antes de tentar novamente.';
       }
     }
-    
+
     throw new Error(friendlyMessage);
   }
 
@@ -1005,7 +1020,16 @@ export async function atualizarAgendamento(id: string | number, input: Appointme
 export async function listarAgendamentos(query?: string): Promise<Appointment[]> {
   const qs = query && String(query).trim() ? (String(query).startsWith('?') ? query : `?${query}`) : '';
   const url = `${REST}/appointments${qs}`;
-  const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+  const headers = baseHeaders();
+  // If there is no auth token, avoid calling the endpoint which requires auth and return friendly error
+  const jwt = getAuthToken();
+  if (!jwt) {
+    throw new Error('Não autenticado. Faça login para listar agendamentos.');
+  }
+  const res = await fetch(url, { method: 'GET', headers });
+  if (!res.ok && res.status === 401) {
+    throw new Error('Não autenticado. Token ausente ou expirado. Faça login novamente.');
+  }
   return await parse<Appointment[]>(res);
 }
 
@@ -1720,11 +1744,23 @@ export async function getCurrentUser(): Promise<CurrentUser> {
 }
 
 export async function getUserInfo(): Promise<UserInfo> {
+  const jwt = getAuthToken();
+  if (!jwt) {
+    // No token available — avoid calling the protected function and throw a friendly error
+    throw new Error('Você não está autenticado. Faça login para acessar informações do usuário.');
+  }
+
   const url = `${API_BASE}/functions/v1/user-info`;
   const res = await fetch(url, {
     method: "GET",
     headers: baseHeaders(),
   });
+
+  // Avoid calling parse() for auth errors to prevent noisy console dumps
+  if (!res.ok && res.status === 401) {
+    throw new Error('Você não está autenticado. Faça login novamente.');
+  }
+
   return await parse<UserInfo>(res);
 }
 

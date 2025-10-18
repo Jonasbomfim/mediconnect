@@ -76,6 +76,7 @@ const capitalize = (s: string) => {
 
 export default function ConsultasPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [originalAppointments, setOriginalAppointments] = useState<any[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showForm, setShowForm] = useState(false);
@@ -292,6 +293,7 @@ export default function ConsultasPage() {
         const mapped = await fetchAndMapAppointments();
         if (!mounted) return;
         setAppointments(mapped);
+        setOriginalAppointments(mapped || []);
         setIsLoading(false);
       } catch (err) {
         console.warn("[ConsultasPage] Falha ao carregar agendamentos, usando mocks", err);
@@ -304,73 +306,40 @@ export default function ConsultasPage() {
   }, []);
 
   // Search box: allow fetching a single appointment by ID when pressing Enter
-  const performSearch = async (val: string) => {
+  // Perform a local-only search against the already-loaded appointments.
+  // This intentionally does not call the server — it filters the cached list.
+  const performSearch = (val: string) => {
     const trimmed = String(val || '').trim();
-    if (!trimmed) return;
-    setIsLoading(true);
-    try {
-      const ap = await buscarAgendamentoPorId(trimmed, '*');
-      // resolve patient and doctor names if possible
-      let patient = ap.patient_id || '';
-      let professional = ap.doctor_id || '';
-      try {
-        if (ap.patient_id) {
-          const list = await buscarPacientesPorIds([ap.patient_id]);
-          if (list && list.length) patient = list[0].full_name || String(ap.patient_id);
-        }
-      } catch (e) {
-        // ignore
-      }
-      try {
-        if (ap.doctor_id) {
-          const list = await buscarMedicosPorIds([ap.doctor_id]);
-          if (list && list.length) professional = list[0].full_name || String(ap.doctor_id);
-        }
-      } catch (e) {}
-
-      const mappedSingle = [{
-        id: ap.id,
-        patient,
-        patient_id: ap.patient_id,
-        scheduled_at: ap.scheduled_at,
-        duration_minutes: ap.duration_minutes ?? null,
-        appointment_type: ap.appointment_type ?? null,
-        status: ap.status ?? 'requested',
-        professional,
-        notes: ap.notes ?? ap.patient_notes ?? '',
-        chief_complaint: ap.chief_complaint ?? null,
-        patient_notes: ap.patient_notes ?? null,
-        insurance_provider: ap.insurance_provider ?? null,
-        checked_in_at: ap.checked_in_at ?? null,
-        completed_at: ap.completed_at ?? null,
-        cancelled_at: ap.cancelled_at ?? null,
-        cancellation_reason: ap.cancellation_reason ?? null,
-      }];
-
-      setAppointments(mappedSingle as any[]);
-    } catch (err) {
-      console.warn('[ConsultasPage] buscarAgendamentoPorId falhou:', err);
-      alert('Agendamento não encontrado');
-    } finally {
-      setIsLoading(false);
+    if (!trimmed) {
+      setAppointments(originalAppointments || []);
+      return;
     }
+
+    const q = trimmed.toLowerCase();
+    const localMatches = (originalAppointments || []).filter((a) => {
+      const patient = String(a.patient || '').toLowerCase();
+      const professional = String(a.professional || '').toLowerCase();
+      const pid = String(a.patient_id || '').toLowerCase();
+      const aid = String(a.id || '').toLowerCase();
+      return (
+        patient.includes(q) ||
+        professional.includes(q) ||
+        pid === q ||
+        aid === q
+      );
+    });
+
+    setAppointments(localMatches as any[]);
   };
 
-  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      await performSearch(searchValue);
+      // keep behavior consistent: perform a local filter immediately
+      performSearch(searchValue);
     } else if (e.key === 'Escape') {
       setSearchValue('');
-      setIsLoading(true);
-      try {
-        const mapped = await fetchAndMapAppointments();
-        setAppointments(mapped);
-      } catch (err) {
-        setAppointments([]);
-      } finally {
-        setIsLoading(false);
-      }
+      setAppointments(originalAppointments || []);
     }
   };
 
@@ -378,14 +347,22 @@ export default function ConsultasPage() {
     setSearchValue('');
     setIsLoading(true);
     try {
-      const mapped = await fetchAndMapAppointments();
-      setAppointments(mapped);
+      // Reset to the original cached list without refetching from server
+      setAppointments(originalAppointments || []);
     } catch (err) {
       setAppointments([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Debounce live filtering as the user types. Operates only on the cached originalAppointments.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      performSearch(searchValue);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchValue, originalAppointments]);
 
   // Keep localForm synchronized with editingAppointment
   useEffect(() => {
@@ -451,26 +428,11 @@ export default function ConsultasPage() {
                 <Input
                   type="search"
                   placeholder="Buscar por..."
-                  className="pl-8 pr-4 w-full shadow-sm border border-border bg-transparent mr-2"
+                  className="pl-8 pr-4 w-full shadow-sm border border-border bg-transparent"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
                 />
-              </div>
-              <div className="flex-shrink-0 flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-3 rounded-md bg-muted/10 hover:bg-muted/20 border border-border shadow-sm"
-                  onClick={() => performSearch(searchValue)}
-                  aria-label="Buscar agendamento"
-                >
-                  <Search className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Buscar</span>
-                </Button>
-                <Button size="sm" variant="outline" className="h-8 px-3" onClick={handleClearSearch}>
-                  Limpar
-                </Button>
               </div>
             </div>
             <Select>

@@ -22,11 +22,13 @@ import {
   listarAnexosMedico,
   adicionarAnexoMedico,
   removerAnexoMedico,
+  removerFotoMedico,
   MedicoInput,
   Medico,
   criarUsuarioMedico,
   gerarSenhaAleatoria,
 } from "@/lib/api";
+import { getAvatarPublicUrl } from '@/lib/api';
 ;
 
 import { buscarCepAPI } from "@/lib/api";
@@ -150,6 +152,7 @@ export function DoctorRegistrationForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false, formacao: false, admin: false });
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isUploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
@@ -241,6 +244,22 @@ export function DoctorRegistrationForm({
           setServerAnexos(list ?? []);
         } catch (err) {
           console.error("[DoctorForm] Erro ao carregar anexos:", err);
+        }
+        // Try to detect existing public avatar (no file extension) and set preview
+        try {
+          const url = getAvatarPublicUrl(String(doctorId));
+          try {
+            const head = await fetch(url, { method: 'HEAD' });
+            if (head.ok) { setPhotoPreview(url); }
+            else {
+              const get = await fetch(url, { method: 'GET' });
+              if (get.ok) { setPhotoPreview(url); }
+            }
+          } catch (inner) {
+            // ignore network/CORS errors while detecting
+          }
+        } catch (detectErr) {
+          // ignore detection errors
         }
       } catch (err) {
         console.error("[DoctorForm] Erro ao carregar médico:", err);
@@ -345,6 +364,27 @@ function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
   return Object.keys(e).length === 0;
 }
 
+  async function handleRemoverFotoServidor() {
+    if (mode !== 'edit' || !doctorId) return;
+    try {
+      setUploadingPhoto(true);
+      await removerFotoMedico(String(doctorId));
+      setPhotoPreview(null);
+      alert('Foto removida com sucesso.');
+    } catch (e: any) {
+      console.warn('[DoctorForm] erro ao remover foto do servidor', e);
+      if (String(e?.message || '').includes('401')) {
+        alert('Falha ao remover a foto: não autenticado. Faça login novamente e tente novamente.\nDetalhe: ' + (e?.message || ''));
+      } else if (String(e?.message || '').includes('403')) {
+        alert('Falha ao remover a foto: sem permissão. Verifique as permissões do token e se o storage aceita esse usuário.\nDetalhe: ' + (e?.message || ''));
+      } else {
+        alert(e?.message || 'Não foi possível remover a foto do storage. Veja console para detalhes.');
+      }
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
 function toPayload(): MedicoInput {
   // Converte dd/MM/yyyy para ISO (yyyy-MM-dd) se possível
   let isoDate: string | null = null;
@@ -396,6 +436,18 @@ async function handleSubmit(ev: React.FormEvent) {
       if (!doctorId) throw new Error("ID do médico não fornecido para edição");
       const payload = toPayload();
       const saved = await atualizarMedico(String(doctorId), payload);
+        // If user selected a new photo, upload it
+        if (form.photo) {
+          try {
+            setUploadingPhoto(true);
+            await uploadFotoMedico(String(doctorId), form.photo);
+          } catch (upErr) {
+            console.warn('[DoctorForm] Falha ao enviar foto do médico:', upErr);
+            alert('Médico atualizado, mas falha ao enviar a foto. Tente novamente.');
+          } finally {
+            setUploadingPhoto(false);
+          }
+        }
       onSaved?.(saved);
       alert("Médico atualizado com sucesso!");
       if (inline) onClose?.();
@@ -457,6 +509,20 @@ async function handleSubmit(ev: React.FormEvent) {
           setForm(initial);
           setPhotoPreview(null);
           setServerAnexos([]);
+
+          // If a photo was selected during creation, upload it now
+          if (form.photo) {
+            try {
+              setUploadingPhoto(true);
+              const docId = (savedDoctorProfile && (savedDoctorProfile.id || (Array.isArray(savedDoctorProfile) ? savedDoctorProfile[0]?.id : undefined))) || null;
+              if (docId) await uploadFotoMedico(String(docId), form.photo);
+            } catch (upErr) {
+              console.warn('[DoctorForm] Falha ao enviar foto do médico após criação:', upErr);
+              alert('Médico criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.');
+            } finally {
+              setUploadingPhoto(false);
+            }
+          }
 
           // 5. Notifica componente pai
           onSaved?.(savedDoctorProfile);
@@ -582,6 +648,11 @@ async function handleSubmit(ev: React.FormEvent) {
                       </Button>
                     </Label>
                     <Input id="photo" type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+                    {mode === "edit" && (
+                      <Button type="button" variant="ghost" onClick={handleRemoverFotoServidor}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Remover foto
+                      </Button>
+                    )}
                     {errors.photo && <p className="text-sm text-destructive">{errors.photo}</p>}
                     <p className="text-xs text-muted-foreground">Máximo 5MB</p>
                   </div>

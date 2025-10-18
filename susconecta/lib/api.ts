@@ -599,9 +599,34 @@ export async function deletarExcecao(id: string): Promise<void> {
 
 
 
-// ===== CONFIG =====
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? ENV_CONFIG.SUPABASE_URL;
 const REST = `${API_BASE}/rest/v1`;
+
+
+const DEFAULT_AUTH_CALLBACK = 'https://mediconecta-app-liart.vercel.app/auth/callback';
+
+const DEFAULT_LANDING = 'https://mediconecta-app-liart.vercel.app';
+
+// Helper to build/normalize redirect URLs
+function buildRedirectUrl(target?: 'paciente' | 'medico' | 'admin' | 'default', explicit?: string, redirectBase?: string) {
+  const DEFAULT_REDIRECT_BASE = redirectBase ?? DEFAULT_LANDING;
+  if (explicit) {
+    
+    try {
+      const u = new URL(explicit);
+      return u.toString().replace(/\/$/, '');
+    } catch (e) {
+    }
+  }
+
+  const base = DEFAULT_REDIRECT_BASE.replace(/\/$/, '');
+  let path = '/';
+  if (target === 'paciente') path = '/paciente';
+  else if (target === 'medico') path = '/profissional';
+  else if (target === 'admin') path = '/dashboard';
+  return `${base}${path}`;
+}
 
 // Token salvo no browser (aceita auth_token ou token)
 function getAuthToken(): string | null {
@@ -671,21 +696,35 @@ async function fetchWithFallback<T = any>(url: string, headers: Record<string, s
 // Parse genérico
 async function parse<T>(res: Response): Promise<T> {
   let json: any = null;
+  let rawText = '';
   try {
+    // Attempt to parse JSON; many endpoints may return empty bodies (204/204) or plain text
+    // so guard against unexpected EOF during json parsing
     json = await res.json();
   } catch (err) {
-    console.error("Erro ao parsear a resposta como JSON:", err);
-  }
-
-  if (!res.ok) {
-    // Tenta também ler o body como texto cru para obter mensagens detalhadas
-    let rawText = '';
+    // Try to capture raw text for better diagnostics
     try {
       rawText = await res.clone().text();
     } catch (tErr) {
-      // ignore
+      rawText = '';
     }
-    console.error("[API ERROR]", res.url, res.status, json, "raw:", rawText);
+    if (rawText) {
+      console.warn('Resposta não-JSON recebida do servidor. raw text:', rawText);
+    } else {
+      console.warn('Resposta vazia ou inválida recebida do servidor; não foi possível parsear JSON:', err);
+    }
+  }
+
+  if (!res.ok) {
+    // If we didn't already collect rawText above, try to get it now for error messaging
+    if (!rawText) {
+      try {
+        rawText = await res.clone().text();
+      } catch (tErr) {
+        rawText = '';
+      }
+    }
+    console.error('[API ERROR]', res.url, res.status, json, 'raw:', rawText);
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message || json.error)) ?? res.statusText;
     
@@ -1081,17 +1120,17 @@ export async function excluirPaciente(id: string | number): Promise<void> {
  * Este endpoint usa a service role key e valida se o requisitante é administrador.
  */
 export async function assignRoleServerSide(userId: string, role: string): Promise<any> {
-  const url = `/api/assign-role`;
-  const token = getAuthToken();
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ user_id: userId, role }),
-  });
-  return await parse<any>(res);
+  // Atribuição de roles é uma operação privilegiada que requer a
+  // service_role key do Supabase (ou equivalente) e validação de permissões
+  // server-side. Não execute isso do cliente.
+  //
+  // Antes este helper chamava `/api/assign-role` (um proxy server-side).
+  // Agora que o projeto deve usar apenas o endpoint público seguro de
+  // criação de usuários (OpenAPI `/create-user`), a atribuição deve ocorrer
+  // dentro desse endpoint no backend. Portanto este helper foi descontinuado
+  // no cliente para evitar qualquer tentativa de realizar operação
+  // privilegiada no navegador.
+  throw new Error('assignRoleServerSide is not available in the client. Use the backend /create-user endpoint which performs role assignment server-side.');
 }
 // ===== PACIENTES (Extra: verificação de CPF duplicado) =====
 export async function verificarCpfDuplicado(cpf: string): Promise<boolean> {
@@ -1402,15 +1441,41 @@ export async function vincularUserIdMedico(medicoId: string | number, userId: st
  * Retorna o paciente atualizado.
  */
 export async function vincularUserIdPaciente(pacienteId: string | number, userId: string): Promise<Paciente> {
-  const url = `${REST}/patients?id=eq.${encodeURIComponent(String(pacienteId))}`;
+  // Validate pacienteId looks like a UUID (basic check) or at least a non-empty string/number
+  const idStr = String(pacienteId || '').trim();
+  if (!idStr) throw new Error('ID do paciente inválido ao tentar vincular user_id.');
+
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  const looksLikeUuid = uuidRegex.test(idStr);
+  // Allow non-UUID ids (legacy) but log a debug warning when it's not UUID
+  if (!looksLikeUuid) console.warn('[vincularUserIdPaciente] pacienteId does not look like a UUID:', idStr);
+
+  const url = `${REST}/patients?id=eq.${encodeURIComponent(idStr)}`;
   const payload = { user_id: String(userId) };
+
+  // Debug-friendly masked headers
+  const headers = withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation');
+  const maskedHeaders = { ...headers } as Record<string, string>;
+  if (maskedHeaders.Authorization) {
+    const a = maskedHeaders.Authorization as string;
+    maskedHeaders.Authorization = a.slice(0,6) + '...' + a.slice(-6);
+  }
+  console.debug('[vincularUserIdPaciente] PATCH', url, 'payload:', { ...payload }, 'headers(masked):', maskedHeaders);
+
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    headers,
     body: JSON.stringify(payload),
   });
-  const arr = await parse<Paciente[] | Paciente>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+
+  // If parse throws, the existing parse() will log response details; ensure we also surface helpful context
+  try {
+    const arr = await parse<Paciente[] | Paciente>(res);
+    return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+  } catch (err) {
+    console.error('[vincularUserIdPaciente] erro ao vincular:', { pacienteId: idStr, userId, url });
+    throw err;
+  }
 }
 
 
@@ -1587,6 +1652,13 @@ export type CreateUserInput = {
   full_name: string;
   phone?: string | null;
   role: UserRoleEnum;
+  // Optional: when provided, backend can use this to send magic links that redirect
+  // to the given URL or interpret `target` to build a role-specific redirect.
+  emailRedirectTo?: string;
+  // Compatibility: some integrations expect `redirect_url` as the parameter name
+  // for the post-auth redirect. Include it so backend/functions receive it.
+  redirect_url?: string;
+  target?: 'paciente' | 'medico' | 'admin' | 'default';
 };
 
 export type CreatedUser = {
@@ -1618,26 +1690,56 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
-  // When running in the browser, call our Next.js proxy to avoid CORS/preflight
-  // issues that some Edge Functions may have. On server-side, call the function
-  // directly.
-  if (typeof window !== 'undefined') {
-    const proxyUrl = '/api/create-user'
-    const res = await fetch(proxyUrl, {
+  // Prefer calling the Functions path first in environments where /create-user
+  // is not mapped at the API root (this avoids expected 404 noise). Keep the
+  // root /create-user as a fallback for deployments that expose it.
+  const functionsUrl = `${API_BASE}/functions/v1/create-user`;
+  const url = `${API_BASE}/create-user`;
+
+  let res: Response | null = null;
+  try {
+    res = await fetch(functionsUrl, {
       method: 'POST',
       headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
-    })
-    return await parse<CreateUserResponse>(res as Response)
+    });
+  } catch (err: any) {
+    console.error('[criarUsuario] fetch error for', functionsUrl, err);
+    // Attempt root /create-user fallback when functions path can't be reached
+    try {
+      console.warn('[criarUsuario] tentando fallback para', url);
+      const res2 = await fetch(url, {
+        method: 'POST',
+        headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      return await parse<CreateUserResponse>(res2 as Response);
+    } catch (err2: any) {
+      console.error('[criarUsuario] fallback /create-user also failed', err2);
+      throw new Error(
+        'Falha ao contatar o endpoint /functions/v1/create-user e o fallback /create-user também falhou. Verifique disponibilidade e CORS. Detalhes: ' +
+          (err?.message ?? String(err)) + ' | fallback: ' + (err2?.message ?? String(err2))
+      );
+    }
   }
 
-  const url = `${API_BASE}/functions/v1/create-user`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { ...baseHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  return await parse<CreateUserResponse>(res);
+  // If we got a response but it's 404 (route not found), try the root path too
+  if (res && !res.ok && res.status === 404) {
+    try {
+      console.warn('[criarUsuario] /functions/v1/create-user returned 404; trying root path', url);
+      const res2 = await fetch(url, {
+        method: 'POST',
+        headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      return await parse<CreateUserResponse>(res2 as Response);
+    } catch (err2: any) {
+      console.error('[criarUsuario] fallback /create-user failed after 404', err2);
+      // Fall through to parse original response to provide friendly error
+    }
+  }
+
+  return await parse<CreateUserResponse>(res as Response);
 }
 
 // ===== ALTERNATIVA: Criar usuário diretamente via Supabase Auth =====
@@ -1689,14 +1791,22 @@ export async function criarUsuarioDirectAuth(input: {
     }
     
     const responseData = await response.json();
-    const userId = responseData.user?.id || responseData.id;
-    
-  console.log('[DIRECT AUTH] Usuário criado:', userId);
-    
+    // Try several common locations for the returned user id depending on Supabase configuration
+    const userId = responseData?.user?.id || responseData?.id || responseData?.data?.user?.id || responseData?.data?.id;
+
+    // If no user id was returned, treat this as a failure. Some Supabase setups (e.g. magic link / invite)
+    // may not return the user id immediately. In that case we cannot safely link the profile to a user.
+    if (!userId) {
+      console.warn('[DIRECT AUTH] signup response did not include a user id; response:', responseData);
+      throw new Error('Signup did not return a user id (provider may be configured for magic links or pending confirmation). Fallback cannot determine created user id.');
+    }
+
+    console.log('[DIRECT AUTH] Usuário criado:', userId);
+
     // NOTE: Role assignments MUST be done by the backend (Edge Function or server)
     // when creating the user. The frontend should NOT attempt to assign roles.
     // The backend should use the service role key to insert into user_roles table.
-    
+
     return {
       success: true,
       user: {
@@ -1723,93 +1833,72 @@ export async function criarUsuarioDirectAuth(input: {
 
 // Criar usuário para MÉDICO no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioMedico(medico: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  // Prefer server-side creation (new OpenAPI create-user) so roles are assigned
-  // correctly (and magic link is sent). Fallback to direct Supabase signup if
-  // the server function is unavailable.
-  try {
-    const res = await criarUsuario({ email: medico.email, password: '', full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any });
-    return res;
-  } catch (err) {
-    console.warn('[CRIAR MÉDICO] Falha no endpoint server-side create-user, tentando fallback direto no Supabase Auth:', err);
-    // Fallback: create directly in Supabase Auth (old behavior)
-  }
-
-  // --- Fallback to previous direct signup ---
-  const senha = gerarSenhaAleatoria();
-  const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-  const payload = {
-    email: medico.email,
-    password: senha,
-    data: {
-      userType: 'profissional',
-      full_name: medico.full_name,
-      phone: medico.phone_mobile,
-    }
-  };
-
-  const response = await fetch(signupUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMsg = `Erro ao criar usuário (${response.status})`;
-    try { const errorData = JSON.parse(errorText); errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg; } catch {}
-    throw new Error(errorMsg);
-  }
-
-  const responseData = await response.json();
-  return { success: true, user: responseData.user || responseData, email: medico.email, password: senha };
+  const redirectBase = DEFAULT_LANDING;
+  const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/profissional`;
+  // Use the role-specific landing as the redirect_url so the magic link
+  // redirects users directly to the app path (e.g. /profissional).
+  const redirect_url = emailRedirectTo;
+  // generate a secure-ish random password on the client so the caller can receive it
+  const password = gerarSenhaAleatoria();
+  const resp = await criarUsuario({ email: medico.email, password, full_name: medico.full_name, phone: medico.phone_mobile, role: 'medico' as any, emailRedirectTo, redirect_url, target: 'medico' });
+  // Return backend response plus the generated password so the UI can show/save it
+  return { ...(resp as any), password };
 }
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  // Prefer server-side creation (OpenAPI create-user) to assign role 'paciente'.
+  const redirectBase = DEFAULT_LANDING;
+  const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/paciente`;
+  // Use the role-specific landing as the redirect_url so the magic link
+  // redirects users directly to the app path (e.g. /paciente).
+  const redirect_url = emailRedirectTo;
+  // generate a secure-ish random password on the client so the caller can receive it
+  const password = gerarSenhaAleatoria();
+  const resp = await criarUsuario({ email: paciente.email, password, full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any, emailRedirectTo, redirect_url, target: 'paciente' });
+  // Return backend response plus the generated password so the UI can show/save it
+  return { ...(resp as any), password };
+}
+
+
+export async function sendMagicLink(
+  email: string,
+  options?: { emailRedirectTo?: string; target?: 'paciente' | 'medico' | 'admin' | 'default'; redirectBase?: string }
+): Promise<{ success: boolean; message?: string }> {
+  if (!email) throw new Error('Email obrigatório para enviar magic link');
+  const url = `${API_BASE}/auth/v1/otp`;
+  const payload: any = { email };
+
+  const redirectUrl = buildRedirectUrl(options?.target, options?.emailRedirectTo, options?.redirectBase);
+  if (redirectUrl) {
+    // include both keys for broader compatibility across different Supabase setups
+    payload.options = { emailRedirectTo: redirectUrl, redirect_to: redirectUrl, redirect_url: redirectUrl };
+  }
+
   try {
-    const res = await criarUsuario({ email: paciente.email, password: '', full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any });
-    return res;
-  } catch (err) {
-    console.warn('[CRIAR PACIENTE] Falha no endpoint server-side create-user, tentando fallback direto no Supabase Auth:', err);
-  }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
 
-  // Fallback to previous direct signup behavior
-  const senha = gerarSenhaAleatoria();
-  const signupUrl = `${ENV_CONFIG.SUPABASE_URL}/auth/v1/signup`;
-  const payload = {
-    email: paciente.email,
-    password: senha,
-    data: {
-      userType: 'paciente',
-      full_name: paciente.full_name,
-      phone: paciente.phone_mobile,
+    const text = await res.text();
+    let json: any = null;
+    try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+
+    if (!res.ok) {
+      const msg = (json && (json.error || json.msg || json.message)) ?? text ?? res.statusText;
+      throw new Error(String(msg));
     }
-  };
 
-  const response = await fetch(signupUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "apikey": ENV_CONFIG.SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMsg = `Erro ao criar usuário (${response.status})`;
-    try { const errorData = JSON.parse(errorText); errorMsg = errorData.msg || errorData.message || errorData.error_description || errorMsg; } catch {}
-    throw new Error(errorMsg);
+    return { success: true, message: (json && (json.message || json.msg)) ?? 'Magic link enviado. Verifique seu email.' };
+  } catch (err: any) {
+    console.error('[sendMagicLink] erro ao enviar magic link', err);
+    throw new Error(err?.message ?? 'Falha ao enviar magic link');
   }
-
-  const responseData = await response.json();
-  return { success: true, user: responseData.user || responseData, email: paciente.email, password: senha };
 }
 
 // ===== CEP (usado nos formulários) =====
@@ -1841,13 +1930,135 @@ export async function buscarCepAPI(cep: string): Promise<{
 export async function listarAnexos(_id: string | number): Promise<any[]> { return []; }
 export async function adicionarAnexo(_id: string | number, _file: File): Promise<any> { return {}; }
 export async function removerAnexo(_id: string | number, _anexoId: string | number): Promise<void> {}
-export async function uploadFotoPaciente(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> { return {}; }
-export async function removerFotoPaciente(_id: string | number): Promise<void> {}
+/**
+ * Envia uma foto de avatar do paciente ao Supabase Storage.
+ * - Valida tipo (jpeg/png/webp) e tamanho (<= 2MB)
+ * - Faz POST multipart/form-data para /storage/v1/object/avatars/{userId}/avatar
+ * - Retorna o objeto { Key } quando upload for bem-sucedido
+ */
+export async function uploadFotoPaciente(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string; Key?: string }> {
+  const userId = String(_id);
+  if (!userId) throw new Error('ID do paciente é obrigatório para upload de foto');
+  if (!_file) throw new Error('Arquivo ausente');
+
+  // validações de formato e tamanho
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(_file.type)) {
+    throw new Error('Formato inválido. Aceitamos JPG, PNG ou WebP.');
+  }
+  const maxBytes = 2 * 1024 * 1024; // 2MB
+  if (_file.size > maxBytes) {
+    throw new Error('Arquivo muito grande. Máx 2MB.');
+  }
+
+  const extMap: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  };
+  const ext = extMap[_file.type] || 'jpg';
+
+  const objectPath = `avatars/${userId}/avatar.${ext}`;
+  const uploadUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/avatars/${encodeURIComponent(userId)}/avatar`;
+
+  // Build multipart form data
+  const form = new FormData();
+  form.append('file', _file, `avatar.${ext}`);
+
+  const headers: Record<string, string> = {
+    // Supabase requires the anon key in 'apikey' header for client-side uploads
+    apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+    // Accept json
+    Accept: 'application/json',
+  };
+  // if user is logged in, include Authorization header
+  const jwt = getAuthToken();
+  if (jwt) headers.Authorization = `Bearer ${jwt}`;
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers,
+    body: form as any,
+  });
+
+  // Supabase storage returns 200/201 with object info or error
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    console.error('[uploadFotoPaciente] upload falhou', { status: res.status, raw });
+    if (res.status === 401) throw new Error('Não autenticado');
+    if (res.status === 403) throw new Error('Sem permissão para fazer upload');
+    throw new Error('Falha no upload da imagem');
+  }
+
+  // Try to parse JSON response
+  let json: any = null;
+  try { json = await res.json(); } catch { json = null; }
+
+  // The API may not return a structured body; return the Key we constructed
+  const key = (json && (json.Key || json.key)) ?? objectPath;
+  const publicUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/public/${encodeURIComponent('avatars')}/${encodeURIComponent(userId)}/avatar.${ext}`;
+  return { foto_url: publicUrl, Key: key };
+}
+
+/**
+ * Retorna a URL pública do avatar do usuário (acesso público)
+ * Path conforme OpenAPI: /storage/v1/object/public/avatars/{userId}/avatar.{ext}
+ * @param userId - ID do usuário (UUID)
+ * @param ext - extensão do arquivo: 'jpg' | 'png' | 'webp' (default 'jpg')
+ */
+export function getAvatarPublicUrl(userId: string | number): string {
+  // Build the public avatar URL without file extension.
+  // Example: https://<project>.supabase.co/storage/v1/object/public/avatars/{userId}/avatar
+  const id = String(userId || '').trim();
+  if (!id) throw new Error('userId é obrigatório para obter URL pública do avatar');
+  const base = String(ENV_CONFIG.SUPABASE_URL).replace(/\/$/, '');
+  // Note: Supabase public object path does not require an extension in some setups
+  return `${base}/storage/v1/object/public/${encodeURIComponent('avatars')}/${encodeURIComponent(id)}/avatar`;
+}
+
+export async function removerFotoPaciente(_id: string | number): Promise<void> {
+  const userId = String(_id || '').trim();
+  if (!userId) throw new Error('ID do paciente é obrigatório para remover foto');
+  const deleteUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/avatars/${encodeURIComponent(userId)}/avatar`;
+  const headers: Record<string,string> = {
+    apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+    Accept: 'application/json',
+  };
+  const jwt = getAuthToken();
+  if (jwt) headers.Authorization = `Bearer ${jwt}`;
+
+  try {
+    console.debug('[removerFotoPaciente] Deleting avatar for user:', userId, 'url:', deleteUrl);
+    const res = await fetch(deleteUrl, { method: 'DELETE', headers });
+    if (!res.ok) {
+      const raw = await res.text().catch(() => '');
+      console.warn('[removerFotoPaciente] remoção falhou', { status: res.status, raw });
+      // Treat 404 as success (object already absent)
+      if (res.status === 404) return;
+      // Include status and server body in the error message to aid debugging
+      const bodySnippet = raw && raw.length > 0 ? raw : '<sem corpo na resposta>';
+      if (res.status === 401) throw new Error(`Não autenticado (401). Resposta: ${bodySnippet}`);
+      if (res.status === 403) throw new Error(`Sem permissão para remover a foto (403). Resposta: ${bodySnippet}`);
+      throw new Error(`Falha ao remover a foto do storage (status ${res.status}). Resposta: ${bodySnippet}`);
+    }
+    // success
+    return;
+  } catch (err) {
+    // bubble up for the caller to handle
+    throw err;
+  }
+}
 export async function listarAnexosMedico(_id: string | number): Promise<any[]> { return []; }
 export async function adicionarAnexoMedico(_id: string | number, _file: File): Promise<any> { return {}; }
 export async function removerAnexoMedico(_id: string | number, _anexoId: string | number): Promise<void> {}
-export async function uploadFotoMedico(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string }> { return {}; }
-export async function removerFotoMedico(_id: string | number): Promise<void> {}
+export async function uploadFotoMedico(_id: string | number, _file: File): Promise<{ foto_url?: string; thumbnail_url?: string; Key?: string }> {
+  // reuse same implementation as paciente but place under avatars/{userId}/avatar
+  return await uploadFotoPaciente(_id, _file);
+}
+export async function removerFotoMedico(_id: string | number): Promise<void> {
+  // reuse samme implementation
+  return await removerFotoPaciente(_id);
+}
 
 // ===== PERFIS DE USUÁRIOS =====
 export async function listarPerfis(params?: { page?: number; limit?: number; q?: string; }): Promise<Profile[]> {

@@ -73,17 +73,26 @@ class HttpClient {
     }
 
     const data = await response.json()
-    
+
+    // Data pode ser um LoginResponse completo ou apenas { access_token }
+    const newAccessToken = data.access_token || data.token || null
+    const newRefreshToken = data.refresh_token || null
+
+    if (!newAccessToken) {
+      console.error('[HTTP] Refresh não retornou access_token', data)
+      throw new Error('Refresh did not return access_token')
+    }
+
     // Atualizar tokens de forma atômica
-    localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, data.access_token)
-    if (data.refresh_token) {
-      localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, data.refresh_token)
+    localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, newAccessToken)
+    if (newRefreshToken) {
+      localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken)
     }
 
     console.log('[HTTP] Token renovado com sucesso!', {
       timestamp: new Date().toLocaleTimeString()
     })
-    return data.access_token
+    return newAccessToken
   }
 
   /**

@@ -1,7 +1,6 @@
 import type { 
   LoginRequest, 
   LoginResponse, 
-  RefreshTokenResponse, 
   AuthError,
   UserData 
 } from '@/types/auth';
@@ -67,11 +66,16 @@ async function processResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorMessage = data?.message || data?.error || response.statusText || 'Erro na autenticação';
     const errorCode = data?.code || String(response.status);
-    
+
+    // Log raw text as well to help debug cases where JSON is empty or {}
+    let rawText = '';
+    try { rawText = await response.clone().text(); } catch (_) { rawText = '<unable to read raw text>'; }
+
     console.error('[AUTH ERROR]', {
       url: response.url,
       status: response.status,
       data,
+      rawText,
     });
 
     throw new AuthenticationError(errorMessage, errorCode, data);
@@ -89,66 +93,48 @@ export async function loginUser(
   password: string, 
   userType: 'profissional' | 'paciente' | 'administrador'
 ): Promise<LoginResponse> {
-  let url = AUTH_ENDPOINTS.LOGIN;
-  
-  const payload = {
-    email,
-    password,
-  };
-
-  console.log('[AUTH-API] Iniciando login...', { 
-    email, 
-    userType, 
-    url,
-    payload,
-    timestamp: new Date().toLocaleTimeString() 
-  });
-  
-  console.log('🔑 [AUTH-API] Credenciais sendo usadas no login:');
-  console.log('📧 Email:', email);
-  console.log('🔐 Senha:', password);
-  console.log('👤 UserType:', userType);
-
-  // Delay para visualizar na aba Network
-  await new Promise(resolve => setTimeout(resolve, 50));
-
   try {
-    console.log('[AUTH-API] Enviando requisição de login...');
-    
-    // Debug: Log request sem credenciais sensíveis
-    debugRequest('POST', url, getLoginHeaders(), payload);
-    
-    const response = await fetch(url, {
+  // Use the canonical Supabase token endpoint for password grant as configured in ENV_CONFIG.
+  const url = AUTH_ENDPOINTS.LOGIN;
+
+  const payload = { email, password };
+
+  console.log('[AUTH-API] Iniciando login (using AUTH_ENDPOINTS.LOGIN)...', {
+    email,
+    userType,
+    url,
+    timestamp: new Date().toLocaleTimeString()
+  });
+
+  // Do not log passwords. Log only non-sensitive info.
+  debugRequest('POST', url, getLoginHeaders(), { email });
+
+  // Perform single, explicit request to the configured token endpoint.
+  let response: Response;
+  try {
+    response = await fetch(url, {
       method: 'POST',
       headers: getLoginHeaders(),
       body: JSON.stringify(payload),
     });
+  } catch (networkError) {
+    console.error('[AUTH-API] Network error when calling', url, networkError);
+    throw new AuthenticationError('Não foi possível contatar o serviço de autenticação', 'AUTH_NETWORK_ERROR', networkError);
+  }
 
-    console.log(`[AUTH-API] Login response: ${response.status} ${response.statusText}`, {
-      url: response.url,
-      status: response.status,
-      timestamp: new Date().toLocaleTimeString()
-    });
+  console.log(`[AUTH-API] Login response: ${response.status} ${response.statusText}`, {
+    url: response.url,
+    status: response.status,
+    timestamp: new Date().toLocaleTimeString()
+  });
 
-    // Se falhar, mostrar detalhes do erro
-    if (!response.ok) {
-      try {
-        const errorText = await response.text();
-        console.error('[AUTH-API] Erro detalhado:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText,
-          headers: Object.fromEntries(response.headers.entries())
-        });
-      } catch (e) {
-        console.error('[AUTH-API] Não foi possível ler erro da resposta');
-      }
-    }
+  // If endpoint is missing, make the error explicit
+  if (response.status === 404) {
+    console.error('[AUTH-API] Final response was 404 (Not Found) for', url);
+    throw new AuthenticationError('Signin endpoint not found (404) at configured AUTH_ENDPOINTS.LOGIN', 'SIGNIN_NOT_FOUND', { url });
+  }
 
-    // Delay adicional para ver status code
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    const data = await processResponse<any>(response);
+  const data = await processResponse<any>(response);
     
     console.log('[AUTH] Dados recebidos da API:', data);
     
@@ -256,10 +242,10 @@ export async function logoutUser(token: string): Promise<void> {
 /**
  * Serviço para renovar token JWT
  */
-export async function refreshAuthToken(refreshToken: string): Promise<RefreshTokenResponse> {
+export async function refreshAuthToken(refreshToken: string): Promise<LoginResponse> {
   const url = AUTH_ENDPOINTS.REFRESH;
 
-  console.log('[AUTH] Renovando token');
+  console.log('[AUTH] Renovando token via REFRESH endpoint');
 
   try {
     const response = await fetch(url, {
@@ -272,22 +258,43 @@ export async function refreshAuthToken(refreshToken: string): Promise<RefreshTok
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
-    const data = await processResponse<RefreshTokenResponse>(response);
-    
-    console.log('[AUTH] Token renovado com sucesso');
-    return data;
+    const data = await processResponse<any>(response);
+
+    console.log('[AUTH] Dados recebidos no refresh:', data);
+
+    if (!data || !data.access_token) {
+      console.error('[AUTH] Refresh não retornou access_token:', data);
+      throw new AuthenticationError('Refresh não retornou access_token', 'NO_TOKEN_RECEIVED', data);
+    }
+
+    // Adaptar para o mesmo formato usado no login
+    const adapted: LoginResponse = {
+      access_token: data.access_token || data.token,
+      refresh_token: data.refresh_token || null,
+      token_type: data.token_type || 'Bearer',
+      expires_in: data.expires_in || 3600,
+      user: {
+        id: data.user?.id || data.id || '',
+        email: data.user?.email || data.email || '',
+        name: data.user?.name || data.name || '',
+        userType: (data.user?.userType as any) || 'paciente',
+        profile: data.user?.profile || data.profile || {}
+      }
+    };
+
+    console.log('[AUTH] Token renovado com sucesso (adapted)', {
+      tokenSnippet: adapted.access_token?.substring(0, 20) + '...'
+    });
+
+    return adapted;
   } catch (error) {
     console.error('[AUTH] Erro ao renovar token:', error);
-    
+
     if (error instanceof AuthenticationError) {
       throw error;
     }
-    
-    throw new AuthenticationError(
-      'Não foi possível renovar a sessão',
-      'REFRESH_ERROR',
-      error
-    );
+
+    throw new AuthenticationError('Não foi possível renovar a sessão', 'REFRESH_ERROR', error);
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 import HeaderAgenda from "@/components/agenda/HeaderAgenda";
 import FooterAgenda from "@/components/agenda/FooterAgenda";
@@ -10,6 +10,8 @@ import { toast } from '@/hooks/use-toast';
 
 interface FormData {
   patientName?: string;
+  patientId?: string;
+  doctorId?: string;
   cpf?: string;
   rg?: string;
   birthDate?: string;
@@ -28,10 +30,15 @@ interface FormData {
   requestingProfessional?: string;
   appointmentType?: string;
   notes?: string;
+  duration_minutes?: number;
+  chief_complaint?: string | null;
+  patient_notes?: string | null;
+  insurance_provider?: string | null;
 }
 
 export default function NovoAgendamentoPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<FormData>({});
 
   const handleFormChange = (data: FormData) => {
@@ -69,6 +76,16 @@ export default function NovoAgendamentoPage() {
   };
 
   const handleCancel = () => {
+    // If origin was provided (eg: consultas), return there. Default to calendar.
+    try {
+      const origin = searchParams?.get?.('origin');
+      if (origin === 'consultas') {
+        router.push('/consultas');
+        return;
+      }
+    } catch (e) {
+      // fallback
+    }
     router.push("/calendar");
   };
 
@@ -77,8 +94,8 @@ export default function NovoAgendamentoPage() {
       <HeaderAgenda />
       <main className="flex-1 mx-auto w-full max-w-7xl px-8 py-8">
     <CalendarRegistrationForm 
-      formData={formData} 
-      onFormChange={handleFormChange} 
+      formData={formData as any} 
+      onFormChange={handleFormChange as any} 
       createMode
     />
       </main>

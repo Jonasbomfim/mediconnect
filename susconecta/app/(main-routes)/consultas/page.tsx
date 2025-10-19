@@ -423,7 +423,8 @@ export default function ConsultasPage() {
           <p className="text-muted-foreground">Visualize, filtre e gerencie todas as consultas da clínica.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/agenda">
+          {/* Pass origin so the Agenda page can return to Consultas when cancelling */}
+          <Link href="/agenda?origin=consultas">
             <Button size="sm" className="h-8 gap-1 bg-blue-600">
               <PlusCircle className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Agendar Nova Consulta</span>

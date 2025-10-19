@@ -724,13 +724,32 @@ async function parse<T>(res: Response): Promise<T> {
         rawText = '';
       }
     }
-    console.error('[API ERROR]', res.url, res.status, json, 'raw:', rawText);
+
     const code = (json && (json.error?.code || json.code)) ?? res.status;
     const msg = (json && (json.error?.message || json.message || json.error)) ?? res.statusText;
-    
+
+    // Special-case authentication/authorization errors to reduce noisy logs
+    if (res.status === 401) {
+      // If the server returned an empty body, avoid dumping raw text to console.error
+      if (!rawText && !json) {
+        console.warn('[API AUTH] 401 Unauthorized for', res.url, '- no auth token or token expired.');
+      } else {
+        console.warn('[API AUTH] 401 Unauthorized for', res.url, 'response:', json ?? rawText);
+      }
+      throw new Error('Você não está autenticado. Faça login novamente.');
+    }
+
+    if (res.status === 403) {
+      console.warn('[API AUTH] 403 Forbidden for', res.url, (json ?? rawText) ? 'response: ' + (json ?? rawText) : '');
+      throw new Error('Você não tem permissão para executar esta ação.');
+    }
+
+    // For other errors, log a concise error and try to produce a friendly message
+    console.error('[API ERROR]', res.url, res.status, json ? json : 'no-json', rawText ? 'raw body present' : 'no raw body');
+
     // Mensagens amigáveis para erros comuns
     let friendlyMessage = msg;
-    
+
     // Erros de criação de usuário
     if (res.url?.includes('create-user')) {
       if (msg?.includes('Failed to assign user role')) {
@@ -741,28 +760,24 @@ async function parse<T>(res: Response): Promise<T> {
         friendlyMessage = 'Tipo de acesso inválido.';
       } else if (msg?.includes('Missing required fields')) {
         friendlyMessage = 'Campos obrigatórios não preenchidos.';
-      } else if (res.status === 401) {
-        friendlyMessage = 'Você não está autenticado. Faça login novamente.';
-      } else if (res.status === 403) {
-        friendlyMessage = 'Você não tem permissão para criar usuários.';
       } else if (res.status === 500) {
         friendlyMessage = 'Erro no servidor ao criar usuário. Entre em contato com o suporte.';
       }
     }
     // Erro de CPF duplicado
-    else if (code === '23505' && msg.includes('patients_cpf_key')) {
+    else if (code === '23505' && msg && msg.includes('patients_cpf_key')) {
       friendlyMessage = 'Já existe um paciente cadastrado com este CPF. Por favor, verifique se o paciente já está registrado no sistema ou use um CPF diferente.';
     }
     // Erro de email duplicado (paciente)
-    else if (code === '23505' && msg.includes('patients_email_key')) {
+    else if (code === '23505' && msg && msg.includes('patients_email_key')) {
       friendlyMessage = 'Já existe um paciente cadastrado com este email. Por favor, use um email diferente.';
     }
     // Erro de CRM duplicado (médico)
-    else if (code === '23505' && msg.includes('doctors_crm')) {
+    else if (code === '23505' && msg && msg.includes('doctors_crm')) {
       friendlyMessage = 'Já existe um médico cadastrado com este CRM. Por favor, verifique se o médico já está registrado no sistema.';
     }
     // Erro de email duplicado (médico)
-    else if (code === '23505' && msg.includes('doctors_email_key')) {
+    else if (code === '23505' && msg && msg.includes('doctors_email_key')) {
       friendlyMessage = 'Já existe um médico cadastrado com este email. Por favor, use um email diferente.';
     }
     // Outros erros de constraint unique
@@ -778,7 +793,7 @@ async function parse<T>(res: Response): Promise<T> {
         friendlyMessage = 'Registro referenciado em outra tabela. Remova referências dependentes antes de tentar novamente.';
       }
     }
-    
+
     throw new Error(friendlyMessage);
   }
 
@@ -944,6 +959,236 @@ export type Report = {
   created_by?: string;
 };
 
+// ===== AGENDAMENTOS =====
+export type Appointment = {
+  id: string;
+  order_number?: string | null;
+  patient_id?: string | null;
+  doctor_id?: string | null;
+  scheduled_at?: string | null;
+  duration_minutes?: number | null;
+  appointment_type?: string | null;
+  status?: string | null;
+  chief_complaint?: string | null;
+  patient_notes?: string | null;
+  notes?: string | null;
+  insurance_provider?: string | null;
+  checked_in_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancellation_reason?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+};
+
+// Payload to create an appointment
+export type AppointmentCreate = {
+  patient_id: string;
+  doctor_id: string;
+  scheduled_at: string; // ISO date-time
+  duration_minutes?: number;
+  appointment_type?: 'presencial' | 'telemedicina' | string;
+  chief_complaint?: string | null;
+  patient_notes?: string | null;
+  insurance_provider?: string | null;
+};
+
+/**
+ * Chama a Function `/functions/v1/get-available-slots` para obter os slots disponíveis de um médico
+ */
+export async function getAvailableSlots(input: { doctor_id: string; start_date: string; end_date: string; appointment_type?: string }): Promise<{ slots: Array<{ datetime: string; available: boolean }> }> {
+  if (!input || !input.doctor_id || !input.start_date || !input.end_date) {
+    throw new Error('Parâmetros inválidos. É necessário doctor_id, start_date e end_date.');
+  }
+
+  const url = `${API_BASE}/functions/v1/get-available-slots`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doctor_id: input.doctor_id, start_date: input.start_date, end_date: input.end_date, appointment_type: input.appointment_type ?? 'presencial' }),
+    });
+
+    // Do not short-circuit; let parse() produce friendly errors
+    const parsed = await parse<{ slots: Array<{ datetime: string; available: boolean }> }>(res);
+    // Ensure consistent return shape
+    if (!parsed || !Array.isArray((parsed as any).slots)) return { slots: [] };
+    return parsed as { slots: Array<{ datetime: string; available: boolean }> };
+  } catch (err) {
+    console.error('[getAvailableSlots] erro ao buscar horários disponíveis', err);
+    throw err;
+  }
+}
+
+/**
+ * Cria um agendamento (POST /rest/v1/appointments) verificando disponibilidade previamente
+ */
+export async function criarAgendamento(input: AppointmentCreate): Promise<Appointment> {
+  if (!input || !input.patient_id || !input.doctor_id || !input.scheduled_at) {
+    throw new Error('Parâmetros inválidos para criar agendamento. patient_id, doctor_id e scheduled_at são obrigatórios.');
+  }
+
+  // Normalize scheduled_at to ISO
+  const scheduledDate = new Date(input.scheduled_at);
+  if (isNaN(scheduledDate.getTime())) throw new Error('scheduled_at inválido');
+
+  // Build day range for availability check (start of day to end of day of scheduled date)
+  const startDay = new Date(scheduledDate);
+  startDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(scheduledDate);
+  endDay.setHours(23, 59, 59, 999);
+
+  // Query availability
+  const av = await getAvailableSlots({ doctor_id: input.doctor_id, start_date: startDay.toISOString(), end_date: endDay.toISOString(), appointment_type: input.appointment_type });
+  const scheduledMs = scheduledDate.getTime();
+
+  const matching = (av.slots || []).find((s) => {
+    try {
+      const dt = new Date(s.datetime).getTime();
+      // allow small tolerance (<= 60s) to account for formatting/timezone differences
+      return s.available && Math.abs(dt - scheduledMs) <= 60_000;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  if (!matching) {
+    throw new Error('Horário não disponível para o médico no horário solicitado. Verifique a disponibilidade antes de agendar.');
+  }
+
+  // Determine created_by similar to other creators (prefer localStorage then user-info)
+  let createdBy: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        createdBy = parsed?.id ?? parsed?.user?.id ?? null;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (!createdBy) {
+    try {
+      const info = await getUserInfo();
+      createdBy = info?.user?.id ?? null;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  const payload: any = {
+    patient_id: input.patient_id,
+    doctor_id: input.doctor_id,
+    scheduled_at: new Date(scheduledDate).toISOString(),
+    duration_minutes: input.duration_minutes ?? 30,
+    appointment_type: input.appointment_type ?? 'presencial',
+    chief_complaint: input.chief_complaint ?? null,
+    patient_notes: input.patient_notes ?? null,
+    insurance_provider: input.insurance_provider ?? null,
+  };
+  if (createdBy) payload.created_by = createdBy;
+
+  const url = `${REST}/appointments`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(payload),
+  });
+
+  const created = await parse<Appointment>(res);
+  return created;
+}
+
+// Payload for updating an appointment (PATCH /rest/v1/appointments/{id})
+export type AppointmentUpdate = Partial<{
+  scheduled_at: string;
+  duration_minutes: number;
+  status: 'requested' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | string;
+  chief_complaint: string | null;
+  notes: string | null;
+  patient_notes: string | null;
+  insurance_provider: string | null;
+  checked_in_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+}>;
+
+/**
+ * Atualiza um agendamento existente (PATCH /rest/v1/appointments?id=eq.<id>)
+ */
+export async function atualizarAgendamento(id: string | number, input: AppointmentUpdate): Promise<Appointment> {
+  if (!id) throw new Error('ID do agendamento é obrigatório');
+  const url = `${REST}/appointments?id=eq.${encodeURIComponent(String(id))}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(input),
+  });
+  const arr = await parse<Appointment[] | Appointment>(res);
+  return Array.isArray(arr) ? arr[0] : (arr as Appointment);
+}
+
+/**
+ * Lista agendamentos via REST (GET /rest/v1/appointments)
+ * Aceita query string completa (ex: `?select=*&limit=100&order=scheduled_at.desc`)
+ */
+export async function listarAgendamentos(query?: string): Promise<Appointment[]> {
+  const qs = query && String(query).trim() ? (String(query).startsWith('?') ? query : `?${query}`) : '';
+  const url = `${REST}/appointments${qs}`;
+  const headers = baseHeaders();
+  // If there is no auth token, avoid calling the endpoint which requires auth and return friendly error
+  const jwt = getAuthToken();
+  if (!jwt) {
+    throw new Error('Não autenticado. Faça login para listar agendamentos.');
+  }
+  const res = await fetch(url, { method: 'GET', headers });
+  if (!res.ok && res.status === 401) {
+    throw new Error('Não autenticado. Token ausente ou expirado. Faça login novamente.');
+  }
+  return await parse<Appointment[]>(res);
+}
+
+/**
+ * Buscar agendamento por ID (GET /rest/v1/appointments?id=eq.<id>)
+ * Retorna o primeiro agendamento encontrado ou lança erro 404.
+ */
+export async function buscarAgendamentoPorId(id: string | number, select: string = '*'): Promise<Appointment> {
+  const sId = String(id || '').trim();
+  if (!sId) throw new Error('ID é obrigatório para buscar agendamento');
+  const params = new URLSearchParams();
+  if (select) params.set('select', select);
+  params.set('limit', '1');
+  const url = `${REST}/appointments?id=eq.${encodeURIComponent(sId)}&${params.toString()}`;
+  const headers = baseHeaders();
+  const arr = await fetchWithFallback<Appointment[]>(url, headers);
+  if (arr && arr.length) return arr[0];
+  throw new Error('404: Agendamento não encontrado');
+}
+
+/**
+ * Deleta um agendamento por ID (DELETE /rest/v1/appointments?id=eq.<id>)
+ */
+export async function deletarAgendamento(id: string | number): Promise<void> {
+  if (!id) throw new Error('ID do agendamento é obrigatório');
+  const url = `${REST}/appointments?id=eq.${encodeURIComponent(String(id))}`;
+  // Request minimal return to get a 204 No Content when the delete succeeds.
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
+  });
+
+  if (res.status === 204) return;
+  // Some deployments may return 200 with a representation — accept that too
+  if (res.status === 200) return;
+  // Otherwise surface a friendly error using parse()
+  await parse(res as Response);
+}
+
 /**
  * Buscar relatório por ID (tenta múltiplas estratégias: id, order_number, patient_id)
  * Retorna o primeiro relatório encontrado ou lança erro 404 quando não achar.
@@ -1051,6 +1296,36 @@ export async function buscarPacientesPorIds(ids: Array<string | number>): Promis
     }
   }
   return unique;
+}
+
+/**
+ * Busca pacientes atribuídos a um médico (usando o user_id do médico para consultar patient_assignments)
+ * - Primeiro busca o médico para obter o campo user_id
+ * - Consulta a tabela patient_assignments para obter patient_id vinculados ao user_id
+ * - Retorna os pacientes via buscarPacientesPorIds
+ */
+export async function buscarPacientesPorMedico(doctorId: string): Promise<Paciente[]> {
+  if (!doctorId) return [];
+  try {
+    // buscar médico para obter user_id
+    const medico = await buscarMedicoPorId(doctorId).catch(() => null);
+    const userId = medico?.user_id ?? medico?.created_by ?? null;
+    if (!userId) {
+      // se não houver user_id, não há uma forma confiável de mapear atribuições
+      return [];
+    }
+
+    // buscar atribuições para esse user_id
+    const url = `${REST}/patient_assignments?user_id=eq.${encodeURIComponent(String(userId))}&select=patient_id`;
+    const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+    const rows = await parse<Array<{ patient_id?: string }>>(res).catch(() => []);
+    const ids = (rows || []).map((r) => r.patient_id).filter(Boolean) as string[];
+    if (!ids.length) return [];
+    return await buscarPacientesPorIds(ids);
+  } catch (err) {
+    console.warn('[buscarPacientesPorMedico] falha ao obter pacientes do médico', doctorId, err);
+    return [];
+  }
 }
 
 export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
@@ -1638,11 +1913,23 @@ export async function getCurrentUser(): Promise<CurrentUser> {
 }
 
 export async function getUserInfo(): Promise<UserInfo> {
+  const jwt = getAuthToken();
+  if (!jwt) {
+    // No token available — avoid calling the protected function and throw a friendly error
+    throw new Error('Você não está autenticado. Faça login para acessar informações do usuário.');
+  }
+
   const url = `${API_BASE}/functions/v1/user-info`;
   const res = await fetch(url, {
     method: "GET",
     headers: baseHeaders(),
   });
+
+  // Avoid calling parse() for auth errors to prevent noisy console dumps
+  if (!res.ok && res.status === 401) {
+    throw new Error('Você não está autenticado. Faça login novamente.');
+  }
+
   return await parse<UserInfo>(res);
 }
 

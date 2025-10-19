@@ -4,7 +4,7 @@ import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
-import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
@@ -239,36 +239,127 @@ const ProfissionalPage = () => {
 
   
   
-  const [events, setEvents] = useState<any[]>([
-    
-    {
-      id: 1,
-      title: "Ana Souza",
-      type: "Cardiologia",
-      time: "09:00",
-      date: new Date().toISOString().split('T')[0], 
-      pacienteId: "123.456.789-00",
-      color: colorsByType.Cardiologia
-    },
-    {
-      id: 2,
-      title: "Bruno Lima",
-      type: "Cardiologia",
-      time: "10:30",
-      date: new Date().toISOString().split('T')[0], 
-      pacienteId: "987.654.321-00",
-      color: colorsByType.Cardiologia
-    },
-    {
-      id: 3,
-      title: "Carla Menezes",
-      type: "Dermatologia",
-      time: "14:00",
-      date: new Date().toISOString().split('T')[0], 
-      pacienteId: "111.222.333-44",
-      color: colorsByType.Dermatologia
-    }
-  ]);
+  const [events, setEvents] = useState<any[]>([]);
+  // Load real appointments for the logged in doctor and map to calendar events
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        // If we already have a doctorId (set earlier), use it. Otherwise try to resolve from the logged user
+        let docId = doctorId;
+        if (!docId && user && user.email) {
+          // buscarMedicos may return the doctor's record including id
+          try {
+            const docs = await buscarMedicos(user.email).catch(() => []);
+            if (Array.isArray(docs) && docs.length > 0) {
+              const chosen = docs.find(d => String((d as any).user_id) === String(user.id)) || docs[0];
+              docId = (chosen as any)?.id ?? null;
+              if (mounted && !doctorId) setDoctorId(docId);
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (!docId) {
+          // nothing to fetch yet
+          return;
+        }
+
+        // Fetch appointments for this doctor. We'll ask for future and recent past appointments
+        // using a simple filter: doctor_id=eq.<docId>&order=scheduled_at.asc&limit=200
+        const qs = `?select=*&doctor_id=eq.${encodeURIComponent(String(docId))}&order=scheduled_at.asc&limit=200`;
+        const appts = await listarAgendamentos(qs).catch(() => []);
+
+        if (!mounted) return;
+
+        // Enrich appointments with patient names (batch fetch) and map to UI events
+        const patientIds = Array.from(new Set((appts || []).map((x:any) => String(x.patient_id || x.patient_id_raw || '').trim()).filter(Boolean)));
+        let patientMap = new Map<string, any>();
+        if (patientIds.length) {
+          try {
+            const patients = await buscarPacientesPorIds(patientIds).catch(() => []);
+            for (const p of patients || []) {
+              if (p && p.id) patientMap.set(String(p.id), p);
+            }
+          } catch (e) {
+            console.warn('[ProfissionalPage] falha ao buscar pacientes para eventos:', e);
+          }
+        }
+
+        const mapped = (appts || []).map((a: any, idx: number) => {
+          const scheduled = a.scheduled_at || a.time || a.created_at || null;
+          // Use local date components to avoid UTC shift when showing the appointment day/time
+          let datePart = new Date().toISOString().split('T')[0];
+          let timePart = '';
+          if (scheduled) {
+            try {
+              const d = new Date(scheduled);
+              // build local date string YYYY-MM-DD using local getters
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              datePart = `${y}-${m}-${day}`;
+              timePart = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          const pid = a.patient_id || a.patient || a.patient_id_raw || a.patientId || null;
+          const patientObj = pid ? patientMap.get(String(pid)) : null;
+          const patientName = patientObj?.full_name || a.patient || a.patient_name || String(pid) || 'Paciente';
+          const patientIdVal = pid || null;
+
+          return {
+            id: a.id ?? `srv-${idx}-${String(a.scheduled_at || a.created_at || idx)}`,
+            title: patientName || 'Paciente',
+            type: a.appointment_type || 'Consulta',
+            time: timePart || '',
+            date: datePart,
+            pacienteId: patientIdVal,
+            color: colorsByType[a.specialty as keyof typeof colorsByType] || '#4dabf7',
+            raw: a,
+          };
+        });
+
+        setEvents(mapped);
+
+        // Helper: parse 'YYYY-MM-DD' into a local Date to avoid UTC parsing which can shift day
+        const parseYMDToLocal = (ymd?: string) => {
+          if (!ymd || typeof ymd !== 'string') return new Date();
+          const parts = ymd.split('-').map((p) => Number(p));
+          if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return new Date(ymd);
+          const [y, m, d] = parts;
+          return new Date(y, (m || 1) - 1, d || 1);
+        };
+
+        // Set calendar view to nearest upcoming appointment (or today)
+        try {
+          const now = Date.now();
+          const upcoming = mapped.find((m:any) => {
+            if (!m.raw) return false;
+            const s = m.raw.scheduled_at || m.raw.time || m.raw.created_at;
+            if (!s) return false;
+            const t = new Date(s).getTime();
+            return !isNaN(t) && t >= now;
+          });
+          if (upcoming) {
+            setCurrentCalendarDate(parseYMDToLocal(upcoming.date));
+          } else if (mapped.length) {
+            // fallback: show the date of the first appointment
+            setCurrentCalendarDate(parseYMDToLocal(mapped[0].date));
+          }
+        } catch (e) {
+          // ignore
+        }
+      } catch (err) {
+        console.warn('[ProfissionalPage] falha ao carregar agendamentos do servidor:', err);
+        // Keep mocked/empty events if fetch fails
+      }
+    })();
+    return () => { mounted = false; };
+  }, [doctorId, user?.id, user?.email]);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);

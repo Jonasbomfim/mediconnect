@@ -200,7 +200,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             'apikey': ENV_CONFIG.SUPABASE_ANON_KEY,
           }
         })
-
         if (infoRes.ok) {
           const info = await infoRes.json().catch(() => null)
           const roles: string[] = Array.isArray(info?.roles) ? info.roles : (info?.roles ? [info.roles] : [])
@@ -218,6 +217,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             response.user.userType = derived
             console.log('[AUTH] userType reconciled from roles ->', derived)
           }
+        } else if (infoRes.status === 401 || infoRes.status === 403) {
+          // Authentication/permission issue: don't spam the console with raw response
+          console.warn('[AUTH] user-info returned', infoRes.status, '- skipping role reconciliation');
         } else {
           console.warn('[AUTH] Falha ao obter user-info para reconciliar roles:', infoRes.status)
         }

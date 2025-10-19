@@ -11,10 +11,7 @@ import { EventInput } from "@fullcalendar/core/index.js";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { PagesHeader } from "@/components/dashboard/header";
 import { Button } from "@/components/ui/button";
-import {
-  mockAppointments,
-  mockWaitingList,
-} from "@/lib/mocks/appointment-mocks";
+import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
 import Link from "next/link";
 import {
@@ -30,7 +27,7 @@ const ListaEspera = dynamic(
 );
 
 export default function AgendamentoPage() {
-  const [appointments, setAppointments] = useState(mockAppointments);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [waitingList, setWaitingList] = useState(mockWaitingList);
   const [activeTab, setActiveTab] = useState<"calendar" | "espera">("calendar");
   const [requestsList, setRequestsList] = useState<EventInput[]>();
@@ -47,23 +44,51 @@ export default function AgendamentoPage() {
   }, []);
 
   useEffect(() => {
-    let events: EventInput[] = [];
-    appointments.forEach((obj) => {
-      const event: EventInput = {
-        title: `${obj.patient}: ${obj.type}`,
-        start: new Date(obj.time),
-        end: new Date(new Date(obj.time).getTime() + obj.duration * 60 * 1000),
-        color:
-          obj.status === "confirmed"
-            ? "#68d68a"
-            : obj.status === "pending"
-            ? "#ffe55f"
-            : "#ff5f5fff",
-      };
-      events.push(event);
-    });
-    setRequestsList(events);
-  }, [appointments]);
+    // Fetch real appointments and map to calendar events
+    let mounted = true;
+    (async () => {
+      try {
+        // listarAgendamentos accepts a query string; request a reasonable limit and order
+        const arr = await (await import('@/lib/api')).listarAgendamentos('select=*&order=scheduled_at.desc&limit=500').catch(() => []);
+        if (!mounted) return;
+        if (!arr || !arr.length) {
+          setAppointments([]);
+          setRequestsList([]);
+          return;
+        }
+
+        // Batch-fetch patient names for display
+        const patientIds = Array.from(new Set(arr.map((a: any) => a.patient_id).filter(Boolean)));
+        const patients = (patientIds && patientIds.length) ? await (await import('@/lib/api')).buscarPacientesPorIds(patientIds) : [];
+        const patientsById: Record<string, any> = {};
+        (patients || []).forEach((p: any) => { if (p && p.id) patientsById[String(p.id)] = p; });
+
+        setAppointments(arr || []);
+
+        const events: EventInput[] = (arr || []).map((obj: any) => {
+          const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
+          const start = scheduled ? new Date(scheduled) : null;
+          const duration = Number(obj.duration_minutes ?? obj.duration ?? 30) || 30;
+          const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
+          const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
+          const color = obj.status === 'confirmed' ? '#68d68a' : obj.status === 'pending' ? '#ffe55f' : '#ff5f5fff';
+          return {
+            title,
+            start: start || new Date(),
+            end: start ? new Date(start.getTime() + duration * 60 * 1000) : undefined,
+            color,
+            extendedProps: { raw: obj },
+          } as EventInput;
+        });
+        setRequestsList(events || []);
+      } catch (err) {
+        console.warn('[AgendamentoPage] falha ao carregar agendamentos', err);
+        setAppointments([]);
+        setRequestsList([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   // mantive para caso a lógica de salvar consulta passe a funcionar
   const handleSaveAppointment = (appointment: any) => {

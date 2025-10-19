@@ -5,6 +5,8 @@ import { CalendarRegistrationForm } from "@/components/forms/calendar-registrati
 import HeaderAgenda from "@/components/agenda/HeaderAgenda";
 import FooterAgenda from "@/components/agenda/FooterAgenda";
 import { useState } from "react";
+import { criarAgendamento } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
 
 interface FormData {
   patientName?: string;
@@ -37,9 +39,33 @@ export default function NovoAgendamentoPage() {
   };
 
   const handleSave = () => {
-    console.log("Salvando novo agendamento...", formData);
-    alert("Novo agendamento salvo (simulado)!");
-    router.push("/consultas"); 
+    (async () => {
+      try {
+        // basic validation
+        if (!formData.patientId && !(formData as any).patient_id) throw new Error('Patient ID é obrigatório');
+        if (!formData.doctorId && !(formData as any).doctor_id) throw new Error('Doctor ID é obrigatório');
+        if (!formData.appointmentDate) throw new Error('Data é obrigatória');
+        if (!formData.startTime) throw new Error('Horário de início é obrigatório');
+
+        const payload: any = {
+          patient_id: formData.patientId || (formData as any).patient_id,
+          doctor_id: formData.doctorId || (formData as any).doctor_id,
+          scheduled_at: new Date(`${formData.appointmentDate}T${formData.startTime}`).toISOString(),
+          duration_minutes: formData.duration_minutes ?? 30,
+          appointment_type: formData.appointmentType ?? 'presencial',
+          chief_complaint: formData.chief_complaint ?? null,
+          patient_notes: formData.patient_notes ?? null,
+          insurance_provider: formData.insurance_provider ?? null,
+        };
+
+        await criarAgendamento(payload);
+        // success
+  try { toast({ title: 'Agendamento criado', description: 'O agendamento foi criado com sucesso.' }); } catch {}
+        router.push('/consultas');
+      } catch (err: any) {
+        alert(err?.message ?? String(err));
+      }
+    })();
   };
 
   const handleCancel = () => {
@@ -50,10 +76,11 @@ export default function NovoAgendamentoPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <HeaderAgenda />
       <main className="flex-1 mx-auto w-full max-w-7xl px-8 py-8">
-        <CalendarRegistrationForm 
-            formData={formData} 
-            onFormChange={handleFormChange} 
-        />
+    <CalendarRegistrationForm 
+      formData={formData} 
+      onFormChange={handleFormChange} 
+      createMode
+    />
       </main>
       <FooterAgenda onSave={handleSave} onCancel={handleCancel} />
     </div>

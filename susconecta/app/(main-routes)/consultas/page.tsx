@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   MoreHorizontal,
   PlusCircle,
@@ -409,7 +409,7 @@ export default function ConsultasPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link href="/agenda">
-            <Button size="sm" className="h-8 gap-1">
+            <Button size="sm" className="h-8 gap-1 bg-blue-600">
               <PlusCircle className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Agendar Nova Consulta</span>
             </Button>

@@ -983,6 +983,126 @@ export type Appointment = {
   updated_by?: string | null;
 };
 
+// Payload to create an appointment
+export type AppointmentCreate = {
+  patient_id: string;
+  doctor_id: string;
+  scheduled_at: string; // ISO date-time
+  duration_minutes?: number;
+  appointment_type?: 'presencial' | 'telemedicina' | string;
+  chief_complaint?: string | null;
+  patient_notes?: string | null;
+  insurance_provider?: string | null;
+};
+
+/**
+ * Chama a Function `/functions/v1/get-available-slots` para obter os slots disponíveis de um médico
+ */
+export async function getAvailableSlots(input: { doctor_id: string; start_date: string; end_date: string; appointment_type?: string }): Promise<{ slots: Array<{ datetime: string; available: boolean }> }> {
+  if (!input || !input.doctor_id || !input.start_date || !input.end_date) {
+    throw new Error('Parâmetros inválidos. É necessário doctor_id, start_date e end_date.');
+  }
+
+  const url = `${API_BASE}/functions/v1/get-available-slots`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doctor_id: input.doctor_id, start_date: input.start_date, end_date: input.end_date, appointment_type: input.appointment_type ?? 'presencial' }),
+    });
+
+    // Do not short-circuit; let parse() produce friendly errors
+    const parsed = await parse<{ slots: Array<{ datetime: string; available: boolean }> }>(res);
+    // Ensure consistent return shape
+    if (!parsed || !Array.isArray((parsed as any).slots)) return { slots: [] };
+    return parsed as { slots: Array<{ datetime: string; available: boolean }> };
+  } catch (err) {
+    console.error('[getAvailableSlots] erro ao buscar horários disponíveis', err);
+    throw err;
+  }
+}
+
+/**
+ * Cria um agendamento (POST /rest/v1/appointments) verificando disponibilidade previamente
+ */
+export async function criarAgendamento(input: AppointmentCreate): Promise<Appointment> {
+  if (!input || !input.patient_id || !input.doctor_id || !input.scheduled_at) {
+    throw new Error('Parâmetros inválidos para criar agendamento. patient_id, doctor_id e scheduled_at são obrigatórios.');
+  }
+
+  // Normalize scheduled_at to ISO
+  const scheduledDate = new Date(input.scheduled_at);
+  if (isNaN(scheduledDate.getTime())) throw new Error('scheduled_at inválido');
+
+  // Build day range for availability check (start of day to end of day of scheduled date)
+  const startDay = new Date(scheduledDate);
+  startDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(scheduledDate);
+  endDay.setHours(23, 59, 59, 999);
+
+  // Query availability
+  const av = await getAvailableSlots({ doctor_id: input.doctor_id, start_date: startDay.toISOString(), end_date: endDay.toISOString(), appointment_type: input.appointment_type });
+  const scheduledMs = scheduledDate.getTime();
+
+  const matching = (av.slots || []).find((s) => {
+    try {
+      const dt = new Date(s.datetime).getTime();
+      // allow small tolerance (<= 60s) to account for formatting/timezone differences
+      return s.available && Math.abs(dt - scheduledMs) <= 60_000;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  if (!matching) {
+    throw new Error('Horário não disponível para o médico no horário solicitado. Verifique a disponibilidade antes de agendar.');
+  }
+
+  // Determine created_by similar to other creators (prefer localStorage then user-info)
+  let createdBy: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        createdBy = parsed?.id ?? parsed?.user?.id ?? null;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (!createdBy) {
+    try {
+      const info = await getUserInfo();
+      createdBy = info?.user?.id ?? null;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  const payload: any = {
+    patient_id: input.patient_id,
+    doctor_id: input.doctor_id,
+    scheduled_at: new Date(scheduledDate).toISOString(),
+    duration_minutes: input.duration_minutes ?? 30,
+    appointment_type: input.appointment_type ?? 'presencial',
+    chief_complaint: input.chief_complaint ?? null,
+    patient_notes: input.patient_notes ?? null,
+    insurance_provider: input.insurance_provider ?? null,
+  };
+  if (createdBy) payload.created_by = createdBy;
+
+  const url = `${REST}/appointments`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(payload),
+  });
+
+  const created = await parse<Appointment>(res);
+  return created;
+}
+
 // Payload for updating an appointment (PATCH /rest/v1/appointments/{id})
 export type AppointmentUpdate = Partial<{
   scheduled_at: string;
@@ -1157,6 +1277,36 @@ export async function buscarPacientesPorIds(ids: Array<string | number>): Promis
     }
   }
   return unique;
+}
+
+/**
+ * Busca pacientes atribuídos a um médico (usando o user_id do médico para consultar patient_assignments)
+ * - Primeiro busca o médico para obter o campo user_id
+ * - Consulta a tabela patient_assignments para obter patient_id vinculados ao user_id
+ * - Retorna os pacientes via buscarPacientesPorIds
+ */
+export async function buscarPacientesPorMedico(doctorId: string): Promise<Paciente[]> {
+  if (!doctorId) return [];
+  try {
+    // buscar médico para obter user_id
+    const medico = await buscarMedicoPorId(doctorId).catch(() => null);
+    const userId = medico?.user_id ?? medico?.created_by ?? null;
+    if (!userId) {
+      // se não houver user_id, não há uma forma confiável de mapear atribuições
+      return [];
+    }
+
+    // buscar atribuições para esse user_id
+    const url = `${REST}/patient_assignments?user_id=eq.${encodeURIComponent(String(userId))}&select=patient_id`;
+    const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
+    const rows = await parse<Array<{ patient_id?: string }>>(res).catch(() => []);
+    const ids = (rows || []).map((r) => r.patient_id).filter(Boolean) as string[];
+    if (!ids.length) return [];
+    return await buscarPacientesPorIds(ids);
+  } catch (err) {
+    console.warn('[buscarPacientesPorMedico] falha ao obter pacientes do médico', doctorId, err);
+    return [];
+  }
 }
 
 export async function criarPaciente(input: PacienteInput): Promise<Paciente> {

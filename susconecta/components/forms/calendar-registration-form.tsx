@@ -74,8 +74,9 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [loadingAssignedDoctors, setLoadingAssignedDoctors] = useState(false);
   const [loadingPatientsForDoctor, setLoadingPatientsForDoctor] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState<Array<{ datetime: string; available: boolean }>>([]);
+  const [availableSlots, setAvailableSlots] = useState<Array<{ datetime: string; available: boolean; slot_minutes?: number }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [lockedDurationFromSlot, setLockedDurationFromSlot] = useState(false);
 
   // Helpers to convert between ISO (server) and input[type=datetime-local] value
   const isoToDatetimeLocal = (iso?: string | null) => {
@@ -271,7 +272,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     let mounted = true;
     setLoadingSlots(true);
     (async () => {
-      try {
+    try {
         console.debug('[CalendarRegistrationForm] getAvailableSlots - params', { docId, date, appointmentType: formData.appointmentType });
   console.debug('[CalendarRegistrationForm] doctorOptions count', (doctorOptions || []).length, 'selectedDoctorId', docId, 'doctorOptions sample', (doctorOptions || []).slice(0,3));
         // Build start/end as local day bounds from YYYY-MM-DD to avoid
@@ -310,7 +311,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
 
         // Try to restrict the returned slots to the doctor's public availability windows
         try {
-          const disponibilidades = await listarDisponibilidades({ doctorId: String(docId) }).catch(() => []);
+        const disponibilidades = await listarDisponibilidades({ doctorId: String(docId) }).catch(() => []);
           const weekdayNumber = start.getDay(); // 0 (Sun) .. 6 (Sat)
           // map weekday number to possible representations (numeric, en, pt, abbrev)
           const weekdayNames: Record<number, string[]> = {
@@ -327,7 +328,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
           // Filter disponibilidades to those matching the weekday (try multiple fields)
           const matched = (disponibilidades || []).filter((d: any) => {
             try {
-              const raw = String(d.weekday ?? d.weekday_name ?? d.day ?? d.day_of_week ?? '').toLowerCase();
+            const raw = String(d.weekday ?? d.weekday_name ?? d.day ?? d.day_of_week ?? '').toLowerCase();
               if (!raw) return false;
               // direct numeric or name match
               if (allowed.includes(raw)) return true;
@@ -352,11 +353,30 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
               const e2 = parseTime(d.end_time);
               const winStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), s.hh, s.mm, s.ss || 0, 0);
               const winEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), e2.hh, e2.mm, e2.ss || 0, 999);
-              return { winStart, winEnd };
+              const slotMinutes = Number(d.slot_minutes || d.slot_minutes_minutes || null) || null;
+              return { winStart, winEnd, slotMinutes };
             });
 
+            // If any disponibilidade declares slot_minutes, prefill duration_minutes on the form
+            try {
+              const candidate = windows.find((w: any) => w.slotMinutes && Number.isFinite(Number(w.slotMinutes)));
+              if (candidate) {
+                const durationVal = Number(candidate.slotMinutes);
+                // Only set if different to avoid unnecessary updates
+                if ((formData as any).duration_minutes !== durationVal) {
+                  onFormChange({ ...formData, duration_minutes: durationVal });
+                }
+                try { setLockedDurationFromSlot(true); } catch (e) {}
+              } else {
+                // no slot_minutes declared -> ensure unlocked
+                try { setLockedDurationFromSlot(false); } catch (e) {}
+              }
+            } catch (e) {
+              console.debug('[CalendarRegistrationForm] erro ao definir duração automática', e);
+            }
+
             // Keep backend slots that fall inside windows
-            const existingInWindow = (av.slots || []).filter((s: any) => {
+          const existingInWindow = (av.slots || []).filter((s: any) => {
               try {
                 const sd = new Date(s.datetime);
                 const slotMinutes = sd.getHours() * 60 + sd.getMinutes();
@@ -370,7 +390,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
               } catch (e) { return false; }
             });
 
-            // Determine step (minutes) from returned slots, fallback to 30
+            // Determine global step (minutes) from returned slots, fallback to 30
             let stepMinutes = 30;
             try {
               const times = (av.slots || []).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
@@ -386,18 +406,42 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
               // keep fallback
             }
 
-            // Generate slots from windows using stepMinutes, then merge with existingInWindow
+            // Generate missing slots per window respecting slot_minutes (if present).
             const generatedSet = new Set<string>();
             windows.forEach((w: any) => {
               try {
-                // Start at window start rounded to nearest step alignment
+                const perWindowStep = Number(w.slotMinutes) || stepMinutes;
                 const startMs = w.winStart.getTime();
                 const endMs = w.winEnd.getTime();
-                // We'll generate by advancing stepMinutes
-                let cursor = new Date(startMs);
-                while (cursor.getTime() <= endMs) {
-                  generatedSet.add(cursor.toISOString());
-                  cursor = new Date(cursor.getTime() + stepMinutes * 60000);
+                // compute last allowed slot start so that start + perWindowStep <= winEnd
+                const lastStartMs = endMs - perWindowStep * 60000;
+
+                // backend slots inside this window (ms)
+                const backendSlotsInWindow = (av.slots || []).filter((s: any) => {
+                  try {
+                    const sd = new Date(s.datetime);
+                    const sm = sd.getHours() * 60 + sd.getMinutes();
+                    const wmStart = w.winStart.getHours() * 60 + w.winStart.getMinutes();
+                    const wmEnd = w.winEnd.getHours() * 60 + w.winEnd.getMinutes();
+                    return sm >= wmStart && sm <= wmEnd;
+                  } catch (e) { return false; }
+                }).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
+
+                if (!backendSlotsInWindow.length) {
+                  // generate full window from winStart to lastStartMs
+                  let cursorMs = startMs;
+                  while (cursorMs <= lastStartMs) {
+                    generatedSet.add(new Date(cursorMs).toISOString());
+                    cursorMs += perWindowStep * 60000;
+                  }
+                } else {
+                  // generate after last backend slot up to lastStartMs
+                  const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1];
+                  let cursorMs = lastBackendMs + perWindowStep * 60000;
+                  while (cursorMs <= lastStartMs) {
+                    generatedSet.add(new Date(cursorMs).toISOString());
+                    cursorMs += perWindowStep * 60000;
+                  }
                 }
               } catch (e) {
                 // skip malformed window
@@ -405,10 +449,32 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
             });
 
             // Merge existingInWindow (prefer backend objects) with generated ones
-            const mergedMap = new Map<string, { datetime: string; available: boolean }>();
-            (existingInWindow || []).forEach((s: any) => mergedMap.set(s.datetime, s));
+            const mergedMap = new Map<string, { datetime: string; available: boolean; slot_minutes?: number }>();
+            // helper to find window slotMinutes for a given ISO datetime
+            const findWindowSlotMinutes = (isoDt: string) => {
+              try {
+                const sd = new Date(isoDt);
+                const sm = sd.getHours() * 60 + sd.getMinutes();
+                const w = windows.find((win: any) => {
+                  const ws = win.winStart;
+                  const we = win.winEnd;
+                  const winStartMinutes = ws.getHours() * 60 + ws.getMinutes();
+                  const winEndMinutes = we.getHours() * 60 + we.getMinutes();
+                  return sm >= winStartMinutes && sm <= winEndMinutes;
+                });
+                return w && w.slotMinutes ? Number(w.slotMinutes) : null;
+              } catch (e) { return null; }
+            };
+
+            (existingInWindow || []).forEach((s: any) => {
+              const sm = findWindowSlotMinutes(s.datetime);
+              mergedMap.set(s.datetime, sm ? { ...s, slot_minutes: sm } : { ...s });
+            });
             Array.from(generatedSet).forEach((dt) => {
-              if (!mergedMap.has(dt)) mergedMap.set(dt, { datetime: dt, available: true });
+              if (!mergedMap.has(dt)) {
+                const sm = findWindowSlotMinutes(dt) || stepMinutes;
+                mergedMap.set(dt, { datetime: dt, available: true, slot_minutes: sm });
+              }
             });
 
             const merged = Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
@@ -661,7 +727,15 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                 const hh = String(dt.getHours()).padStart(2, '0');
                                 const mm = String(dt.getMinutes()).padStart(2, '0');
                                 const dateOnly = dt.toISOString().split('T')[0];
-                                onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}` });
+                                // set duration from slot if available
+                                const sel = (availableSlots || []).find((s) => s.datetime === value) as any;
+                                const slotMinutes = sel && sel.slot_minutes ? Number(sel.slot_minutes) : null;
+                                if (slotMinutes) {
+                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: slotMinutes });
+                                  try { setLockedDurationFromSlot(true); } catch (e) {}
+                                } else {
+                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}` });
+                                }
                               } catch (e) {
                                 // noop
                               }
@@ -715,10 +789,16 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                               type="button"
                               className={`h-10 rounded-md border ${formData.startTime === `${hh}:${mm}` ? 'bg-blue-600 text-white' : 'bg-background'}`}
                               onClick={() => {
-                                // when selecting a slot, set appointmentDate (if missing) and startTime
+                                // when selecting a slot, set appointmentDate (if missing) and startTime and duration
                                 const isoDate = dt.toISOString();
                                 const dateOnly = isoDate.split('T')[0];
-                                onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}` });
+                                const slotMinutes = s.slot_minutes || null;
+                                if (slotMinutes) {
+                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: Number(slotMinutes) });
+                                  try { setLockedDurationFromSlot(true); } catch (e) {}
+                                } else {
+                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}` });
+                                }
                               }}
                             >
                               {label}
@@ -757,7 +837,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                   </div>
                                   <div>
                                     <Label className="text-[13px]">Duração (min)</Label>
-                                    <Input name="duration_minutes" type="number" min={1} className="h-11 w-full rounded-md" value={formData.duration_minutes ?? ''} onChange={handleChange} />
+                                      <Input name="duration_minutes" type="number" min={1} className="h-11 w-full rounded-md" value={formData.duration_minutes ?? ''} onChange={handleChange} readOnly={lockedDurationFromSlot} disabled={lockedDurationFromSlot} />
                                   </div>
                                   <div>
                                     <Label className="text-[13px]">Convênio</Label>

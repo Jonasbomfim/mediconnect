@@ -1171,6 +1171,25 @@ export async function buscarAgendamentoPorId(id: string | number, select: string
 }
 
 /**
+ * Deleta um agendamento por ID (DELETE /rest/v1/appointments?id=eq.<id>)
+ */
+export async function deletarAgendamento(id: string | number): Promise<void> {
+  if (!id) throw new Error('ID do agendamento é obrigatório');
+  const url = `${REST}/appointments?id=eq.${encodeURIComponent(String(id))}`;
+  // Request minimal return to get a 204 No Content when the delete succeeds.
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
+  });
+
+  if (res.status === 204) return;
+  // Some deployments may return 200 with a representation — accept that too
+  if (res.status === 200) return;
+  // Otherwise surface a friendly error using parse()
+  await parse(res as Response);
+}
+
+/**
  * Buscar relatório por ID (tenta múltiplas estratégias: id, order_number, patient_id)
  * Retorna o primeiro relatório encontrado ou lança erro 404 quando não achar.
  */

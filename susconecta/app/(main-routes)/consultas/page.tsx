@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/select";
 
 import { mockProfessionals } from "@/lib/mocks/appointment-mocks";
-import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento, buscarAgendamentoPorId } from "@/lib/api";
+import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento, buscarAgendamentoPorId, deletarAgendamento } from "@/lib/api";
 import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 
 const formatDate = (date: string | Date) => {
@@ -127,9 +127,24 @@ export default function ConsultasPage() {
     };
   };
 
-  const handleDelete = (appointmentId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta consulta?")) {
+  const handleDelete = async (appointmentId: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta consulta?")) return;
+    try {
+      // call server DELETE
+      await deletarAgendamento(appointmentId);
+      // remove from UI
       setAppointments((prev) => prev.filter((a) => a.id !== appointmentId));
+      // also update originalAppointments cache
+      setOriginalAppointments((prev) => (prev || []).filter((a) => a.id !== appointmentId));
+      alert('Agendamento excluído com sucesso.');
+    } catch (err) {
+      console.error('[ConsultasPage] Falha ao excluir agendamento', err);
+      try {
+        const msg = err instanceof Error ? err.message : String(err);
+        alert('Falha ao excluir agendamento: ' + msg);
+      } catch (e) {
+        // ignore
+      }
     }
   };
 

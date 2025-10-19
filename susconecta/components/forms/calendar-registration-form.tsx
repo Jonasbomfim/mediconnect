@@ -864,8 +864,25 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                   <Label className="text-[13px]">Tipo de atendimento *</Label>
                 </div>
                 <div className="relative mt-1">
-                  <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input name="appointmentType" placeholder="Pesquisar" className="h-11 w-full rounded-md pl-8 pr-8 text-[13px] transition-colors hover:bg-muted/30" value={formData.appointmentType || ''} onChange={handleChange} disabled />
+                  {/* Non-searchable select with allowed values only */}
+                  <Select
+                    value={(formData as any).appointmentType || (formData as any).appointment_type || ''}
+                    onValueChange={(value) => {
+                      try {
+                        const newData: any = { ...formData, appointmentType: value };
+                        newData.appointment_type = value;
+                        onFormChange(newData);
+                      } catch (e) {}
+                    }}
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-md pl-3 text-[13px]">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="presencial">Presencial</SelectItem>
+                      <SelectItem value="telemedicina">Telemedicina</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                                 <div className="grid grid-cols-3 gap-3 mt-3">
                                   <div>

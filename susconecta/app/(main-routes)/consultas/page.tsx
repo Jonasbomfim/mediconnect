@@ -508,7 +508,7 @@ export default function ConsultasPage() {
                           {capitalize(appointment.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(appointment.time)}</TableCell>
+                      <TableCell>{formatDate(appointment.scheduled_at ?? appointment.time)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -560,7 +560,7 @@ export default function ConsultasPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Data e Hora</Label>
-                <span className="col-span-3">{viewingAppointment?.time ? formatDate(viewingAppointment.time) : ''}</span>
+                <span className="col-span-3">{(viewingAppointment?.scheduled_at ?? viewingAppointment?.time) ? formatDate(viewingAppointment?.scheduled_at ?? viewingAppointment?.time) : ''}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Status</Label>

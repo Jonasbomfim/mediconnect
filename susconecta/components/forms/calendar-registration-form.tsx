@@ -766,7 +766,53 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                     </div>
                     <div className="space-y-2">
                         <Label className="text-[13px]">Término *</Label>
-                        <Input name="endTime" type="time" className="h-11 w-full rounded-md px-3 text-[13px] transition-colors hover:bg-muted/30" value={formData.endTime || ''} onChange={handleChange} />
+                        {/*
+                          When creating a new appointment from a predefined slot, the end time
+                          is derived from the slot's start + duration and therefore cannot be
+                          edited. We disable/readOnly the input in create mode when either a
+                          slot is selected (startTime corresponds to an availableSlots entry)
+                          or the duration was locked from a slot (lockedDurationFromSlot).
+                        */}
+                        <Input
+                          name="endTime"
+                          type="time"
+                          className="h-11 w-full rounded-md px-3 text-[13px] transition-colors hover:bg-muted/30"
+                          value={formData.endTime || ''}
+                          onChange={handleChange}
+                          readOnly={createMode && (lockedDurationFromSlot || Boolean(((): boolean => {
+                            try {
+                              const date = (formData as any).appointmentDate || '';
+                              const time = (formData as any).startTime || '';
+                              if (!date || !time) return false;
+                              // Check if startTime matches one of the availableSlots (meaning slot-driven)
+                              return (availableSlots || []).some((s) => {
+                                try {
+                                  const d = new Date(s.datetime);
+                                  const hh = String(d.getHours()).padStart(2, '0');
+                                  const mm = String(d.getMinutes()).padStart(2, '0');
+                                  const dateOnly = d.toISOString().split('T')[0];
+                                  return dateOnly === date && `${hh}:${mm}` === time;
+                                } catch (e) { return false; }
+                              });
+                            } catch (e) { return false; }
+                          })()))}
+                          disabled={createMode && (lockedDurationFromSlot || Boolean(((): boolean => {
+                            try {
+                              const date = (formData as any).appointmentDate || '';
+                              const time = (formData as any).startTime || '';
+                              if (!date || !time) return false;
+                              return (availableSlots || []).some((s) => {
+                                try {
+                                  const d = new Date(s.datetime);
+                                  const hh = String(d.getHours()).padStart(2, '0');
+                                  const mm = String(d.getMinutes()).padStart(2, '0');
+                                  const dateOnly = d.toISOString().split('T')[0];
+                                  return dateOnly === date && `${hh}:${mm}` === time;
+                                } catch (e) { return false; }
+                              });
+                            } catch (e) { return false; }
+                          })()))}
+                        />
                     </div>
           {/* Profissional solicitante removed per user request */}
                 </div>

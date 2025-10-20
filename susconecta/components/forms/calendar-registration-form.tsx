@@ -2,13 +2,24 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { buscarPacientePorId, listarMedicos, buscarPacientesPorMedico, getAvailableSlots, buscarPacientes, listarPacientes, listarDisponibilidades } from "@/lib/api";
+import { buscarPacientePorId, listarMedicos, buscarPacientesPorMedico, getAvailableSlots, buscarPacientes, listarPacientes, listarDisponibilidades, listarExcecoes } from "@/lib/api";
+import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { listAssignmentsForPatient } from "@/lib/assignment";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Calendar, Search, ChevronDown } from "lucide-react";
+import { Calendar, Search, ChevronDown, X } from "lucide-react";
 
 interface FormData {
   patientName?: string;
@@ -77,6 +88,8 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
   const [availableSlots, setAvailableSlots] = useState<Array<{ datetime: string; available: boolean; slot_minutes?: number }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [lockedDurationFromSlot, setLockedDurationFromSlot] = useState(false);
+  const [exceptionDialogOpen, setExceptionDialogOpen] = useState(false);
+  const [exceptionDialogMessage, setExceptionDialogMessage] = useState<string | null>(null);
 
   // Helpers to convert between ISO (server) and input[type=datetime-local] value
   const isoToDatetimeLocal = (iso?: string | null) => {
@@ -273,6 +286,31 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     setLoadingSlots(true);
     (async () => {
     try {
+        // Check for blocking exceptions on this exact date before querying availability.
+        try {
+          const exceptions = await listarExcecoes({ doctorId: String(docId), date: String(date) }).catch(() => []);
+          if (exceptions && exceptions.length) {
+            const blocking = (exceptions || []).find((e: any) => e && e.kind === 'bloqueio');
+            if (blocking) {
+              const reason = blocking.reason ? ` Motivo: ${blocking.reason}` : '';
+              const msg = `Não é possível agendar nesta data.${reason}`;
+              try {
+                // open modal dialog with message
+                setExceptionDialogMessage(msg);
+                setExceptionDialogOpen(true);
+              } catch (e) {
+                try { toast({ title: 'Data indisponível', description: msg }); } catch (ee) {}
+              }
+              if (!mounted) return;
+              setAvailableSlots([]);
+              setLoadingSlots(false);
+              return;
+            }
+          }
+        } catch (exCheckErr) {
+          // If the exceptions check fails for network reasons, proceed to availability fetch
+          console.warn('[CalendarRegistrationForm] listarExcecoes falhou, continuando para getAvailableSlots', exCheckErr);
+        }
         console.debug('[CalendarRegistrationForm] getAvailableSlots - params', { docId, date, appointmentType: formData.appointmentType });
   console.debug('[CalendarRegistrationForm] doctorOptions count', (doctorOptions || []).length, 'selectedDoctorId', docId, 'doctorOptions sample', (doctorOptions || []).slice(0,3));
         // Build start/end as local day bounds from YYYY-MM-DD to avoid
@@ -583,6 +621,21 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
 
   return (
     <form className="space-y-8">
+      {/* Exception dialog shown when a blocking exception exists for selected date */}
+      <AlertDialog open={exceptionDialogOpen} onOpenChange={(open) => { if (!open) { setExceptionDialogOpen(false); setExceptionDialogMessage(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Data indisponível</AlertDialogTitle>
+            <AlertDialogDescription>
+              {exceptionDialogMessage ?? 'Não será possível agendar uma consulta nesta data/horário.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setExceptionDialogOpen(false); setExceptionDialogMessage(null); }}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="border border-border rounded-md p-6 space-y-4 bg-card">
         <h2 className="font-medium text-foreground">Informações do paciente</h2>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -591,6 +644,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               {createMode ? (
+                <div className="flex items-center gap-2">
                 <Select
                   value={(formData as any).patientId || (formData as any).patient_id || ''}
                   onValueChange={(value) => {
@@ -612,6 +666,33 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                     )}
                   </SelectContent>
                 </Select>
+                {((formData as any).patientId || (formData as any).patient_id) && (
+                  <button
+                    type="button"
+                    title="Limpar seleção"
+                    className="h-10 w-10 flex items-center justify-center rounded-md bg-muted/10 text-foreground/90"
+                    onClick={async () => {
+                      try {
+                        // clear patient selection and also clear doctor/date/time and slots
+                        setFilteredDoctorOptions(null);
+                        setAvailableSlots([]);
+                        setPatientOptions(await listarPacientes({ limit: 200 }).catch(() => []));
+                        const newData: any = { ...formData };
+                        newData.patientId = null;
+                        newData.patientName = '';
+                        newData.doctorId = null;
+                        newData.professionalName = '';
+                        newData.appointmentDate = null;
+                        newData.startTime = '';
+                        newData.endTime = '';
+                        onFormChange(newData);
+                      } catch (e) {}
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                </div>
               ) : (
                 <Input
                   name="patientName"
@@ -656,6 +737,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               {createMode ? (
+                <div className="flex items-center gap-2">
                 <Select
                   value={(formData as any).doctorId || (formData as any).doctor_id || ''}
                   onValueChange={(value) => {
@@ -677,6 +759,33 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                     )}
                   </SelectContent>
                 </Select>
+                {((formData as any).doctorId || (formData as any).doctor_id) && (
+                  <button
+                    type="button"
+                    title="Limpar seleção"
+                    className="h-10 w-10 flex items-center justify-center rounded-md bg-muted/10 text-foreground/90"
+                    onClick={async () => {
+                      try {
+                        // clear doctor selection and also clear patient/date/time and slots
+                        setPatientOptions(await listarPacientes({ limit: 200 }).catch(() => []));
+                        setAvailableSlots([]);
+                        setFilteredDoctorOptions(null);
+                        const newData2: any = { ...formData };
+                        newData2.doctorId = null;
+                        newData2.professionalName = '';
+                        newData2.patientId = null;
+                        newData2.patientName = '';
+                        newData2.appointmentDate = null;
+                        newData2.startTime = '';
+                        newData2.endTime = '';
+                        onFormChange(newData2);
+                      } catch (e) {}
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                </div>
               ) : (
                 <Input name="professionalName" className="h-11 w-full rounded-md pl-8 pr-12 text-[13px] transition-colors hover:bg-muted/30" value={formData.professionalName || ''} disabled />
               )}

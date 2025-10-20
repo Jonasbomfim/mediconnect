@@ -67,10 +67,20 @@ export default function NovoAgendamentoPage() {
 
         await criarAgendamento(payload);
         // success
-  try { toast({ title: 'Agendamento criado', description: 'O agendamento foi criado com sucesso.' }); } catch {}
+        try { toast({ title: 'Agendamento criado', description: 'O agendamento foi criado com sucesso.' }); } catch {}
         router.push('/consultas');
       } catch (err: any) {
-        alert(err?.message ?? String(err));
+        // If the API threw a blocking exception message, surface it as a toast with additional info
+        const msg = err?.message ?? String(err);
+        // Heuristic: messages from criarAgendamento about exceptions start with "Não é possível agendar"
+        if (typeof msg === 'string' && msg.includes('Não é possível agendar')) {
+          try {
+            toast({ title: 'Data indisponível', description: msg });
+          } catch (_) {}
+        } else {
+          // fallback to generic alert for unexpected errors
+          alert(msg);
+        }
       }
     })();
   };

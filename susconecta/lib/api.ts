@@ -234,82 +234,6 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
     throw new Error('Não foi possível determinar o usuário atual (created_by). Faça login novamente antes de criar uma disponibilidade.');
   }
 
-  // --- Prevent creating an availability if a blocking exception exists ---
-  // We fetch exceptions for this doctor and check upcoming exceptions (from today)
-  // that either block the whole day (start_time/end_time null) or overlap the
-  // requested time window on any matching future date within the next year.
-  try {
-    const exceptions = await listarExcecoes({ doctorId: input.doctor_id });
-    const today = new Date();
-    const oneYearAhead = new Date();
-    oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
-
-    const parseTimeToMinutes = (t?: string | null) => {
-      if (!t) return null;
-      const parts = String(t).split(':').map((p) => Number(p));
-      if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
-        return parts[0] * 60 + parts[1];
-      }
-      return null;
-    };
-
-    // requested availability interval in minutes (relative to a day)
-    const reqStart = parseTimeToMinutes(input.start_time);
-    const reqEnd = parseTimeToMinutes(input.end_time);
-
-    const weekdayKey = (w?: string) => {
-      if (!w) return w;
-      const k = String(w).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
-      const map: Record<string,string> = {
-        'segunda':'monday','terca':'tuesday','quarta':'wednesday','quinta':'thursday','sexta':'friday','sabado':'saturday','domingo':'sunday',
-        'monday':'monday','tuesday':'tuesday','wednesday':'wednesday','thursday':'thursday','friday':'friday','saturday':'saturday','sunday':'sunday'
-      };
-      return map[k] ?? k;
-    };
-
-    for (const ex of exceptions || []) {
-      try {
-        if (!ex || !ex.date) continue;
-        const exDate = new Date(ex.date + 'T00:00:00');
-        if (isNaN(exDate.getTime())) continue;
-        // only consider future exceptions within one year
-        if (exDate < today || exDate > oneYearAhead) continue;
-
-        // if the exception is of kind 'bloqueio' it blocks times
-        if (ex.kind !== 'bloqueio') continue;
-
-        // map exDate weekday to server weekday mapping
-        const exWeekday = weekdayKey(exDate.toLocaleDateString('en-US', { weekday: 'long' }));
-        const reqWeekday = weekdayKey(input.weekday);
-
-        // We only consider exceptions that fall on the same weekday as the requested availability
-        if (exWeekday !== reqWeekday) continue;
-
-        // If exception has no start_time/end_time -> blocks whole day
-        if (!ex.start_time && !ex.end_time) {
-          throw new Error(`Existe uma exceção de bloqueio no dia ${ex.date}. Não é possível criar disponibilidade para este dia.`);
-        }
-
-        // otherwise check time overlap
-        const exStart = parseTimeToMinutes(ex.start_time ?? undefined);
-        const exEnd = parseTimeToMinutes(ex.end_time ?? undefined);
-
-        if (reqStart != null && reqEnd != null && exStart != null && exEnd != null) {
-          // overlap if reqStart < exEnd && exStart < reqEnd
-          if (reqStart < exEnd && exStart < reqEnd) {
-            throw new Error(`A disponibilidade conflita com uma exceção de bloqueio em ${ex.date} (${ex.start_time}–${ex.end_time}).`);
-          }
-        }
-      } catch (inner) {
-        // rethrow to be handled below
-        throw inner;
-      }
-    }
-  } catch (e) {
-    // If listarExcecoes failed (network etc), surface that error; it's safer
-    // to prevent creation if we cannot verify exceptions? We'll rethrow.
-    if (e instanceof Error) throw e;
-  }
 
   const payload: any = {
     slot_minutes: input.slot_minutes ?? 30,
@@ -1056,6 +980,51 @@ export async function criarAgendamento(input: AppointmentCreate): Promise<Appoin
 
   if (!matching) {
     throw new Error('Horário não disponível para o médico no horário solicitado. Verifique a disponibilidade antes de agendar.');
+  }
+
+  // --- Prevent creating an appointment on a date with a blocking exception ---
+  try {
+    // listarExcecoes can filter by date
+    const dateOnly = startDay.toISOString().split('T')[0];
+    const exceptions = await listarExcecoes({ doctorId: input.doctor_id, date: dateOnly }).catch(() => []);
+    if (exceptions && exceptions.length) {
+      for (const ex of exceptions) {
+        try {
+          if (!ex || !ex.kind) continue;
+          if (ex.kind !== 'bloqueio') continue;
+          // If no start_time/end_time -> blocks whole day
+          if (!ex.start_time && !ex.end_time) {
+            const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
+            throw new Error(`Não é possível agendar para esta data. Existe uma exceção que bloqueia o dia.${reason}`);
+          }
+          // Otherwise check overlap with scheduled time
+          // Parse exception times and scheduled time to minutes
+          const parseToMinutes = (t?: string | null) => {
+            if (!t) return null;
+            const parts = String(t).split(':').map((p) => Number(p));
+            if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1];
+            return null;
+          };
+          const exStart = parseToMinutes(ex.start_time ?? undefined);
+          const exEnd = parseToMinutes(ex.end_time ?? undefined);
+          const sched = new Date(input.scheduled_at);
+          const schedMinutes = sched.getHours() * 60 + sched.getMinutes();
+          const schedDuration = input.duration_minutes ?? 30;
+          const schedEndMinutes = schedMinutes + Number(schedDuration);
+          if (exStart != null && exEnd != null) {
+            if (schedMinutes < exEnd && exStart < schedEndMinutes) {
+              const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
+              throw new Error(`Não é possível agendar neste horário por uma exceção que bloqueia parte do dia.${reason}`);
+            }
+          }
+        } catch (inner) {
+          // Propagate the exception as user-facing error
+          throw inner;
+        }
+      }
+    }
+  } catch (e) {
+    if (e instanceof Error) throw e;
   }
 
   // Determine created_by similar to other creators (prefer localStorage then user-info)

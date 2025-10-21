@@ -78,6 +78,8 @@ export default function ConsultasPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [originalAppointments, setOriginalAppointments] = useState<any[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [filterDate, setFilterDate] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
@@ -101,6 +103,8 @@ export default function ConsultasPage() {
       id: appointment.id,
       patientName: appointment.patient,
       patientId: appointment.patient_id || appointment.patientId || null,
+      // include doctor id so the form can run availability/exception checks when editing
+      doctorId: appointment.doctor_id || appointment.doctorId || null,
       professionalName: appointment.professional || "",
       appointmentDate: appointmentDateStr,
       startTime,
@@ -208,6 +212,8 @@ export default function ConsultasPage() {
         id: updated.id,
         patient: formData.patientName || existing.patient || '',
         patient_id: existing.patient_id ?? null,
+        // preserve doctor id so future edits retain the selected professional
+        doctor_id: existing.doctor_id ?? (formData.doctorId || (formData as any).doctor_id) ?? null,
         // preserve server-side fields so future edits read them
         scheduled_at: updated.scheduled_at ?? scheduled_at,
         duration_minutes: updated.duration_minutes ?? duration_minutes,
@@ -280,6 +286,8 @@ export default function ConsultasPage() {
         id: a.id,
         patient,
         patient_id: a.patient_id,
+        // preserve the doctor's id so later edit flows can access it
+        doctor_id: a.doctor_id ?? null,
         // keep some server-side fields so edit can access them later
         scheduled_at: a.scheduled_at ?? a.time ?? a.created_at ?? null,
         duration_minutes: a.duration_minutes ?? a.duration ?? null,
@@ -323,29 +331,48 @@ export default function ConsultasPage() {
   // Search box: allow fetching a single appointment by ID when pressing Enter
   // Perform a local-only search against the already-loaded appointments.
   // This intentionally does not call the server — it filters the cached list.
-  const performSearch = (val: string) => {
-    const trimmed = String(val || '').trim();
-    if (!trimmed) {
-      setAppointments(originalAppointments || []);
-      return;
+  const applyFilters = (val?: string) => {
+  const trimmed = String((val ?? searchValue) || '').trim();
+    let list = (originalAppointments || []).slice();
+
+    // search
+    if (trimmed) {
+      const q = trimmed.toLowerCase();
+      list = list.filter((a) => {
+        const patient = String(a.patient || '').toLowerCase();
+        const professional = String(a.professional || '').toLowerCase();
+        const pid = String(a.patient_id || '').toLowerCase();
+        const aid = String(a.id || '').toLowerCase();
+        return (
+          patient.includes(q) ||
+          professional.includes(q) ||
+          pid === q ||
+          aid === q
+        );
+      });
     }
 
-    const q = trimmed.toLowerCase();
-    const localMatches = (originalAppointments || []).filter((a) => {
-      const patient = String(a.patient || '').toLowerCase();
-      const professional = String(a.professional || '').toLowerCase();
-      const pid = String(a.patient_id || '').toLowerCase();
-      const aid = String(a.id || '').toLowerCase();
-      return (
-        patient.includes(q) ||
-        professional.includes(q) ||
-        pid === q ||
-        aid === q
-      );
-    });
+    // status filter
+    if (selectedStatus && selectedStatus !== 'all') {
+      list = list.filter((a) => String(a.status || '').toLowerCase() === String(selectedStatus).toLowerCase());
+    }
 
-    setAppointments(localMatches as any[]);
+    // date filter (YYYY-MM-DD)
+    if (filterDate) {
+      list = list.filter((a) => {
+        try {
+          const sched = a.scheduled_at || a.time || a.created_at || null;
+          if (!sched) return false;
+          const iso = new Date(sched).toISOString().split('T')[0];
+          return iso === filterDate;
+        } catch (e) { return false; }
+      });
+    }
+
+    setAppointments(list as any[]);
   };
+
+  const performSearch = (val: string) => { applyFilters(val); };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -379,6 +406,10 @@ export default function ConsultasPage() {
     return () => clearTimeout(t);
   }, [searchValue, originalAppointments]);
 
+  useEffect(() => {
+    applyFilters();
+  }, [selectedStatus, filterDate, originalAppointments]);
+
   // Keep localForm synchronized with editingAppointment
   useEffect(() => {
     if (showForm && editingAppointment) {
@@ -404,7 +435,7 @@ export default function ConsultasPage() {
           </Button>
           <h1 className="text-lg font-semibold md:text-2xl">Editar Consulta</h1>
         </div>
-        <CalendarRegistrationForm formData={localForm} onFormChange={onFormChange} />
+  <CalendarRegistrationForm formData={localForm} onFormChange={onFormChange} createMode={true} />
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={handleCancel}>
             Cancelar
@@ -451,18 +482,19 @@ export default function ConsultasPage() {
                 />
               </div>
             </div>
-            <Select>
+            <Select onValueChange={(v) => { setSelectedStatus(String(v)); }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="confirmed">Confirmada</SelectItem>
-                <SelectItem value="pending">Pendente</SelectItem>
+                {/* backend uses 'requested' for pending requests, map UI label to that value */}
+                <SelectItem value="requested">Pendente</SelectItem>
                 <SelectItem value="cancelled">Cancelada</SelectItem>
               </SelectContent>
             </Select>
-            <Input type="date" className="w-[180px]" />
+            <Input type="date" className="w-[180px]" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
           </div>
         </CardHeader>
         <CardContent>

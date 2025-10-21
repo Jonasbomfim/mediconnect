@@ -86,6 +86,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
   const [loadingAssignedDoctors, setLoadingAssignedDoctors] = useState(false);
   const [loadingPatientsForDoctor, setLoadingPatientsForDoctor] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Array<{ datetime: string; available: boolean; slot_minutes?: number }>>([]);
+  const [availabilityWindows, setAvailabilityWindows] = useState<Array<{ winStart: Date; winEnd: Date; slotMinutes?: number }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [lockedDurationFromSlot, setLockedDurationFromSlot] = useState(false);
   const [exceptionDialogOpen, setExceptionDialogOpen] = useState(false);
@@ -275,268 +276,283 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
   }, [(formData as any).doctorId, (formData as any).doctor_id]);
 
   // When doctor or date changes, fetch available slots
+  // Keep a mounted ref to avoid setting state after unmount when reused
+  const mountedRef = useRef(true);
   useEffect(() => {
-    const docId = (formData as any).doctorId || (formData as any).doctor_id || null;
-    const date = (formData as any).appointmentDate || null;
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Extract the availability + exceptions logic into a reusable function so we
+  // can call it both when dependencies change and once at mount-time when the
+  // form already contains doctor/date (covering the edit flow).
+  const fetchExceptionsAndSlots = async (docIdArg?: string | null, dateArg?: string | null) => {
+    const docId = docIdArg ?? ((formData as any).doctorId || (formData as any).doctor_id || null);
+    const date = dateArg ?? ((formData as any).appointmentDate || null);
     if (!docId || !date) {
-      setAvailableSlots([]);
+      if (mountedRef.current) setAvailableSlots([]);
       return;
     }
-    let mounted = true;
-    setLoadingSlots(true);
-    (async () => {
+    if (mountedRef.current) setLoadingSlots(true);
+
     try {
-        // Check for blocking exceptions on this exact date before querying availability.
-        try {
-          const exceptions = await listarExcecoes({ doctorId: String(docId), date: String(date) }).catch(() => []);
-          if (exceptions && exceptions.length) {
-            const blocking = (exceptions || []).find((e: any) => e && e.kind === 'bloqueio');
-            if (blocking) {
-              const reason = blocking.reason ? ` Motivo: ${blocking.reason}` : '';
-              const msg = `Não é possível agendar nesta data.${reason}`;
-              try {
-                // open modal dialog with message
-                setExceptionDialogMessage(msg);
-                setExceptionDialogOpen(true);
-              } catch (e) {
-                try { toast({ title: 'Data indisponível', description: msg }); } catch (ee) {}
-              }
-              if (!mounted) return;
+      // Check for blocking exceptions first
+      try {
+        const exceptions = await listarExcecoes({ doctorId: String(docId), date: String(date) }).catch(() => []);
+        if (exceptions && exceptions.length) {
+          const blocking = (exceptions || []).find((e: any) => e && e.kind === 'bloqueio');
+          if (blocking) {
+            const reason = blocking.reason ? ` Motivo: ${blocking.reason}` : '';
+            const msg = `Não é possível agendar nesta data.${reason}`;
+            try {
+              setExceptionDialogMessage(msg);
+              setExceptionDialogOpen(true);
+            } catch (e) {
+              try { toast({ title: 'Data indisponível', description: msg }); } catch (ee) {}
+            }
+            if (mountedRef.current) {
               setAvailableSlots([]);
               setLoadingSlots(false);
-              return;
             }
+            return;
           }
-        } catch (exCheckErr) {
-          // If the exceptions check fails for network reasons, proceed to availability fetch
-          console.warn('[CalendarRegistrationForm] listarExcecoes falhou, continuando para getAvailableSlots', exCheckErr);
         }
-        console.debug('[CalendarRegistrationForm] getAvailableSlots - params', { docId, date, appointmentType: formData.appointmentType });
-  console.debug('[CalendarRegistrationForm] doctorOptions count', (doctorOptions || []).length, 'selectedDoctorId', docId, 'doctorOptions sample', (doctorOptions || []).slice(0,3));
-        // Build start/end as local day bounds from YYYY-MM-DD to avoid
-        // timezone/parsing issues (sending incorrect UTC offsets that shift
-        // the requested day to the previous/next calendar day).
-        // Expect `date` to be in format 'YYYY-MM-DD'. Parse explicitly.
-        let start: Date;
-        let end: Date;
-        try {
-          const parts = String(date).split('-').map((p) => Number(p));
-          if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
-            const [y, m, d] = parts;
-            // new Date(y, m-1, d, hh, mm, ss, ms) constructs a date in the
-            // local timezone at the requested hour. toISOString() will then
-            // represent that local instant in UTC which is what the server
-            // expects for availability checks across timezones.
-            start = new Date(y, m - 1, d, 0, 0, 0, 0);
-            end = new Date(y, m - 1, d, 23, 59, 59, 999);
-          } else {
-            // fallback to previous logic if parsing fails
-            start = new Date(date);
-            start.setHours(0,0,0,0);
-            end = new Date(date);
-            end.setHours(23,59,59,999);
-          }
-        } catch (err) {
-          // fallback safe behavior
+      } catch (exCheckErr) {
+        console.warn('[CalendarRegistrationForm] listarExcecoes falhou, continuando para getAvailableSlots', exCheckErr);
+      }
+
+      console.debug('[CalendarRegistrationForm] getAvailableSlots - params', { docId, date, appointmentType: formData.appointmentType });
+
+      // Build local start/end for the day
+      let start: Date;
+      let end: Date;
+      try {
+        const parts = String(date).split('-').map((p) => Number(p));
+        if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
+          const [y, m, d] = parts;
+          start = new Date(y, m - 1, d, 0, 0, 0, 0);
+          end = new Date(y, m - 1, d, 23, 59, 59, 999);
+        } else {
           start = new Date(date);
           start.setHours(0,0,0,0);
           end = new Date(date);
           end.setHours(23,59,59,999);
         }
-        const av = await getAvailableSlots({ doctor_id: String(docId), start_date: start.toISOString(), end_date: end.toISOString(), appointment_type: formData.appointmentType || 'presencial' });
-        if (!mounted) return;
-        console.debug('[CalendarRegistrationForm] getAvailableSlots - response slots count', (av && av.slots && av.slots.length) || 0, av);
+      } catch (err) {
+        start = new Date(date);
+        start.setHours(0,0,0,0);
+        end = new Date(date);
+        end.setHours(23,59,59,999);
+      }
 
-        // Try to restrict the returned slots to the doctor's public availability windows
-        try {
+      const av = await getAvailableSlots({ doctor_id: String(docId), start_date: start.toISOString(), end_date: end.toISOString(), appointment_type: formData.appointmentType || 'presencial' });
+      if (!mountedRef.current) return;
+      console.debug('[CalendarRegistrationForm] getAvailableSlots - response slots count', (av && av.slots && av.slots.length) || 0, av);
+
+      // Try to restrict the returned slots to the doctor's public availability windows
+      try {
         const disponibilidades = await listarDisponibilidades({ doctorId: String(docId) }).catch(() => []);
-          const weekdayNumber = start.getDay(); // 0 (Sun) .. 6 (Sat)
-          // map weekday number to possible representations (numeric, en, pt, abbrev)
-          const weekdayNames: Record<number, string[]> = {
-            0: ['0', 'sun', 'sunday', 'domingo'],
-            1: ['1', 'mon', 'monday', 'segunda', 'segunda-feira'],
-            2: ['2', 'tue', 'tuesday', 'terca', 'terça', 'terça-feira'],
-            3: ['3', 'wed', 'wednesday', 'quarta', 'quarta-feira'],
-            4: ['4', 'thu', 'thursday', 'quinta', 'quinta-feira'],
-            5: ['5', 'fri', 'friday', 'sexta', 'sexta-feira'],
-            6: ['6', 'sat', 'saturday', 'sabado', 'sábado']
-          };
-          const allowed = (weekdayNames[weekdayNumber] || []).map((s) => String(s).toLowerCase());
+        const weekdayNumber = start.getDay();
+        const weekdayNames: Record<number, string[]> = {
+          0: ['0', 'sun', 'sunday', 'domingo'],
+          1: ['1', 'mon', 'monday', 'segunda', 'segunda-feira'],
+          2: ['2', 'tue', 'tuesday', 'terca', 'terça', 'terça-feira'],
+          3: ['3', 'wed', 'wednesday', 'quarta', 'quarta-feira'],
+          4: ['4', 'thu', 'thursday', 'quinta', 'quinta-feira'],
+          5: ['5', 'fri', 'friday', 'sexta', 'sexta-feira'],
+          6: ['6', 'sat', 'saturday', 'sabado', 'sábado']
+        };
+        const allowed = (weekdayNames[weekdayNumber] || []).map((s) => String(s).toLowerCase());
 
-          // Filter disponibilidades to those matching the weekday (try multiple fields)
-          const matched = (disponibilidades || []).filter((d: any) => {
-            try {
+        const matched = (disponibilidades || []).filter((d: any) => {
+          try {
             const raw = String(d.weekday ?? d.weekday_name ?? d.day ?? d.day_of_week ?? '').toLowerCase();
-              if (!raw) return false;
-              // direct numeric or name match
-              if (allowed.includes(raw)) return true;
-              // sometimes API returns numbers as integers
-              if (typeof d.weekday === 'number' && d.weekday === weekdayNumber) return true;
-              if (typeof d.day_of_week === 'number' && d.day_of_week === weekdayNumber) return true;
-              return false;
+            if (!raw) return false;
+            if (allowed.includes(raw)) return true;
+            if (typeof d.weekday === 'number' && d.weekday === weekdayNumber) return true;
+            if (typeof d.day_of_week === 'number' && d.day_of_week === weekdayNumber) return true;
+            return false;
+          } catch (e) { return false; }
+        });
+
+        if (matched && matched.length) {
+          const windows = matched.map((d: any) => {
+            const parseTime = (t?: string) => {
+              if (!t) return { hh: 0, mm: 0, ss: 0 };
+              const parts = String(t).split(':').map((p) => Number(p));
+              return { hh: parts[0] || 0, mm: parts[1] || 0, ss: parts[2] || 0 };
+            };
+            const s = parseTime(d.start_time);
+            const e2 = parseTime(d.end_time);
+            const winStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), s.hh, s.mm, s.ss || 0, 0);
+            const winEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), e2.hh, e2.mm, e2.ss || 0, 999);
+            const slotMinutes = (() => { const n = Number(d.slot_minutes ?? d.slot_minutes_minutes ?? NaN); return Number.isFinite(n) ? n : undefined; })();
+            return { winStart, winEnd, slotMinutes };
+          });
+
+          try {
+            // persist windows so UI can apply duration-fit filtering
+            if (mountedRef.current) setAvailabilityWindows(windows);
+            const candidate = windows.find((w: any) => w.slotMinutes && Number.isFinite(Number(w.slotMinutes)));
+            if (candidate) {
+              const durationVal = Number(candidate.slotMinutes);
+              if ((formData as any).duration_minutes !== durationVal) {
+                onFormChange({ ...formData, duration_minutes: durationVal });
+              }
+              try { setLockedDurationFromSlot(true); } catch (e) {}
+            } else {
+              try { setLockedDurationFromSlot(false); } catch (e) {}
+            }
+          } catch (e) {
+            console.debug('[CalendarRegistrationForm] erro ao definir duração automática', e);
+          }
+
+          const existingInWindow = (av.slots || []).filter((s: any) => {
+            try {
+              const sd = new Date(s.datetime);
+              const slotMinutes = sd.getHours() * 60 + sd.getMinutes();
+              return windows.some((w: any) => {
+                const ws = w.winStart;
+                const we = w.winEnd;
+                const winStartMinutes = ws.getHours() * 60 + ws.getMinutes();
+                const winEndMinutes = we.getHours() * 60 + we.getMinutes();
+                return slotMinutes >= winStartMinutes && slotMinutes <= winEndMinutes;
+              });
             } catch (e) { return false; }
           });
-          console.debug('[CalendarRegistrationForm] disponibilidades fetched', disponibilidades, 'matched for weekday', weekdayNumber, matched);
 
-          if (matched && matched.length) {
-            // Build windows from matched disponibilidades and filter av.slots
-            const windows = matched.map((d: any) => {
-              // d.start_time may be '09:00:00' or '09:00'
-              const parseTime = (t?: string) => {
-                if (!t) return { hh: 0, mm: 0, ss: 0 };
-                const parts = String(t).split(':').map((p) => Number(p));
-                return { hh: parts[0] || 0, mm: parts[1] || 0, ss: parts[2] || 0 };
-              };
-              const s = parseTime(d.start_time);
-              const e2 = parseTime(d.end_time);
-              const winStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), s.hh, s.mm, s.ss || 0, 0);
-              const winEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), e2.hh, e2.mm, e2.ss || 0, 999);
-              const slotMinutes = Number(d.slot_minutes || d.slot_minutes_minutes || null) || null;
-              return { winStart, winEnd, slotMinutes };
-            });
+          let stepMinutes = 30;
+          try {
+            const times = (av.slots || []).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
+            const diffs: number[] = [];
+            for (let i = 1; i < times.length; i++) {
+              const d = Math.round((times[i] - times[i - 1]) / 60000);
+              if (d > 0) diffs.push(d);
+            }
+            if (diffs.length) stepMinutes = Math.min(...diffs);
+          } catch (e) {}
 
-            // If any disponibilidade declares slot_minutes, prefill duration_minutes on the form
+          const generatedSet = new Set<string>();
+          windows.forEach((w: any) => {
             try {
-              const candidate = windows.find((w: any) => w.slotMinutes && Number.isFinite(Number(w.slotMinutes)));
-              if (candidate) {
-                const durationVal = Number(candidate.slotMinutes);
-                // Only set if different to avoid unnecessary updates
-                if ((formData as any).duration_minutes !== durationVal) {
-                  onFormChange({ ...formData, duration_minutes: durationVal });
+              const perWindowStep = Number(w.slotMinutes) || stepMinutes;
+              const startMs = w.winStart.getTime();
+              const endMs = w.winEnd.getTime();
+              const lastStartMs = endMs - perWindowStep * 60000;
+              const backendSlotsInWindow = (av.slots || []).filter((s: any) => {
+                try {
+                  const sd = new Date(s.datetime);
+                  const sm = sd.getHours() * 60 + sd.getMinutes();
+                  const wmStart = w.winStart.getHours() * 60 + w.winStart.getMinutes();
+                  const wmEnd = w.winEnd.getHours() * 60 + w.winEnd.getMinutes();
+                  return sm >= wmStart && sm <= wmEnd;
+                } catch (e) { return false; }
+              }).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
+
+              if (!backendSlotsInWindow.length) {
+                let cursorMs = startMs;
+                while (cursorMs <= lastStartMs) {
+                  generatedSet.add(new Date(cursorMs).toISOString());
+                  cursorMs += perWindowStep * 60000;
                 }
-                try { setLockedDurationFromSlot(true); } catch (e) {}
               } else {
-                // no slot_minutes declared -> ensure unlocked
-                try { setLockedDurationFromSlot(false); } catch (e) {}
-              }
-            } catch (e) {
-              console.debug('[CalendarRegistrationForm] erro ao definir duração automática', e);
-            }
-
-            // Keep backend slots that fall inside windows
-          const existingInWindow = (av.slots || []).filter((s: any) => {
-              try {
-                const sd = new Date(s.datetime);
-                const slotMinutes = sd.getHours() * 60 + sd.getMinutes();
-                return windows.some((w: any) => {
-                  const ws = w.winStart;
-                  const we = w.winEnd;
-                  const winStartMinutes = ws.getHours() * 60 + ws.getMinutes();
-                  const winEndMinutes = we.getHours() * 60 + we.getMinutes();
-                  return slotMinutes >= winStartMinutes && slotMinutes <= winEndMinutes;
-                });
-              } catch (e) { return false; }
-            });
-
-            // Determine global step (minutes) from returned slots, fallback to 30
-            let stepMinutes = 30;
-            try {
-              const times = (av.slots || []).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
-              const diffs: number[] = [];
-              for (let i = 1; i < times.length; i++) {
-                const d = Math.round((times[i] - times[i - 1]) / 60000);
-                if (d > 0) diffs.push(d);
-              }
-              if (diffs.length) {
-                stepMinutes = Math.min(...diffs);
-              }
-            } catch (e) {
-              // keep fallback
-            }
-
-            // Generate missing slots per window respecting slot_minutes (if present).
-            const generatedSet = new Set<string>();
-            windows.forEach((w: any) => {
-              try {
-                const perWindowStep = Number(w.slotMinutes) || stepMinutes;
-                const startMs = w.winStart.getTime();
-                const endMs = w.winEnd.getTime();
-                // compute last allowed slot start so that start + perWindowStep <= winEnd
-                const lastStartMs = endMs - perWindowStep * 60000;
-
-                // backend slots inside this window (ms)
-                const backendSlotsInWindow = (av.slots || []).filter((s: any) => {
-                  try {
-                    const sd = new Date(s.datetime);
-                    const sm = sd.getHours() * 60 + sd.getMinutes();
-                    const wmStart = w.winStart.getHours() * 60 + w.winStart.getMinutes();
-                    const wmEnd = w.winEnd.getHours() * 60 + w.winEnd.getMinutes();
-                    return sm >= wmStart && sm <= wmEnd;
-                  } catch (e) { return false; }
-                }).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
-
-                if (!backendSlotsInWindow.length) {
-                  // generate full window from winStart to lastStartMs
-                  let cursorMs = startMs;
-                  while (cursorMs <= lastStartMs) {
-                    generatedSet.add(new Date(cursorMs).toISOString());
-                    cursorMs += perWindowStep * 60000;
-                  }
-                } else {
-                  // generate after last backend slot up to lastStartMs
-                  const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1];
-                  let cursorMs = lastBackendMs + perWindowStep * 60000;
-                  while (cursorMs <= lastStartMs) {
-                    generatedSet.add(new Date(cursorMs).toISOString());
-                    cursorMs += perWindowStep * 60000;
-                  }
+                const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1];
+                let cursorMs = lastBackendMs + perWindowStep * 60000;
+                while (cursorMs <= lastStartMs) {
+                  generatedSet.add(new Date(cursorMs).toISOString());
+                  cursorMs += perWindowStep * 60000;
                 }
-              } catch (e) {
-                // skip malformed window
               }
-            });
+            } catch (e) {}
+          });
 
-            // Merge existingInWindow (prefer backend objects) with generated ones
-            const mergedMap = new Map<string, { datetime: string; available: boolean; slot_minutes?: number }>();
-            // helper to find window slotMinutes for a given ISO datetime
-            const findWindowSlotMinutes = (isoDt: string) => {
-              try {
-                const sd = new Date(isoDt);
-                const sm = sd.getHours() * 60 + sd.getMinutes();
-                const w = windows.find((win: any) => {
-                  const ws = win.winStart;
-                  const we = win.winEnd;
-                  const winStartMinutes = ws.getHours() * 60 + ws.getMinutes();
-                  const winEndMinutes = we.getHours() * 60 + we.getMinutes();
-                  return sm >= winStartMinutes && sm <= winEndMinutes;
-                });
-                return w && w.slotMinutes ? Number(w.slotMinutes) : null;
-              } catch (e) { return null; }
-            };
+          const mergedMap = new Map<string, { datetime: string; available: boolean; slot_minutes?: number }>();
+          const findWindowSlotMinutes = (isoDt: string) => {
+            try {
+              const sd = new Date(isoDt);
+              const sm = sd.getHours() * 60 + sd.getMinutes();
+              const w = windows.find((win: any) => {
+                const ws = win.winStart;
+                const we = win.winEnd;
+                const winStartMinutes = ws.getHours() * 60 + ws.getMinutes();
+                const winEndMinutes = we.getHours() * 60 + we.getMinutes();
+                return sm >= winStartMinutes && sm <= winEndMinutes;
+              });
+              return w && w.slotMinutes ? Number(w.slotMinutes) : null;
+            } catch (e) { return null; }
+          };
 
-            (existingInWindow || []).forEach((s: any) => {
-              const sm = findWindowSlotMinutes(s.datetime);
-              mergedMap.set(s.datetime, sm ? { ...s, slot_minutes: sm } : { ...s });
-            });
-            Array.from(generatedSet).forEach((dt) => {
-              if (!mergedMap.has(dt)) {
-                const sm = findWindowSlotMinutes(dt) || stepMinutes;
-                mergedMap.set(dt, { datetime: dt, available: true, slot_minutes: sm });
-              }
-            });
+          (existingInWindow || []).forEach((s: any) => {
+            const sm = findWindowSlotMinutes(s.datetime);
+            mergedMap.set(s.datetime, sm ? { ...s, slot_minutes: sm } : { ...s });
+          });
+          Array.from(generatedSet).forEach((dt) => {
+            if (!mergedMap.has(dt)) {
+              const sm = findWindowSlotMinutes(dt) || stepMinutes;
+              mergedMap.set(dt, { datetime: dt, available: true, slot_minutes: sm });
+            }
+          });
 
-            const merged = Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
-            console.debug('[CalendarRegistrationForm] slots after merge/generated count', merged.length, 'stepMinutes', stepMinutes);
-            setAvailableSlots(merged || []);
-          } else {
-            // No disponibilidade entries for this weekday -> use av.slots as-is
+          const merged = Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+          if (mountedRef.current) setAvailableSlots(merged || []);
+        } else {
+          if (mountedRef.current) {
+            setAvailabilityWindows([]);
             setAvailableSlots(av.slots || []);
           }
-        } catch (e) {
-          console.warn('[CalendarRegistrationForm] erro ao filtrar por disponibilidades públicas', e);
-          setAvailableSlots(av.slots || []);
         }
       } catch (e) {
-        console.warn('[CalendarRegistrationForm] falha ao carregar horários disponíveis', e);
-        if (!mounted) return;
-        setAvailableSlots([]);
-      } finally {
-        if (!mounted) return;
-        setLoadingSlots(false);
+        console.warn('[CalendarRegistrationForm] erro ao filtrar por disponibilidades públicas', e);
+        if (mountedRef.current) setAvailableSlots(av.slots || []);
       }
-    })();
-    return () => { mounted = false; };
+    } catch (e) {
+      console.warn('[CalendarRegistrationForm] falha ao carregar horários disponíveis', e);
+      if (mountedRef.current) setAvailableSlots([]);
+    } finally {
+      if (mountedRef.current) setLoadingSlots(false);
+    }
+  };
+
+  // Call when doctor/date/appointmentType change
+  useEffect(() => {
+    fetchExceptionsAndSlots();
+    // note: we intentionally keep the same dependency list to preserve existing behaviour
   }, [(formData as any).doctorId, (formData as any).doctor_id, (formData as any).appointmentDate, (formData as any).appointmentType]);
+
+  // Also attempt a mount-time call to cover the case where the form is mounted
+  // with doctor/date already present (edit flow). This ensures parity with
+  // the create flow which triggers the requests during user interaction.
+  useEffect(() => {
+    const docId = (formData as any).doctorId || (formData as any).doctor_id || null;
+    const date = (formData as any).appointmentDate || null;
+    console.debug('[CalendarRegistrationForm] mount-time check formData doctor/date', { doctorId: docId, doctor_id: (formData as any).doctor_id, appointmentDate: date, sampleFormData: formData });
+    const profName = (formData as any).professionalName || (formData as any).professional || '';
+    // If we don't have an id but have a professional name, try to find the id from loaded options
+    if (!docId && profName && doctorOptions && doctorOptions.length) {
+      const found = doctorOptions.find((d: any) => {
+        const name = (d.full_name || d.name || '').toLowerCase();
+        return name && profName.toLowerCase() && (name === profName.toLowerCase() || name.includes(profName.toLowerCase()));
+      });
+      if (found) {
+        // set doctorId on form so the normal effect will run
+        try { onFormChange({ ...formData, doctorId: String(found.id) }); } catch (e) {}
+        // Also proactively fetch availability using the discovered id
+        if (date) {
+          Promise.resolve().then(() => { if (mountedRef.current) fetchExceptionsAndSlots(String(found.id), date); });
+        } else {
+          Promise.resolve().then(() => { if (mountedRef.current) fetchExceptionsAndSlots(String(found.id)); });
+        }
+      }
+    }
+
+    if ((docId || ((doctorOptions || []).find((d: any) => (d.full_name || d.name || '').toLowerCase().includes(((formData as any).professionalName || '').toLowerCase())))) && date) {
+      // schedule microtask so mount effects ordering won't conflict with parent
+      Promise.resolve().then(() => {
+        if (mountedRef.current) fetchExceptionsAndSlots();
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
@@ -618,6 +634,55 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     else effectiveDoctorOptions = doctorOptions || [];
   }
 
+  // derive displayed slots by filtering availableSlots to those that can fit the
+  // desired duration within any availability window. If no windows are present,
+  // fall back to availableSlots as-is.
+  const displayedSlots = (() => {
+    try {
+      const duration = Number((formData as any).duration_minutes) || 0;
+      if (!availabilityWindows || !availabilityWindows.length) return availableSlots || [];
+      // For each slot, check whether slot start + duration <= window.winEnd
+      return (availableSlots || []).filter((s) => {
+        try {
+          const sd = new Date(s.datetime);
+          const slotStartMs = sd.getTime();
+          const slotEndMs = slotStartMs + (duration || (s.slot_minutes || 0)) * 60000;
+          // find a window that contains the entire appointment (start..end)
+          return availabilityWindows.some((w) => {
+            return slotStartMs >= w.winStart.getTime() && slotEndMs <= w.winEnd.getTime();
+          });
+        } catch (e) { return false; }
+      });
+    } catch (e) {
+      return availableSlots || [];
+    }
+  })();
+
+  // Ensure the currently-selected startTime (from formData) is present in the list
+  // so that editing an existing appointment can keep its original time even if
+  // the server availability doesn't return it (historic booking).
+  try {
+    const date = (formData as any).appointmentDate;
+    const start = (formData as any).startTime;
+    if (date && start) {
+      const [y, m, d] = String(date).split('-').map((n) => Number(n));
+      const [hh, mm] = String(start).split(':').map((n) => Number(n));
+      if (![y, m, d, hh, mm].some((n) => Number.isNaN(n))) {
+        const iso = new Date(y, m - 1, d, hh, mm, 0, 0).toISOString();
+        const present = (displayedSlots || []).some((s) => s.datetime === iso);
+        if (!present) {
+          // find in availableSlots if exists to copy slot_minutes, else synthesize
+          const found = (availableSlots || []).find((s) => {
+            try { return new Date(s.datetime).toISOString() === iso; } catch (e) { return false; }
+          });
+          const toAdd = found ? { ...found } : { datetime: iso, available: false, slot_minutes: (formData as any).duration_minutes || undefined };
+          // prepend so current appointment time appears first
+          displayedSlots.unshift(toAdd as any);
+        }
+      }
+    }
+  } catch (e) {}
+
 
   return (
     <form className="space-y-8">
@@ -676,7 +741,6 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                         // clear patient selection and also clear doctor/date/time and slots
                         setFilteredDoctorOptions(null);
                         setAvailableSlots([]);
-                        setPatientOptions(await listarPacientes({ limit: 200 }).catch(() => []));
                         const newData: any = { ...formData };
                         newData.patientId = null;
                         newData.patientName = '';
@@ -685,7 +749,11 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                         newData.appointmentDate = null;
                         newData.startTime = '';
                         newData.endTime = '';
+                        // update form first so dependent effects (doctor->patients) run
                         onFormChange(newData);
+                        // then repopulate the patientOptions (fetch may be async)
+                        const pats = await listarPacientes({ limit: 200 }).catch(() => []);
+                        setPatientOptions(pats || []);
                       } catch (e) {}
                     }}
                   >
@@ -767,7 +835,6 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                     onClick={async () => {
                       try {
                         // clear doctor selection and also clear patient/date/time and slots
-                        setPatientOptions(await listarPacientes({ limit: 200 }).catch(() => []));
                         setAvailableSlots([]);
                         setFilteredDoctorOptions(null);
                         const newData2: any = { ...formData };
@@ -778,7 +845,11 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                         newData2.appointmentDate = null;
                         newData2.startTime = '';
                         newData2.endTime = '';
+                        // update form first so effects that clear options don't erase our repopulation
                         onFormChange(newData2);
+                        // then repopulate patients list
+                        const pats = await listarPacientes({ limit: 200 }).catch(() => []);
+                        setPatientOptions(pats || []);
                       } catch (e) {}
                     }}
                   >
@@ -839,11 +910,19 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                 // set duration from slot if available
                                 const sel = (availableSlots || []).find((s) => s.datetime === value) as any;
                                 const slotMinutes = sel && sel.slot_minutes ? Number(sel.slot_minutes) : null;
+                                // compute endTime from duration (slotMinutes or existing duration)
+                                const durationForCalc = slotMinutes || (formData as any).duration_minutes || 0;
+                                const endDt = new Date(dt.getTime() + Number(durationForCalc) * 60000);
+                                const endH = String(endDt.getHours()).padStart(2, '0');
+                                const endM = String(endDt.getMinutes()).padStart(2, '0');
+                                const endStr = `${endH}:${endM}`;
                                 if (slotMinutes) {
-                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: slotMinutes });
+                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: slotMinutes, endTime: endStr });
                                   try { setLockedDurationFromSlot(true); } catch (e) {}
+                                  try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
                                 } else {
-                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}` });
+                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, endTime: endStr });
+                                  try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
                                 }
                               } catch (e) {
                                 // noop
@@ -948,12 +1027,20 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                 const isoDate = dt.toISOString();
                                 const dateOnly = isoDate.split('T')[0];
                                 const slotMinutes = s.slot_minutes || null;
-                                if (slotMinutes) {
-                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: Number(slotMinutes) });
-                                  try { setLockedDurationFromSlot(true); } catch (e) {}
-                                } else {
-                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}` });
-                                }
+                                  // compute endTime based on duration
+                                  const durationForCalc = slotMinutes || (formData as any).duration_minutes || 0;
+                                  const endDt = new Date(dt.getTime() + Number(durationForCalc) * 60000);
+                                  const endH = String(endDt.getHours()).padStart(2, '0');
+                                  const endM = String(endDt.getMinutes()).padStart(2, '0');
+                                  const endStr = `${endH}:${endM}`;
+                                  if (slotMinutes) {
+                                    onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: Number(slotMinutes), endTime: endStr });
+                                    try { setLockedDurationFromSlot(true); } catch (e) {}
+                                    try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
+                                  } else {
+                                    onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, endTime: endStr });
+                                    try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
+                                  }
                               }}
                             >
                               {label}

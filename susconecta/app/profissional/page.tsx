@@ -849,7 +849,23 @@ const ProfissionalPage = () => {
         try {
           if (isMaybeId(term)) {
             try {
-              const r = await buscarRelatorioPorId(term);
+              let r: any = null;
+              // Try direct API lookup first
+              try {
+                r = await buscarRelatorioPorId(term);
+              } catch (e) {
+                console.warn('[SearchBox] buscarRelatorioPorId failed, will try loadReportById fallback', e);
+              }
+
+              // Fallback: use hook loader if direct API didn't return
+              if (!r) {
+                try {
+                  r = await loadReportById(term);
+                } catch (e) {
+                  console.warn('[SearchBox] loadReportById fallback failed', e);
+                }
+              }
+
               if (r) {
                 // If token exists, attempt batch enrichment like useReports
                 const enriched: any = { ...r };
@@ -935,8 +951,14 @@ const ProfissionalPage = () => {
 
       const handleClear = async () => {
         setSearchTerm('');
-        await loadReports();
-        setLaudos(reports || []);
+        try {
+          // Reuse the same logic as initial load so Clear restores the doctor's assigned laudos
+          await loadAssignedLaudos();
+        } catch (err) {
+          console.warn('[SearchBox] erro ao restaurar laudos do médico ao limpar busca:', err);
+          // Safe fallback to whatever reports are available
+          setLaudos(reports || []);
+        }
       };
 
       return (
@@ -965,82 +987,44 @@ const ProfissionalPage = () => {
       );
     }
 
-    // carregar laudos ao montar - somente dos pacientes atribuídos ao médico logado
-    useEffect(() => {
-      let mounted = true;
-      (async () => {
+    // helper to load laudos for the patients assigned to the logged-in user
+    const loadAssignedLaudos = async () => {
+      try {
+        const assignments = await import('@/lib/assignment').then(m => m.listAssignmentsForUser(user?.id || ''));
+        const patientIds = Array.isArray(assignments) ? assignments.map(a => String(a.patient_id)).filter(Boolean) : [];
+
+        if (patientIds.length === 0) {
+          setLaudos([]);
+          return;
+        }
+
         try {
-          // obter assignments para o usuário logado
-          const assignments = await import('@/lib/assignment').then(m => m.listAssignmentsForUser(user?.id || ''));
-          const patientIds = Array.isArray(assignments) ? assignments.map(a => String(a.patient_id)).filter(Boolean) : [];
+          const reportsMod = await import('@/lib/reports');
+          if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
+            const batch = await reportsMod.listarRelatoriosPorPacientes(patientIds);
+            const mineOnly = (batch || []).filter((r: any) => {
+              const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
+              return user?.id && requester && requester === user.id;
+            });
 
-          if (patientIds.length === 0) {
-            if (mounted) setLaudos([]);
-            return;
-          }
-
-          // Tentar carregar todos os relatórios em uma única chamada usando in.(...)
-          try {
-            const reportsMod = await import('@/lib/reports');
-            if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
-              const batch = await reportsMod.listarRelatoriosPorPacientes(patientIds);
-              // Filtrar apenas relatórios criados/solicitados por este usuário (evita mostrar laudos de outros médicos)
-              const mineOnly = (batch || []).filter((r: any) => {
-                const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
-                return user?.id && requester && requester === user.id;
-              });
-              // Enrich reports with paciente objects so UI shows name/cpf immediately
-              const enriched = await (async (reportsArr: any[]) => {
-                if (!reportsArr || !reportsArr.length) return reportsArr;
-                const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
-                if (!pids.length) return reportsArr;
-                try {
-                  const patients = await buscarPacientesPorIds(pids);
-                  const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
-                  return reportsArr.map(r => {
-                    const pid = String(getReportPatientId(r));
-                    return { ...r, paciente: r.paciente ?? map.get(pid) ?? r.paciente };
-                  });
-                } catch (e) {
-                  return reportsArr;
-                }
-              })(mineOnly);
-              if (mounted) setLaudos(enriched || []);
-            } else {
-              // fallback: 请求 por paciente individual
-              const allReports: any[] = [];
-              for (const pid of patientIds) {
-                try {
-                  const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
-                  if (Array.isArray(rels) && rels.length) {
-                    // filtrar por autor (requested_by / created_by / executante)
-                    const mine = rels.filter((r: any) => {
-                      const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
-                      return user?.id && requester && requester === user.id;
-                    });
-                    if (mine.length) allReports.push(...mine);
-                  }
-                } catch (err) {
-                  console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
-                }
+            const enriched = await (async (reportsArr: any[]) => {
+              if (!reportsArr || !reportsArr.length) return reportsArr;
+              const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+              if (!pids.length) return reportsArr;
+              try {
+                const patients = await buscarPacientesPorIds(pids);
+                const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+                return reportsArr.map((r: any) => {
+                  const pid = String(getReportPatientId(r));
+                  return { ...r, paciente: r.paciente ?? map.get(pid) ?? r.paciente } as any;
+                });
+              } catch (e) {
+                return reportsArr;
               }
-              // enrich fallback results too
-              const enrichedAll = await (async (reportsArr: any[]) => {
-                if (!reportsArr || !reportsArr.length) return reportsArr;
-                const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
-                if (!pids.length) return reportsArr;
-                try {
-                  const patients = await buscarPacientesPorIds(pids);
-                  const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
-                  return reportsArr.map(r => ({ ...r, paciente: r.paciente ?? map.get(String(getReportPatientId(r))) ?? r.paciente }));
-                } catch (e) {
-                  return reportsArr;
-                }
-              })(allReports);
-              if (mounted) setLaudos(enrichedAll);
-            }
-          } catch (err) {
-            console.warn('[LaudoManager] erro ao carregar relatórios em batch, tentando por paciente individual', err);
+            })(mineOnly);
+            setLaudos(enriched || []);
+            return;
+          } else {
             const allReports: any[] = [];
             for (const pid of patientIds) {
               try {
@@ -1052,10 +1036,11 @@ const ProfissionalPage = () => {
                   });
                   if (mine.length) allReports.push(...mine);
                 }
-              } catch (e) {
-                console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, e);
+              } catch (err) {
+                console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, err);
               }
             }
+
             const enrichedAll = await (async (reportsArr: any[]) => {
               if (!reportsArr || !reportsArr.length) return reportsArr;
               const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
@@ -1063,17 +1048,58 @@ const ProfissionalPage = () => {
               try {
                 const patients = await buscarPacientesPorIds(pids);
                 const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
-                return reportsArr.map(r => ({ ...r, paciente: r.paciente ?? map.get(String(getReportPatientId(r))) ?? r.paciente }));
+                return reportsArr.map((r: any) => ({ ...r, paciente: r.paciente ?? map.get(String(getReportPatientId(r))) ?? r.paciente } as any));
               } catch (e) {
                 return reportsArr;
               }
             })(allReports);
-            if (mounted) setLaudos(enrichedAll);
+            setLaudos(enrichedAll);
+            return;
           }
-        } catch (e) {
-          console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);
-          if (mounted) setLaudos(reports || []);
+        } catch (err) {
+          console.warn('[LaudoManager] erro ao carregar relatórios em batch, tentando por paciente individual', err);
+          const allReports: any[] = [];
+          for (const pid of patientIds) {
+            try {
+              const rels = await import('@/lib/reports').then(m => m.listarRelatoriosPorPaciente(pid));
+              if (Array.isArray(rels) && rels.length) {
+                const mine = rels.filter((r: any) => {
+                  const requester = ((r.requested_by ?? r.created_by ?? r.executante ?? r.requestedBy ?? r.createdBy) || '').toString();
+                  return user?.id && requester && requester === user.id;
+                });
+                if (mine.length) allReports.push(...mine);
+              }
+            } catch (e) {
+              console.warn('[LaudoManager] falha ao carregar relatórios para paciente', pid, e);
+            }
+          }
+          const enrichedAll = await (async (reportsArr: any[]) => {
+            if (!reportsArr || !reportsArr.length) return reportsArr;
+            const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+            if (!pids.length) return reportsArr;
+            try {
+              const patients = await buscarPacientesPorIds(pids);
+              const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+              return reportsArr.map((r: any) => ({ ...r, paciente: r.paciente ?? map.get(String(getReportPatientId(r))) ?? r.paciente } as any));
+            } catch (e) {
+              return reportsArr;
+            }
+          })(allReports);
+          setLaudos(enrichedAll);
+          return;
         }
+      } catch (e) {
+        console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);
+        setLaudos(reports || []);
+      }
+    };
+
+    // carregar laudos ao montar - somente dos pacientes atribuídos ao médico logado
+    useEffect(() => {
+      let mounted = true;
+      (async () => {
+        // call the helper and bail if the component unmounted during async work
+        await loadAssignedLaudos();
       })();
       return () => { mounted = false; };
     }, [user?.id]);

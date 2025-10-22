@@ -1828,9 +1828,10 @@ export async function listarProfissionais(params?: { page?: number; limit?: numb
 
 // Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
-  // Mirror criarPaciente: validate input, normalize fields and call the server-side
-  // create-doctor Edge Function. Normalize possible envelope responses so callers
-  // always receive a `Medico` object when possible.
+  // Make criarMedico behave like criarPaciente: prefer the create-user-with-password
+  // endpoint so that an Auth user is created and the UI can display a generated
+  // password. If that endpoint is not available, fall back to the existing
+  // create-doctor Edge Function behavior.
   if (!input) throw new Error('Dados do médico não informados');
   const required = ['email', 'full_name', 'cpf', 'crm', 'crm_uf'];
   for (const r of required) {
@@ -1852,44 +1853,132 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
     throw new Error('CRM UF inválido. Deve conter 2 letras maiúsculas (ex: SP, RJ).');
   }
 
+  // First try the create-user-with-password flow (mirrors criarPaciente)
+  const password = gerarSenhaAleatoria();
   const payload: any = {
     email: input.email,
+    password,
     full_name: input.full_name,
+    phone: input.phone_mobile || null,
+    role: 'medico' as any,
+    create_doctor_record: true,
     cpf: cleanCpf,
+    phone_mobile: input.phone_mobile,
     crm: input.crm,
     crm_uf: crmUf,
   };
-  // Incluir flag para instruir a Edge Function a NÃO criar o usuário no Auth
-  // (em alguns deployments a função cria o usuário por padrão; se quisermos
-  // apenas criar o registro do médico, enviar create_user: false)
-  payload.create_user = false;
+
+  // Attach other optional fields that backend may accept
   if (input.specialty) payload.specialty = input.specialty;
-  if (input.phone_mobile) payload.phone_mobile = input.phone_mobile;
-  if (typeof input.phone2 !== 'undefined') payload.phone2 = input.phone2;
+  if (input.cep) payload.cep = input.cep;
+  if (input.street) payload.street = input.street;
+  if (input.number) payload.number = input.number;
+  if (input.complement) payload.complement = input.complement;
+  if (input.neighborhood) payload.neighborhood = input.neighborhood;
+  if (input.city) payload.city = input.city;
+  if (input.state) payload.state = input.state;
+  if (input.birth_date) payload.birth_date = input.birth_date;
+  if (input.rg) payload.rg = input.rg;
 
-  const url = `${API_BASE}/functions/v1/create-doctor`;
-  // Debug: build headers separately so we can log them (masked) and the body
-  const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string, string>;
-  const maskedHeaders = { ...headers } as Record<string, string>;
-  if (maskedHeaders.Authorization) {
-    const a = maskedHeaders.Authorization as string;
-    maskedHeaders.Authorization = `${a.slice(0,6)}...${a.slice(-6)}`;
+  const fnUrls = [
+    `${API_BASE}/functions/v1/create-user-with-password`,
+    `${API_BASE}/create-user-with-password`,
+    'https://yuanqfswhberkoevtmfr.supabase.co/functions/v1/create-user-with-password',
+    'https://yuanqfswhberkoevtmfr.supabase.co/create-user-with-password',
+  ];
+
+  let lastErr: any = null;
+  for (const u of fnUrls) {
+    try {
+      const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string,string>;
+      const maskedHeaders = { ...headers } as Record<string,string>;
+      if (maskedHeaders.Authorization) {
+        const a = maskedHeaders.Authorization as string;
+        maskedHeaders.Authorization = `${a.slice(0,6)}...${a.slice(-6)}`;
+      }
+      console.debug('[criarMedico] POST', u, 'headers(masked):', maskedHeaders, 'payloadKeys:', Object.keys(payload));
+
+      const res = await fetch(u, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const parsed = await parse<any>(res as Response);
+
+      // If server returned doctor_id, fetch the doctor
+      if (parsed && parsed.doctor_id) {
+        const doc = await buscarMedicoPorId(String(parsed.doctor_id)).catch(() => null);
+        if (doc) return Object.assign(doc, { password });
+        if (parsed.doctor) return Object.assign(parsed.doctor, { password });
+        return Object.assign({ id: parsed.doctor_id, full_name: input.full_name, cpf: cleanCpf, email: input.email } as Medico, { password });
+      }
+
+      // If server returned doctor object directly
+      if (parsed && (parsed.id || parsed.full_name || parsed.cpf)) {
+        return Object.assign(parsed, { password }) as Medico;
+      }
+
+      // If server returned an envelope with user, try to locate doctor by email
+      if (parsed && parsed.user && parsed.user.id) {
+        const maybe = await fetch(`${REST}/doctors?email=eq.${encodeURIComponent(String(input.email))}&select=*`, { method: 'GET', headers: baseHeaders() }).then((r) => r.ok ? r.json().catch(() => []) : []);
+        if (Array.isArray(maybe) && maybe.length) return Object.assign(maybe[0] as Medico, { password });
+        return Object.assign({ id: parsed.user.id, full_name: input.full_name, email: input.email } as Medico, { password });
+      }
+
+      // otherwise return parsed with password as best-effort
+      return Object.assign(parsed || {}, { password });
+    } catch (err: any) {
+      lastErr = err;
+      const emsg = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);
+      console.warn('[criarMedico] tentativa em', u, 'falhou:', emsg);
+      if (emsg && emsg.toLowerCase().includes('failed to fetch')) {
+        console.error('[criarMedico] Falha de fetch (network/CORS). Verifique autenticação (token no localStorage/sessionStorage) e se o endpoint permite requisições CORS do seu domínio. Também confirme que a função /create-user-with-password existe e está acessível.');
+      }
+      // try next
+    }
   }
-  console.debug('[DEBUG criarMedico] POST', url, 'headers(masked):', maskedHeaders, 'body:', JSON.stringify(payload));
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
-
-  let parsed: any = null;
+  // If create-user-with-password attempts failed, fall back to existing create-doctor function
   try {
-    parsed = await parse<any>(res as Response);
-  } catch (err: any) {
-    const msg = String(err?.message || '').toLowerCase();
-    // Workaround: se a função reclamou que o email já existe, tentar obter o médico
-    // já cadastrado pelo email e retornar esse perfil em vez de falhar.
+    const fallbackPayload: any = {
+      email: input.email,
+      full_name: input.full_name,
+      cpf: cleanCpf,
+      crm: input.crm,
+      crm_uf: crmUf,
+      create_user: false,
+    };
+    if (input.specialty) fallbackPayload.specialty = input.specialty;
+    if (input.phone_mobile) fallbackPayload.phone_mobile = input.phone_mobile;
+    if (typeof input.phone2 !== 'undefined') fallbackPayload.phone2 = input.phone2;
+
+    const url = `${API_BASE}/functions/v1/create-doctor`;
+    const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string, string>;
+    const maskedHeaders = { ...headers } as Record<string, string>;
+    if (maskedHeaders.Authorization) {
+      const a = maskedHeaders.Authorization as string;
+      maskedHeaders.Authorization = `${a.slice(0,6)}...${a.slice(-6)}`;
+    }
+    console.debug('[criarMedico fallback] POST', url, 'headers(masked):', maskedHeaders, 'body:', JSON.stringify(fallbackPayload));
+
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(fallbackPayload) });
+    const parsed = await parse<any>(res as Response);
+
+    if (parsed && parsed.doctor && typeof parsed.doctor === 'object') return parsed.doctor as Medico;
+    if (parsed && parsed.doctor_id) {
+      const d = await buscarMedicoPorId(String(parsed.doctor_id));
+      if (d) return d;
+      throw new Error('Médico criado mas não foi possível recuperar os dados do perfil.');
+    }
+    if (parsed && (parsed.id || parsed.full_name || parsed.cpf)) return parsed as Medico;
+
+    // As a last fallback, if the fallback didn't return a doctor, but we created an auth user earlier
+    const emsg = lastErr && typeof lastErr === 'object' && 'message' in lastErr ? (lastErr as any).message : String(lastErr ?? 'sem detalhes');
+    throw new Error(`Falha ao criar médico: ${emsg}`);
+  } catch (err) {
+    // If the fallback errored with email already registered, try to return existing doctor by email
+    const msg = String((err as any)?.message || '').toLowerCase();
     if (msg.includes('already been registered') || msg.includes('já está cadastrado') || msg.includes('already registered')) {
       try {
         const checkUrl = `${REST}/doctors?email=eq.${encodeURIComponent(String(input.email || ''))}&select=*`;
@@ -1899,59 +1988,11 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
           if (Array.isArray(arr) && arr.length > 0) return arr[0];
         }
       } catch (inner) {
-        // ignore and rethrow original error below
+        // ignore
       }
     }
-    // rethrow original error if fallback didn't resolve
     throw err;
   }
-  if (!parsed) throw new Error('Resposta vazia ao criar médico');
-
-  // If the function returns an envelope like { doctor: { ... }, doctor_id: '...' }
-  if (parsed.doctor && typeof parsed.doctor === 'object') return parsed.doctor as Medico;
-
-  // If it returns only a doctor_id, try to fetch full profile
-  if (parsed.doctor_id) {
-    try {
-      const d = await buscarMedicoPorId(String(parsed.doctor_id));
-      if (!d) throw new Error('Médico não encontrado após criação');
-      return d;
-    } catch (e) {
-      throw new Error('Médico criado mas não foi possível recuperar os dados do perfil.');
-    }
-  }
-
-  // If the function returned the doctor object directly
-  if (parsed.id || parsed.full_name || parsed.cpf) {
-    return parsed as Medico;
-  }
-
-  // If we reached here the function didn't return a doctor object. As a best-effort
-  // fallback, attempt to create the Auth user via create-user-with-password when the
-  // server indicated it did NOT create the user (payload.create_user === false).
-  try {
-    // Only attempt client-side creation if input indicates we should (server opted out)
-    if (payload.create_user === false) {
-      const password = gerarSenhaAleatoria();
-      try {
-        const createResp = await criarUsuarioComSenha({ email: input.email, password, full_name: input.full_name, phone: input.phone_mobile || null, role: 'medico', create_patient_record: false, cpf: cleanCpf, phone_mobile: input.phone_mobile });
-        // If creation returned a user and possibly a linked doctor_id, try to fetch/return
-        if (createResp && createResp.user) {
-          // attempt to link by email
-          const maybe = await fetch(`${REST}/doctors?email=eq.${encodeURIComponent(String(input.email))}&select=*`, { method: 'GET', headers: baseHeaders() }).then((r) => r.ok ? r.json().catch(() => []) : []);
-          if (Array.isArray(maybe) && maybe.length) return maybe[0] as Medico;
-        }
-      } catch (e: any) {
-        // ignore and surface original error below
-        const em = e && typeof e === 'object' && 'message' in e ? (e as any).message : String(e);
-        console.warn('[criarMedico] criarUsuarioComSenha fallback falhou:', em);
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  throw new Error('Formato de resposta inesperado ao criar médico');
 }
 
 /**

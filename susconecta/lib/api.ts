@@ -235,43 +235,83 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
   }
 
 
-  const payload: any = {
+  // Normalize weekday to integer expected by the OpenAPI (0=Sunday .. 6=Saturday)
+  const mapWeekdayToInt = (w?: string | number): number | null => {
+    if (w === null || typeof w === 'undefined') return null;
+    if (typeof w === 'number') return Number(w);
+    const s = String(w).toLowerCase().trim();
+    const map: Record<string, number> = {
+      'domingo': 0, 'domingo.': 0, 'sunday': 0,
+      'segunda': 1, 'segunda-feira': 1, 'monday': 1,
+      'terca': 2, 'terça': 2, 'terca-feira': 2, 'tuesday': 2,
+      'quarta': 3, 'quarta-feira': 3, 'wednesday': 3,
+      'quinta': 4, 'quinta-feira': 4, 'thursday': 4,
+      'sexta': 5, 'sexta-feira': 5, 'friday': 5,
+      'sabado': 6, 'sábado': 6, 'saturday': 6,
+    } as any;
+    // numeric strings
+    if (/^\d+$/.test(s)) return Number(s);
+    return map[s] ?? null;
+  };
+
+  const weekdayInt = mapWeekdayToInt(input.weekday as any);
+  if (weekdayInt === null || weekdayInt < 0 || weekdayInt > 6) {
+    throw new Error('weekday inválido. Use 0=Domingo .. 6=Sábado ou o nome do dia.');
+  }
+
+  // First, attempt server-side Edge Function to perform the insert with service privileges.
+  // This avoids RLS blocking client inserts. The function will also validate doctor existence.
+  const fnUrl = `${API_BASE}/functions/v1/create-availability`;
+  const fnPayload: any = {
+    doctor_id: input.doctor_id,
+    weekday: weekdayInt,
+    start_time: input.start_time,
+    end_time: input.end_time,
     slot_minutes: input.slot_minutes ?? 30,
     appointment_type: input.appointment_type ?? 'presencial',
     active: typeof input.active === 'undefined' ? true : input.active,
-    doctor_id: input.doctor_id,
-    weekday: mapWeekdayForServer(input.weekday),
-    start_time: input.start_time,
-    end_time: input.end_time,
+    created_by: createdBy,
   };
 
-  const url = `${REST}/doctor_availability`;
-  // Try several payload permutations to tolerate different server enum/time formats.
-  const attempts = [] as Array<{ weekdayVal: string | undefined; withSeconds: boolean }>;
-  const mappedWeekday = mapWeekdayForServer(input.weekday);
-  const originalWeekday = input.weekday;
-  attempts.push({ weekdayVal: mappedWeekday, withSeconds: true });
-  attempts.push({ weekdayVal: originalWeekday, withSeconds: true });
-  attempts.push({ weekdayVal: mappedWeekday, withSeconds: false });
-  attempts.push({ weekdayVal: originalWeekday, withSeconds: false });
+  try {
+    const fnRes = await fetch(fnUrl, {
+      method: 'POST',
+      headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(fnPayload),
+    });
+    if (fnRes.ok) {
+      const created = await parse<DoctorAvailability | DoctorAvailability[]>(fnRes as Response);
+      return Array.isArray(created) ? created[0] : (created as DoctorAvailability);
+    }
+    // If function exists but returned 4xx/5xx, let parse() surface friendly error
+    if (fnRes.status >= 400 && fnRes.status < 600) {
+      return await parse<DoctorAvailability>(fnRes);
+    }
+  } catch (e) {
+    console.warn('[criarDisponibilidade] create-availability function unavailable or errored, falling back to REST:', e);
+  }
 
+  // Fallback: try direct REST insert using integer weekday (OpenAPI expects integer).
+  const restUrl = `${REST}/doctor_availability`;
+  // Try with/without seconds for times to tolerate different server formats.
+  const attempts = [true, false];
   let lastRes: Response | null = null;
-  for (const at of attempts) {
-    const start = at.withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
-    const end = at.withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
+  for (const withSeconds of attempts) {
+    const start = withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
+    const end = withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
     const tryPayload: any = {
+      doctor_id: input.doctor_id,
+      weekday: weekdayInt,
+      start_time: start,
+      end_time: end,
       slot_minutes: input.slot_minutes ?? 30,
       appointment_type: input.appointment_type ?? 'presencial',
       active: typeof input.active === 'undefined' ? true : input.active,
-      doctor_id: input.doctor_id,
-      weekday: at.weekdayVal,
-      start_time: start,
-      end_time: end,
       created_by: createdBy,
     };
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(restUrl, {
         method: 'POST',
         headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
         body: JSON.stringify(tryPayload),
@@ -281,27 +321,56 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
         const arr = await parse<DoctorAvailability[] | DoctorAvailability>(res);
         return Array.isArray(arr) ? arr[0] : (arr as DoctorAvailability);
       }
+      if (res.status >= 500) return await parse<DoctorAvailability>(res);
 
-      // If server returned a 4xx, try next permutation; for 5xx, bail out and throw the error from parse()
-      if (res.status >= 500) {
-        // Let parse produce the error with friendly messaging
-        return await parse<DoctorAvailability>(res);
-      }
-
-      // Log a warning and continue to next attempt
       const raw = await res.clone().text().catch(() => '');
-      console.warn('[criarDisponibilidade] tentativa falhou', { status: res.status, weekday: at.weekdayVal, withSeconds: at.withSeconds, raw });
-      // continue to next attempt
+      console.warn('[criarDisponibilidade] REST attempt failed', { status: res.status, withSeconds, raw });
+      // If 22P02 (invalid enum) occurs, we will try a name-based fallback below
+      if (res.status === 422 || (raw && raw.toString().includes('invalid input value for enum'))) {
+        // fall through to name-based fallback
+        break;
+      }
     } catch (e) {
-      console.warn('[criarDisponibilidade] fetch erro na tentativa', e);
-      // continue to next attempt
+      console.warn('[criarDisponibilidade] REST fetch erro', e);
     }
   }
 
-  // All attempts failed — throw using the last response to get friendly message from parse()
-  if (lastRes) {
-    return await parse<DoctorAvailability>(lastRes);
+  // As a last resort: try sending weekday as English name (e.g. 'monday') for older schemas
+  const engMap = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  const mappedName = engMap[weekdayInt];
+  for (const withSeconds of attempts) {
+    const start = withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
+    const end = withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
+    const tryPayload: any = {
+      doctor_id: input.doctor_id,
+      weekday: mappedName,
+      start_time: start,
+      end_time: end,
+      slot_minutes: input.slot_minutes ?? 30,
+      appointment_type: input.appointment_type ?? 'presencial',
+      active: typeof input.active === 'undefined' ? true : input.active,
+      created_by: createdBy,
+    };
+    try {
+      const res = await fetch(restUrl, {
+        method: 'POST',
+        headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+        body: JSON.stringify(tryPayload),
+      });
+      lastRes = res;
+      if (res.ok) {
+        const arr = await parse<DoctorAvailability[] | DoctorAvailability>(res);
+        return Array.isArray(arr) ? arr[0] : (arr as DoctorAvailability);
+      }
+      if (res.status >= 500) return await parse<DoctorAvailability>(res);
+      const raw = await res.clone().text().catch(() => '');
+      console.warn('[criarDisponibilidade] REST name-based attempt failed', { status: res.status, withSeconds, raw });
+    } catch (e) {
+      console.warn('[criarDisponibilidade] REST name-based fetch erro', e);
+    }
   }
+
+  if (lastRes) return await parse<DoctorAvailability>(lastRes);
   throw new Error('Falha ao criar disponibilidade: nenhuma resposta do servidor.');
 }
 

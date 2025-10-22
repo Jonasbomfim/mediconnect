@@ -1720,18 +1720,52 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
     crm: input.crm,
     crm_uf: crmUf,
   };
+  // Incluir flag para instruir a Edge Function a NÃO criar o usuário no Auth
+  // (em alguns deployments a função cria o usuário por padrão; se quisermos
+  // apenas criar o registro do médico, enviar create_user: false)
+  payload.create_user = false;
   if (input.specialty) payload.specialty = input.specialty;
   if (input.phone_mobile) payload.phone_mobile = input.phone_mobile;
   if (typeof input.phone2 !== 'undefined') payload.phone2 = input.phone2;
 
   const url = `${API_BASE}/functions/v1/create-doctor`;
+  // Debug: build headers separately so we can log them (masked) and the body
+  const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string, string>;
+  const maskedHeaders = { ...headers } as Record<string, string>;
+  if (maskedHeaders.Authorization) {
+    const a = maskedHeaders.Authorization as string;
+    maskedHeaders.Authorization = `${a.slice(0,6)}...${a.slice(-6)}`;
+  }
+  console.debug('[DEBUG criarMedico] POST', url, 'headers(masked):', maskedHeaders, 'body:', JSON.stringify(payload));
+
   const res = await fetch(url, {
     method: 'POST',
-    headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
 
-  const parsed = await parse<any>(res as Response);
+  let parsed: any = null;
+  try {
+    parsed = await parse<any>(res as Response);
+  } catch (err: any) {
+    const msg = String(err?.message || '').toLowerCase();
+    // Workaround: se a função reclamou que o email já existe, tentar obter o médico
+    // já cadastrado pelo email e retornar esse perfil em vez de falhar.
+    if (msg.includes('already been registered') || msg.includes('já está cadastrado') || msg.includes('already registered')) {
+      try {
+        const checkUrl = `${REST}/doctors?email=eq.${encodeURIComponent(String(input.email || ''))}&select=*`;
+        const checkRes = await fetch(checkUrl, { method: 'GET', headers: baseHeaders() });
+        if (checkRes.ok) {
+          const arr = await parse<Medico[]>(checkRes);
+          if (Array.isArray(arr) && arr.length > 0) return arr[0];
+        }
+      } catch (inner) {
+        // ignore and rethrow original error below
+      }
+    }
+    // rethrow original error if fallback didn't resolve
+    throw err;
+  }
   if (!parsed) throw new Error('Resposta vazia ao criar médico');
 
   // If the function returns an envelope like { doctor: { ... }, doctor_id: '...' }

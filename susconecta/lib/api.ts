@@ -1298,14 +1298,53 @@ export async function buscarPacientesPorMedico(doctorId: string): Promise<Pacien
 }
 
 export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
-  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients`;
+  // Este helper agora chama exclusivamente a Edge Function /functions/v1/create-patient
+  // A função server-side é responsável por criar o usuário no Auth, o profile e o registro em patients
+  if (!input) throw new Error('Dados do paciente não informados');
+
+  // Validar campos obrigatórios conforme OpenAPI do create-patient
+  const required = ['full_name', 'email', 'cpf', 'phone_mobile'];
+  for (const r of required) {
+    const val = (input as any)[r];
+    if (!val || (typeof val === 'string' && String(val).trim() === '')) {
+      throw new Error(`Campo obrigatório ausente: ${r}`);
+    }
+  }
+
+  // Normalizar e validar CPF (11 dígitos)
+  const cleanCpf = String(input.cpf || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(cleanCpf)) {
+    throw new Error('CPF inválido. Deve conter 11 dígitos numéricos.');
+  }
+
+  const payload: any = {
+    full_name: input.full_name,
+    email: input.email,
+    cpf: cleanCpf,
+    phone_mobile: input.phone_mobile,
+  };
+  // Copiar demais campos opcionais quando presentes
+  if (input.cep) payload.cep = input.cep;
+  if (input.street) payload.street = input.street;
+  if (input.number) payload.number = input.number;
+  if (input.complement) payload.complement = input.complement;
+  if (input.neighborhood) payload.neighborhood = input.neighborhood;
+  if (input.city) payload.city = input.city;
+  if (input.state) payload.state = input.state;
+  if (input.birth_date) payload.birth_date = input.birth_date;
+  if (input.rg) payload.rg = input.rg;
+  if (input.social_name) payload.social_name = input.social_name;
+  if (input.notes) payload.notes = input.notes;
+
+  const url = `${API_BASE}/functions/v1/create-patient`;
   const res = await fetch(url, {
-    method: "POST",
-    headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input),
+    method: 'POST',
+    headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
-  const arr = await parse<Paciente[] | Paciente>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+
+  // Deixar parse() lidar com erros/erros de validação retornados pela função
+  return await parse<Paciente>(res as Response);
 }
 
 export async function atualizarPaciente(id: string | number, input: PacienteInput): Promise<Paciente> {
@@ -1650,17 +1689,47 @@ export async function listarProfissionais(params?: { page?: number; limit?: numb
 
 // Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
-  console.log("Enviando os dados para a API:", input);  // Log para depuração
-  
-  const url = `${REST}/doctors`;  // Endpoint de médicos
+  // Validate required fields according to the OpenAPI for /functions/v1/create-doctor
+  if (!input) throw new Error('Dados do médico não informados');
+  const required = ['email', 'full_name', 'cpf', 'crm', 'crm_uf'];
+  for (const r of required) {
+    const val = (input as any)[r];
+    if (!val || (typeof val === 'string' && String(val).trim() === '')) {
+      throw new Error(`Campo obrigatório ausente: ${r}`);
+    }
+  }
+
+  // Normalize and validate CPF
+  const cleanCpf = String(input.cpf || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(cleanCpf)) {
+    throw new Error('CPF inválido. Deve conter 11 dígitos numéricos.');
+  }
+
+  // Validate CRM UF (two uppercase letters)
+  const crmUf = String(input.crm_uf || '').toUpperCase();
+  if (!/^[A-Z]{2}$/.test(crmUf)) {
+    throw new Error('CRM UF inválido. Deve conter 2 letras maiúsculas (ex: SP, RJ).');
+  }
+
+  // Build payload expected by the Function
+  const payload: any = {
+    email: input.email,
+    full_name: input.full_name,
+    cpf: cleanCpf,
+    crm: input.crm,
+    crm_uf: crmUf,
+  };
+  if (input.specialty) payload.specialty = input.specialty;
+  if (input.phone_mobile) payload.phone_mobile = input.phone_mobile;
+
+  const url = `${API_BASE}/functions/v1/create-doctor`;
   const res = await fetch(url, {
-    method: "POST",
-    headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input), // Enviando os dados padronizados
+    method: 'POST',
+    headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
 
-  const arr = await parse<Medico[] | Medico>(res); // Resposta da API
-  return Array.isArray(arr) ? arr[0] : (arr as Medico);  // Retorno do médico
+  return await parse<Medico>(res as Response);
 }
 
 /**
@@ -1946,10 +2015,10 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
-  // Prefer calling the Functions path first in environments where /create-user
-  // is not mapped at the API root (this avoids expected 404 noise). Keep the
-  // root /create-user as a fallback for deployments that expose it.
-  const functionsUrl = `${API_BASE}/functions/v1/create-user`;
+  // Prefer calling the Functions path at the explicit project URL provided
+  // by the environment / team. Keep the API_BASE-root fallback for other deployments.
+  const explicitFunctionsUrl = 'https://yuanqfswhberkoevtmfr.supabase.co/functions/v1/create-user';
+  const functionsUrl = explicitFunctionsUrl;
   const url = `${API_BASE}/create-user`;
 
   let res: Response | null = null;
@@ -2103,16 +2172,44 @@ export async function criarUsuarioMedico(medico: { email: string; full_name: str
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  const redirectBase = DEFAULT_LANDING;
-  const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/paciente`;
-  // Use the role-specific landing as the redirect_url so the magic link
-  // redirects users directly to the app path (e.g. /paciente).
-  const redirect_url = emailRedirectTo;
-  // generate a secure-ish random password on the client so the caller can receive it
+  // Este helper NÃO deve usar /create-user como fallback.
+  // Em vez disso, encaminha para a Edge Function especializada /functions/v1/create-patient
+  // e inclui uma senha gerada para que o backend possa, se suportado, definir credenciais.
+  if (!paciente) throw new Error('Dados do paciente não informados');
+
+  const required = ['email', 'full_name', 'phone_mobile'];
+  for (const r of required) {
+    const val = (paciente as any)[r];
+    if (!val || (typeof val === 'string' && String(val).trim() === '')) {
+      throw new Error(`Campo obrigatório ausente para criar usuário/paciente: ${r}`);
+    }
+  }
+
+  // Generate a password so the UI can present it to the user if desired
   const password = gerarSenhaAleatoria();
-  const resp = await criarUsuario({ email: paciente.email, password, full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any, emailRedirectTo, redirect_url, target: 'paciente' });
-  // Return backend response plus the generated password so the UI can show/save it
-  return { ...(resp as any), password };
+
+  // Normalize CPF is intentionally not required here because this helper is used
+  // when creating access; if CPF is needed it should be provided to the create-patient Function.
+  const payload: any = {
+    email: paciente.email,
+    full_name: paciente.full_name,
+    phone_mobile: paciente.phone_mobile,
+    // provide a client-generated password (backend may accept or ignore)
+    password,
+    // indicate target so function can assign role and redirect
+    target: 'paciente',
+  };
+
+  const url = `${API_BASE}/functions/v1/create-patient`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const parsed = await parse<any>(res as Response);
+  // Attach the generated password so callers (UI) can display it if necessary
+  return { ...(parsed || {}), password };
 }
 
 

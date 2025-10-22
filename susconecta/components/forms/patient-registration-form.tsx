@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format, parse, isValid, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,6 @@ import {
   listarAnexos,
   removerAnexo,
   buscarPacientePorId,
-  criarUsuarioPaciente,
   criarPaciente,
 } from "@/lib/api";
 import { getAvatarPublicUrl } from '@/lib/api';
@@ -104,8 +103,7 @@ export function PatientRegistrationForm({
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
-  
-  // Estados para o dialog de credenciais
+
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
   const [credentials, setCredentials] = useState<{
     email: string;
@@ -120,9 +118,7 @@ export function PatientRegistrationForm({
     async function load() {
       if (mode !== "edit" || patientId == null) return;
       try {
-        console.log("[PatientForm] Carregando paciente ID:", patientId);
         const p = await buscarPacientePorId(String(patientId));
-        console.log("[PatientForm] Dados recebidos:", p);
         setForm((s) => ({
           ...s,
           nome: p.full_name || "",
@@ -130,9 +126,7 @@ export function PatientRegistrationForm({
           cpf: p.cpf || "",
           rg: p.rg || "",
           sexo: p.sex || "",
-          birth_date: p.birth_date ? (() => {
-            try { return format(parseISO(String(p.birth_date)), 'dd/MM/yyyy'); } catch { return String(p.birth_date); }
-          })() : "",
+          birth_date: p.birth_date ? (() => { try { return format(parseISO(String(p.birth_date)), 'dd/MM/yyyy'); } catch { return String(p.birth_date); } })() : "",
           telefone: p.phone_mobile || "",
           email: p.email || "",
           cep: p.cep || "",
@@ -147,7 +141,7 @@ export function PatientRegistrationForm({
 
         const ax = await listarAnexos(String(patientId)).catch(() => []);
         setServerAnexos(Array.isArray(ax) ? ax : []);
-        // Try to detect existing public avatar (no file extension) and set preview
+
         try {
           const url = getAvatarPublicUrl(String(patientId));
           try {
@@ -157,14 +151,10 @@ export function PatientRegistrationForm({
               const get = await fetch(url, { method: 'GET' });
               if (get.ok) { setPhotoPreview(url); }
             }
-          } catch (inner) {
-            // ignore network/CORS errors while detecting
-          }
-        } catch (detectErr) {
-          // ignore detection errors
-        }
+          } catch (inner) { /* ignore */ }
+        } catch (detectErr) { /* ignore */ }
       } catch (err) {
-        console.error("[PatientForm] Erro ao carregar paciente:", err);
+        console.error('[PatientForm] Erro ao carregar paciente:', err);
       }
     }
     load();
@@ -179,33 +169,13 @@ export function PatientRegistrationForm({
     const n = v.replace(/\D/g, "").slice(0, 11);
     return n.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, a, b, c, d) => `${a}.${b}.${c}${d ? "-" + d : ""}`);
   }
-  function handleCPFChange(v: string) {
-    setField("cpf", formatCPF(v));
-  }
+  function handleCPFChange(v: string) { setField("cpf", formatCPF(v)); }
 
-  function formatCEP(v: string) {
-    const n = v.replace(/\D/g, "").slice(0, 8);
-    return n.replace(/(\d{5})(\d{0,3})/, (_, a, b) => `${a}${b ? "-" + b : ""}`);
-  }
+  function formatCEP(v: string) { const n = v.replace(/\D/g, "").slice(0, 8); return n.replace(/(\d{5})(\d{0,3})/, (_, a, b) => `${a}${b ? "-" + b : ""}`); }
   async function fillFromCEP(cep: string) {
-    const clean = cep.replace(/\D/g, "");
-    if (clean.length !== 8) return;
-    setSearchingCEP(true);
-    try {
-      const res = await buscarCepAPI(clean);
-      if (res?.erro) {
-        setErrors((e) => ({ ...e, cep: "CEP não encontrado" }));
-      } else {
-        setField("logradouro", res.logradouro ?? "");
-        setField("bairro", res.bairro ?? "");
-        setField("cidade", res.localidade ?? "");
-        setField("estado", res.uf ?? "");
-      }
-    } catch {
-      setErrors((e) => ({ ...e, cep: "Erro ao buscar CEP" }));
-    } finally {
-      setSearchingCEP(false);
-    }
+    const clean = cep.replace(/\D/g, ""); if (clean.length !== 8) return; setSearchingCEP(true);
+    try { const res = await buscarCepAPI(clean); if (res?.erro) setErrors((e) => ({ ...e, cep: "CEP não encontrado" })); else { setField("logradouro", res.logradouro ?? ""); setField("bairro", res.bairro ?? ""); setField("cidade", res.localidade ?? ""); setField("estado", res.uf ?? ""); } }
+    catch { setErrors((e) => ({ ...e, cep: "Erro ao buscar CEP" })); } finally { setSearchingCEP(false); }
   }
 
   function validateLocal(): boolean {
@@ -222,14 +192,9 @@ export function PatientRegistrationForm({
     try {
       const parts = String(form.birth_date).split(/\D+/).filter(Boolean);
       if (parts.length === 3) {
-        const [d, m, y] = parts;
-        const date = new Date(Number(y), Number(m) - 1, Number(d));
-        if (!isNaN(date.getTime())) {
-          isoDate = date.toISOString().slice(0, 10);
-        }
+        const [d, m, y] = parts; const date = new Date(Number(y), Number(m) - 1, Number(d)); if (!isNaN(date.getTime())) isoDate = date.toISOString().slice(0, 10);
       }
     } catch {}
-
     return {
       full_name: form.nome,
       social_name: form.nome_social || null,
@@ -251,375 +216,110 @@ export function PatientRegistrationForm({
   }
 
   async function handleSubmit(ev: React.FormEvent) {
-    ev.preventDefault();
-    if (!validateLocal()) return;
-
+    ev.preventDefault(); if (!validateLocal()) return;
     try {
-      if (!validarCPFLocal(form.cpf)) {
-        setErrors((e) => ({ ...e, cpf: "CPF inválido" }));
-        return;
-      }
-      if (mode === "create") {
-        const existe = await verificarCpfDuplicado(form.cpf);
-        if (existe) {
-          setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" }));
-          return;
-        }
-      }
-    } catch (err) {
-      console.error("Erro ao validar CPF", err);
-      setErrors({ submit: "Erro ao validar CPF." });
-      return;
-    }
+      if (!validarCPFLocal(form.cpf)) { setErrors((e) => ({ ...e, cpf: "CPF inválido" })); return; }
+      if (mode === "create") { const existe = await verificarCpfDuplicado(form.cpf); if (existe) { setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" })); return; } }
+    } catch (err) { console.error("Erro ao validar CPF", err); setErrors({ submit: "Erro ao validar CPF." }); return; }
 
     setSubmitting(true);
     try {
       if (mode === "edit") {
         if (patientId == null) throw new Error("Paciente inexistente para edição");
-        const payload = toPayload();
-        const saved = await atualizarPaciente(String(patientId), payload);
-        // If a new photo was selected locally, remove existing public avatar (if any) then upload the new one
+        const payload = toPayload(); const saved = await atualizarPaciente(String(patientId), payload);
         if (form.photo) {
-          try {
-            setUploadingPhoto(true);
-            // Attempt to remove existing avatar first (no-op if none)
-            try {
-              await removerFotoPaciente(String(patientId));
-              // clear any cached preview so upload result will repopulate it
-              setPhotoPreview(null);
-            } catch (remErr) {
-              // If removal fails (permissions/CORS), continue to attempt upload — we don't want to block the user
-              console.warn('[PatientForm] aviso: falha ao remover avatar antes do upload:', remErr);
-            }
-            await uploadFotoPaciente(String(patientId), form.photo);
-          } catch (upErr) {
-            console.warn('[PatientForm] Falha ao enviar foto do paciente:', upErr);
-            // don't block the main update — show a warning
-            alert('Paciente atualizado, mas falha ao enviar a foto. Tente novamente.');
-          } finally {
-            setUploadingPhoto(false);
-          }
+          try { setUploadingPhoto(true); try { await removerFotoPaciente(String(patientId)); setPhotoPreview(null); } catch (remErr) { console.warn('[PatientForm] aviso: falha ao remover avatar antes do upload:', remErr); } await uploadFotoPaciente(String(patientId), form.photo); }
+          catch (upErr) { console.warn('[PatientForm] Falha ao enviar foto do paciente:', upErr); alert('Paciente atualizado, mas falha ao enviar a foto. Tente novamente.'); }
+          finally { setUploadingPhoto(false); }
         }
-        onSaved?.(saved);
-        alert("Paciente atualizado com sucesso!");
-        
-        setForm(initial);
-        setPhotoPreview(null);
-        setServerAnexos([]);
-        if (inline) onClose?.();
-        else onOpenChange?.(false);
-
+        onSaved?.(saved); alert("Paciente atualizado com sucesso!"); setForm(initial); setPhotoPreview(null); setServerAnexos([]); if (inline) onClose?.(); else onOpenChange?.(false);
       } else {
-        // --- NOVA LÓGICA DE CRIAÇÃO ---
+        // create
         const patientPayload = toPayload();
-  const savedPatientProfile = await criarPaciente(patientPayload);
-        console.log(" Perfil do paciente criado:", savedPatientProfile);
-
-        if (form.email && form.email.includes('@')) {
-          console.log(" Criando usuário de autenticação (paciente)...");
-          try {
-            const userResponse = await criarUsuarioPaciente({
-              email: form.email,
-              full_name: form.nome,
-              phone_mobile: form.telefone,
-            });
-
-            if (userResponse.success && userResponse.user) {
-              console.log(" Usuário de autenticação criado:", userResponse.user);
-
-              // Mostra credenciais no dialog usando as credenciais retornadas
-              setCredentials({
-                email: userResponse.email ?? form.email,
-                password: userResponse.password ?? '',
-                userName: form.nome,
-                userType: 'paciente',
-              });
-              setShowCredentialsDialog(true);
-
-              // Tenta vincular o user_id ao perfil do paciente recém-criado
-              try {
-                const apiMod = await import('@/lib/api');
-                const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id);
-                const userId = (userResponse.user as any)?.id || (userResponse.user as any)?.user_id || (userResponse.user as any)?.id;
-
-                // Guard: verify userId is present and looks plausible before attempting to PATCH
-                const isPlausibleUserId = (id: any) => {
-                  if (!id) return false;
-                  const s = String(id).trim();
-                  if (!s) return false;
-                  // quick UUID v4-ish check (xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx) or numeric id fallback
-                  const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                  const numeric = /^\d+$/;
-                  return uuidV4.test(s) || numeric.test(s) || s.length >= 8;
-                };
-
-                if (!pacienteId) {
-                  console.warn('[PatientForm] pacienteId ausente; pulando vinculação de user_id');
-                } else if (!isPlausibleUserId(userId)) {
-                  // Do not attempt to PATCH when userId is missing/invalid to avoid 400s
-                  console.warn('[PatientForm] userId inválido ou ausente; não será feita a vinculação. userResponse:', userResponse);
-                } else if (typeof apiMod.vincularUserIdPaciente === 'function') {
-                  console.log('[PatientForm] Vinculando user_id ao paciente:', pacienteId, userId);
-                  try {
-                    await apiMod.vincularUserIdPaciente(pacienteId, String(userId));
-                    console.log('[PatientForm] user_id vinculado com sucesso ao paciente');
-                  } catch (linkErr) {
-                    console.warn('[PatientForm] Falha ao vincular user_id ao paciente:', linkErr);
-                  }
-                }
-              } catch (dynErr) {
-                console.warn('[PatientForm] Não foi possível importar helper para vincular user_id:', dynErr);
-              }
-
-              // Limpa formulário mas NÃO fecha ainda - fechará quando o dialog de credenciais fechar
-              setForm(initial);
-              setPhotoPreview(null);
-              setServerAnexos([]);
-              // If a photo was selected during creation, upload it now using the created patient id
-              if (form.photo) {
-                try {
-                  setUploadingPhoto(true);
-                  const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id);
-                  if (pacienteId) {
-                    await uploadFotoPaciente(String(pacienteId), form.photo);
-                  }
-                } catch (upErr) {
-                  console.warn('[PatientForm] Falha ao enviar foto do paciente após criação:', upErr);
-                  // Non-blocking: inform user
-                  alert('Paciente criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.');
-                } finally {
-                  setUploadingPhoto(false);
-                }
-              }
-              onSaved?.(savedPatientProfile);
-              return;
-            } else {
-              throw new Error((userResponse as any).message || "Falhou ao criar o usuário de acesso.");
-            }
-          } catch (userError: any) {
-            console.error(" Erro ao criar usuário via signup:", userError);
-
-            // Mensagem de erro específica para email duplicado
-            const errorMsg = userError?.message || String(userError);
-
-            if (errorMsg.toLowerCase().includes('already registered') || 
-                errorMsg.toLowerCase().includes('já está cadastrado') ||
-                errorMsg.toLowerCase().includes('já existe')) {
-              alert(
-                ` Este email já está cadastrado no sistema.\n\n` +
-                ` O perfil do paciente foi salvo com sucesso.\n\n` +
-                `Para criar acesso ao sistema, use um email diferente ou recupere a senha do email existente.`
-              );
-            } else {
-              alert(
-                ` Paciente cadastrado com sucesso!\n\n` +
-                ` Porém houve um problema ao criar o acesso:\n${errorMsg}\n\n` +
-                `O cadastro do paciente foi salvo, mas será necessário criar o acesso manualmente.`
-              );
-            }
-
-            // Limpa formulário e fecha
-            setForm(initial);
-            setPhotoPreview(null);
-            setServerAnexos([]);
-            onSaved?.(savedPatientProfile);
-            if (inline) onClose?.();
-            else onOpenChange?.(false);
-            return;
-          }
-        } else {
-          alert("Paciente cadastrado com sucesso (sem usuário de acesso - email não fornecido).");
-          onSaved?.(savedPatientProfile);
-          setForm(initial);
-          setPhotoPreview(null);
-          setServerAnexos([]);
-          if (inline) onClose?.();
-          else onOpenChange?.(false);
+        // require phone when email present for single-call function
+        if (form.email && form.email.includes('@') && (!form.telefone || !String(form.telefone).trim())) {
+          setErrors((e) => ({ ...e, telefone: 'Telefone é obrigatório quando email é informado (fluxo de criação único).' })); setSubmitting(false); return;
         }
+        const savedPatientProfile = await criarPaciente(patientPayload);
+        console.log('Perfil do paciente criado (via Function):', savedPatientProfile);
+
+        const maybePassword = (savedPatientProfile as any)?.password || (savedPatientProfile as any)?.generated_password;
+        if (maybePassword) {
+          setCredentials({ email: (savedPatientProfile as any).email || form.email, password: String(maybePassword), userName: form.nome, userType: 'paciente' });
+          setShowCredentialsDialog(true);
+        }
+
+        if (form.photo) {
+          try { setUploadingPhoto(true); const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id); if (pacienteId) await uploadFotoPaciente(String(pacienteId), form.photo); }
+          catch (upErr) { console.warn('[PatientForm] Falha ao enviar foto do paciente após criação:', upErr); alert('Paciente criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.'); }
+          finally { setUploadingPhoto(false); }
+        }
+
+        onSaved?.(savedPatientProfile); setForm(initial); setPhotoPreview(null); setServerAnexos([]); if (inline) onClose?.(); else onOpenChange?.(false);
       }
-    } catch (err: any) {
-      console.error("❌ Erro no handleSubmit:", err);
-      // Exibe mensagem amigável ao usuário
-      const userMessage = err?.message?.includes("toPayload") || err?.message?.includes("is not defined")
-        ? "Erro ao processar os dados do formulário. Por favor, verifique os campos e tente novamente."
-        : err?.message || "Erro ao salvar paciente. Por favor, tente novamente.";
-      setErrors({ submit: userMessage });
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err: any) { console.error("❌ Erro no handleSubmit:", err); const userMessage = err?.message?.includes("toPayload") || err?.message?.includes("is not defined") ? "Erro ao processar os dados do formulário. Por favor, verifique os campos e tente novamente." : err?.message || "Erro ao salvar paciente. Por favor, tente novamente."; setErrors({ submit: userMessage }); }
+    finally { setSubmitting(false); }
   }
 
-  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 5 * 1024 * 1024) {
-      setErrors((e) => ({ ...e, photo: "Arquivo muito grande. Máx 5MB." }));
-      return;
-    }
-    setField("photo", f);
-    const fr = new FileReader();
-    fr.onload = (ev) => setPhotoPreview(String(ev.target?.result || ""));
-    fr.readAsDataURL(f);
-  }
+  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) { const f = e.target.files?.[0]; if (!f) return; if (f.size > 5 * 1024 * 1024) { setErrors((e) => ({ ...e, photo: "Arquivo muito grande. Máx 5MB." })); return; } setField("photo", f); const fr = new FileReader(); fr.onload = (ev) => setPhotoPreview(String(ev.target?.result || "")); fr.readAsDataURL(f); }
 
-  function addLocalAnexos(e: React.ChangeEvent<HTMLInputElement>) {
-    const fs = Array.from(e.target.files || []);
-    setField("anexos", [...form.anexos, ...fs]);
-  }
-  function removeLocalAnexo(idx: number) {
-    const clone = [...form.anexos];
-    clone.splice(idx, 1);
-    setField("anexos", clone);
-  }
+  function addLocalAnexos(e: React.ChangeEvent<HTMLInputElement>) { const fs = Array.from(e.target.files || []); setField("anexos", [...form.anexos, ...fs]); }
+  function removeLocalAnexo(idx: number) { const clone = [...form.anexos]; clone.splice(idx, 1); setField("anexos", clone); }
 
-  async function handleRemoverFotoServidor() {
-    if (mode !== "edit" || !patientId) return;
-    try {
-      setUploadingPhoto(true);
-      await removerFotoPaciente(String(patientId));
-      // clear preview and inform user
-      setPhotoPreview(null);
-      alert('Foto removida com sucesso.');
-    } catch (e: any) {
-      console.warn('[PatientForm] erro ao remover foto do servidor', e);
-      // Show detailed guidance for common cases
-      if (String(e?.message || '').includes('401')) {
-        alert('Falha ao remover a foto: não autenticado. Faça login novamente e tente novamente.\nDetalhe: ' + (e?.message || ''));
-      } else if (String(e?.message || '').includes('403')) {
-        alert('Falha ao remover a foto: sem permissão. Verifique as permissões do token e se o storage aceita esse usuário.\nDetalhe: ' + (e?.message || ''));
-      } else {
-        alert(e?.message || 'Não foi possível remover a foto do storage. Veja console para detalhes.');
-      }
-    } finally {
-      setUploadingPhoto(false);
-    }
-  }
+  async function handleRemoverFotoServidor() { if (mode !== "edit" || !patientId) return; try { setUploadingPhoto(true); await removerFotoPaciente(String(patientId)); setPhotoPreview(null); alert('Foto removida com sucesso.'); } catch (e: any) { console.warn('[PatientForm] erro ao remover foto do servidor', e); if (String(e?.message || '').includes('401')) { alert('Falha ao remover a foto: não autenticado. Faça login novamente e tente novamente.\nDetalhe: ' + (e?.message || '')); } else if (String(e?.message || '').includes('403')) { alert('Falha ao remover a foto: sem permissão. Verifique as permissões do token e se o storage aceita esse usuário.\nDetalhe: ' + (e?.message || '')); } else { alert(e?.message || 'Não foi possível remover a foto do storage. Veja console para detalhes.'); } } finally { setUploadingPhoto(false); } }
 
-  async function handleRemoverAnexoServidor(anexoId: string | number) {
-    if (mode !== "edit" || !patientId) return;
-    try {
-      await removerAnexo(String(patientId), anexoId);
-      setServerAnexos((prev) => prev.filter((a) => String(a.id ?? a.anexo_id) !== String(anexoId)));
-    } catch (e: any) {
-      alert(e?.message || "Não foi possível remover o anexo.");
-    }
-  }
+  async function handleRemoverAnexoServidor(anexoId: string | number) { if (mode !== "edit" || !patientId) return; try { await removerAnexo(String(patientId), anexoId); setServerAnexos((prev) => prev.filter((a) => String(a.id ?? a.anexo_id) !== String(anexoId))); } catch (e: any) { alert(e?.message || "Não foi possível remover o anexo."); } }
 
   const content = (
     <>
       {errors.submit && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{errors.submit}</AlertDescription>
-        </Alert>
+        <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{errors.submit}</AlertDescription></Alert>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Personal data, contact, address, attachments... keep markup concise */}
         <Collapsible open={expanded.dados} onOpenChange={() => setExpanded((s) => ({ ...s, dados: !s.dados }))}>
           <Card>
             <CollapsibleTrigger asChild>
               <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Dados Pessoais
-                  </span>
-                  {expanded.dados ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </CardTitle>
+                <CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><User className="h-4 w-4" /> Dados Pessoais</span>{expanded.dados ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</CardTitle>
               </CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 border-2 border-dashed border-muted-foreground rounded-lg flex items-center justify-center overflow-hidden">
-                    {photoPreview ? (
-                      <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <FileImage className="h-8 w-8 text-muted-foreground" />
-                    )}
+                    {photoPreview ? <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" /> : <FileImage className="h-8 w-8 text-muted-foreground" />}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="photo" className="cursor-pointer rounded-md transition-colors">
-                      <Button type="button" variant="ghost" asChild className="bg-primary text-primary-foreground border-transparent hover:bg-primary">
-                        <span>
-                          <Upload className="mr-2 h-4 w-4 text-primary-foreground" /> Carregar Foto
-                        </span>
-                      </Button>
+                      <Button type="button" variant="ghost" asChild className="bg-primary text-primary-foreground border-transparent hover:bg-primary"><span><Upload className="mr-2 h-4 w-4 text-primary-foreground" /> Carregar Foto</span></Button>
                     </Label>
                     <Input id="photo" type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-                    {mode === "edit" && (
-                      <Button type="button" variant="ghost" onClick={handleRemoverFotoServidor}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Remover foto
-                      </Button>
-                    )}
+                    {mode === "edit" && (<Button type="button" variant="ghost" onClick={handleRemoverFotoServidor}><Trash2 className="mr-2 h-4 w-4" /> Remover foto</Button>)}
                     {errors.photo && <p className="text-sm text-destructive">{errors.photo}</p>}
                     <p className="text-xs text-muted-foreground">Máximo 5MB</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome *</Label>
-                    <Input value={form.nome} onChange={(e) => setField("nome", e.target.value)} className={errors.nome ? "border-destructive" : ""} />
-                    {errors.nome && <p className="text-sm text-destructive">{errors.nome}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Nome Social</Label>
-                    <Input value={form.nome_social} onChange={(e) => setField("nome_social", e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setField("nome", e.target.value)} className={errors.nome ? "border-destructive" : ""} />{errors.nome && <p className="text-sm text-destructive">{errors.nome}</p>}</div>
+                  <div className="space-y-2"><Label>Nome Social</Label><Input value={form.nome_social} onChange={(e) => setField("nome_social", e.target.value)} /></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>CPF *</Label>
-                    <Input
-                      value={form.cpf}
-                      onChange={(e) => handleCPFChange(e.target.value)}
-                      placeholder="000.000.000-00"
-                      maxLength={14}
-                      className={errors.cpf ? "border-destructive" : ""}
-                    />
-                    {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>RG</Label>
-                    <Input value={form.rg} onChange={(e) => setField("rg", e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>CPF *</Label><Input value={form.cpf} onChange={(e) => handleCPFChange(e.target.value)} placeholder="000.000.000-00" maxLength={14} className={errors.cpf ? "border-destructive" : ""} />{errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}</div>
+                  <div className="space-y-2"><Label>RG</Label><Input value={form.rg} onChange={(e) => setField("rg", e.target.value)} /></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Sexo</Label>
+                  <div className="space-y-2"><Label>Sexo</Label>
                     <Select value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o sexo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="masculino">Masculino</SelectItem>
-                        <SelectItem value="feminino">Feminino</SelectItem>
-                        <SelectItem value="outro">Outro</SelectItem>
-                      </SelectContent>
+                      <SelectTrigger><SelectValue placeholder="Selecione o sexo" /></SelectTrigger>
+                      <SelectContent><SelectItem value="masculino">Masculino</SelectItem><SelectItem value="feminino">Feminino</SelectItem><SelectItem value="outro">Outro</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Data de Nascimento</Label>
-                    <Input
-                      placeholder="dd/mm/aaaa"
-                      value={form.birth_date}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/[^0-9\/]/g, "").slice(0, 10);
-                        setField("birth_date", v);
-                      }}
-                      onBlur={() => {
-                        const raw = form.birth_date;
-                        const parts = raw.split(/\D+/).filter(Boolean);
-                        if (parts.length === 3) {
-                          const d = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2].padStart(4,'0')}`;
-                          setField("birth_date", d);
-                        }
-                      }}
-                    />
-                  </div>
+                  <div className="space-y-2"><Label>Data de Nascimento</Label><Input placeholder="dd/mm/aaaa" value={form.birth_date} onChange={(e) => { const v = e.target.value.replace(/[^0-9\/]*/g, "").slice(0, 10); setField("birth_date", v); }} onBlur={() => { const raw = form.birth_date; const parts = raw.split(/\D+/).filter(Boolean); if (parts.length === 3) { const d = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2].padStart(4,'0')}`; setField("birth_date", d); } }} /></div>
                 </div>
               </CardContent>
             </CollapsibleContent>
@@ -629,25 +329,13 @@ export function PatientRegistrationForm({
         <Collapsible open={expanded.contato} onOpenChange={() => setExpanded((s) => ({ ...s, contato: !s.contato }))}>
           <Card>
             <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <CardTitle className="flex items-center justify-between">
-                  <span>Contato</span>
-                  {expanded.contato ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </CardTitle>
-              </CardHeader>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors"><CardTitle className="flex items-center justify-between"><span>Contato</span>{expanded.contato ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</CardTitle></CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>E-mail</Label>
-                    <Input value={form.email} onChange={(e) => setField("email", e.target.value)} />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Telefone</Label>
-                    <Input value={form.telefone} onChange={(e) => setField("telefone", e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>E-mail</Label><Input value={form.email} onChange={(e) => setField("email", e.target.value)} />{errors.email && <p className="text-sm text-destructive">{errors.email}</p>}</div>
+                  <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setField("telefone", e.target.value)} />{errors.telefone && <p className="text-sm text-destructive">{errors.telefone}</p>}</div>
                 </div>
               </CardContent>
             </CollapsibleContent>
@@ -657,66 +345,19 @@ export function PatientRegistrationForm({
         <Collapsible open={expanded.endereco} onOpenChange={() => setExpanded((s) => ({ ...s, endereco: !s.endereco }))}>
           <Card>
             <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <CardTitle className="flex items-center justify-between">
-                  <span>Endereço</span>
-                  {expanded.endereco ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </CardTitle>
-              </CardHeader>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors"><CardTitle className="flex items-center justify-between"><span>Endereço</span>{expanded.endereco ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</CardTitle></CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>CEP</Label>
-                    <div className="relative">
-                      <Input
-                        value={form.cep}
-                        onChange={(e) => {
-                          const v = formatCEP(e.target.value);
-                          setField("cep", v);
-                          if (v.replace(/\D/g, "").length === 8) fillFromCEP(v);
-                        }}
-                        placeholder="00000-000"
-                        maxLength={9}
-                        disabled={isSearchingCEP}
-                        className={errors.cep ? "border-destructive" : ""}
-                      />
-                      {isSearchingCEP && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin" />}
-                    </div>
-                    {errors.cep && <p className="text-sm text-destructive">{errors.cep}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Logradouro</Label>
-                    <Input value={form.logradouro} onChange={(e) => setField("logradouro", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Número</Label>
-                    <Input value={form.numero} onChange={(e) => setField("numero", e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>CEP</Label><div className="relative"><Input value={form.cep} onChange={(e) => { const v = formatCEP(e.target.value); setField("cep", v); if (v.replace(/\D/g, "").length === 8) fillFromCEP(v); }} placeholder="00000-000" maxLength={9} disabled={isSearchingCEP} className={errors.cep ? "border-destructive" : ""} />{isSearchingCEP && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin" />}</div>{errors.cep && <p className="text-sm text-destructive">{errors.cep}</p>}</div>
+                  <div className="space-y-2"><Label>Logradouro</Label><Input value={form.logradouro} onChange={(e) => setField("logradouro", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Número</Label><Input value={form.numero} onChange={(e) => setField("numero", e.target.value)} /></div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Complemento</Label>
-                    <Input value={form.complemento} onChange={(e) => setField("complemento", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Bairro</Label>
-                    <Input value={form.bairro} onChange={(e) => setField("bairro", e.target.value)} />
-                  </div>
-                </div>
+                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Complemento</Label><Input value={form.complemento} onChange={(e) => setField("complemento", e.target.value)} /></div><div className="space-y-2"><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setField("bairro", e.target.value)} /></div></div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cidade</Label>
-                    <Input value={form.cidade} onChange={(e) => setField("cidade", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Estado</Label>
-                    <Input value={form.estado} onChange={(e) => setField("estado", e.target.value)} placeholder="UF" />
-                  </div>
-                </div>
+                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => setField("cidade", e.target.value)} /></div><div className="space-y-2"><Label>Estado</Label><Input value={form.estado} onChange={(e) => setField("estado", e.target.value)} placeholder="UF" /></div></div>
               </CardContent>
             </CollapsibleContent>
           </Card>
@@ -725,19 +366,11 @@ export function PatientRegistrationForm({
         <Collapsible open={expanded.obs} onOpenChange={() => setExpanded((s) => ({ ...s, obs: !s.obs }))}>
           <Card>
             <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <CardTitle className="flex items-center justify-between">
-                  <span>Observações e Anexos</span>
-                  {expanded.obs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </CardTitle>
-              </CardHeader>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors"><CardTitle className="flex items-center justify-between"><span>Observações e Anexos</span>{expanded.obs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</CardTitle></CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Observações</Label>
-                  <Textarea rows={4} value={form.observacoes} onChange={(e) => setField("observacoes", e.target.value)} />
-                </div>
+                <div className="space-y-2"><Label>Observações</Label><Textarea rows={4} value={form.observacoes} onChange={(e) => setField("observacoes", e.target.value)} /></div>
 
                 <div className="space-y-2">
                   <Label>Adicionar anexos</Label>
@@ -763,106 +396,43 @@ export function PatientRegistrationForm({
                       ))}
                     </div>
                   )}
+
+                  {mode === "edit" && serverAnexos.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Anexos já enviados</Label>
+                      <div className="space-y-2">
+                        {serverAnexos.map((ax) => {
+                          const id = ax.id ?? ax.anexo_id ?? ax.uuid ?? "";
+                          return (
+                            <div key={String(id)} className="flex items-center justify-between p-2 border rounded">
+                              <span className="text-sm">{ax.nome || ax.filename || `Anexo ${id}`}</span>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoverAnexoServidor(String(id))}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {mode === "edit" && serverAnexos.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Anexos já enviados</Label>
-                    <div className="space-y-2">
-                      {serverAnexos.map((ax) => {
-                        const id = ax.id ?? ax.anexo_id ?? ax.uuid ?? "";
-                        return (
-                          <div key={String(id)} className="flex items-center justify-between p-2 border rounded">
-                            <span className="text-sm">{ax.nome || ax.filename || `Anexo ${id}`}</span>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoverAnexoServidor(String(id))}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </CollapsibleContent>
           </Card>
         </Collapsible>
 
         <div className="flex justify-end gap-4 pt-6 border-t">
-          <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
-            <XCircle className="mr-2 h-4 w-4" />
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            {isSubmitting ? "Salvando..." : mode === "create" ? "Salvar Paciente" : "Atualizar Paciente"}
-          </Button>
+          <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}><XCircle className="mr-2 h-4 w-4" /> Cancelar</Button>
+          <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{isSubmitting ? "Salvando..." : mode === "create" ? "Salvar Paciente" : "Atualizar Paciente"}</Button>
         </div>
       </form>
     </>
   );
 
   if (inline) {
-    return (
-      <>
-        <div className="space-y-6">{content}</div>
-        
-        {/* Dialog de credenciais */}
-        {credentials && (
-          <CredentialsDialog
-            open={showCredentialsDialog}
-            onOpenChange={(open) => {
-              setShowCredentialsDialog(open);
-              if (!open) {
-                // Quando o dialog de credenciais fecha, fecha o formulário também
-                setCredentials(null);
-                if (inline) {
-                  onClose?.();
-                } else {
-                  onOpenChange?.(false);
-                }
-              }
-            }}
-            email={credentials.email}
-            password={credentials.password}
-            userName={credentials.userName}
-            userType={credentials.userType}
-          />
-        )}
-      </>
-    );
+    return (<><div className="space-y-6">{content}</div>{credentials && (<CredentialsDialog open={showCredentialsDialog} onOpenChange={(open) => { setShowCredentialsDialog(open); if (!open) { setCredentials(null); if (inline) onClose?.(); else onOpenChange?.(false); } }} email={credentials.email} password={credentials.password} userName={credentials.userName} userType={credentials.userType} />)}</>);
   }
 
-  return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" /> {title}
-            </DialogTitle>
-          </DialogHeader>
-          {content}
-        </DialogContent>
-      </Dialog>
-      
-      {/* Dialog de credenciais */}
-      {credentials && (
-        <CredentialsDialog
-          open={showCredentialsDialog}
-          onOpenChange={(open) => {
-            setShowCredentialsDialog(open);
-            if (!open) {
-              setCredentials(null);
-              onOpenChange?.(false);
-            }
-          }}
-          email={credentials.email}
-          password={credentials.password}
-          userName={credentials.userName}
-          userType={credentials.userType}
-        />
-      )}
-    </>
-  );
+  return (<><Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><User className="h-5 w-5" /> {title}</DialogTitle></DialogHeader>{content}</DialogContent></Dialog>{credentials && (<CredentialsDialog open={showCredentialsDialog} onOpenChange={(open) => { setShowCredentialsDialog(open); if (!open) { setCredentials(null); onOpenChange?.(false); } }} email={credentials.email} password={credentials.password} userName={credentials.userName} userType={credentials.userType} />)}</>);
 }

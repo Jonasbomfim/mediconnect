@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buscarPacientePorId } from "@/lib/api"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -464,107 +463,56 @@ async function handleSubmit(ev: React.FormEvent) {
       const savedDoctorProfile = await criarMedico(medicoPayload);
       console.log("✅ Perfil do médico criado:", savedDoctorProfile);
 
-      // 2. Cria usuário no Supabase Auth (direto via /auth/v1/signup)
-      console.log('🔐 Criando usuário de autenticação...');
-      
-        try {
-        const authResponse = await criarUsuarioMedico({
-          email: form.email,
-          full_name: form.full_name,
-          phone_mobile: form.celular || '',
-        });
+        // The server-side Edge Function `criarMedico` should perform the privileged
+        // operations (create doctor row and auth user) and return a normalized
+        // envelope or the created doctor object. We rely on that single-call flow
+        // here instead of creating the auth user from the browser.
 
-        if (authResponse.success && authResponse.user) {
-          console.log('✅ Usuário Auth criado:', authResponse.user.id);
+        // savedDoctorProfile may be either a Medico object, an envelope with
+        // { doctor, doctor_id, email, password, user_id } or similar shapes.
+        const result = savedDoctorProfile as any;
+        console.log('✅ Resultado de criarMedico:', result);
 
-          // Attempt to link the created auth user id to the doctors record
-          try {
-            // savedDoctorProfile may be an array or object depending on API
-            const docId = (savedDoctorProfile && (savedDoctorProfile.id || (Array.isArray(savedDoctorProfile) ? savedDoctorProfile[0]?.id : undefined))) || null;
-            if (docId) {
-              console.log('[DoctorForm] Vinculando user_id ao médico:', { doctorId: docId, userId: authResponse.user.id });
-              // dynamic import to avoid circular deps in some bundlers
-              const api = await import('@/lib/api');
-              if (api && typeof api.vincularUserIdMedico === 'function') {
-                await api.vincularUserIdMedico(String(docId), String(authResponse.user.id));
-                console.log('[DoctorForm] user_id vinculado com sucesso.');
-              }
-            } else {
-              console.warn('[DoctorForm] Não foi possível determinar o ID do médico para vincular user_id. Doctor profile:', savedDoctorProfile);
-            }
-          } catch (linkErr) {
-            console.warn('[DoctorForm] Falha ao vincular user_id ao médico:', linkErr);
-          }
+        // Determine the doctor id if available
+        let createdDoctorId: string | null = null;
+        if (result) {
+          if (result.id) createdDoctorId = String(result.id);
+          else if (result.doctor && result.doctor.id) createdDoctorId = String(result.doctor.id);
+          else if (result.doctor_id) createdDoctorId = String(result.doctor_id);
+          else if (Array.isArray(result) && result[0]?.id) createdDoctorId = String(result[0].id);
+        }
 
-          // 3. Exibe popup com credenciais
+        // If the function returned credentials, show them in the credentials dialog
+        if (result && (result.password || result.email || result.user)) {
           setCredentials({
-            email: authResponse.email,
-            password: authResponse.password,
+            email: result.email || form.email,
+            password: result.password || "",
             userName: form.full_name,
             userType: 'médico',
           });
           setShowCredentialsDialog(true);
+        }
 
-          // 4. Limpa formulário
-          setForm(initial);
-          setPhotoPreview(null);
-          setServerAnexos([]);
-
-          // If a photo was selected during creation, upload it now
-          if (form.photo) {
-            try {
-              setUploadingPhoto(true);
-              const docId = (savedDoctorProfile && (savedDoctorProfile.id || (Array.isArray(savedDoctorProfile) ? savedDoctorProfile[0]?.id : undefined))) || null;
-              if (docId) await uploadFotoMedico(String(docId), form.photo);
-            } catch (upErr) {
-              console.warn('[DoctorForm] Falha ao enviar foto do médico após criação:', upErr);
-              alert('Médico criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.');
-            } finally {
-              setUploadingPhoto(false);
-            }
+        // Upload photo if provided and we have an id
+        if (form.photo && createdDoctorId) {
+          try {
+            setUploadingPhoto(true);
+            await uploadFotoMedico(String(createdDoctorId), form.photo);
+          } catch (upErr) {
+            console.warn('[DoctorForm] Falha ao enviar foto do médico após criação:', upErr);
+            alert('Médico criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.');
+          } finally {
+            setUploadingPhoto(false);
           }
-
-          // 5. Notifica componente pai
-          onSaved?.(savedDoctorProfile);
-        } else {
-          throw new Error('Falha ao criar usuário de autenticação');
         }
 
-      } catch (authError: any) {
-        console.error('❌ Erro ao criar usuário Auth:', authError);
-        
-        const errorMsg = authError?.message || String(authError);
-        
-        // Mensagens específicas de erro
-        if (errorMsg.toLowerCase().includes('already registered') || 
-            errorMsg.toLowerCase().includes('already been registered') ||
-            errorMsg.toLowerCase().includes('já está cadastrado')) {
-          alert(
-            `⚠️ EMAIL JÁ CADASTRADO\n\n` +
-            `O email "${form.email}" já possui uma conta no sistema.\n\n` +
-            `✅ O perfil do médico "${form.full_name}" foi salvo com sucesso.\n\n` +
-            `❌ Porém, não foi possível criar o login porque este email já está em uso.\n\n` +
-            `SOLUÇÃO:\n` +
-            `• Use um email diferente para este médico, OU\n` +
-            `• Se o médico já tem conta, edite o perfil e vincule ao usuário existente`
-          );
-        } else {
-          alert(
-            `⚠️ Médico cadastrado com sucesso, mas houve um problema ao criar o acesso ao sistema.\n\n` +
-            `✅ Perfil do médico salvo: ${form.full_name}\n\n` +
-            `❌ Erro ao criar login: ${errorMsg}\n\n` +
-            `Por favor, entre em contato com o administrador para criar o acesso manualmente.`
-          );
-        }
-        
-        // Limpa formulário mesmo com erro
+        // Cleanup and notify parent
         setForm(initial);
         setPhotoPreview(null);
         setServerAnexos([]);
         onSaved?.(savedDoctorProfile);
         if (inline) onClose?.();
         else onOpenChange?.(false);
-      }
     }
   } catch (err: any) {
     console.error("❌ Erro no handleSubmit:", err);

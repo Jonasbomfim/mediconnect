@@ -235,43 +235,83 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
   }
 
 
-  const payload: any = {
+  // Normalize weekday to integer expected by the OpenAPI (0=Sunday .. 6=Saturday)
+  const mapWeekdayToInt = (w?: string | number): number | null => {
+    if (w === null || typeof w === 'undefined') return null;
+    if (typeof w === 'number') return Number(w);
+    const s = String(w).toLowerCase().trim();
+    const map: Record<string, number> = {
+      'domingo': 0, 'domingo.': 0, 'sunday': 0,
+      'segunda': 1, 'segunda-feira': 1, 'monday': 1,
+      'terca': 2, 'terça': 2, 'terca-feira': 2, 'tuesday': 2,
+      'quarta': 3, 'quarta-feira': 3, 'wednesday': 3,
+      'quinta': 4, 'quinta-feira': 4, 'thursday': 4,
+      'sexta': 5, 'sexta-feira': 5, 'friday': 5,
+      'sabado': 6, 'sábado': 6, 'saturday': 6,
+    } as any;
+    // numeric strings
+    if (/^\d+$/.test(s)) return Number(s);
+    return map[s] ?? null;
+  };
+
+  const weekdayInt = mapWeekdayToInt(input.weekday as any);
+  if (weekdayInt === null || weekdayInt < 0 || weekdayInt > 6) {
+    throw new Error('weekday inválido. Use 0=Domingo .. 6=Sábado ou o nome do dia.');
+  }
+
+  // First, attempt server-side Edge Function to perform the insert with service privileges.
+  // This avoids RLS blocking client inserts. The function will also validate doctor existence.
+  const fnUrl = `${API_BASE}/functions/v1/create-availability`;
+  const fnPayload: any = {
+    doctor_id: input.doctor_id,
+    weekday: weekdayInt,
+    start_time: input.start_time,
+    end_time: input.end_time,
     slot_minutes: input.slot_minutes ?? 30,
     appointment_type: input.appointment_type ?? 'presencial',
     active: typeof input.active === 'undefined' ? true : input.active,
-    doctor_id: input.doctor_id,
-    weekday: mapWeekdayForServer(input.weekday),
-    start_time: input.start_time,
-    end_time: input.end_time,
+    created_by: createdBy,
   };
 
-  const url = `${REST}/doctor_availability`;
-  // Try several payload permutations to tolerate different server enum/time formats.
-  const attempts = [] as Array<{ weekdayVal: string | undefined; withSeconds: boolean }>;
-  const mappedWeekday = mapWeekdayForServer(input.weekday);
-  const originalWeekday = input.weekday;
-  attempts.push({ weekdayVal: mappedWeekday, withSeconds: true });
-  attempts.push({ weekdayVal: originalWeekday, withSeconds: true });
-  attempts.push({ weekdayVal: mappedWeekday, withSeconds: false });
-  attempts.push({ weekdayVal: originalWeekday, withSeconds: false });
+  try {
+    const fnRes = await fetch(fnUrl, {
+      method: 'POST',
+      headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(fnPayload),
+    });
+    if (fnRes.ok) {
+      const created = await parse<DoctorAvailability | DoctorAvailability[]>(fnRes as Response);
+      return Array.isArray(created) ? created[0] : (created as DoctorAvailability);
+    }
+    // If function exists but returned 4xx/5xx, let parse() surface friendly error
+    if (fnRes.status >= 400 && fnRes.status < 600) {
+      return await parse<DoctorAvailability>(fnRes);
+    }
+  } catch (e) {
+    console.warn('[criarDisponibilidade] create-availability function unavailable or errored, falling back to REST:', e);
+  }
 
+  // Fallback: try direct REST insert using integer weekday (OpenAPI expects integer).
+  const restUrl = `${REST}/doctor_availability`;
+  // Try with/without seconds for times to tolerate different server formats.
+  const attempts = [true, false];
   let lastRes: Response | null = null;
-  for (const at of attempts) {
-    const start = at.withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
-    const end = at.withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
+  for (const withSeconds of attempts) {
+    const start = withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
+    const end = withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
     const tryPayload: any = {
+      doctor_id: input.doctor_id,
+      weekday: weekdayInt,
+      start_time: start,
+      end_time: end,
       slot_minutes: input.slot_minutes ?? 30,
       appointment_type: input.appointment_type ?? 'presencial',
       active: typeof input.active === 'undefined' ? true : input.active,
-      doctor_id: input.doctor_id,
-      weekday: at.weekdayVal,
-      start_time: start,
-      end_time: end,
       created_by: createdBy,
     };
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(restUrl, {
         method: 'POST',
         headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
         body: JSON.stringify(tryPayload),
@@ -281,27 +321,56 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
         const arr = await parse<DoctorAvailability[] | DoctorAvailability>(res);
         return Array.isArray(arr) ? arr[0] : (arr as DoctorAvailability);
       }
+      if (res.status >= 500) return await parse<DoctorAvailability>(res);
 
-      // If server returned a 4xx, try next permutation; for 5xx, bail out and throw the error from parse()
-      if (res.status >= 500) {
-        // Let parse produce the error with friendly messaging
-        return await parse<DoctorAvailability>(res);
-      }
-
-      // Log a warning and continue to next attempt
       const raw = await res.clone().text().catch(() => '');
-      console.warn('[criarDisponibilidade] tentativa falhou', { status: res.status, weekday: at.weekdayVal, withSeconds: at.withSeconds, raw });
-      // continue to next attempt
+      console.warn('[criarDisponibilidade] REST attempt failed', { status: res.status, withSeconds, raw });
+      // If 22P02 (invalid enum) occurs, we will try a name-based fallback below
+      if (res.status === 422 || (raw && raw.toString().includes('invalid input value for enum'))) {
+        // fall through to name-based fallback
+        break;
+      }
     } catch (e) {
-      console.warn('[criarDisponibilidade] fetch erro na tentativa', e);
-      // continue to next attempt
+      console.warn('[criarDisponibilidade] REST fetch erro', e);
     }
   }
 
-  // All attempts failed — throw using the last response to get friendly message from parse()
-  if (lastRes) {
-    return await parse<DoctorAvailability>(lastRes);
+  // As a last resort: try sending weekday as English name (e.g. 'monday') for older schemas
+  const engMap = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  const mappedName = engMap[weekdayInt];
+  for (const withSeconds of attempts) {
+    const start = withSeconds ? input.start_time : String(input.start_time).replace(/:00$/,'');
+    const end = withSeconds ? input.end_time : String(input.end_time).replace(/:00$/,'');
+    const tryPayload: any = {
+      doctor_id: input.doctor_id,
+      weekday: mappedName,
+      start_time: start,
+      end_time: end,
+      slot_minutes: input.slot_minutes ?? 30,
+      appointment_type: input.appointment_type ?? 'presencial',
+      active: typeof input.active === 'undefined' ? true : input.active,
+      created_by: createdBy,
+    };
+    try {
+      const res = await fetch(restUrl, {
+        method: 'POST',
+        headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+        body: JSON.stringify(tryPayload),
+      });
+      lastRes = res;
+      if (res.ok) {
+        const arr = await parse<DoctorAvailability[] | DoctorAvailability>(res);
+        return Array.isArray(arr) ? arr[0] : (arr as DoctorAvailability);
+      }
+      if (res.status >= 500) return await parse<DoctorAvailability>(res);
+      const raw = await res.clone().text().catch(() => '');
+      console.warn('[criarDisponibilidade] REST name-based attempt failed', { status: res.status, withSeconds, raw });
+    } catch (e) {
+      console.warn('[criarDisponibilidade] REST name-based fetch erro', e);
+    }
   }
+
+  if (lastRes) return await parse<DoctorAvailability>(lastRes);
   throw new Error('Falha ao criar disponibilidade: nenhuma resposta do servidor.');
 }
 
@@ -1298,14 +1367,53 @@ export async function buscarPacientesPorMedico(doctorId: string): Promise<Pacien
 }
 
 export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
-  const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/patients`;
+  // Este helper agora chama exclusivamente a Edge Function /functions/v1/create-patient
+  // A função server-side é responsável por criar o usuário no Auth, o profile e o registro em patients
+  if (!input) throw new Error('Dados do paciente não informados');
+
+  // Validar campos obrigatórios conforme OpenAPI do create-patient
+  const required = ['full_name', 'email', 'cpf', 'phone_mobile'];
+  for (const r of required) {
+    const val = (input as any)[r];
+    if (!val || (typeof val === 'string' && String(val).trim() === '')) {
+      throw new Error(`Campo obrigatório ausente: ${r}`);
+    }
+  }
+
+  // Normalizar e validar CPF (11 dígitos)
+  const cleanCpf = String(input.cpf || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(cleanCpf)) {
+    throw new Error('CPF inválido. Deve conter 11 dígitos numéricos.');
+  }
+
+  const payload: any = {
+    full_name: input.full_name,
+    email: input.email,
+    cpf: cleanCpf,
+    phone_mobile: input.phone_mobile,
+  };
+  // Copiar demais campos opcionais quando presentes
+  if (input.cep) payload.cep = input.cep;
+  if (input.street) payload.street = input.street;
+  if (input.number) payload.number = input.number;
+  if (input.complement) payload.complement = input.complement;
+  if (input.neighborhood) payload.neighborhood = input.neighborhood;
+  if (input.city) payload.city = input.city;
+  if (input.state) payload.state = input.state;
+  if (input.birth_date) payload.birth_date = input.birth_date;
+  if (input.rg) payload.rg = input.rg;
+  if (input.social_name) payload.social_name = input.social_name;
+  if (input.notes) payload.notes = input.notes;
+
+  const url = `${API_BASE}/functions/v1/create-patient`;
   const res = await fetch(url, {
-    method: "POST",
-    headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input),
+    method: 'POST',
+    headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
-  const arr = await parse<Paciente[] | Paciente>(res);
-  return Array.isArray(arr) ? arr[0] : (arr as Paciente);
+
+  // Deixar parse() lidar com erros/erros de validação retornados pela função
+  return await parse<Paciente>(res as Response);
 }
 
 export async function atualizarPaciente(id: string | number, input: PacienteInput): Promise<Paciente> {
@@ -1650,17 +1758,105 @@ export async function listarProfissionais(params?: { page?: number; limit?: numb
 
 // Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
-  console.log("Enviando os dados para a API:", input);  // Log para depuração
-  
-  const url = `${REST}/doctors`;  // Endpoint de médicos
+  // Mirror criarPaciente: validate input, normalize fields and call the server-side
+  // create-doctor Edge Function. Normalize possible envelope responses so callers
+  // always receive a `Medico` object when possible.
+  if (!input) throw new Error('Dados do médico não informados');
+  const required = ['email', 'full_name', 'cpf', 'crm', 'crm_uf'];
+  for (const r of required) {
+    const val = (input as any)[r];
+    if (!val || (typeof val === 'string' && String(val).trim() === '')) {
+      throw new Error(`Campo obrigatório ausente: ${r}`);
+    }
+  }
+
+  // Normalize and validate CPF
+  const cleanCpf = String(input.cpf || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(cleanCpf)) {
+    throw new Error('CPF inválido. Deve conter 11 dígitos numéricos.');
+  }
+
+  // Normalize CRM UF
+  const crmUf = String(input.crm_uf || '').toUpperCase();
+  if (!/^[A-Z]{2}$/.test(crmUf)) {
+    throw new Error('CRM UF inválido. Deve conter 2 letras maiúsculas (ex: SP, RJ).');
+  }
+
+  const payload: any = {
+    email: input.email,
+    full_name: input.full_name,
+    cpf: cleanCpf,
+    crm: input.crm,
+    crm_uf: crmUf,
+  };
+  // Incluir flag para instruir a Edge Function a NÃO criar o usuário no Auth
+  // (em alguns deployments a função cria o usuário por padrão; se quisermos
+  // apenas criar o registro do médico, enviar create_user: false)
+  payload.create_user = false;
+  if (input.specialty) payload.specialty = input.specialty;
+  if (input.phone_mobile) payload.phone_mobile = input.phone_mobile;
+  if (typeof input.phone2 !== 'undefined') payload.phone2 = input.phone2;
+
+  const url = `${API_BASE}/functions/v1/create-doctor`;
+  // Debug: build headers separately so we can log them (masked) and the body
+  const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string, string>;
+  const maskedHeaders = { ...headers } as Record<string, string>;
+  if (maskedHeaders.Authorization) {
+    const a = maskedHeaders.Authorization as string;
+    maskedHeaders.Authorization = `${a.slice(0,6)}...${a.slice(-6)}`;
+  }
+  console.debug('[DEBUG criarMedico] POST', url, 'headers(masked):', maskedHeaders, 'body:', JSON.stringify(payload));
+
   const res = await fetch(url, {
-    method: "POST",
-    headers: withPrefer({ ...baseHeaders(), "Content-Type": "application/json" }, "return=representation"),
-    body: JSON.stringify(input), // Enviando os dados padronizados
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
   });
 
-  const arr = await parse<Medico[] | Medico>(res); // Resposta da API
-  return Array.isArray(arr) ? arr[0] : (arr as Medico);  // Retorno do médico
+  let parsed: any = null;
+  try {
+    parsed = await parse<any>(res as Response);
+  } catch (err: any) {
+    const msg = String(err?.message || '').toLowerCase();
+    // Workaround: se a função reclamou que o email já existe, tentar obter o médico
+    // já cadastrado pelo email e retornar esse perfil em vez de falhar.
+    if (msg.includes('already been registered') || msg.includes('já está cadastrado') || msg.includes('already registered')) {
+      try {
+        const checkUrl = `${REST}/doctors?email=eq.${encodeURIComponent(String(input.email || ''))}&select=*`;
+        const checkRes = await fetch(checkUrl, { method: 'GET', headers: baseHeaders() });
+        if (checkRes.ok) {
+          const arr = await parse<Medico[]>(checkRes);
+          if (Array.isArray(arr) && arr.length > 0) return arr[0];
+        }
+      } catch (inner) {
+        // ignore and rethrow original error below
+      }
+    }
+    // rethrow original error if fallback didn't resolve
+    throw err;
+  }
+  if (!parsed) throw new Error('Resposta vazia ao criar médico');
+
+  // If the function returns an envelope like { doctor: { ... }, doctor_id: '...' }
+  if (parsed.doctor && typeof parsed.doctor === 'object') return parsed.doctor as Medico;
+
+  // If it returns only a doctor_id, try to fetch full profile
+  if (parsed.doctor_id) {
+    try {
+      const d = await buscarMedicoPorId(String(parsed.doctor_id));
+      if (!d) throw new Error('Médico não encontrado após criação');
+      return d;
+    } catch (e) {
+      throw new Error('Médico criado mas não foi possível recuperar os dados do perfil.');
+    }
+  }
+
+  // If the function returned the doctor object directly
+  if (parsed.id || parsed.full_name || parsed.cpf) {
+    return parsed as Medico;
+  }
+
+  throw new Error('Formato de resposta inesperado ao criar médico');
 }
 
 /**
@@ -1946,10 +2142,10 @@ export function gerarSenhaAleatoria(): string {
 }
 
 export async function criarUsuario(input: CreateUserInput): Promise<CreateUserResponse> {
-  // Prefer calling the Functions path first in environments where /create-user
-  // is not mapped at the API root (this avoids expected 404 noise). Keep the
-  // root /create-user as a fallback for deployments that expose it.
-  const functionsUrl = `${API_BASE}/functions/v1/create-user`;
+  // Prefer calling the Functions path at the explicit project URL provided
+  // by the environment / team. Keep the API_BASE-root fallback for other deployments.
+  const explicitFunctionsUrl = 'https://yuanqfswhberkoevtmfr.supabase.co/functions/v1/create-user';
+  const functionsUrl = explicitFunctionsUrl;
   const url = `${API_BASE}/create-user`;
 
   let res: Response | null = null;
@@ -2103,16 +2299,44 @@ export async function criarUsuarioMedico(medico: { email: string; full_name: str
 
 // Criar usuário para PACIENTE no Supabase Auth (sistema de autenticação)
 export async function criarUsuarioPaciente(paciente: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
-  const redirectBase = DEFAULT_LANDING;
-  const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/paciente`;
-  // Use the role-specific landing as the redirect_url so the magic link
-  // redirects users directly to the app path (e.g. /paciente).
-  const redirect_url = emailRedirectTo;
-  // generate a secure-ish random password on the client so the caller can receive it
+  // Este helper NÃO deve usar /create-user como fallback.
+  // Em vez disso, encaminha para a Edge Function especializada /functions/v1/create-patient
+  // e inclui uma senha gerada para que o backend possa, se suportado, definir credenciais.
+  if (!paciente) throw new Error('Dados do paciente não informados');
+
+  const required = ['email', 'full_name', 'phone_mobile'];
+  for (const r of required) {
+    const val = (paciente as any)[r];
+    if (!val || (typeof val === 'string' && String(val).trim() === '')) {
+      throw new Error(`Campo obrigatório ausente para criar usuário/paciente: ${r}`);
+    }
+  }
+
+  // Generate a password so the UI can present it to the user if desired
   const password = gerarSenhaAleatoria();
-  const resp = await criarUsuario({ email: paciente.email, password, full_name: paciente.full_name, phone: paciente.phone_mobile, role: 'paciente' as any, emailRedirectTo, redirect_url, target: 'paciente' });
-  // Return backend response plus the generated password so the UI can show/save it
-  return { ...(resp as any), password };
+
+  // Normalize CPF is intentionally not required here because this helper is used
+  // when creating access; if CPF is needed it should be provided to the create-patient Function.
+  const payload: any = {
+    email: paciente.email,
+    full_name: paciente.full_name,
+    phone_mobile: paciente.phone_mobile,
+    // provide a client-generated password (backend may accept or ignore)
+    password,
+    // indicate target so function can assign role and redirect
+    target: 'paciente',
+  };
+
+  const url = `${API_BASE}/functions/v1/create-patient`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const parsed = await parse<any>(res as Response);
+  // Attach the generated password so callers (UI) can display it if necessary
+  return { ...(parsed || {}), password };
 }
 
 

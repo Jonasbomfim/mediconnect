@@ -1689,7 +1689,9 @@ export async function listarProfissionais(params?: { page?: number; limit?: numb
 
 // Dentro de lib/api.ts
 export async function criarMedico(input: MedicoInput): Promise<Medico> {
-  // Validate required fields according to the OpenAPI for /functions/v1/create-doctor
+  // Mirror criarPaciente: validate input, normalize fields and call the server-side
+  // create-doctor Edge Function. Normalize possible envelope responses so callers
+  // always receive a `Medico` object when possible.
   if (!input) throw new Error('Dados do médico não informados');
   const required = ['email', 'full_name', 'cpf', 'crm', 'crm_uf'];
   for (const r of required) {
@@ -1705,13 +1707,12 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
     throw new Error('CPF inválido. Deve conter 11 dígitos numéricos.');
   }
 
-  // Validate CRM UF (two uppercase letters)
+  // Normalize CRM UF
   const crmUf = String(input.crm_uf || '').toUpperCase();
   if (!/^[A-Z]{2}$/.test(crmUf)) {
     throw new Error('CRM UF inválido. Deve conter 2 letras maiúsculas (ex: SP, RJ).');
   }
 
-  // Build payload expected by the Function
   const payload: any = {
     email: input.email,
     full_name: input.full_name,
@@ -1721,6 +1722,7 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
   };
   if (input.specialty) payload.specialty = input.specialty;
   if (input.phone_mobile) payload.phone_mobile = input.phone_mobile;
+  if (typeof input.phone2 !== 'undefined') payload.phone2 = input.phone2;
 
   const url = `${API_BASE}/functions/v1/create-doctor`;
   const res = await fetch(url, {
@@ -1729,7 +1731,29 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
     body: JSON.stringify(payload),
   });
 
-  return await parse<Medico>(res as Response);
+  const parsed = await parse<any>(res as Response);
+  if (!parsed) throw new Error('Resposta vazia ao criar médico');
+
+  // If the function returns an envelope like { doctor: { ... }, doctor_id: '...' }
+  if (parsed.doctor && typeof parsed.doctor === 'object') return parsed.doctor as Medico;
+
+  // If it returns only a doctor_id, try to fetch full profile
+  if (parsed.doctor_id) {
+    try {
+      const d = await buscarMedicoPorId(String(parsed.doctor_id));
+      if (!d) throw new Error('Médico não encontrado após criação');
+      return d;
+    } catch (e) {
+      throw new Error('Médico criado mas não foi possível recuperar os dados do perfil.');
+    }
+  }
+
+  // If the function returned the doctor object directly
+  if (parsed.id || parsed.full_name || parsed.cpf) {
+    return parsed as Medico;
+  }
+
+  throw new Error('Formato de resposta inesperado ao criar médico');
 }
 
 /**

@@ -1,7 +1,7 @@
 'use client'
-// import { useAuth } from '@/hooks/useAuth' // removido duplicado
 
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, LogOut, Calendar, FileText, MessageCircle, UserCog, Home, Clock, FolderOpen, ChevronLeft, ChevronRight, MapPin, Stethoscope } from 'lucide-react'
 import { SimpleThemeToggle } from '@/components/simple-theme-toggle'
+import { UploadAvatar } from '@/components/ui/upload-avatar'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
@@ -73,7 +74,8 @@ export default function PacientePage() {
 
   // Estado para edição do perfil
   const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<ProfileData>({
+    id: user?.id || '',
     nome: "Maria Silva Santos",
     email: user?.email || "paciente@example.com",
     telefone: "(11) 99999-9999",
@@ -81,10 +83,23 @@ export default function PacientePage() {
     cidade: "São Paulo",
     cep: "01234-567",
     biografia: "Paciente desde 2020. Histórico de consultas e exames regulares.",
+    foto_url: user?.profile?.foto_url
   })
 
-  const handleProfileChange = (field: string, value: string) => {
-    setProfileData(prev => ({ ...prev, [field]: value }))
+  interface ProfileData {
+    id: string;
+    nome: string;
+    email: string;
+    telefone: string;
+    endereco: string;
+    cidade: string;
+    cep: string;
+    biografia: string;
+    foto_url?: string;
+  }
+
+  const handleProfileChange = (field: keyof ProfileData | string, value: any) => {
+    setProfileData((prev: ProfileData) => ({ ...prev, [field]: value }))
   }
   const handleSaveProfile = () => {
     setIsEditingProfile(false)
@@ -674,19 +689,12 @@ export default function PacientePage() {
         {/* Foto do Perfil */}
         <div className="border-t border-border pt-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="text-lg">
-                {profileData.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {isEditingProfile && (
-              <div className="space-y-2">
-                <Button variant="outline" size="sm">Alterar Foto</Button>
-                <p className="text-xs text-muted-foreground">Formatos aceitos: JPG, PNG (máx. 2MB)</p>
-              </div>
-            )}
-          </div>
+          <UploadAvatar
+            userId={profileData.id}
+            currentAvatarUrl={profileData.foto_url}
+            onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
+            userName={profileData.nome}
+          />
         </div>
       </div>
     )

@@ -2597,8 +2597,10 @@ export async function uploadFotoPaciente(_id: string | number, _file: File): Pro
   };
   const ext = extMap[_file.type] || 'jpg';
 
-  const objectPath = `avatars/${userId}/avatar.${ext}`;
-  const uploadUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/avatars/${encodeURIComponent(userId)}/avatar`;
+  // O bucket deve ser 'avatars' e o caminho do objeto será userId/avatar.ext
+  const bucket = 'avatars';
+  const objectPath = `${userId}/avatar.${ext}`;
+  const uploadUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/${bucket}/${encodeURIComponent(objectPath)}`;
 
   // Build multipart form data
   const form = new FormData();
@@ -2614,6 +2616,13 @@ export async function uploadFotoPaciente(_id: string | number, _file: File): Pro
   const jwt = getAuthToken();
   if (jwt) headers.Authorization = `Bearer ${jwt}`;
 
+  console.debug('[uploadFotoPaciente] Iniciando upload:', { 
+    url: uploadUrl,
+    fileType: _file.type,
+    fileSize: _file.size,
+    hasAuth: !!jwt
+  });
+
   const res = await fetch(uploadUrl, {
     method: 'POST',
     headers,
@@ -2623,10 +2632,19 @@ export async function uploadFotoPaciente(_id: string | number, _file: File): Pro
   // Supabase storage returns 200/201 with object info or error
   if (!res.ok) {
     const raw = await res.text().catch(() => '');
-    console.error('[uploadFotoPaciente] upload falhou', { status: res.status, raw });
+    console.error('[uploadFotoPaciente] upload falhou', { 
+      status: res.status, 
+      raw,
+      headers: Object.fromEntries(res.headers.entries()),
+      url: uploadUrl,
+      requestHeaders: headers,
+      objectPath
+    });
+    
     if (res.status === 401) throw new Error('Não autenticado');
     if (res.status === 403) throw new Error('Sem permissão para fazer upload');
-    throw new Error('Falha no upload da imagem');
+    if (res.status === 404) throw new Error('Bucket de avatars não encontrado. Verifique se o bucket "avatars" existe no Supabase');
+    throw new Error(`Falha no upload da imagem (${res.status}): ${raw || 'Sem detalhes do erro'}`);
   }
 
   // Try to parse JSON response
@@ -2635,7 +2653,7 @@ export async function uploadFotoPaciente(_id: string | number, _file: File): Pro
 
   // The API may not return a structured body; return the Key we constructed
   const key = (json && (json.Key || json.key)) ?? objectPath;
-  const publicUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/public/${encodeURIComponent('avatars')}/${encodeURIComponent(userId)}/avatar.${ext}`;
+  const publicUrl = `${ENV_CONFIG.SUPABASE_URL}/storage/v1/object/public/avatars/${encodeURIComponent(userId)}/avatar.${ext}`;
   return { foto_url: publicUrl, Key: key };
 }
 

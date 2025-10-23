@@ -327,13 +327,13 @@ export default function PacientePage() {
     const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
     const isSelectedDateToday = selectedDate.getTime() === today.getTime()
 
-    const handlePesquisar = () => {
-      const params = new URLSearchParams({
-        tipo: tipoConsulta,
-        especialidade,
-        local: localizacao
-      })
-      router.push(`/resultados?${params.toString()}`)
+    // Monta a URL de resultados com os filtros atuais
+    const buildResultadosHref = () => {
+      const qs = new URLSearchParams()
+      qs.set('tipo', tipoConsulta) // 'teleconsulta' | 'presencial'
+      if (especialidade) qs.set('especialidade', especialidade)
+      if (localizacao) qs.set('local', localizacao)
+      return `/resultados?${qs.toString()}`
     }
 
     return (
@@ -398,11 +398,11 @@ export default function PacientePage() {
               </div>
             </div>
 
-            <Button
-              className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}
-              onClick={handlePesquisar}
-            >
-              Pesquisar
+            {/* Botão agora redireciona direto para /resultados */}
+            <Button asChild className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}>
+              <Link href={buildResultadosHref()} prefetch={false}>
+                Pesquisar
+              </Link>
             </Button>
           </div>
 
@@ -539,7 +539,7 @@ export default function PacientePage() {
             </div>
 
             <DialogFooter className="justify-center border-t border-border pt-4 mt-2">
-              <Button variant="outline" onClick={() => setMostrarAgendadas(false)} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={() => { /* dialog fechado (controle externo) */ }} className="w-full sm:w-auto">
                 Fechar
               </Button>
             </DialogFooter>

@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -75,7 +74,7 @@ export default function PacientePage() {
 
   // Estado para edição do perfil
   const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<any>({
     nome: '',
     email: user?.email || '',
     telefone: '',
@@ -83,6 +82,8 @@ export default function PacientePage() {
     cidade: '',
     cep: '',
     biografia: '',
+    id: undefined,
+    foto_url: undefined,
   })
   const [patientId, setPatientId] = useState<string | null>(null)
 
@@ -218,7 +219,7 @@ export default function PacientePage() {
 
           if (process.env.NODE_ENV !== 'production') console.debug('[PacientePage] paciente row', paciente)
 
-          setProfileData(prev => ({ ...prev, nome, email: emailFromRow, telefone, endereco, cidade, cep, biografia }))
+          setProfileData((prev: any) => ({ ...prev, nome, email: emailFromRow, telefone, endereco, cidade, cep, biografia }))
         }
       } catch (err) {
         console.warn('[PacientePage] erro ao carregar paciente', err)
@@ -233,7 +234,7 @@ export default function PacientePage() {
   }, [user?.id, user?.email])
 
   const handleProfileChange = (field: string, value: string) => {
-    setProfileData(prev => ({ ...prev, [field]: value }))
+    setProfileData((prev: any) => ({ ...prev, [field]: value }))
   }
   const handleSaveProfile = () => {
     setIsEditingProfile(false)

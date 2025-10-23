@@ -898,6 +898,25 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   return results.slice(0, 20); // Limita a 20 resultados
 }
 
+/**
+ * Busca um paciente pelo user_id associado (campo user_id na tabela patients).
+ * Retorna o primeiro registro encontrado ou null quando não achar.
+ */
+export async function buscarPacientePorUserId(userId?: string | null): Promise<Paciente | null> {
+  if (!userId) return null;
+  try {
+    const url = `${REST}/patients?user_id=eq.${encodeURIComponent(String(userId))}&limit=1`;
+    const headers = baseHeaders();
+    console.debug('[buscarPacientePorUserId] URL:', url);
+    const arr = await fetchWithFallback<Paciente[]>(url, headers).catch(() => []);
+    if (arr && arr.length) return arr[0];
+    return null;
+  } catch (err) {
+    console.warn('[buscarPacientePorUserId] erro ao buscar por user_id', err);
+    return null;
+  }
+}
+
 export async function buscarPacientePorId(id: string | number): Promise<Paciente> {
   const idParam = String(id);
   const headers = baseHeaders();
@@ -929,6 +948,42 @@ export async function buscarPacientePorId(id: string | number): Promise<Paciente
   }
 
   throw new Error('404: Paciente não encontrado');
+}
+
+// ===== MENSAGENS =====
+export type Mensagem = {
+  id: string;
+  patient_id?: string;
+  doctor_id?: string | null;
+  from?: string | null;
+  to?: string | null;
+  sender_name?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  content?: string | null;
+  read?: boolean | null;
+  created_at?: string | null;
+};
+
+/**
+ * Lista mensagens (inbox) de um paciente específico.
+ * Retorna array vazio se não houver mensagens.
+ */
+export async function listarMensagensPorPaciente(patientId: string): Promise<Mensagem[]> {
+  if (!patientId) return [];
+  try {
+    const qs = new URLSearchParams();
+    qs.set('patient_id', `eq.${encodeURIComponent(String(patientId))}`);
+    // Order by created_at descending if available
+    qs.set('order', 'created_at.desc');
+    const url = `${REST}/messages?${qs.toString()}`;
+    const headers = baseHeaders();
+    const res = await fetch(url, { method: 'GET', headers });
+    return await parse<Mensagem[]>(res);
+  } catch (err) {
+    console.warn('[listarMensagensPorPaciente] erro ao buscar mensagens', err);
+    return [];
+  }
 }
 
 // ===== RELATÓRIOS =====

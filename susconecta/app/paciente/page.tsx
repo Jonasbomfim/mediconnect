@@ -1,6 +1,7 @@
 'use client'
-// import { useAuth } from '@/hooks/useAuth' // removido duplicado
 
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, LogOut, Calendar, FileText, MessageCircle, UserCog, Home, Clock, FolderOpen, ChevronLeft, ChevronRight, MapPin, Stethoscope } from 'lucide-react'
 import { SimpleThemeToggle } from '@/components/simple-theme-toggle'
+import { UploadAvatar } from '@/components/ui/upload-avatar'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
@@ -743,19 +745,12 @@ export default function PacientePage() {
         {/* Foto do Perfil */}
         <div className="border-t border-border pt-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="text-lg">
-                {profileData.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {isEditingProfile && (
-              <div className="space-y-2">
-                <Button variant="outline" size="sm">Alterar Foto</Button>
-                <p className="text-xs text-muted-foreground">Formatos aceitos: JPG, PNG (máx. 2MB)</p>
-              </div>
-            )}
-          </div>
+          <UploadAvatar
+            userId={profileData.id}
+            currentAvatarUrl={profileData.foto_url}
+            onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
+            userName={profileData.nome}
+          />
         </div>
       </div>
     )

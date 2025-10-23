@@ -1,7 +1,7 @@
 'use client'
-// import { useAuth } from '@/hooks/useAuth' // removido duplicado
 
-import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -12,10 +12,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, LogOut, Calendar, FileText, MessageCircle, UserCog, Home, Clock, FolderOpen, ChevronLeft, ChevronRight, MapPin, Stethoscope } from 'lucide-react'
 import { SimpleThemeToggle } from '@/components/simple-theme-toggle'
+import { UploadAvatar } from '@/components/ui/upload-avatar'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarMensagensPorPaciente } from '@/lib/api'
+import { useReports } from '@/hooks/useReports'
 // Simulação de internacionalização básica
 const strings = {
   dashboard: 'Dashboard',
@@ -57,8 +60,6 @@ export default function PacientePage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState<{type: 'success'|'error', msg: string}|null>(null)
 
-  // Acessibilidade: foco visível e ordem de tabulação garantidos por padrão nos botões e inputs
-
   const handleLogout = async () => {
     setLoading(true)
     setError('')
@@ -73,18 +74,167 @@ export default function PacientePage() {
 
   // Estado para edição do perfil
   const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [profileData, setProfileData] = useState({
-    nome: "Maria Silva Santos",
-    email: user?.email || "paciente@example.com",
-    telefone: "(11) 99999-9999",
-    endereco: "Rua das Flores, 123",
-    cidade: "São Paulo",
-    cep: "01234-567",
-    biografia: "Paciente desde 2020. Histórico de consultas e exames regulares.",
+  const [profileData, setProfileData] = useState<any>({
+    nome: '',
+    email: user?.email || '',
+    telefone: '',
+    endereco: '',
+    cidade: '',
+    cep: '',
+    biografia: '',
+    id: undefined,
+    foto_url: undefined,
   })
+  const [patientId, setPatientId] = useState<string | null>(null)
+
+  // Load authoritative patient row for the logged-in user (prefer user_id lookup)
+  useEffect(() => {
+    let mounted = true
+    const uid = user?.id ?? null
+    const uemail = user?.email ?? null
+    if (!uid && !uemail) return
+
+    async function loadProfile() {
+      try {
+        setLoading(true)
+        setError('')
+
+        // 1) exact lookup by user_id on patients table
+        let paciente: any = null
+        if (uid) paciente = await buscarPacientePorUserId(uid)
+
+        // 2) fallback: search patients by email and prefer a row that has user_id equal to auth id
+        if (!paciente && uemail) {
+          try {
+            const results = await buscarPacientes(uemail)
+            if (results && results.length) {
+              paciente = results.find((r: any) => String(r.user_id) === String(uid)) || results[0]
+            }
+          } catch (e) {
+            console.warn('[PacientePage] buscarPacientes falhou', e)
+          }
+        }
+
+        // 3) fallback: use getUserInfo() (auth profile) if available
+        if (!paciente) {
+          try {
+            const info = await getUserInfo().catch(() => null)
+            const p = info?.profile ?? null
+            if (p) {
+              // map auth profile to our local shape (best-effort)
+              paciente = {
+                full_name: p.full_name ?? undefined,
+                email: p.email ?? undefined,
+                phone_mobile: p.phone ?? undefined,
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (paciente && mounted) {
+          try { if ((paciente as any).id) setPatientId(String((paciente as any).id)) } catch {}
+          const getFirst = (obj: any, keys: string[]) => {
+            if (!obj) return undefined
+            for (const k of keys) {
+              const v = obj[k]
+              if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
+            }
+            return undefined
+          }
+
+          const nome = getFirst(paciente, ['full_name','fullName','name','nome','social_name']) || ''
+          const telefone = getFirst(paciente, ['phone_mobile','phone','telefone','mobile']) || ''
+          const rua = getFirst(paciente, ['street','logradouro','endereco','address'])
+          const numero = getFirst(paciente, ['number','numero'])
+          const bairro = getFirst(paciente, ['neighborhood','bairro'])
+          const endereco = rua ? (numero ? `${rua}, ${numero}` : rua) + (bairro ? ` - ${bairro}` : '') : ''
+          const cidade = getFirst(paciente, ['city','cidade','localidade']) || ''
+          const cep = getFirst(paciente, ['cep','postal_code','zip']) || ''
+          const biografia = getFirst(paciente, ['biography','bio','notes']) || ''
+          const emailFromRow = getFirst(paciente, ['email']) || uemail || ''
+
+          if (process.env.NODE_ENV !== 'production') console.debug('[PacientePage] paciente row', paciente)
+
+          setProfileData({ nome, email: emailFromRow, telefone, endereco, cidade, cep, biografia })
+        }
+      } catch (err) {
+        console.warn('[PacientePage] erro ao carregar paciente', err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    loadProfile()
+    return () => { mounted = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.email])
+
+  // Load authoritative patient row for the logged-in user (prefer user_id lookup)
+  useEffect(() => {
+    let mounted = true
+    const uid = user?.id ?? null
+    const uemail = user?.email ?? null
+    if (!uid && !uemail) return
+
+    async function loadProfile() {
+      try {
+        setLoading(true)
+        setError('')
+
+        let paciente: any = null
+        if (uid) paciente = await buscarPacientePorUserId(uid)
+
+        if (!paciente && uemail) {
+          try {
+            const res = await buscarPacientes(uemail)
+            if (res && res.length) paciente = res.find((r:any) => String((r as any).user_id) === String(uid)) || res[0]
+          } catch (e) {
+            console.warn('[PacientePage] busca por email falhou', e)
+          }
+        }
+
+        if (paciente && mounted) {
+          try { if ((paciente as any).id) setPatientId(String((paciente as any).id)) } catch {}
+          const getFirst = (obj: any, keys: string[]) => {
+            if (!obj) return undefined
+            for (const k of keys) {
+              const v = obj[k]
+              if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
+            }
+            return undefined
+          }
+
+          const nome = getFirst(paciente, ['full_name','fullName','name','nome','social_name']) || profileData.nome
+          const telefone = getFirst(paciente, ['phone_mobile','phone','telefone','mobile']) || profileData.telefone
+          const rua = getFirst(paciente, ['street','logradouro','endereco','address'])
+          const numero = getFirst(paciente, ['number','numero'])
+          const bairro = getFirst(paciente, ['neighborhood','bairro'])
+          const endereco = rua ? (numero ? `${rua}, ${numero}` : rua) + (bairro ? ` - ${bairro}` : '') : profileData.endereco
+          const cidade = getFirst(paciente, ['city','cidade','localidade']) || profileData.cidade
+          const cep = getFirst(paciente, ['cep','postal_code','zip']) || profileData.cep
+          const biografia = getFirst(paciente, ['biography','bio','notes']) || profileData.biografia || ''
+          const emailFromRow = getFirst(paciente, ['email']) || user?.email || profileData.email
+
+          if (process.env.NODE_ENV !== 'production') console.debug('[PacientePage] paciente row', paciente)
+
+          setProfileData((prev: any) => ({ ...prev, nome, email: emailFromRow, telefone, endereco, cidade, cep, biografia }))
+        }
+      } catch (err) {
+        console.warn('[PacientePage] erro ao carregar paciente', err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    loadProfile()
+    return () => { mounted = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.email])
 
   const handleProfileChange = (field: string, value: string) => {
-    setProfileData(prev => ({ ...prev, [field]: value }))
+    setProfileData((prev: any) => ({ ...prev, [field]: value }))
   }
   const handleSaveProfile = () => {
     setIsEditingProfile(false)
@@ -399,136 +549,58 @@ export default function PacientePage() {
     )
   }
 
-  // Exames e laudos fictícios
-  const examesFicticios = [
-    {
-      id: 1,
-      nome: "Hemograma Completo",
-      data: "2025-09-20",
-      status: "Disponível",
-      prontuario: "Paciente apresenta hemograma dentro dos padrões de normalidade. Sem alterações significativas.",
-    },
-    {
-      id: 2,
-      nome: "Raio-X de Tórax",
-      data: "2025-08-10",
-      status: "Disponível",
-      prontuario: "Exame radiológico sem evidências de lesões pulmonares. Estruturas cardíacas normais.",
-    },
-    {
-      id: 3,
-      nome: "Eletrocardiograma",
-      data: "2025-07-05",
-      status: "Disponível",
-      prontuario: "Ritmo sinusal, sem arritmias. Exame dentro da normalidade.",
-    },
-  ];
-
-  const laudosFicticios = [
-    {
-      id: 1,
-      nome: "Laudo Hemograma Completo",
-      data: "2025-09-21",
-      status: "Assinado",
-      laudo: "Hemoglobina, hematócrito, leucócitos e plaquetas dentro dos valores de referência. Sem anemias ou infecções detectadas.",
-    },
-    {
-      id: 2,
-      nome: "Laudo Raio-X de Tórax",
-      data: "2025-08-11",
-      status: "Assinado",
-      laudo: "Radiografia sem alterações. Parênquima pulmonar preservado. Ausência de derrame pleural.",
-    },
-    {
-      id: 3,
-      nome: "Laudo Eletrocardiograma",
-      data: "2025-07-06",
-      status: "Assinado",
-      laudo: "ECG normal. Não há sinais de isquemia ou sobrecarga.",
-    },
-  ];
-
-  const [exameSelecionado, setExameSelecionado] = useState<null | typeof examesFicticios[0]>(null)
-  const [laudoSelecionado, setLaudoSelecionado] = useState<null | typeof laudosFicticios[0]>(null)
+  // Reports (laudos) hook
+  const { reports, loadReportsByPatient, loading: reportsLoading } = useReports()
+  const [selectedReport, setSelectedReport] = useState<any | null>(null)
 
   function ExamesLaudos() {
+    useEffect(() => {
+      if (!patientId) return
+      // load laudos for this patient
+      loadReportsByPatient(patientId).catch(() => {})
+    }, [patientId])
+
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-bold mb-6">Exames</h2>
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-2">Meus Exames</h3>
-          <div className="space-y-3">
-            {examesFicticios.map(exame => (
-              <div key={exame.id} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
-                <div>
-                  <div className="font-medium text-foreground">{exame.nome}</div>
-                  <div className="text-sm text-muted-foreground">Data: {new Date(exame.data).toLocaleDateString('pt-BR')}</div>
-                </div>
-                <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" onClick={() => setExameSelecionado(exame)}>Ver Prontuário</Button>
-                  <Button variant="secondary">Download</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
         <h2 className="text-2xl font-bold mb-6">Laudos</h2>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Meus Laudos</h3>
+
+        {reportsLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Carregando laudos...</div>
+        ) : (!reports || reports.length === 0) ? (
+          <div className="text-center py-8 text-muted-foreground">Nenhum laudo salvo.</div>
+        ) : (
           <div className="space-y-3">
-            {laudosFicticios.map(laudo => (
-              <div key={laudo.id} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
+            {reports.map((r: any) => (
+              <div key={r.id || r.order_number || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
                 <div>
-                  <div className="font-medium text-foreground">{laudo.nome}</div>
-                  <div className="text-sm text-muted-foreground">Data: {new Date(laudo.data).toLocaleDateString('pt-BR')}</div>
+                  <div className="font-medium text-foreground">{r.title || r.report_type || r.exame || r.name || 'Laudo'}</div>
+                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.data || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" onClick={() => setLaudoSelecionado(laudo)}>Visualizar</Button>
-                  <Button variant="secondary">Compartilhar</Button>
+                  <Button variant="outline" onClick={async () => { setSelectedReport(r); }}>Visualizar</Button>
+                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado (debug).' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>Compartilhar</Button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        )}
 
-        {/* Modal Prontuário Exame */}
-        <Dialog open={!!exameSelecionado} onOpenChange={open => !open && setExameSelecionado(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Prontuário do Exame</DialogTitle>
-              <DialogDescription>
-                {exameSelecionado && (
-                  <>
-                    <div className="font-semibold mb-2">{exameSelecionado.nome}</div>
-                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(exameSelecionado.data).toLocaleDateString('pt-BR')}</div>
-                    <div className="mb-4 whitespace-pre-line">{exameSelecionado.prontuario}</div>
-                  </>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setExameSelecionado(null)}>Fechar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal Visualizar Laudo */}
-        <Dialog open={!!laudoSelecionado} onOpenChange={open => !open && setLaudoSelecionado(null)}>
+        <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Laudo Médico</DialogTitle>
               <DialogDescription>
-                {laudoSelecionado && (
+                {selectedReport && (
                   <>
-                    <div className="font-semibold mb-2">{laudoSelecionado.nome}</div>
-                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(laudoSelecionado.data).toLocaleDateString('pt-BR')}</div>
-                    <div className="mb-4 whitespace-pre-line">{laudoSelecionado.laudo}</div>
+                    <div className="font-semibold mb-2">{selectedReport.title || selectedReport.report_type || selectedReport.exame || 'Laudo'}</div>
+                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(selectedReport.report_date || selectedReport.data || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                    <div className="mb-4 whitespace-pre-line">{selectedReport.content || selectedReport.laudo || selectedReport.body || JSON.stringify(selectedReport, null, 2)}</div>
                   </>
                 )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setLaudoSelecionado(null)}>Fechar</Button>
+              <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -536,54 +608,51 @@ export default function PacientePage() {
     )
   }
 
-  // Mensagens fictícias recebidas do médico
-  const mensagensFicticias = [
-    {
-      id: 1,
-      medico: "Dr. Carlos Andrade",
-      data: "2025-10-06T15:30:00",
-      conteudo: "Olá Maria, seu exame de hemograma está normal. Parabéns por manter seus exames em dia!",
-      lida: false
-    },
-    {
-      id: 2,
-      medico: "Dra. Fernanda Lima",
-      data: "2025-09-21T10:15:00",
-      conteudo: "Maria, seu laudo de Raio-X já está disponível no sistema. Qualquer dúvida, estou à disposição.",
-      lida: true
-    },
-    {
-      id: 3,
-      medico: "Dr. João Silva",
-      data: "2025-08-12T09:00:00",
-      conteudo: "Bom dia! Lembre-se de agendar seu retorno para acompanhamento da ortopedia.",
-      lida: true
-    },
-  ];
-
   function Mensagens() {
+    const [msgs, setMsgs] = useState<any[]>([])
+    const [loadingMsgs, setLoadingMsgs] = useState(false)
+    const [msgsError, setMsgsError] = useState<string | null>(null)
+
+    useEffect(() => {
+      let mounted = true
+      if (!patientId) return
+      setLoadingMsgs(true)
+      setMsgsError(null)
+      listarMensagensPorPaciente(String(patientId))
+        .then(res => {
+          if (!mounted) return
+          setMsgs(Array.isArray(res) ? res : [])
+        })
+        .catch(err => {
+          console.warn('[Mensagens] erro ao carregar mensagens', err)
+          if (!mounted) return
+          setMsgsError('Falha ao carregar mensagens.')
+        })
+        .finally(() => { if (mounted) setLoadingMsgs(false) })
+
+      return () => { mounted = false }
+    }, [patientId])
+
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <h2 className="text-2xl font-bold mb-6">Mensagens Recebidas</h2>
         <div className="space-y-3">
-          {mensagensFicticias.length === 0 ? (
-            <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
-              <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
-              <p className="text-lg mb-2">Nenhuma mensagem recebida</p>
-              <p className="text-sm">Você ainda não recebeu mensagens dos seus médicos.</p>
-            </div>
+          {loadingMsgs ? (
+            <div className="text-center py-8 text-muted-foreground">Carregando mensagens...</div>
+          ) : msgsError ? (
+            <div className="text-center py-8 text-red-600">{msgsError}</div>
+          ) : (!msgs || msgs.length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground">Nenhuma mensagem encontrada.</div>
           ) : (
-            mensagensFicticias.map(msg => (
-              <div key={msg.id} className={`flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4 border ${!msg.lida ? 'border-primary' : 'border-transparent'}`}>
-                <div>
-                  <div className="font-medium text-foreground flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" />
-                    {msg.medico}
-                    {!msg.lida && <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-primary text-white">Nova</span>}
-                  </div>
-                  <div className="text-sm text-muted-foreground mb-2">{new Date(msg.data).toLocaleString('pt-BR')}</div>
-                  <div className="text-foreground whitespace-pre-line">{msg.conteudo}</div>
+            msgs.map((msg: any) => (
+              <div key={msg.id || JSON.stringify(msg)} className="bg-muted rounded p-4">
+                <div className="font-medium text-foreground flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  {msg.sender_name || msg.from || msg.doctor_name || 'Remetente'}
+                  {!msg.read && <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-primary text-white">Nova</span>}
                 </div>
+                <div className="text-sm text-muted-foreground mb-2">{new Date(msg.created_at || msg.data || Date.now()).toLocaleString('pt-BR')}</div>
+                <div className="text-foreground whitespace-pre-line">{msg.body || msg.content || msg.text || JSON.stringify(msg)}</div>
               </div>
             ))
           )}
@@ -593,6 +662,7 @@ export default function PacientePage() {
   }
 
   function Perfil() {
+    const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep || profileData.biografia)
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
@@ -634,59 +704,54 @@ export default function PacientePage() {
               )}
             </div>
           </div>
-          {/* Endereço e Contato */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Endereço</h3>
-            <div className="space-y-2">
-              <Label htmlFor="endereco">Endereço</Label>
-              {isEditingProfile ? (
-                <Input id="endereco" value={profileData.endereco} onChange={e => handleProfileChange('endereco', e.target.value)} />
-              ) : (
-                <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.endereco}</p>
-              )}
+          {/* Endereço e Contato (render apenas se existir algum dado) */}
+          {hasAddress && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Endereço</h3>
+              <div className="space-y-2">
+                <Label htmlFor="endereco">Endereço</Label>
+                {isEditingProfile ? (
+                  <Input id="endereco" value={profileData.endereco} onChange={e => handleProfileChange('endereco', e.target.value)} />
+                ) : (
+                  <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.endereco}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cidade">Cidade</Label>
+                {isEditingProfile ? (
+                  <Input id="cidade" value={profileData.cidade} onChange={e => handleProfileChange('cidade', e.target.value)} />
+                ) : (
+                  <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cidade}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cep">CEP</Label>
+                {isEditingProfile ? (
+                  <Input id="cep" value={profileData.cep} onChange={e => handleProfileChange('cep', e.target.value)} />
+                ) : (
+                  <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="biografia">Biografia</Label>
+                {isEditingProfile ? (
+                  <Textarea id="biografia" value={profileData.biografia} onChange={e => handleProfileChange('biografia', e.target.value)} rows={4} placeholder="Conte um pouco sobre você..." />
+                ) : (
+                  <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cidade">Cidade</Label>
-              {isEditingProfile ? (
-                <Input id="cidade" value={profileData.cidade} onChange={e => handleProfileChange('cidade', e.target.value)} />
-              ) : (
-                <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cidade}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cep">CEP</Label>
-              {isEditingProfile ? (
-                <Input id="cep" value={profileData.cep} onChange={e => handleProfileChange('cep', e.target.value)} />
-              ) : (
-                <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="biografia">Biografia</Label>
-              {isEditingProfile ? (
-                <Textarea id="biografia" value={profileData.biografia} onChange={e => handleProfileChange('biografia', e.target.value)} rows={4} placeholder="Conte um pouco sobre você..." />
-              ) : (
-                <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
-              )}
-            </div>
-          </div>
+          )}
         </div>
         {/* Foto do Perfil */}
         <div className="border-t border-border pt-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="text-lg">
-                {profileData.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {isEditingProfile && (
-              <div className="space-y-2">
-                <Button variant="outline" size="sm">Alterar Foto</Button>
-                <p className="text-xs text-muted-foreground">Formatos aceitos: JPG, PNG (máx. 2MB)</p>
-              </div>
-            )}
-          </div>
+          <UploadAvatar
+            userId={profileData.id}
+            currentAvatarUrl={profileData.foto_url}
+            onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
+            userName={profileData.nome}
+          />
         </div>
       </div>
     )

@@ -202,37 +202,78 @@ export function DoctorRegistrationForm({
                               "";
         console.log('🎯 Especialidade encontrada:', especialidade);
         
+        const m: any = medico as any;
+
+        const normalizeSex = (v: any): string | null => {
+          if (v === null || typeof v === 'undefined') return null;
+          const s = String(v).trim().toLowerCase();
+          if (!s) return null;
+          const male = new Set(['m','masc','male','masculino','homem','h','1','mas']);
+          const female = new Set(['f','fem','female','feminino','mulher','mul','2','fem']);
+          const other = new Set(['o','outro','other','3','nb','nonbinary','nao binario','não binário']);
+          if (male.has(s)) return 'masculino';
+          if (female.has(s)) return 'feminino';
+          if (other.has(s)) return 'outro';
+          // Already canonical?
+          if (['masculino','feminino','outro'].includes(s)) return s;
+          return null;
+        };
+
+        const formatBirth = (v: any) => {
+          if (!v && typeof v !== 'string') return '';
+          const s = String(v).trim();
+          if (!s) return '';
+          // Accept ISO YYYY-MM-DD or full ISO datetime
+          const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (isoMatch) {
+            const [, y, mth, d] = isoMatch;
+            return `${d.padStart(2,'0')}/${mth.padStart(2,'0')}/${y}`;
+          }
+          // If already dd/mm/yyyy, return as-is
+          const ddmmyyyy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (ddmmyyyy) return s;
+          // Try parsing other common formats
+          const maybe = new Date(s);
+          if (!isNaN(maybe.getTime())) {
+            const d = String(maybe.getDate()).padStart(2,'0');
+            const mm = String(maybe.getMonth() + 1).padStart(2,'0');
+            const y = String(maybe.getFullYear());
+            return `${d}/${mm}/${y}`;
+          }
+          return '';
+        };
+
         const formData = {
           photo: null,
-          full_name: String(medico.full_name || ""),
-          nome_social: String(medico.nome_social || ""),
-          crm: String(medico.crm || ""),
-          estado_crm: String(medico.estado_crm || ""),
-          rqe: String(medico.rqe || ""),
-          formacao_academica: Array.isArray(medico.formacao_academica) ? medico.formacao_academica : [],
+          full_name: String(m.full_name || m.nome || ""),
+          nome_social: String(m.nome_social || m.social_name || ""),
+          crm: String(m.crm || ""),
+          estado_crm: String(m.estado_crm || m.crm_uf || m.crm_state || ""),
+          rqe: String(m.rqe || ""),
+          formacao_academica: Array.isArray(m.formacao_academica) ? m.formacao_academica : [],
           curriculo: null, 
           especialidade: String(especialidade),
-          cpf: String(medico.cpf || ""),
-          rg: String(medico.rg || ""),
-          sexo: String(medico.sexo || ""),
-          data_nascimento: String(medico.data_nascimento || ""),
-          email: String(medico.email || ""),
-          telefone: String(medico.telefone || ""),
-          celular: String(medico.celular || ""),
-          contato_emergencia: String(medico.contato_emergencia || ""),
-          cep: String(medico.cep || ""),
-          logradouro: String(medico.street || ""),
-          numero: String(medico.number || ""),
-          complemento: String(medico.complement || ""),
-          bairro: String(medico.neighborhood || ""),
-          cidade: String(medico.city || ""),
-          estado: String(medico.state || ""),
-          observacoes: String(medico.observacoes || ""),
+          cpf: String(m.cpf || ""),
+          rg: String(m.rg || m.document_number || ""),
+          sexo: normalizeSex(m.sexo || m.sex || m.sexualidade || null) ?? "",
+          data_nascimento: String(formatBirth(m.data_nascimento || m.birth_date || m.birthDate || "")),
+          email: String(m.email || ""),
+          telefone: String(m.telefone || m.phone_mobile || m.phone || m.mobile || ""),
+          celular: String(m.celular || m.phone2 || ""),
+          contato_emergencia: String(m.contato_emergencia || ""),
+          cep: String(m.cep || ""),
+          logradouro: String(m.street || m.logradouro || ""),
+          numero: String(m.number || m.numero || ""),
+          complemento: String(m.complement || m.complemento || ""),
+          bairro: String(m.neighborhood || m.bairro || ""),
+          cidade: String(m.city || m.cidade || ""),
+          estado: String(m.state || m.estado || ""),
+          observacoes: String(m.observacoes || m.notes || ""),
           anexos: [],
-          tipo_vinculo: String(medico.tipo_vinculo || ""),
-          dados_bancarios: medico.dados_bancarios || { banco: "", agencia: "", conta: "", tipo_conta: "" },
-          agenda_horario: String(medico.agenda_horario || ""),
-          valor_consulta: medico.valor_consulta ? String(medico.valor_consulta) : "",
+          tipo_vinculo: String(m.tipo_vinculo || ""),
+          dados_bancarios: m.dados_bancarios || { banco: "", agencia: "", conta: "", tipo_conta: "" },
+          agenda_horario: String(m.agenda_horario || ""),
+          valor_consulta: m.valor_consulta ? String(m.valor_consulta) : "",
         };
         
         console.log("[DoctorForm] Dados do formulário preparados:", formData);
@@ -355,9 +396,12 @@ function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
   if (!form.cpf.trim()) e.cpf = "CPF é obrigatório";
   if (!form.crm.trim()) e.crm = "CRM é obrigatório";
   if (!form.especialidade.trim()) e.especialidade = "Especialidade é obrigatória";
-  if (!form.cep.trim()) e.cep = "CEP é obrigatório";  // Verifique se o CEP está preenchido
-  if (!form.bairro.trim()) e.bairro = "Bairro é obrigatório";  // Verifique se o bairro está preenchido
-  if (!form.cidade.trim()) e.cidade = "Cidade é obrigatória";  // Verifique se a cidade está preenchida
+  // During edit, avoid forcing address fields. They are required on create only.
+  if (mode !== 'edit') {
+    if (!form.cep.trim()) e.cep = "CEP é obrigatório";  // Verifique se o CEP está preenchido
+    if (!form.bairro.trim()) e.bairro = "Bairro é obrigatório";  // Verifique se o bairro está preenchido
+    if (!form.cidade.trim()) e.cidade = "Cidade é obrigatória";  // Verifique se a cidade está preenchida
+  }
   
   setErrors(e);
   return Object.keys(e).length === 0;
@@ -426,7 +470,15 @@ function toPayload(): MedicoInput {
 
 async function handleSubmit(ev: React.FormEvent) {
   ev.preventDefault();
-  if (!validateLocal()) return;
+  console.debug('[DoctorForm] handleSubmit invoked. mode=', mode, 'doctorId=', doctorId);
+  if (!validateLocal()) {
+    try {
+      const { toast } = require('@/hooks/use-toast').useToast();
+      const msgs = Object.entries(errors).map(([k,v]) => v).filter(Boolean).join('\n') || 'Preencha os campos obrigatórios';
+      toast({ title: 'Erro de validação', description: msgs, variant: 'destructive' });
+    } catch {}
+    return;
+  }
 
   setSubmitting(true);
   setErrors({});

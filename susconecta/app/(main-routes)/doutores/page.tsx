@@ -19,14 +19,48 @@ import { listarMedicos, excluirMedico, buscarMedicos, buscarMedicoPorId, buscarP
 import { listAssignmentsForUser } from '@/lib/assignment';
 
 function normalizeMedico(m: any): Medico {
+  const normalizeSex = (v: any) => {
+    if (v === null || typeof v === 'undefined') return null;
+    const s = String(v || '').trim().toLowerCase();
+    if (!s) return null;
+    const male = new Set(['m','masc','male','masculino','homem','h','1','mas']);
+    const female = new Set(['f','fem','female','feminino','mulher','mul','2','fem']);
+    const other = new Set(['o','outro','other','3','nb','nonbinary','nao binario','não binário']);
+    if (male.has(s)) return 'masculino';
+    if (female.has(s)) return 'feminino';
+    if (other.has(s)) return 'outro';
+    if (['masculino','feminino','outro'].includes(s)) return s;
+    return null;
+  };
+
+  const formatBirth = (v: any) => {
+    if (!v && typeof v !== 'string') return null;
+    const s = String(v || '').trim();
+    if (!s) return null;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      const [, y, mth, d] = iso;
+      return `${d.padStart(2,'0')}/${mth.padStart(2,'0')}/${y}`;
+    }
+    const ddmmyyyy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (ddmmyyyy) return s;
+    const parsed = new Date(s);
+    if (!isNaN(parsed.getTime())) {
+      const d = String(parsed.getDate()).padStart(2,'0');
+      const mth = String(parsed.getMonth() + 1).padStart(2,'0');
+      const y = String(parsed.getFullYear());
+      return `${d}/${mth}/${y}`;
+    }
+    return null;
+  };
   return {
     id: String(m.id ?? m.uuid ?? ""),
     full_name: m.full_name ?? m.nome ?? "",        // 👈 Correção: usar full_name como padrão
     nome_social: m.nome_social ?? m.social_name ?? null,
     cpf: m.cpf ?? "",
     rg: m.rg ?? m.document_number ?? null,
-    sexo: m.sexo ?? m.sex ?? null,
-    data_nascimento: m.data_nascimento ?? m.birth_date ?? null,
+  sexo: normalizeSex(m.sexo ?? m.sex ?? m.sexualidade ?? null),
+  data_nascimento: formatBirth(m.data_nascimento ?? m.birth_date ?? m.birthDate ?? null),
     telefone: m.telefone ?? m.phone_mobile ?? "",
     celular: m.celular ?? m.phone2 ?? null,
     contato_emergencia: m.contato_emergencia ?? null,

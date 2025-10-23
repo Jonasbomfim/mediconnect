@@ -2086,17 +2086,41 @@ export async function atualizarMedico(id: string | number, input: MedicoInput): 
   
   // Criar um payload limpo apenas com campos básicos que sabemos que existem
   const cleanPayload = {
+    // Basic identification / contact
     full_name: input.full_name,
+    nome_social: (input as any).nome_social || undefined,
     crm: input.crm,
+    crm_uf: (input as any).crm_uf || (input as any).crmUf || undefined,
+    rqe: (input as any).rqe || undefined,
     specialty: input.specialty,
     email: input.email,
     phone_mobile: input.phone_mobile,
+    phone2: (input as any).phone2 ?? (input as any).telefone ?? undefined,
     cpf: input.cpf,
+    rg: (input as any).rg ?? undefined,
+
+    // Address
     cep: input.cep,
     street: input.street,
     number: input.number,
+    complement: (input as any).complement ?? undefined,
+    neighborhood: (input as any).neighborhood ?? (input as any).bairro ?? undefined,
     city: input.city,
     state: input.state,
+
+    // Personal / professional
+    birth_date: (input as any).birth_date ?? (input as any).data_nascimento ?? undefined,
+    sexo: (input as any).sexo ?? undefined,
+    formacao_academica: (input as any).formacao_academica ?? undefined,
+    observacoes: (input as any).observacoes ?? undefined,
+
+    // Administrative / financial
+    tipo_vinculo: (input as any).tipo_vinculo ?? undefined,
+    dados_bancarios: (input as any).dados_bancarios ?? undefined,
+    valor_consulta: (input as any).valor_consulta ?? undefined,
+    agenda_horario: (input as any).agenda_horario ?? undefined,
+
+    // Flags
     active: input.active ?? true
   };
   

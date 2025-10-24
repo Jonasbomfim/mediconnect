@@ -39,6 +39,7 @@ import {
 
 
 import dynamic from "next/dynamic";
+import { ENV_CONFIG } from '@/lib/env-config';
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -82,6 +83,20 @@ const colorsByType = {
     return p?.idade ?? p?.age ?? '';
   };
 
+  // Normaliza número de telefone para E.164 básico (prioriza +55 quando aplicável)
+  const normalizePhoneNumber = (raw?: string) => {
+    if (!raw || typeof raw !== 'string') return '';
+    // Remover tudo que não for dígito
+    const digits = raw.replace(/\D+/g, '');
+    if (!digits) return '';
+    // Já tem código de país (começa com 55)
+    if (digits.startsWith('55') && digits.length >= 11) return '+' + digits;
+    // Se tiver 10 ou 11 dígitos (DDD + número), assume Brasil e prefixa +55
+    if (digits.length === 10 || digits.length === 11) return '+55' + digits;
+    // Se tiver outros formatos pequenos, apenas prefixa +
+    return '+' + digits;
+  };
+
   // Helpers para normalizar campos do laudo/relatório
   const getReportPatientName = (r: any) => r?.paciente?.full_name ?? r?.paciente?.nome ?? r?.patient?.full_name ?? r?.patient?.nome ?? r?.patient_name ?? r?.patient_full_name ?? '';
   const getReportPatientId = (r: any) => r?.paciente?.id ?? r?.patient?.id ?? r?.patient_id ?? r?.patientId ?? r?.patient_id_raw ?? r?.patient_id ?? r?.id ?? '';
@@ -101,7 +116,7 @@ const colorsByType = {
   };
 
 const ProfissionalPage = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, token } = useAuth();
   const [activeSection, setActiveSection] = useState('calendario');
   const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
   
@@ -374,10 +389,98 @@ const ProfissionalPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
-  const handleSave = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const [commPhoneNumber, setCommPhoneNumber] = useState('');
+  const [commMessage, setCommMessage] = useState('');
+  const [commPatientId, setCommPatientId] = useState<string | null>(null);
+  const [smsSending, setSmsSending] = useState(false);
+
+  const handleSave = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    console.log("Laudo salvo!");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  setSmsSending(true);
+    try {
+      // Validate required fields
+      if (!commPhoneNumber || !commPhoneNumber.trim()) throw new Error('O campo phone_number é obrigatório');
+      if (!commMessage || !commMessage.trim()) throw new Error('O campo message é obrigatório');
+
+      const payload: any = { phone_number: commPhoneNumber.trim(), message: commMessage.trim() };
+      if (commPatientId) payload.patient_id = commPatientId;
+
+  const headers: Record<string,string> = { 'Content-Type': 'application/json' };
+  // include any default headers from ENV_CONFIG if present (e.g. apikey)
+  if ((ENV_CONFIG as any)?.DEFAULT_HEADERS) Object.assign(headers, (ENV_CONFIG as any).DEFAULT_HEADERS);
+  // include Authorization if we have a token (user session)
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // Ensure apikey is present (frontend only has ANON key in this project)
+      if (!headers.apikey && (ENV_CONFIG as any)?.SUPABASE_ANON_KEY) {
+        headers.apikey = (ENV_CONFIG as any).SUPABASE_ANON_KEY;
+      }
+      // Ensure Accept header
+      headers['Accept'] = 'application/json';
+
+      // Normalizar número antes de enviar (E.164 básico)
+      const normalized = normalizePhoneNumber(commPhoneNumber);
+      if (!normalized) throw new Error('Número inválido após normalização');
+      payload.phone_number = normalized;
+
+      // Debug: log payload and headers with secrets masked to help diagnose issues
+      try {
+        const masked = { ...headers } as Record<string, any>;
+        if (masked.apikey && typeof masked.apikey === 'string') masked.apikey = `${masked.apikey.slice(0,4)}...${masked.apikey.slice(-4)}`;
+        if (masked.Authorization) masked.Authorization = 'Bearer <<token-present>>';
+        console.debug('[ProfissionalPage] Enviando SMS -> url:', `${(ENV_CONFIG as any).SUPABASE_URL}/functions/v1/send-sms`, 'payload:', payload, 'headers(masked):', masked);
+      } catch (e) {
+        // ignore logging errors
+      }
+
+      const res = await fetch(`${(ENV_CONFIG as any).SUPABASE_URL}/functions/v1/send-sms`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        // If server returned 5xx and we sent a patient_id, try a single retry without patient_id
+        if (res.status >= 500 && payload.patient_id) {
+          try {
+            const fallback = { phone_number: payload.phone_number, message: payload.message };
+            console.debug('[ProfissionalPage] 5xx ao enviar com patient_id — tentando reenviar sem patient_id', { fallback });
+            const retryRes = await fetch(`${(ENV_CONFIG as any).SUPABASE_URL}/functions/v1/send-sms`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(fallback),
+            });
+            const retryBody = await retryRes.json().catch(() => null);
+            if (retryRes.ok) {
+              alert('SMS enviado com sucesso (sem patient_id)');
+              setCommPhoneNumber('');
+              setCommMessage('');
+              setCommPatientId(null);
+              return;
+            } else {
+              throw new Error(retryBody?.message || retryBody?.error || `Erro ao enviar SMS (retry ${retryRes.status})`);
+            }
+          } catch (retryErr) {
+            console.warn('[ProfissionalPage] Reenvio sem patient_id falhou', retryErr);
+            throw new Error(body?.message || body?.error || `Erro ao enviar SMS (${res.status})`);
+          }
+        }
+        throw new Error(body?.message || body?.error || `Erro ao enviar SMS (${res.status})`);
+      }
+
+      // success feedback
+      alert('SMS enviado com sucesso');
+      // clear fields
+      setCommPhoneNumber('');
+      setCommMessage('');
+      setCommPatientId(null);
+    } catch (err: any) {
+      alert(String(err?.message || err || 'Falha ao enviar SMS'));
+    } finally {
+      setSmsSending(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   
@@ -2480,60 +2583,59 @@ const ProfissionalPage = () => {
     <div className="bg-card shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-bold mb-4 text-foreground">Comunicação com o Paciente</h2>
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="destinatario">Destinatário</Label>
-            <Select>
-              <SelectTrigger id="destinatario" className="hover:border-primary focus:border-primary cursor-pointer">
-                <SelectValue placeholder="Selecione o paciente" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border">
-                {pacientes.map((paciente) => (
-                  <SelectItem 
-                    key={paciente.cpf} 
-                    value={paciente.nome} 
-                    className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground"
-                  >
-                    {paciente.nome} - {paciente.cpf}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="patientSelect">Paciente *</Label>
+            <select
+              id="patientSelect"
+              className="input"
+              value={commPatientId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value || null;
+                setCommPatientId(val);
+                if (!val) {
+                  setCommPhoneNumber('');
+                  return;
+                }
+                try {
+                  const found = (pacientes || []).find((p: any) => String(p.id ?? p.uuid ?? p.email ?? '') === String(val));
+                  if (found) {
+                    setCommPhoneNumber(
+                      found.phone_mobile ?? found.celular ?? found.telefone ?? found.phone ?? found.mobile ?? found.phone_number ?? ''
+                    );
+                  } else {
+                    setCommPhoneNumber('');
+                  }
+                } catch (e) {
+                  console.warn('[ProfissionalPage] erro ao preencher telefone do paciente selecionado', e);
+                  setCommPhoneNumber('');
+                }
+              }}
+            >
+              <option value="">-- nenhum --</option>
+              {pacientes && pacientes.map((p:any) => (
+                <option key={String(p.id || p.uuid || p.cpf || p.email)} value={String(p.id ?? p.uuid ?? p.email ?? '')}>
+                  {p.full_name ?? p.nome ?? p.name ?? p.email ?? String(p.id ?? p.cpf ?? '')}
+                </option>
+              ))}
+            </select>
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="tipoMensagem">Tipo de mensagem</Label>
-            <Select>
-              <SelectTrigger id="tipoMensagem" className="hover:border-primary focus:border-primary cursor-pointer">
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border">
-                <SelectItem value="lembrete" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Lembrete de Consulta</SelectItem>
-                <SelectItem value="resultado" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Resultado de Exame</SelectItem>
-                <SelectItem value="instrucao" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Instruções Pós-Consulta</SelectItem>
-                <SelectItem value="outro" className="hover:bg-blue-50 focus:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground dark:focus:bg-primary dark:focus:text-primary-foreground">Outro</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="phoneNumber">Número (phone_number)</Label>
+            <Input id="phoneNumber" placeholder="+5511999999999" value={commPhoneNumber} readOnly disabled className="bg-muted/50" />
           </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="dataEnvio">Data de envio</Label>
-            <p id="dataEnvio" className="text-sm text-muted-foreground">03/09/2025</p>
+
+          <div className="space-y-2">
+            <Label htmlFor="message">Mensagem (message)</Label>
+            <textarea id="message" className="w-full p-2 border rounded" rows={5} value={commMessage} onChange={(e) => setCommMessage(e.target.value)} />
           </div>
-          <div>
-            <Label htmlFor="statusEntrega">Status da entrega</Label>
-            <p id="statusEntrega" className="text-sm text-muted-foreground">Pendente</p>
+
+          <div className="flex justify-end mt-6">
+            <Button onClick={handleSave} disabled={smsSending}>
+              {smsSending ? 'Enviando...' : 'Enviar SMS'}
+            </Button>
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Resposta do paciente</Label>
-          <div className="border rounded-md p-3 bg-muted/40 space-y-2">
-            <p className="text-sm">"Ok, obrigado pelo lembrete!"</p>
-            <p className="text-xs text-muted-foreground">03/09/2025 14:30</p>
-          </div>
-        </div>
-        <div className="flex justify-end mt-6">
-          <Button onClick={handleSave}>Registrar Comunicação</Button>
         </div>
       </div>
     </div>

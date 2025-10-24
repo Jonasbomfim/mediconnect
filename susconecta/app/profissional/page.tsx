@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 import {
   Table,
@@ -20,13 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity, Search } from "lucide-react"
 import { Calendar as CalendarIcon, FileText, Settings } from "lucide-react";
@@ -2586,19 +2581,19 @@ const ProfissionalPage = () => {
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
             <Label htmlFor="patientSelect">Paciente *</Label>
-            <select
-              id="patientSelect"
-              className="input"
+            <Select
               value={commPatientId ?? ''}
-              onChange={(e) => {
-                const val = e.target.value || null;
-                setCommPatientId(val);
-                if (!val) {
+              onValueChange={(val: string) => {
+                // Radix Select does not allow an Item with empty string as value.
+                // Use a sentinel value "__none" for the "-- nenhum --" choice and map it to null here.
+                const v = val === "__none" ? null : (val || null);
+                setCommPatientId(v);
+                if (!v) {
                   setCommPhoneNumber('');
                   return;
                 }
                 try {
-                  const found = (pacientes || []).find((p: any) => String(p.id ?? p.uuid ?? p.email ?? '') === String(val));
+                  const found = (pacientes || []).find((p: any) => String(p.id ?? p.uuid ?? p.email ?? '') === String(v));
                   if (found) {
                     setCommPhoneNumber(
                       found.phone_mobile ?? found.celular ?? found.telefone ?? found.phone ?? found.mobile ?? found.phone_number ?? ''
@@ -2612,13 +2607,18 @@ const ProfissionalPage = () => {
                 }
               }}
             >
-              <option value="">-- nenhum --</option>
-              {pacientes && pacientes.map((p:any) => (
-                <option key={String(p.id || p.uuid || p.cpf || p.email)} value={String(p.id ?? p.uuid ?? p.email ?? '')}>
-                  {p.full_name ?? p.nome ?? p.name ?? p.email ?? String(p.id ?? p.cpf ?? '')}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="-- nenhum --" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">-- nenhum --</SelectItem>
+                {pacientes && pacientes.map((p:any) => (
+                  <SelectItem key={String(p.id || p.uuid || p.cpf || p.email)} value={String(p.id ?? p.uuid ?? p.email ?? '')}>
+                    {p.full_name ?? p.nome ?? p.name ?? p.email ?? String(p.id ?? p.cpf ?? '')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

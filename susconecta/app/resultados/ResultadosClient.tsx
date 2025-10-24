@@ -30,6 +30,8 @@ import {
   criarAgendamento,
   getUserInfo,
   buscarPacientes,
+  listarDisponibilidades,
+  listarExcecoes,
   type Medico,
 } from '@/lib/api'
 
@@ -66,6 +68,14 @@ export default function ResultadosClient() {
   const [agendaByDoctor, setAgendaByDoctor] = useState<Record<string, DayAgenda[]>>({})
   const [agendaLoading, setAgendaLoading] = useState<Record<string, boolean>>({})
   const [agendasExpandida, setAgendasExpandida] = useState<Record<string, boolean>>({})
+  const [nearestSlotByDoctor, setNearestSlotByDoctor] = useState<Record<string, { iso: string; label: string } | null>>({})
+
+  // "Mostrar mais horários" modal state
+  const [moreTimesForDoctor, setMoreTimesForDoctor] = useState<string | null>(null)
+  const [moreTimesDate, setMoreTimesDate] = useState<string>(() => new Date().toISOString().slice(0,10))
+  const [moreTimesLoading, setMoreTimesLoading] = useState(false)
+  const [moreTimesSlots, setMoreTimesSlots] = useState<Array<{ iso: string; label: string }>>([])
+  const [moreTimesException, setMoreTimesException] = useState<string | null>(null)
 
   // Seleção para o Dialog de perfil completo
   const [medicoSelecionado, setMedicoSelecionado] = useState<Medico | null>(null)
@@ -161,7 +171,21 @@ export default function ResultadosClient() {
         d.horarios.sort((a, b) => new Date(a.iso).getTime() - new Date(b.iso).getTime())
       }
 
+      // compute nearest slot (earliest available in the returned window, but after now)
+      let nearest: { iso: string; label: string } | null = null
+      const nowMs = Date.now()
+      const allSlots = days.flatMap(d => d.horarios || [])
+      const futureSorted = allSlots
+        .map(s => ({ ...s, ms: new Date(s.iso).getTime() }))
+        .filter(s => s.ms >= nowMs)
+        .sort((a,b) => a.ms - b.ms)
+      if (futureSorted.length) {
+        const s = futureSorted[0]
+        nearest = { iso: s.iso, label: s.label }
+      }
+
       setAgendaByDoctor((prev) => ({ ...prev, [doctorId]: days }))
+      setNearestSlotByDoctor((prev) => ({ ...prev, [doctorId]: nearest }))
     } catch (e: any) {
       showToast('error', e?.message || 'Falha ao buscar horários')
     } finally {
@@ -193,6 +217,205 @@ export default function ResultadosClient() {
       })
     } catch (e: any) {
       showToast('error', e?.message || 'Falha ao agendar')
+    }
+  }
+
+  // Fetch slots for an arbitrary date using the same logic as CalendarRegistrationForm
+  async function fetchSlotsForDate(doctorId: string, dateOnly: string) {
+    if (!doctorId || !dateOnly) return []
+    setMoreTimesLoading(true)
+    setMoreTimesException(null)
+    try {
+      // Check for blocking exceptions (listarExcecoes can filter by date)
+      const exceptions = await listarExcecoes({ doctorId: String(doctorId), date: String(dateOnly) }).catch(() => [])
+      if (exceptions && exceptions.length) {
+        const blocking = (exceptions || []).find((e: any) => e && e.kind === 'bloqueio')
+        if (blocking) {
+          const reason = blocking.reason ? ` Motivo: ${blocking.reason}` : ''
+          setMoreTimesException(`Não é possível agendar nesta data.${reason}`)
+          setMoreTimesSlots([])
+          return []
+        }
+      }
+
+      // Build local start/end for the day
+      let start: Date
+      let end: Date
+      try {
+        const parts = String(dateOnly).split('-').map((p) => Number(p))
+        if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
+          const [y, m, d] = parts
+          start = new Date(y, m - 1, d, 0, 0, 0, 0)
+          end = new Date(y, m - 1, d, 23, 59, 59, 999)
+        } else {
+          start = new Date(dateOnly)
+          start.setHours(0,0,0,0)
+          end = new Date(dateOnly)
+          end.setHours(23,59,59,999)
+        }
+      } catch (err) {
+        start = new Date(dateOnly)
+        start.setHours(0,0,0,0)
+        end = new Date(dateOnly)
+        end.setHours(23,59,59,999)
+      }
+
+      const av = await getAvailableSlots({
+        doctor_id: String(doctorId),
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        appointment_type: tipoConsulta === 'local' ? 'presencial' : 'telemedicina',
+      })
+
+      // Try to restrict to public availability windows and synthesize missing slots
+      try {
+        const disponibilidades = await listarDisponibilidades({ doctorId: String(doctorId) }).catch(() => [])
+        const weekdayNumber = start.getDay()
+        const weekdayNames: Record<number, string[]> = {
+          0: ['0','sun','sunday','domingo'],
+          1: ['1','mon','monday','segunda','segunda-feira'],
+          2: ['2','tue','tuesday','terca','terça','terça-feira'],
+          3: ['3','wed','wednesday','quarta','quarta-feira'],
+          4: ['4','thu','thursday','quinta','quinta-feira'],
+          5: ['5','fri','friday','sexta','sexta-feira'],
+          6: ['6','sat','saturday','sabado','sábado']
+        }
+        const allowed = (weekdayNames[weekdayNumber] || []).map(s => String(s).toLowerCase())
+        const matched = (disponibilidades || []).filter((d: any) => {
+          try {
+            const raw = String(d.weekday ?? d.weekday_name ?? d.day ?? d.day_of_week ?? '').toLowerCase()
+            if (!raw) return false
+            if (allowed.includes(raw)) return true
+            if (typeof d.weekday === 'number' && d.weekday === weekdayNumber) return true
+            if (typeof d.day_of_week === 'number' && d.day_of_week === weekdayNumber) return true
+            return false
+          } catch (e) { return false }
+        })
+
+        if (matched && matched.length) {
+          const windows = matched.map((d: any) => {
+            const parseTime = (t?: string) => {
+              if (!t) return { hh: 0, mm: 0, ss: 0 }
+              const parts = String(t).split(':').map((p) => Number(p))
+              return { hh: parts[0] || 0, mm: parts[1] || 0, ss: parts[2] || 0 }
+            }
+            const s = parseTime(d.start_time)
+            const e2 = parseTime(d.end_time)
+            const winStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), s.hh, s.mm, s.ss || 0, 0)
+            const winEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), e2.hh, e2.mm, e2.ss || 0, 999)
+            const slotMinutes = (() => { const n = Number(d.slot_minutes ?? d.slot_minutes_minutes ?? NaN); return Number.isFinite(n) ? n : undefined })()
+            return { winStart, winEnd, slotMinutes }
+          })
+
+          // compute step based on backend slot diffs
+          let stepMinutes = 30
+          try {
+            const times = (av.slots || []).map((s: any) => new Date(s.datetime).getTime()).sort((a:number,b:number)=>a-b)
+            const diffs: number[] = []
+            for (let i = 1; i < times.length; i++) {
+              const d = Math.round((times[i] - times[i-1]) / 60000)
+              if (d > 0) diffs.push(d)
+            }
+            if (diffs.length) stepMinutes = Math.min(...diffs)
+          } catch(e) {}
+
+          const generatedSet = new Set<string>()
+          windows.forEach((w:any) => {
+            try {
+              const perWindowStep = Number(w.slotMinutes) || stepMinutes
+              const startMs = w.winStart.getTime()
+              const endMs = w.winEnd.getTime()
+              const lastStartMs = endMs - perWindowStep * 60000
+              const backendSlotsInWindow = (av.slots || []).filter((s:any) => {
+                try {
+                  const sd = new Date(s.datetime)
+                  const sm = sd.getHours() * 60 + sd.getMinutes()
+                  const wmStart = w.winStart.getHours() * 60 + w.winStart.getMinutes()
+                  const wmEnd = w.winEnd.getHours() * 60 + w.winEnd.getMinutes()
+                  return sm >= wmStart && sm <= wmEnd
+                } catch(e) { return false }
+              }).map((s:any) => new Date(s.datetime).getTime()).sort((a:number,b:number)=>a-b)
+
+              if (!backendSlotsInWindow.length) {
+                let cursorMs = startMs
+                while (cursorMs <= lastStartMs) {
+                  generatedSet.add(new Date(cursorMs).toISOString())
+                  cursorMs += perWindowStep * 60000
+                }
+              } else {
+                const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1]
+                let cursorMs = lastBackendMs + perWindowStep * 60000
+                while (cursorMs <= lastStartMs) {
+                  generatedSet.add(new Date(cursorMs).toISOString())
+                  cursorMs += perWindowStep * 60000
+                }
+              }
+            } catch(e) {}
+          })
+
+          const mergedMap = new Map<string, { datetime: string; available: boolean; slot_minutes?: number }>()
+          const findWindowSlotMinutes = (isoDt: string) => {
+            try {
+              const sd = new Date(isoDt)
+              const sm = sd.getHours() * 60 + sd.getMinutes()
+              const w = windows.find((win:any) => {
+                const ws = win.winStart
+                const we = win.winEnd
+                const winStartMinutes = ws.getHours() * 60 + ws.getMinutes()
+                const winEndMinutes = we.getHours() * 60 + we.getMinutes()
+                return sm >= winStartMinutes && sm <= winEndMinutes
+              })
+              return w && w.slotMinutes ? Number(w.slotMinutes) : null
+            } catch(e) { return null }
+          }
+
+          const existingInWindow: any[] = (av.slots || []).filter((s:any) => {
+            try {
+              const sd = new Date(s.datetime)
+              const slotMinutes = sd.getHours() * 60 + sd.getMinutes()
+              return windows.some((w:any) => {
+                const ws = w.winStart
+                const we = w.winEnd
+                const winStartMinutes = ws.getHours() * 60 + ws.getMinutes()
+                const winEndMinutes = we.getHours() * 60 + we.getMinutes()
+                return slotMinutes >= winStartMinutes && slotMinutes <= winEndMinutes
+              })
+            } catch(e) { return false }
+          })
+
+          for (const s of (existingInWindow || [])) {
+            const sm = findWindowSlotMinutes(s.datetime)
+            mergedMap.set(s.datetime, sm ? { ...s, slot_minutes: sm } : { ...s })
+          }
+          Array.from(generatedSet).forEach((dt) => {
+            if (!mergedMap.has(dt)) {
+              const sm = findWindowSlotMinutes(dt) || stepMinutes
+              mergedMap.set(dt, { datetime: dt, available: true, slot_minutes: sm })
+            }
+          })
+
+          const merged = Array.from(mergedMap.values()).sort((a:any,b:any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+          const formatted = (merged || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
+          setMoreTimesSlots(formatted)
+          return formatted
+        } else {
+          const slots = (av.slots || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
+          setMoreTimesSlots(slots)
+          return slots
+        }
+      } catch (e) {
+        console.warn('[ResultadosClient] erro ao filtrar por disponibilidades', e)
+        const slots = (av.slots || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
+        setMoreTimesSlots(slots)
+        return slots
+      }
+    } catch (e) {
+      console.warn('[ResultadosClient] falha ao carregar horários para data', e)
+      setMoreTimesSlots([])
+      setMoreTimesException('Falha ao buscar horários para a data selecionada')
+      return []
+    } finally {
+      setMoreTimesLoading(false)
     }
   }
 
@@ -417,6 +640,16 @@ export default function ResultadosClient() {
                   </span>
                 </div>
 
+                {/* Quick action: nearest available slot */}
+                {nearestSlotByDoctor[id] && (
+                  <div className="mb-2 flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">Próximo horário:</span>
+                    <Button className="h-9 rounded-full bg-primary/10 text-primary" onClick={() => agendar(id, nearestSlotByDoctor[id]!.iso)}>
+                      {nearestSlotByDoctor[id]!.label}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button
                     className="h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
@@ -431,8 +664,17 @@ export default function ResultadosClient() {
                     variant="ghost"
                     className="h-11 rounded-full text-primary hover:bg-primary/10"
                     onClick={() => {
+                      const willOpen = !agendasExpandida[id]
                       setAgendasExpandida(prev => ({ ...prev, [id]: !prev[id] }))
                       if (!agendaByDoctor[id]) loadAgenda(id)
+                      // open the "more times" modal when expanding
+                      if (willOpen) {
+                        setMoreTimesForDoctor(id)
+                        // prefetch for the default date
+                        void fetchSlotsForDate(id, moreTimesDate)
+                      } else {
+                        setMoreTimesForDoctor(null)
+                      }
                     }}
                   >
                     {agendasExpandida[id] ? 'Ocultar horários' : 'Mostrar mais horários'}
@@ -608,6 +850,38 @@ export default function ResultadosClient() {
                 </div>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+        {/* Dialog: Mostrar mais horários (escolher data arbitrária) */}
+        <Dialog open={!!moreTimesForDoctor} onOpenChange={(open) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
+          <DialogContent className="w-full max-w-2xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-4">
+              <DialogHeader>
+                <DialogTitle>Mais horários</DialogTitle>
+              </DialogHeader>
+              <div className="ml-auto flex items-center gap-2">
+                <input type="date" className="rounded-md border border-border px-3 py-2 text-sm" value={moreTimesDate} onChange={(e) => setMoreTimesDate(e.target.value)} />
+                <Button className="h-10" onClick={async () => { if (moreTimesForDoctor) await fetchSlotsForDate(moreTimesForDoctor, moreTimesDate) }}>Buscar horários</Button>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {moreTimesLoading ? (
+                <div className="text-sm text-muted-foreground">Carregando horários...</div>
+              ) : moreTimesException ? (
+                <div className="text-sm text-red-500">{moreTimesException}</div>
+              ) : (moreTimesSlots.length ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {moreTimesSlots.map(s => (
+                    <button key={s.iso} type="button" className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-foreground" onClick={() => { if (moreTimesForDoctor) { agendar(moreTimesForDoctor, s.iso); setMoreTimesForDoctor(null); } }}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Sem horários para a data selecionada.</div>
+              ))}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

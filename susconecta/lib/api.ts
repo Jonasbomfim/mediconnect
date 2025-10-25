@@ -1196,6 +1196,60 @@ export async function criarAgendamento(input: AppointmentCreate): Promise<Appoin
   return created;
 }
 
+/**
+ * Cria um agendamento direto no endpoint REST sem realizar validações locais
+ * como checagem de disponibilidade ou exceções. Use com cautela.
+ */
+export async function criarAgendamentoDireto(input: AppointmentCreate & { created_by?: string | null }): Promise<Appointment> {
+  if (!input || !input.patient_id || !input.doctor_id || !input.scheduled_at) {
+    throw new Error('Parâmetros inválidos para criar agendamento. patient_id, doctor_id e scheduled_at são obrigatórios.');
+  }
+
+  // Determine created_by: prefer explicit, then localStorage, then user-info
+  let createdBy: string | null = input.created_by ?? null;
+  if (!createdBy && typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        createdBy = parsed?.id ?? parsed?.user?.id ?? null;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (!createdBy) {
+    try {
+      const info = await getUserInfo().catch(() => null);
+      createdBy = info?.user?.id ?? null;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  const payload: any = {
+    patient_id: input.patient_id,
+    doctor_id: input.doctor_id,
+    scheduled_at: new Date(input.scheduled_at).toISOString(),
+    duration_minutes: input.duration_minutes ?? 30,
+    appointment_type: input.appointment_type ?? 'presencial',
+    chief_complaint: input.chief_complaint ?? null,
+    patient_notes: input.patient_notes ?? null,
+    insurance_provider: input.insurance_provider ?? null,
+  };
+  if (createdBy) payload.created_by = createdBy;
+
+  const url = `${REST}/appointments`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: withPrefer({ ...baseHeaders(), 'Content-Type': 'application/json' }, 'return=representation'),
+    body: JSON.stringify(payload),
+  });
+
+  const created = await parse<Appointment>(res);
+  return created;
+}
+
 // Payload for updating an appointment (PATCH /rest/v1/appointments/{id})
 export type AppointmentUpdate = Partial<{
   scheduled_at: string;

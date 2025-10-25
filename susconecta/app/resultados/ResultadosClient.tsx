@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -28,6 +30,7 @@ import {
   buscarMedicos,
   getAvailableSlots,
   criarAgendamento,
+  criarAgendamentoDireto,
   getUserInfo,
   buscarPacientes,
   listarDisponibilidades,
@@ -80,6 +83,16 @@ export default function ResultadosClient() {
   // Seleção para o Dialog de perfil completo
   const [medicoSelecionado, setMedicoSelecionado] = useState<Medico | null>(null)
   const [abaDetalhe, setAbaDetalhe] = useState('experiencia')
+
+  // Confirmation dialog for booking: hold pending selection until user confirms
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingAppointment, setPendingAppointment] = useState<{ doctorId: string; iso: string } | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  // Fields editable in the confirmation dialog to be sent to the create endpoint
+  const [confirmDuration, setConfirmDuration] = useState<number>(30)
+  const [confirmInsurance, setConfirmInsurance] = useState<string>('')
+  const [confirmChiefComplaint, setConfirmChiefComplaint] = useState<string>('')
+  const [confirmPatientNotes, setConfirmPatientNotes] = useState<string>('')
 
   // Toast simples
   const [toast, setToast] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
@@ -193,7 +206,7 @@ export default function ResultadosClient() {
     }
   }
 
-  // 4) Agendar ao clicar em um horário
+  // 4) Agendar ao clicar em um horário (performs the actual create call)
   async function agendar(doctorId: string, iso: string) {
     if (!patientId) {
       showToast('error', 'Paciente não identificado. Faça login novamente.')
@@ -217,6 +230,55 @@ export default function ResultadosClient() {
       })
     } catch (e: any) {
       showToast('error', e?.message || 'Falha ao agendar')
+    }
+  }
+
+  // Open confirmation dialog for a selected slot instead of immediately booking
+  function openConfirmDialog(doctorId: string, iso: string) {
+    setPendingAppointment({ doctorId, iso })
+    setConfirmOpen(true)
+  }
+
+  // Called when the user confirms the booking in the dialog
+  async function confirmAndBook() {
+    if (!pendingAppointment) return
+    const { doctorId, iso } = pendingAppointment
+    if (!patientId) {
+      showToast('error', 'Paciente não identificado. Faça login novamente.')
+      return
+    }
+    // Debug: indicate the handler was invoked
+  console.debug('[ResultadosClient] confirmAndBook invoked', { doctorId, iso, patientId, confirmDuration, confirmInsurance })
+  showToast('success', 'Iniciando agendamento...')
+    setConfirmLoading(true)
+      try {
+      // Use direct POST to ensure creation even if availability checks would block
+      await criarAgendamentoDireto({
+        patient_id: String(patientId),
+        doctor_id: String(doctorId),
+        scheduled_at: String(iso),
+        duration_minutes: Number(confirmDuration) || 30,
+        appointment_type: (tipoConsulta === 'local' ? 'presencial' : 'telemedicina'),
+        chief_complaint: confirmChiefComplaint || null,
+        patient_notes: confirmPatientNotes || null,
+        insurance_provider: confirmInsurance || null,
+      })
+      showToast('success', 'Consulta agendada com sucesso!')
+      // remover horário da lista local
+      setAgendaByDoctor((prev) => {
+        const days = prev[doctorId]
+        if (!days) return prev
+        const updated = days.map(d => ({ ...d, horarios: d.horarios.filter(h => h.iso !== iso) }))
+        return { ...prev, [doctorId]: updated }
+      })
+      setConfirmOpen(false)
+      setPendingAppointment(null)
+      // Navigate to agenda after a short delay so user sees the toast
+      setTimeout(() => router.push('/agenda'), 500)
+    } catch (e: any) {
+      showToast('error', e?.message || 'Falha ao agendar')
+    } finally {
+      setConfirmLoading(false)
     }
   }
 
@@ -439,6 +501,39 @@ export default function ResultadosClient() {
           </div>
         )}
 
+        {/* Confirmation dialog shown when a user selects a slot */}
+        <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) { setConfirmOpen(false); setPendingAppointment(null); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar agendamento</DialogTitle>
+            </DialogHeader>
+            <div className="mt-2">
+              {pendingAppointment ? (
+                (() => {
+                  const doc = medicos.find(m => String(m.id) === String(pendingAppointment.doctorId))
+                  const doctorName = doc ? (doc.full_name || (doc as any).name || 'Profissional') : 'Profissional'
+                  const when = (() => {
+                    try { return new Date(pendingAppointment.iso).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' }) } catch { return pendingAppointment.iso }
+                  })()
+                  return (
+                    <div className="space-y-2">
+                      <p>Profissional: <strong>{doctorName}</strong></p>
+                      <p>Data / Hora: <strong>{when}</strong></p>
+                      <p>Paciente: <strong>Você</strong></p>
+                    </div>
+                  )
+                })()
+              ) : (
+                <p>Carregando informações...</p>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => { setConfirmOpen(false); setPendingAppointment(null); }}>Cancelar</Button>
+              <Button onClick={confirmAndBook} disabled={confirmLoading}>{confirmLoading ? 'Agendando...' : 'Marcar consulta'}</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Hero de filtros (mantido) */}
         <section className="rounded-3xl bg-primary p-6 text-primary-foreground shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -644,7 +739,7 @@ export default function ResultadosClient() {
                 {nearestSlotByDoctor[id] && (
                   <div className="mb-2 flex items-center gap-3">
                     <span className="text-sm text-muted-foreground">Próximo horário:</span>
-                    <Button className="h-9 rounded-full bg-primary/10 text-primary" onClick={() => agendar(id, nearestSlotByDoctor[id]!.iso)}>
+                    <Button className="h-9 rounded-full bg-primary/10 text-primary" onClick={() => openConfirmDialog(id, nearestSlotByDoctor[id]!.iso)}>
                       {nearestSlotByDoctor[id]!.label}
                     </Button>
                   </div>
@@ -706,7 +801,7 @@ export default function ResultadosClient() {
                                   key={h.iso}
                                   type="button"
                                   className="rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary hover:text-primary-foreground"
-                                  onClick={() => agendar(id, h.iso)}
+                                  onClick={() => openConfirmDialog(id, h.iso)}
                                 >
                                   {h.label}
                                 </button>
@@ -827,7 +922,7 @@ export default function ResultadosClient() {
                                       key={h.iso}
                                       type="button"
                                       className="rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary hover:text-primary-foreground"
-                                      onClick={() => agendar(String(medicoSelecionado.id), h.iso)}
+                                      onClick={() => openConfirmDialog(String(medicoSelecionado.id), h.iso)}
                                     >
                                       {h.label}
                                     </button>
@@ -873,7 +968,7 @@ export default function ResultadosClient() {
               ) : (moreTimesSlots.length ? (
                 <div className="grid grid-cols-3 gap-2">
                   {moreTimesSlots.map(s => (
-                    <button key={s.iso} type="button" className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-foreground" onClick={() => { if (moreTimesForDoctor) { agendar(moreTimesForDoctor, s.iso); setMoreTimesForDoctor(null); } }}>
+                    <button key={s.iso} type="button" className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-foreground" onClick={() => { if (moreTimesForDoctor) { openConfirmDialog(moreTimesForDoctor, s.iso); setMoreTimesForDoctor(null); } }}>
                       {s.label}
                     </button>
                   ))}

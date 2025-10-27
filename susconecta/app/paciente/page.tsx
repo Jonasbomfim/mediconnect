@@ -17,8 +17,10 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarMensagensPorPaciente } from '@/lib/api'
-import { useReports } from '@/hooks/useReports'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarMensagensPorPaciente, listarAgendamentos, buscarMedicosPorIds } from '@/lib/api'
+import { ENV_CONFIG } from '@/lib/env-config'
+import { listarRelatoriosPorPaciente } from '@/lib/reports'
+// reports are rendered statically for now
 // Simulação de internacionalização básica
 const strings = {
   dashboard: 'Dashboard',
@@ -323,9 +325,116 @@ export default function PacientePage() {
     const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
     const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
     const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
-    const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
+  const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+
+  
+
+    // Appointments state (loaded when "Ver consultas agendadas" is opened)
+    const [appointments, setAppointments] = useState<any[] | null>(null)
+    const [loadingAppointments, setLoadingAppointments] = useState(false)
+    const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
+
+    useEffect(() => {
+      let mounted = true
+      if (!mostrarAgendadas) return
+      if (!patientId) {
+        setAppointmentsError('Paciente não identificado. Faça login novamente.')
+        return
+      }
+
+      async function loadAppointments() {
+        try {
+          setLoadingAppointments(true)
+          setAppointmentsError(null)
+          setAppointments(null)
+
+          // Try `eq.` first, then fallback to `in.(id)` which some views expect
+          const baseEncoded = encodeURIComponent(String(patientId))
+          const queriesToTry = [
+            `patient_id=eq.${baseEncoded}&order=scheduled_at.asc&limit=200`,
+            `patient_id=in.(${baseEncoded})&order=scheduled_at.asc&limit=200`,
+          ];
+
+          let rows: any[] = []
+          for (const q of queriesToTry) {
+            try {
+              // Debug: also fetch raw response to inspect headers/response body in the browser
+              try {
+                const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                const headers: Record<string,string> = {
+                  apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+                  Accept: 'application/json',
+                }
+                if (token) headers.Authorization = `Bearer ${token}`
+                const rawUrl = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/appointments?${q}`
+                console.debug('[Consultas][debug] GET', rawUrl, 'Headers(masked):', { ...headers, Authorization: headers.Authorization ? `${String(headers.Authorization).slice(0,6)}...${String(headers.Authorization).slice(-6)}` : undefined })
+                const rawRes = await fetch(rawUrl, { method: 'GET', headers })
+                const rawText = await rawRes.clone().text().catch(() => '')
+                console.debug('[Consultas][debug] raw response', { url: rawUrl, status: rawRes.status, bodyPreview: (typeof rawText === 'string' && rawText.length > 0) ? rawText.slice(0, 200) : rawText })
+              } catch (dbgErr) {
+                console.debug('[Consultas][debug] não foi possível capturar raw response', dbgErr)
+              }
+
+              const r = await listarAgendamentos(q)
+              if (r && Array.isArray(r) && r.length) {
+                rows = r
+                break
+              }
+              // if r is empty array, continue to next query format
+            } catch (e) {
+              // keep trying next format
+              console.debug('[Consultas] tentativa listarAgendamentos falhou para query', q, e)
+            }
+          }
+
+          if (!mounted) return
+          if (!rows || rows.length === 0) {
+            // no appointments found for this patient using either filter
+            setAppointments([])
+            return
+          }
+
+          const doctorIds = Array.from(new Set(rows.map((r: any) => r.doctor_id).filter(Boolean)))
+          const doctorsMap: Record<string, any> = {}
+          if (doctorIds.length) {
+            try {
+              const docs = await buscarMedicosPorIds(doctorIds).catch(() => [])
+              for (const d of docs || []) doctorsMap[d.id] = d
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          const mapped = (rows || []).map((a: any) => {
+            const sched = a.scheduled_at ? new Date(a.scheduled_at) : null
+            const doc = a.doctor_id ? doctorsMap[String(a.doctor_id)] : null
+            return {
+              id: a.id,
+              medico: doc?.full_name || a.doctor_id || '---',
+              especialidade: doc?.specialty || '',
+              local: a.location || a.place || '',
+              data: sched ? sched.toISOString().split('T')[0] : '',
+              hora: sched ? sched.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+              status: a.status ? String(a.status) : 'Pendente',
+            }
+          })
+
+          setAppointments(mapped)
+        } catch (err: any) {
+          console.warn('[Consultas] falha ao carregar agendamentos', err)
+          if (!mounted) return
+          setAppointmentsError(err?.message ?? 'Falha ao carregar agendamentos.')
+          setAppointments([])
+        } finally {
+          if (mounted) setLoadingAppointments(false)
+        }
+      }
+
+      loadAppointments()
+      return () => { mounted = false }
+    }, [mostrarAgendadas, patientId])
 
     // Monta a URL de resultados com os filtros atuais
     const buildResultadosHref = () => {
@@ -335,6 +444,10 @@ export default function PacientePage() {
       if (localizacao) qs.set('local', localizacao)
       return `/resultados?${qs.toString()}`
     }
+
+    // derived lists for the "Ver consultas agendadas" dialog (computed after appointments state is declared)
+    const _dialogSource = (appointments !== null ? appointments : consultasFicticias)
+    const _todaysAppointments = (_dialogSource || []).filter((c: any) => c.data === todayStr)
 
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
@@ -462,79 +575,90 @@ export default function PacientePage() {
                 )}
               </div>
               <div className="text-sm text-muted-foreground">
-                {consultasDoDia.length} consulta{consultasDoDia.length !== 1 ? 's' : ''} agendada{consultasDoDia.length !== 1 ? 's' : ''}
+                {`${_todaysAppointments.length} consulta${_todaysAppointments.length !== 1 ? 's' : ''} agendada${_todaysAppointments.length !== 1 ? 's' : ''}`}
               </div>
             </div>
 
             <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] pr-1 sm:pr-2">
-              {consultasDoDia.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
-                  <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
-                  <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
-                </div>
+              {loadingAppointments && mostrarAgendadas ? (
+                <div className="text-center py-10 text-muted-foreground">Carregando consultas...</div>
+              ) : appointmentsError ? (
+                <div className="text-center py-10 text-red-600">{appointmentsError}</div>
               ) : (
-                consultasDoDia.map(consulta => (
-                  <div
-                    key={consulta.id}
-                    className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
-                  >
-                    <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
-                          style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
-                        />
-                        <div className="space-y-1">
-                          <div className="font-medium flex items-center gap-2 text-foreground">
-                            <Stethoscope className="h-4 w-4 text-muted-foreground" />
-                            {consulta.medico}
+                // prefer appointments (client-loaded) when present; fallback to fictitious list
+                (() => {
+                  const todays = _todaysAppointments
+                  if (!todays || todays.length === 0) {
+                    return (
+                      <div className="text-center py-10 text-muted-foreground">
+                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
+                        <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
+                        <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
+                      </div>
+                    )
+                  }
+                  return todays.map((consulta: any) => (
+                    <div
+                      key={consulta.id}
+                      className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
+                    >
+                      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
+                        <div className="flex items-start gap-3">
+                          <span
+                            className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
+                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
+                          />
+                          <div className="space-y-1">
+                            <div className="font-medium flex items-center gap-2 text-foreground">
+                              <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                              {consulta.medico}
+                            </div>
+                            <p className="text-sm text-muted-foreground break-words">
+                              {consulta.especialidade} • {consulta.local}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground break-words">
-                            {consulta.especialidade} • {consulta.local}
-                          </p>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{consulta.hora}</span>
-                      </div>
+                        <div className="flex items-center gap-2 text-foreground">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{consulta.hora}</span>
+                        </div>
 
-                      <div className="flex items-center">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
-                          {consulta.status}
-                        </span>
-                      </div>
+                        <div className="flex items-center">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
+                            {consulta.status}
+                          </span>
+                        </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
-                        >
-                          Detalhes
-                        </Button>
-                        {consulta.status !== 'Cancelada' && (
-                          <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
-                            Reagendar
-                          </Button>
-                        )}
-                        {consulta.status !== 'Cancelada' && (
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Button
                             type="button"
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
-                            className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                            className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
                           >
-                            Cancelar
+                            Detalhes
                           </Button>
-                        )}
+                          {consulta.status !== 'Cancelada' && (
+                            <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
+                              Reagendar
+                            </Button>
+                          )}
+                          {consulta.status !== 'Cancelada' && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                            >
+                              Cancelar
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))
+                })()
               )}
             </div>
 
@@ -549,41 +673,60 @@ export default function PacientePage() {
     )
   }
 
-  // Reports (laudos) hook
-  const { reports, loadReportsByPatient, loading: reportsLoading } = useReports()
+  // Selected report state
   const [selectedReport, setSelectedReport] = useState<any | null>(null)
 
   function ExamesLaudos() {
+    const [reports, setReports] = useState<any[] | null>(null)
+    const [loadingReports, setLoadingReports] = useState(false)
+    const [reportsError, setReportsError] = useState<string | null>(null)
+
     useEffect(() => {
+      let mounted = true
       if (!patientId) return
-      // load laudos for this patient
-      loadReportsByPatient(patientId).catch(() => {})
+      setLoadingReports(true)
+      setReportsError(null)
+      listarRelatoriosPorPaciente(String(patientId))
+        .then(res => {
+          if (!mounted) return
+          setReports(Array.isArray(res) ? res : [])
+        })
+        .catch(err => {
+          console.warn('[ExamesLaudos] erro ao carregar laudos', err)
+          if (!mounted) return
+          setReportsError('Falha ao carregar laudos.')
+        })
+        .finally(() => { if (mounted) setLoadingReports(false) })
+
+      return () => { mounted = false }
     }, [patientId])
 
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <h2 className="text-2xl font-bold mb-6">Laudos</h2>
 
-        {reportsLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Carregando laudos...</div>
-        ) : (!reports || reports.length === 0) ? (
-          <div className="text-center py-8 text-muted-foreground">Nenhum laudo salvo.</div>
-        ) : (
-          <div className="space-y-3">
-            {reports.map((r: any) => (
-              <div key={r.id || r.order_number || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
+        <div className="space-y-3">
+          {loadingReports ? (
+            <div className="text-center py-8 text-muted-foreground">{strings.carregando}</div>
+          ) : reportsError ? (
+            <div className="text-center py-8 text-red-600">{reportsError}</div>
+          ) : (!reports || reports.length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
+          ) : (
+            reports.map((r) => (
+              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
                 <div>
-                  <div className="font-medium text-foreground">{r.title || r.report_type || r.exame || r.name || 'Laudo'}</div>
-                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.data || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                  <div className="font-medium text-foreground">{r.title || r.name || r.report_name || 'Laudo'}</div>
+                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" onClick={async () => { setSelectedReport(r); }}>Visualizar</Button>
-                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado (debug).' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>Compartilhar</Button>
+                  <Button variant="outline" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
 
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
@@ -592,9 +735,9 @@ export default function PacientePage() {
               <DialogDescription>
                 {selectedReport && (
                   <>
-                    <div className="font-semibold mb-2">{selectedReport.title || selectedReport.report_type || selectedReport.exame || 'Laudo'}</div>
-                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(selectedReport.report_date || selectedReport.data || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
-                    <div className="mb-4 whitespace-pre-line">{selectedReport.content || selectedReport.laudo || selectedReport.body || JSON.stringify(selectedReport, null, 2)}</div>
+                    <div className="font-semibold mb-2">{selectedReport.title || selectedReport.name || 'Laudo'}</div>
+                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                    <div className="mb-4 whitespace-pre-line">{selectedReport.content || selectedReport.body || JSON.stringify(selectedReport, null, 2)}</div>
                   </>
                 )}
               </DialogDescription>
@@ -662,7 +805,7 @@ export default function PacientePage() {
   }
 
   function Perfil() {
-    const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep || profileData.biografia)
+    const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep)
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
@@ -732,14 +875,7 @@ export default function PacientePage() {
                   <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
                 )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="biografia">Biografia</Label>
-                {isEditingProfile ? (
-                  <Textarea id="biografia" value={profileData.biografia} onChange={e => handleProfileChange('biografia', e.target.value)} rows={4} placeholder="Conte um pouco sobre você..." />
-                ) : (
-                  <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
-                )}
-              </div>
+              {/* Biografia removed: not used */}
             </div>
           )}
         </div>

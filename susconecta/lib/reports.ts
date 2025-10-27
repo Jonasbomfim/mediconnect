@@ -271,7 +271,9 @@ export async function deletarRelatorio(id: string): Promise<void> {
 export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<Report[]> {
   try {
     console.log('👤 [API RELATÓRIOS] Buscando relatórios do paciente:', idPaciente);
-    const url = `${BASE_API_RELATORIOS}?patient_id=eq.${idPaciente}`;
+    // Try a strict eq lookup first (encode the id)
+    const encodedId = encodeURIComponent(String(idPaciente));
+    let url = `${BASE_API_RELATORIOS}?patient_id=eq.${encodedId}`;
     const headers = obterCabecalhos();
     const masked = (headers as any)['Authorization'] ? `${String((headers as any)['Authorization']).slice(0,6)}...${String((headers as any)['Authorization']).slice(-6)}` : null;
     console.debug('[listarRelatoriosPorPaciente] URL:', url);
@@ -281,8 +283,24 @@ export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<R
       headers,
     });
     const resultado = await tratarRespostaApi<Report[]>(resposta);
-    console.log('✅ [API RELATÓRIOS] Relatórios do paciente encontrados:', resultado.length);
-    return resultado;
+    console.log('✅ [API RELATÓRIOS] Relatórios do paciente encontrados (eq):', resultado.length);
+    // If eq returned results, return them. Otherwise retry using `in.(id)` which some setups prefer.
+    if (Array.isArray(resultado) && resultado.length) return resultado;
+
+    // Retry with in.(id) clause as a fallback
+    try {
+      const inClause = encodeURIComponent(`(${String(idPaciente)})`);
+      const urlIn = `${BASE_API_RELATORIOS}?patient_id=in.${inClause}`;
+      console.debug('[listarRelatoriosPorPaciente] retrying with IN clause URL:', urlIn);
+      const resp2 = await fetch(urlIn, { method: 'GET', headers });
+      const res2 = await tratarRespostaApi<Report[]>(resp2);
+      console.log('✅ [API RELATÓRIOS] Relatórios do paciente encontrados (in):', Array.isArray(res2) ? res2.length : 0);
+      return Array.isArray(res2) ? res2 : [];
+    } catch (e) {
+      console.warn('[listarRelatoriosPorPaciente] fallback in.() failed', e);
+    }
+
+    return [];
   } catch (erro) {
     console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios do paciente:', erro);
     throw erro;

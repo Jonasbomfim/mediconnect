@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { parse } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -429,18 +430,35 @@ function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
   }
 
 function toPayload(): MedicoInput {
-  // Converte dd/MM/yyyy para ISO (yyyy-MM-dd) se possível
+  // Converte data de nascimento para ISO (yyyy-MM-dd) tentando vários formatos
   let isoDate: string | null = null;
   try {
-    const parts = String(form.data_nascimento).split(/\D+/).filter(Boolean);
-    if (parts.length === 3) {
-      const [d, m, y] = parts;
-      const date = new Date(Number(y), Number(m) - 1, Number(d));
-      if (!isNaN(date.getTime())) {
-        isoDate = date.toISOString().slice(0, 10);
+    const raw = String(form.data_nascimento || '').trim();
+    if (raw) {
+      const formats = ['dd/MM/yyyy', 'dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
+      for (const f of formats) {
+        try {
+          const d = parse(raw, f, new Date());
+          if (!isNaN(d.getTime())) {
+            isoDate = d.toISOString().slice(0, 10);
+            break;
+          }
+        } catch (e) {
+          // ignore and try next
+        }
+      }
+      if (!isoDate) {
+        const parts = raw.split(/\D+/).filter(Boolean);
+        if (parts.length === 3) {
+          const [d, m, y] = parts;
+          const date = new Date(Number(y), Number(m) - 1, Number(d));
+          if (!isNaN(date.getTime())) isoDate = date.toISOString().slice(0, 10);
+        }
       }
     }
-  } catch {}
+  } catch (err) {
+    console.debug('[DoctorForm] parse data_nascimento failed:', form.data_nascimento, err);
+  }
 
   return {
     user_id: null,
@@ -512,8 +530,41 @@ async function handleSubmit(ev: React.FormEvent) {
       console.log("Enviando os dados para a API:", medicoPayload);
       
       // 1. Cria o perfil do médico na tabela doctors
-      const savedDoctorProfile = await criarMedico(medicoPayload);
+      let savedDoctorProfile: any = await criarMedico(medicoPayload);
       console.log("✅ Perfil do médico criado:", savedDoctorProfile);
+
+      // Fallback: some create flows don't persist optional fields like birth_date/cep/sexo.
+      // If the returned object is missing those but our payload included them,
+      // attempt a PATCH (atualizarMedico) to force persistence, mirroring the edit flow.
+      try {
+        const resultAny = savedDoctorProfile as any;
+        let createdDoctorId: string | null = null;
+        if (resultAny) {
+          if (resultAny.id) createdDoctorId = String(resultAny.id);
+          else if (resultAny.doctor && resultAny.doctor.id) createdDoctorId = String(resultAny.doctor.id);
+          else if (resultAny.doctor_id) createdDoctorId = String(resultAny.doctor_id);
+          else if (Array.isArray(resultAny) && resultAny[0]?.id) createdDoctorId = String(resultAny[0].id);
+        }
+
+        const missing: string[] = [];
+        if (createdDoctorId) {
+          if (!resultAny?.birth_date && medicoPayload.birth_date) missing.push('birth_date');
+          if (!resultAny?.cep && medicoPayload.cep) missing.push('cep');
+          // creation payload uses form.sexo (not medicoPayload.sex/sexo), so check form
+          if (!(resultAny?.sex || resultAny?.sexo) && form.sexo) missing.push('sex');
+        }
+
+        if (createdDoctorId && missing.length) {
+          console.debug('[DoctorForm] create returned without fields, attempting PATCH fallback for:', missing);
+          const patched = await atualizarMedico(String(createdDoctorId), medicoPayload).catch((e) => { console.warn('[DoctorForm] fallback PATCH failed:', e); return null; });
+          if (patched) {
+            console.debug('[DoctorForm] fallback PATCH result:', patched);
+            savedDoctorProfile = patched;
+          }
+        }
+      } catch (e) {
+        console.warn('[DoctorForm] error during fallback PATCH:', e);
+      }
 
         // The server-side Edge Function `criarMedico` should perform the privileged
         // operations (create doctor row and auth user) and return a normalized

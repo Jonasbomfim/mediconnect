@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, parse } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -190,11 +190,35 @@ export function PatientRegistrationForm({
   function toPayload(): PacienteInput {
     let isoDate: string | null = null;
     try {
-      const parts = String(form.birth_date).split(/\D+/).filter(Boolean);
-      if (parts.length === 3) {
-        const [d, m, y] = parts; const date = new Date(Number(y), Number(m) - 1, Number(d)); if (!isNaN(date.getTime())) isoDate = date.toISOString().slice(0, 10);
+      const raw = String(form.birth_date || '').trim();
+      if (raw) {
+        // Try common formats first
+        const formats = ['dd/MM/yyyy', 'dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
+        for (const f of formats) {
+          try {
+            const d = parse(raw, f, new Date());
+            if (!isNaN(d.getTime())) {
+              isoDate = d.toISOString().slice(0, 10);
+              break;
+            }
+          } catch (e) {
+            // ignore and try next format
+          }
+        }
+
+        // Fallback: split numeric parts (handles 'dd mm yyyy' or 'ddmmyyyy' with separators)
+        if (!isoDate) {
+          const parts = raw.split(/\D+/).filter(Boolean);
+          if (parts.length === 3) {
+            const [d, m, y] = parts;
+            const date = new Date(Number(y), Number(m) - 1, Number(d));
+            if (!isNaN(date.getTime())) isoDate = date.toISOString().slice(0, 10);
+          }
+        }
       }
-    } catch {}
+    } catch (err) {
+      console.debug('[PatientForm] parse birth_date failed:', form.birth_date, err);
+    }
     return {
       full_name: form.nome,
       social_name: form.nome_social || null,
@@ -236,12 +260,41 @@ export function PatientRegistrationForm({
       } else {
         // create
         const patientPayload = toPayload();
+        // Debug helper: log the exact payload being sent to criarPaciente so
+        // we can inspect whether `sex`, `birth_date` and `cep` are present
+        // before the network request. This helps diagnose backends that
+        // ignore alternate field names or strip optional fields.
+        console.debug('[PatientForm] payload before criarPaciente:', patientPayload);
         // require phone when email present for single-call function
         if (form.email && form.email.includes('@') && (!form.telefone || !String(form.telefone).trim())) {
           setErrors((e) => ({ ...e, telefone: 'Telefone é obrigatório quando email é informado (fluxo de criação único).' })); setSubmitting(false); return;
         }
-        const savedPatientProfile = await criarPaciente(patientPayload);
+        let savedPatientProfile: any = await criarPaciente(patientPayload);
         console.log('Perfil do paciente criado (via Function):', savedPatientProfile);
+
+        // Fallback: some backend create flows (create-user-with-password) do not
+        // persist optional patient fields like sex/cep/birth_date. The edit flow
+        // (atualizarPaciente) writes directly to the patients table and works.
+        // To make create behave like edit, attempt a PATCH right after create
+        // when any of those fields are missing from the returned object.
+        try {
+          const pacienteId = savedPatientProfile?.id || savedPatientProfile?.patient_id || savedPatientProfile?.user_id;
+          const missing: string[] = [];
+          if (!savedPatientProfile?.sex && patientPayload.sex) missing.push('sex');
+          if (!savedPatientProfile?.cep && patientPayload.cep) missing.push('cep');
+          if (!savedPatientProfile?.birth_date && patientPayload.birth_date) missing.push('birth_date');
+
+          if (pacienteId && missing.length) {
+            console.debug('[PatientForm] criando paciente: campos faltando no retorno do create, tentando PATCH fallback:', missing);
+            const patched = await atualizarPaciente(String(pacienteId), patientPayload).catch((e) => { console.warn('[PatientForm] fallback PATCH falhou:', e); return null; });
+            if (patched) {
+              console.debug('[PatientForm] fallback PATCH result:', patched);
+              savedPatientProfile = patched;
+            }
+          }
+        } catch (e) {
+          console.warn('[PatientForm] erro ao tentar fallback PATCH:', e);
+        }
 
         const maybePassword = (savedPatientProfile as any)?.password || (savedPatientProfile as any)?.generated_password;
         if (maybePassword) {

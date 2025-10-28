@@ -125,6 +125,7 @@ export type Medico = {
 // ...existing code...
 export type MedicoInput = {
   user_id?: string | null;
+  sexo?: string | null;
   crm: string;
   crm_uf: string;
   specialty: string;
@@ -1526,6 +1527,29 @@ export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
   if (input.social_name) payload.social_name = input.social_name;
   if (input.notes) payload.notes = input.notes;
 
+  // Add compatibility aliases so different backend schemas accept these fields
+  try {
+    if (input.cep) {
+      const cleanedCep = String(input.cep).replace(/\D/g, '');
+      if (cleanedCep) {
+        payload.postal_code = cleanedCep;
+        payload.zip = cleanedCep;
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  if (input.birth_date) {
+    payload.date_of_birth = input.birth_date;
+    payload.dob = input.birth_date;
+    payload.birthdate = input.birth_date;
+  }
+
+  if (input.sex) {
+    payload.sex = input.sex;
+    payload.sexo = input.sex;
+    payload.gender = input.sex;
+  }
+
   // Call the create-user-with-password endpoint (try functions path then root)
   const fnUrls = [
     `${API_BASE}/functions/v1/create-user-with-password`,
@@ -1987,7 +2011,25 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
   if (input.city) payload.city = input.city;
   if (input.state) payload.state = input.state;
   if (input.birth_date) payload.birth_date = input.birth_date;
+  if ((input as any).sexo) payload.sexo = (input as any).sexo;
+  if ((input as any).sexo) payload.gender = (input as any).sexo;
   if (input.rg) payload.rg = input.rg;
+  // compatibility aliases
+  try {
+    if ((input as any).cep) {
+      const cleaned = String((input as any).cep).replace(/\D/g, '');
+      if (cleaned) { payload.postal_code = cleaned; payload.zip = cleaned; }
+    }
+  } catch (e) {}
+  if ((input as any).birth_date) {
+    payload.date_of_birth = (input as any).birth_date;
+    payload.dob = (input as any).birth_date;
+    payload.birthdate = (input as any).birth_date;
+  }
+  if ((input as any).sexo) {
+    payload.sexo = (input as any).sexo;
+    payload.gender = (input as any).sexo;
+  }
 
   const fnUrls = [
     `${API_BASE}/functions/v1/create-user-with-password`,

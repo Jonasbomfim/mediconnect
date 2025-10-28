@@ -332,6 +332,81 @@ export async function getCurrentUser(token: string): Promise<UserData> {
 }
 
 /**
+ * Tipos do endpoint público de auto-cadastro
+ */
+export type RegisterPatientPayload = {
+  email: string;
+  full_name: string;
+  phone_mobile: string; // 10-11 dígitos
+  cpf: string;          // 11 dígitos
+  birth_date?: string;  // YYYY-MM-DD
+  redirect_url?: string;
+};
+
+export type RegisterPatientResponse = {
+  success: boolean;
+  patient_id?: string;
+  message?: string;
+  email?: string;
+};
+
+/**
+ * Chama a Edge Function pública de auto-cadastro de paciente.
+ * Não requer Authorization (usa apenas apikey).
+ */
+export async function registerPatientPublic(input: RegisterPatientPayload): Promise<RegisterPatientResponse> {
+  // validações rápidas no cliente
+  const emailOk = /^\S+@\S+\.\S+$/.test(input.email || '');
+  if (!emailOk) throw new AuthenticationError('Email inválido.', 'VALIDATION_ERROR');
+  if (!input.full_name || String(input.full_name).trim().length < 3) {
+    throw new AuthenticationError('Nome completo deve ter ao menos 3 caracteres.', 'VALIDATION_ERROR');
+  }
+  const phone = String(input.phone_mobile || '').replace(/\D/g, '');
+  if (!(phone.length === 10 || phone.length === 11)) {
+    throw new AuthenticationError('Telefone celular deve ter 10 ou 11 dígitos.', 'VALIDATION_ERROR');
+  }
+  const cpf = String(input.cpf || '').replace(/\D/g, '');
+  if (cpf.length !== 11) {
+    throw new AuthenticationError('CPF deve ter 11 dígitos.', 'VALIDATION_ERROR');
+  }
+  if (input.birth_date && !/^\d{4}-\d{2}-\d{2}$/.test(input.birth_date)) {
+    throw new AuthenticationError('Data de nascimento deve estar no formato YYYY-MM-DD.', 'VALIDATION_ERROR');
+  }
+
+  // monta URL do projeto Supabase
+  const url = `${ENV_CONFIG.SUPABASE_URL}/functions/v1/register-patient`;
+
+  // redirect_url padrão para a área do paciente
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const redirect_url = input.redirect_url || (origin ? `${origin}/paciente` : undefined);
+
+  const payload = {
+    email: input.email,
+    full_name: input.full_name,
+    phone_mobile: phone,
+    cpf,
+    ...(input.birth_date ? { birth_date: input.birth_date } : {}),
+    ...(redirect_url ? { redirect_url } : {}),
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getLoginHeaders(), // sem Authorization, com apikey
+      body: JSON.stringify(payload),
+    });
+
+    // processResponse lança AuthenticationError quando !ok e retorna JSON quando ok
+    const data = await processResponse<RegisterPatientResponse>(res);
+    return data;
+  } catch (err) {
+    // Deixa o erro tipado consistente para o chamador (página de cadastro)
+    if (err instanceof AuthenticationError) throw err;
+    throw new AuthenticationError('Falha no auto-cadastro do paciente', 'REGISTER_PATIENT_ERROR', err);
+  }
+}
+
+/**
  * Utilitário para validar se um token está expirado
  */
 export function isTokenExpired(expiryTimestamp: number): boolean {

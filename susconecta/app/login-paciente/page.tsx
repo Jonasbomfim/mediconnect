@@ -160,7 +160,11 @@ export default function LoginPacientePage() {
               </Button>
             </div>
             
-            <div className="mt-4 text-center">
+            {/* Botão para criar nova conta (vai para a tela de cadastro) */}
+            <div className="mt-4 grid gap-2">
+              <Button asChild className="w-full">
+                <Link href="/cadastro-paciente">Criar nova conta</Link>
+              </Button>
               <Button variant="outline" asChild className="w-full hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200">
                 <Link href="/">
                   Voltar ao Início

@@ -17,7 +17,7 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarMensagensPorPaciente, listarAgendamentos, buscarMedicosPorIds } from '@/lib/api'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, atualizarPaciente, buscarPacientePorId } from '@/lib/api'
 import { ENV_CONFIG } from '@/lib/env-config'
 import { listarRelatoriosPorPaciente } from '@/lib/reports'
 // reports are rendered statically for now
@@ -55,7 +55,7 @@ const strings = {
 
 export default function PacientePage() {
   const { logout, user } = useAuth()
-  const [tab, setTab] = useState<'dashboard'|'consultas'|'exames'|'mensagens'|'perfil'>('dashboard')
+  const [tab, setTab] = useState<'dashboard'|'consultas'|'exames'|'perfil'>('dashboard')
 
   // Simulação de loaders, empty states e erro
   const [loading, setLoading] = useState(false)
@@ -238,32 +238,121 @@ export default function PacientePage() {
   const handleProfileChange = (field: string, value: string) => {
     setProfileData((prev: any) => ({ ...prev, [field]: value }))
   }
-  const handleSaveProfile = () => {
-    setIsEditingProfile(false)
-    setToast({ type: 'success', msg: strings.sucesso })
+  const handleSaveProfile = async () => {
+    if (!patientId) {
+      setToast({ type: 'error', msg: 'Paciente não identificado. Não foi possível salvar.' })
+      setIsEditingProfile(false)
+      return
+    }
+    setLoading(true)
+    try {
+      const payload: any = {}
+      if (profileData.email) payload.email = profileData.email
+      if (profileData.telefone) payload.phone_mobile = profileData.telefone
+      if (profileData.endereco) payload.street = profileData.endereco
+      if (profileData.cidade) payload.city = profileData.cidade
+      if (profileData.cep) payload.cep = profileData.cep
+      if (profileData.biografia) payload.notes = profileData.biografia
+
+      await atualizarPaciente(String(patientId), payload)
+
+      // refresh patient row
+      const refreshed = await buscarPacientePorId(String(patientId)).catch(() => null)
+      if (refreshed) {
+        const getFirst = (obj: any, keys: string[]) => {
+          if (!obj) return undefined
+          for (const k of keys) {
+            const v = obj[k]
+            if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
+          }
+          return undefined
+        }
+        const nome = getFirst(refreshed, ['full_name','fullName','name','nome','social_name']) || profileData.nome
+        const telefone = getFirst(refreshed, ['phone_mobile','phone','telefone','mobile']) || profileData.telefone
+        const rua = getFirst(refreshed, ['street','logradouro','endereco','address'])
+        const numero = getFirst(refreshed, ['number','numero'])
+        const bairro = getFirst(refreshed, ['neighborhood','bairro'])
+        const endereco = rua ? (numero ? `${rua}, ${numero}` : rua) + (bairro ? ` - ${bairro}` : '') : profileData.endereco
+        const cidade = getFirst(refreshed, ['city','cidade','localidade']) || profileData.cidade
+        const cep = getFirst(refreshed, ['cep','postal_code','zip']) || profileData.cep
+        const biografia = getFirst(refreshed, ['biography','bio','notes']) || profileData.biografia || ''
+        const emailFromRow = getFirst(refreshed, ['email']) || profileData.email
+        const foto = getFirst(refreshed, ['foto_url','avatar_url','fotoUrl']) || profileData.foto_url
+        setProfileData((prev:any) => ({ ...prev, nome, email: emailFromRow, telefone, endereco, cidade, cep, biografia, foto_url: foto }))
+      }
+
+      setIsEditingProfile(false)
+      setToast({ type: 'success', msg: strings.sucesso })
+    } catch (err: any) {
+      console.warn('[PacientePage] erro ao atualizar paciente', err)
+      setToast({ type: 'error', msg: err?.message || strings.erroSalvar })
+    } finally {
+      setLoading(false)
+    }
   }
   const handleCancelEdit = () => {
     setIsEditingProfile(false)
   }
   function DashboardCards() {
+    const [nextAppt, setNextAppt] = useState<string | null>(null)
+    const [examsCount, setExamsCount] = useState<number | null>(null)
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+      let mounted = true
+      async function load() {
+        if (!patientId) {
+          setNextAppt(null)
+          setExamsCount(null)
+          return
+        }
+        setLoading(true)
+        try {
+          // Load appointments for this patient (upcoming)
+          const q = `patient_id=eq.${encodeURIComponent(String(patientId))}&order=scheduled_at.asc&limit=200`
+          const ags = await listarAgendamentos(q).catch(() => [])
+          if (!mounted) return
+          const now = Date.now()
+          // find the first appointment with scheduled_at >= now
+          const upcoming = (ags || []).map((a: any) => ({ ...a, _sched: a.scheduled_at ? new Date(a.scheduled_at).getTime() : null }))
+            .filter((a: any) => a._sched && a._sched >= now)
+            .sort((x: any, y: any) => Number(x._sched) - Number(y._sched))
+          if (upcoming && upcoming.length) {
+            setNextAppt(new Date(upcoming[0]._sched).toLocaleDateString('pt-BR'))
+          } else {
+            setNextAppt(null)
+          }
+
+          // Load reports/laudos count
+          const reports = await listarRelatoriosPorPaciente(String(patientId)).catch(() => [])
+          if (!mounted) return
+          setExamsCount(Array.isArray(reports) ? reports.length : 0)
+        } catch (e) {
+          console.warn('[DashboardCards] erro ao carregar dados', e)
+          if (!mounted) return
+          setNextAppt(null)
+          setExamsCount(null)
+        } finally {
+          if (mounted) setLoading(false)
+        }
+      }
+      load()
+      return () => { mounted = false }
+    }, [patientId])
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card className="flex flex-col items-center justify-center p-4">
           <Calendar className="mb-2 text-primary" aria-hidden />
           <span className="font-semibold">{strings.proximaConsulta}</span>
-          <span className="text-2xl">12/10/2025</span>
+          <span className="text-2xl">{loading ? '...' : (nextAppt ?? '-')}</span>
         </Card>
         <Card className="flex flex-col items-center justify-center p-4">
           <FileText className="mb-2 text-primary" aria-hidden />
           <span className="font-semibold">{strings.ultimosExames}</span>
-          <span className="text-2xl">2</span>
+          <span className="text-2xl">{loading ? '...' : (examsCount !== null ? String(examsCount) : '-')}</span>
         </Card>
-        <Card className="flex flex-col items-center justify-center p-4">
-          <MessageCircle className="mb-2 text-primary" aria-hidden />
-          <span className="font-semibold">{strings.mensagensNaoLidas}</span>
-          <span className="text-2xl">1</span>
-        </Card>
-  </div>
+      </div>
     )
   }
 
@@ -729,7 +818,10 @@ export default function PacientePage() {
         try {
           const docs = await buscarMedicosPorIds([String(maybeDoctorId)]).catch(() => [])
           if (!mounted) return
-          if (docs && docs.length) setReportDoctorName(docs[0].full_name || docs[0].name || null)
+          if (docs && docs.length) {
+            const doc0: any = docs[0]
+            setReportDoctorName(doc0.full_name || doc0.name || doc0.fullName || null)
+          }
         } catch (e) {
           // ignore
         }
@@ -777,35 +869,47 @@ export default function PacientePage() {
                         {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
                       </div>
 
-                      {/* Prefer HTML content when available */}
-                      {selectedReport.content_html ? (
-                        <div className="prose max-w-none mb-4" dangerouslySetInnerHTML={{ __html: selectedReport.content_html }} />
-                      ) : (
-                        <div className="space-y-3 mb-4">
-                          {selectedReport.exam && (
+                      {/* Standardized laudo sections: CID, Exame, Diagnóstico, Conclusão, Notas (prefer HTML when available) */}
+                      {(() => {
+                        const cid = selectedReport.cid ?? selectedReport.cid_code ?? selectedReport.cidCode ?? selectedReport.cie ?? '-'
+                        const exam = selectedReport.exam ?? selectedReport.exame ?? selectedReport.especialidade ?? selectedReport.report_type ?? '-'
+                        const diagnosis = selectedReport.diagnosis ?? selectedReport.diagnostico ?? selectedReport.diagnosis_text ?? selectedReport.diagnostico_text ?? ''
+                        const conclusion = selectedReport.conclusion ?? selectedReport.conclusao ?? selectedReport.conclusion_text ?? selectedReport.conclusao_text ?? ''
+                        const notesHtml = selectedReport.content_html ?? selectedReport.conteudo_html ?? selectedReport.contentHtml ?? null
+                        const notesText = selectedReport.content ?? selectedReport.body ?? selectedReport.conteudo ?? selectedReport.notes ?? selectedReport.observacoes ?? ''
+                        return (
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <div className="text-xs text-muted-foreground">CID</div>
+                              <div className="text-foreground">{cid || '-'}</div>
+                            </div>
+
                             <div>
                               <div className="text-xs text-muted-foreground">Exame</div>
-                              <div className="text-foreground">{selectedReport.exam}</div>
+                              <div className="text-foreground">{exam || '-'}</div>
                             </div>
-                          )}
-                          {selectedReport.diagnosis && (
+
                             <div>
                               <div className="text-xs text-muted-foreground">Diagnóstico</div>
-                              <div className="whitespace-pre-line text-foreground">{selectedReport.diagnosis}</div>
+                              <div className="whitespace-pre-line text-foreground">{diagnosis || '-'}</div>
                             </div>
-                          )}
-                          {selectedReport.conclusion && (
+
                             <div>
                               <div className="text-xs text-muted-foreground">Conclusão</div>
-                              <div className="whitespace-pre-line text-foreground">{selectedReport.conclusion}</div>
+                              <div className="whitespace-pre-line text-foreground">{conclusion || '-'}</div>
                             </div>
-                          )}
-                          {/* fallback to generic content/body */}
-                          {!(selectedReport.content_html || selectedReport.diagnosis || selectedReport.conclusion || selectedReport.content || selectedReport.body) && (
-                            <pre className="text-sm whitespace-pre-wrap bg-muted p-3 rounded">{JSON.stringify(selectedReport, null, 2)}</pre>
-                          )}
-                        </div>
-                      )}
+
+                            <div>
+                              <div className="text-xs text-muted-foreground">Notas do Profissional</div>
+                              {notesHtml ? (
+                                <div className="prose max-w-none p-2 bg-muted rounded" dangerouslySetInnerHTML={{ __html: String(notesHtml) }} />
+                              ) : (
+                                <div className="whitespace-pre-line text-foreground p-2 bg-muted rounded">{notesText || '-'}</div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
                       {/* Optional: doctor signature or footer */}
                       {selectedReport.doctor_signature && (
                         <div className="mt-4 text-sm text-muted-foreground">Assinatura: <img src={selectedReport.doctor_signature} alt="assinatura" className="inline-block h-10" /></div>
@@ -823,58 +927,7 @@ export default function PacientePage() {
     )
   }
 
-  function Mensagens() {
-    const [msgs, setMsgs] = useState<any[]>([])
-    const [loadingMsgs, setLoadingMsgs] = useState(false)
-    const [msgsError, setMsgsError] = useState<string | null>(null)
-
-    useEffect(() => {
-      let mounted = true
-      if (!patientId) return
-      setLoadingMsgs(true)
-      setMsgsError(null)
-      listarMensagensPorPaciente(String(patientId))
-        .then(res => {
-          if (!mounted) return
-          setMsgs(Array.isArray(res) ? res : [])
-        })
-        .catch(err => {
-          console.warn('[Mensagens] erro ao carregar mensagens', err)
-          if (!mounted) return
-          setMsgsError('Falha ao carregar mensagens.')
-        })
-        .finally(() => { if (mounted) setLoadingMsgs(false) })
-
-      return () => { mounted = false }
-    }, [patientId])
-
-    return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-bold mb-6">Mensagens Recebidas</h2>
-        <div className="space-y-3">
-          {loadingMsgs ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando mensagens...</div>
-          ) : msgsError ? (
-            <div className="text-center py-8 text-red-600">{msgsError}</div>
-          ) : (!msgs || msgs.length === 0) ? (
-            <div className="text-center py-8 text-muted-foreground">Nenhuma mensagem encontrada.</div>
-          ) : (
-            msgs.map((msg: any) => (
-              <div key={msg.id || JSON.stringify(msg)} className="bg-muted rounded p-4">
-                <div className="font-medium text-foreground flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" />
-                  {msg.sender_name || msg.from || msg.doctor_name || 'Remetente'}
-                  {!msg.read && <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-primary text-white">Nova</span>}
-                </div>
-                <div className="text-sm text-muted-foreground mb-2">{new Date(msg.created_at || msg.data || Date.now()).toLocaleString('pt-BR')}</div>
-                <div className="text-foreground whitespace-pre-line">{msg.body || msg.content || msg.text || JSON.stringify(msg)}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-    )
-  }
+  
 
   function Perfil() {
     const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep)
@@ -992,7 +1045,7 @@ export default function PacientePage() {
             <Button variant={tab==='dashboard'?'secondary':'ghost'} aria-current={tab==='dashboard'} onClick={()=>setTab('dashboard')} className="justify-start"><Calendar className="mr-2 h-5 w-5" />{strings.dashboard}</Button>
             <Button variant={tab==='consultas'?'secondary':'ghost'} aria-current={tab==='consultas'} onClick={()=>setTab('consultas')} className="justify-start"><Calendar className="mr-2 h-5 w-5" />{strings.consultas}</Button>
             <Button variant={tab==='exames'?'secondary':'ghost'} aria-current={tab==='exames'} onClick={()=>setTab('exames')} className="justify-start"><FileText className="mr-2 h-5 w-5" />{strings.exames}</Button>
-            <Button variant={tab==='mensagens'?'secondary':'ghost'} aria-current={tab==='mensagens'} onClick={()=>setTab('mensagens')} className="justify-start"><MessageCircle className="mr-2 h-5 w-5" />{strings.mensagens}</Button>
+            
             <Button variant={tab==='perfil'?'secondary':'ghost'} aria-current={tab==='perfil'} onClick={()=>setTab('perfil')} className="justify-start"><UserCog className="mr-2 h-5 w-5" />{strings.perfil}</Button>
           </nav>
           {/* Conteúdo principal */}
@@ -1012,7 +1065,7 @@ export default function PacientePage() {
                 {tab==='dashboard' && <DashboardCards />}
                 {tab==='consultas' && <Consultas />}
                 {tab==='exames' && <ExamesLaudos />}
-                {tab==='mensagens' && <Mensagens />}
+                
                 {tab==='perfil' && <Perfil />}
               </main>
             )}

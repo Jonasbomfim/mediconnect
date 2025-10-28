@@ -269,13 +269,22 @@ export default function PacientePage() {
 
   // Consultas fictícias
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  // helper: produce a local YYYY-MM-DD key (uses local timezone, not toISOString UTC)
+  const localDateKey = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const consultasFicticias = [
     {
       id: 1,
       medico: "Dr. Carlos Andrade",
       especialidade: "Cardiologia",
       local: "Clínica Coração Feliz",
-      data: new Date().toISOString().split('T')[0],
+      data: localDateKey(new Date()),
       hora: "09:00",
       status: "Confirmada"
     },
@@ -284,7 +293,7 @@ export default function PacientePage() {
       medico: "Dra. Fernanda Lima",
       especialidade: "Dermatologia",
       local: "Clínica Pele Viva",
-      data: new Date().toISOString().split('T')[0],
+      data: localDateKey(new Date()),
       hora: "14:30",
       status: "Pendente"
     },
@@ -293,7 +302,7 @@ export default function PacientePage() {
       medico: "Dr. João Silva",
       especialidade: "Ortopedia",
       local: "Hospital Ortopédico",
-      data: (() => { let d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0] })(),
+      data: (() => { let d = new Date(); d.setDate(d.getDate()+1); return localDateKey(d) })(),
       hora: "11:00",
       status: "Cancelada"
     },
@@ -312,7 +321,7 @@ export default function PacientePage() {
     setCurrentDate(new Date());
   }
 
-  const todayStr = currentDate.toISOString().split('T')[0];
+  const todayStr = localDateKey(currentDate)
   const consultasDoDia = consultasFicticias.filter(c => c.data === todayStr);
 
   function Consultas() {
@@ -415,7 +424,7 @@ export default function PacientePage() {
               medico: doc?.full_name || a.doctor_id || '---',
               especialidade: doc?.specialty || '',
               local: a.location || a.place || '',
-              data: sched ? sched.toISOString().split('T')[0] : '',
+              data: sched ? localDateKey(sched) : '',
               hora: sched ? sched.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
               status: a.status ? String(a.status) : 'Pendente',
             }
@@ -442,6 +451,8 @@ export default function PacientePage() {
       qs.set('tipo', tipoConsulta) // 'teleconsulta' | 'presencial'
       if (especialidade) qs.set('especialidade', especialidade)
       if (localizacao) qs.set('local', localizacao)
+      // indicate navigation origin so destination can alter UX (e.g., show modal instead of redirect)
+      qs.set('origin', 'paciente')
       return `/resultados?${qs.toString()}`
     }
 
@@ -532,7 +543,7 @@ export default function PacientePage() {
         </div>
 
         <Dialog open={mostrarAgendadas} onOpenChange={open => setMostrarAgendadas(open)}>
-          <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden">
+    <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-2xl font-semibold text-foreground">Consultas agendadas</DialogTitle>
               <DialogDescription>Gerencie suas consultas confirmadas, pendentes ou canceladas.</DialogDescription>
@@ -544,7 +555,7 @@ export default function PacientePage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => navigateDate('prev')}
+                  onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
                   className={`group shadow-sm ${hoverPrimaryIconClass}`}
                 >
@@ -555,7 +566,7 @@ export default function PacientePage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => navigateDate('next')}
+                  onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
                   className={`group shadow-sm ${hoverPrimaryIconClass}`}
                 >
@@ -579,7 +590,7 @@ export default function PacientePage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] pr-1 sm:pr-2">
+            <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 sm:pr-2 pb-6">
               {loadingAppointments && mostrarAgendadas ? (
                 <div className="text-center py-10 text-muted-foreground">Carregando consultas...</div>
               ) : appointmentsError ? (
@@ -663,7 +674,7 @@ export default function PacientePage() {
             </div>
 
             <DialogFooter className="justify-center border-t border-border pt-4 mt-2">
-              <Button variant="outline" onClick={() => { /* dialog fechado (controle externo) */ }} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={() => { setMostrarAgendadas(false) }} className="w-full sm:w-auto">
                 Fechar
               </Button>
             </DialogFooter>
@@ -680,6 +691,7 @@ export default function PacientePage() {
     const [reports, setReports] = useState<any[] | null>(null)
     const [loadingReports, setLoadingReports] = useState(false)
     const [reportsError, setReportsError] = useState<string | null>(null)
+    const [reportDoctorName, setReportDoctorName] = useState<string | null>(null)
 
     useEffect(() => {
       let mounted = true
@@ -700,6 +712,30 @@ export default function PacientePage() {
 
       return () => { mounted = false }
     }, [patientId])
+
+    // When a report is selected, try to fetch doctor name if we have an id
+    useEffect(() => {
+      let mounted = true
+      if (!selectedReport) {
+        setReportDoctorName(null)
+        return
+      }
+      const maybeDoctorId = selectedReport.doctor_id || selectedReport.created_by || null
+      if (!maybeDoctorId) {
+        setReportDoctorName(null)
+        return
+      }
+      (async () => {
+        try {
+          const docs = await buscarMedicosPorIds([String(maybeDoctorId)]).catch(() => [])
+          if (!mounted) return
+          if (docs && docs.length) setReportDoctorName(docs[0].full_name || docs[0].name || null)
+        } catch (e) {
+          // ignore
+        }
+      })()
+      return () => { mounted = false }
+    }, [selectedReport])
 
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
@@ -730,22 +766,58 @@ export default function PacientePage() {
 
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Laudo Médico</DialogTitle>
-              <DialogDescription>
-                {selectedReport && (
-                  <>
-                    <div className="font-semibold mb-2">{selectedReport.title || selectedReport.name || 'Laudo'}</div>
-                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
-                    <div className="mb-4 whitespace-pre-line">{selectedReport.content || selectedReport.body || JSON.stringify(selectedReport, null, 2)}</div>
-                  </>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
-            </DialogFooter>
-          </DialogContent>
+              <DialogHeader>
+                <DialogTitle>Laudo Médico</DialogTitle>
+                <DialogDescription>
+                  {selectedReport && (
+                    <>
+                      <div className="mb-2">
+                        <div className="font-semibold text-lg">{selectedReport.title || selectedReport.name || 'Laudo'}</div>
+                        <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                        {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
+                      </div>
+
+                      {/* Prefer HTML content when available */}
+                      {selectedReport.content_html ? (
+                        <div className="prose max-w-none mb-4" dangerouslySetInnerHTML={{ __html: selectedReport.content_html }} />
+                      ) : (
+                        <div className="space-y-3 mb-4">
+                          {selectedReport.exam && (
+                            <div>
+                              <div className="text-xs text-muted-foreground">Exame</div>
+                              <div className="text-foreground">{selectedReport.exam}</div>
+                            </div>
+                          )}
+                          {selectedReport.diagnosis && (
+                            <div>
+                              <div className="text-xs text-muted-foreground">Diagnóstico</div>
+                              <div className="whitespace-pre-line text-foreground">{selectedReport.diagnosis}</div>
+                            </div>
+                          )}
+                          {selectedReport.conclusion && (
+                            <div>
+                              <div className="text-xs text-muted-foreground">Conclusão</div>
+                              <div className="whitespace-pre-line text-foreground">{selectedReport.conclusion}</div>
+                            </div>
+                          )}
+                          {/* fallback to generic content/body */}
+                          {!(selectedReport.content_html || selectedReport.diagnosis || selectedReport.conclusion || selectedReport.content || selectedReport.body) && (
+                            <pre className="text-sm whitespace-pre-wrap bg-muted p-3 rounded">{JSON.stringify(selectedReport, null, 2)}</pre>
+                          )}
+                        </div>
+                      )}
+                      {/* Optional: doctor signature or footer */}
+                      {selectedReport.doctor_signature && (
+                        <div className="mt-4 text-sm text-muted-foreground">Assinatura: <img src={selectedReport.doctor_signature} alt="assinatura" className="inline-block h-10" /></div>
+                      )}
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
+              </DialogFooter>
+            </DialogContent>
         </Dialog>
       </section>
     )

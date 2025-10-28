@@ -100,6 +100,9 @@ export default function ResultadosClient() {
     setToast({ type, msg })
     setTimeout(() => setToast(null), 3000)
   }
+  // booking success modal (used when origin=paciente)
+  const [bookingSuccessOpen, setBookingSuccessOpen] = useState(false)
+  const [bookedWhenLabel, setBookedWhenLabel] = useState<string | null>(null)
 
   // 1) Obter patientId a partir do usuário autenticado (email -> patients)
   useEffect(() => {
@@ -273,8 +276,20 @@ export default function ResultadosClient() {
       })
       setConfirmOpen(false)
       setPendingAppointment(null)
-      // Navigate to agenda after a short delay so user sees the toast
-      setTimeout(() => router.push('/agenda'), 500)
+      // If the user came from the paciente area, keep them here and show a success modal
+      const origin = params?.get('origin')
+      if (origin === 'paciente') {
+        try {
+          const when = new Date(iso).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })
+          setBookedWhenLabel(when)
+        } catch {
+          setBookedWhenLabel(iso)
+        }
+        setBookingSuccessOpen(true)
+      } else {
+        // Navigate to agenda after a short delay so user sees the toast
+        setTimeout(() => router.push('/agenda'), 500)
+      }
     } catch (e: any) {
       showToast('error', e?.message || 'Falha ao agendar')
     } finally {
@@ -533,6 +548,21 @@ export default function ResultadosClient() {
             </div>
           </DialogContent>
         </Dialog>
+
+          {/* Booking success modal shown when origin=paciente */}
+          <Dialog open={bookingSuccessOpen} onOpenChange={(open) => setBookingSuccessOpen(open)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Consulta agendada</DialogTitle>
+              </DialogHeader>
+              <div className="mt-2">
+                <p className="text-sm">Sua consulta foi agendada com sucesso{bookedWhenLabel ? ` para ${bookedWhenLabel}` : ''}.</p>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Button variant="outline" onClick={() => setBookingSuccessOpen(false)}>Fechar</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
         {/* Hero de filtros (mantido) */}
         <section className="rounded-3xl bg-primary p-6 text-primary-foreground shadow-lg">

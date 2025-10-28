@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
 import HeaderAgenda from "@/components/agenda/HeaderAgenda";
 import FooterAgenda from "@/components/agenda/FooterAgenda";
@@ -38,7 +38,6 @@ interface FormData {
 
 export default function NovoAgendamentoPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<FormData>({});
 
   const handleFormChange = (data: FormData) => {
@@ -88,7 +87,7 @@ export default function NovoAgendamentoPage() {
   const handleCancel = () => {
     // If origin was provided (eg: consultas), return there. Default to calendar.
     try {
-      const origin = searchParams?.get?.('origin');
+      const origin = (typeof window !== 'undefined') ? new URLSearchParams(window.location.search).get('origin') : null;
       if (origin === 'consultas') {
         router.push('/consultas');
         return;

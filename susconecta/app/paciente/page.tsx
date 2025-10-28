@@ -17,8 +17,10 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarMensagensPorPaciente } from '@/lib/api'
-import { useReports } from '@/hooks/useReports'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, atualizarPaciente, buscarPacientePorId } from '@/lib/api'
+import { ENV_CONFIG } from '@/lib/env-config'
+import { listarRelatoriosPorPaciente } from '@/lib/reports'
+// reports are rendered statically for now
 // Simulação de internacionalização básica
 const strings = {
   dashboard: 'Dashboard',
@@ -53,7 +55,7 @@ const strings = {
 
 export default function PacientePage() {
   const { logout, user } = useAuth()
-  const [tab, setTab] = useState<'dashboard'|'consultas'|'exames'|'mensagens'|'perfil'>('dashboard')
+  const [tab, setTab] = useState<'dashboard'|'consultas'|'exames'|'perfil'>('dashboard')
 
   // Simulação de loaders, empty states e erro
   const [loading, setLoading] = useState(false)
@@ -236,44 +238,142 @@ export default function PacientePage() {
   const handleProfileChange = (field: string, value: string) => {
     setProfileData((prev: any) => ({ ...prev, [field]: value }))
   }
-  const handleSaveProfile = () => {
-    setIsEditingProfile(false)
-    setToast({ type: 'success', msg: strings.sucesso })
+  const handleSaveProfile = async () => {
+    if (!patientId) {
+      setToast({ type: 'error', msg: 'Paciente não identificado. Não foi possível salvar.' })
+      setIsEditingProfile(false)
+      return
+    }
+    setLoading(true)
+    try {
+      const payload: any = {}
+      if (profileData.email) payload.email = profileData.email
+      if (profileData.telefone) payload.phone_mobile = profileData.telefone
+      if (profileData.endereco) payload.street = profileData.endereco
+      if (profileData.cidade) payload.city = profileData.cidade
+      if (profileData.cep) payload.cep = profileData.cep
+      if (profileData.biografia) payload.notes = profileData.biografia
+
+      await atualizarPaciente(String(patientId), payload)
+
+      // refresh patient row
+      const refreshed = await buscarPacientePorId(String(patientId)).catch(() => null)
+      if (refreshed) {
+        const getFirst = (obj: any, keys: string[]) => {
+          if (!obj) return undefined
+          for (const k of keys) {
+            const v = obj[k]
+            if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
+          }
+          return undefined
+        }
+        const nome = getFirst(refreshed, ['full_name','fullName','name','nome','social_name']) || profileData.nome
+        const telefone = getFirst(refreshed, ['phone_mobile','phone','telefone','mobile']) || profileData.telefone
+        const rua = getFirst(refreshed, ['street','logradouro','endereco','address'])
+        const numero = getFirst(refreshed, ['number','numero'])
+        const bairro = getFirst(refreshed, ['neighborhood','bairro'])
+        const endereco = rua ? (numero ? `${rua}, ${numero}` : rua) + (bairro ? ` - ${bairro}` : '') : profileData.endereco
+        const cidade = getFirst(refreshed, ['city','cidade','localidade']) || profileData.cidade
+        const cep = getFirst(refreshed, ['cep','postal_code','zip']) || profileData.cep
+        const biografia = getFirst(refreshed, ['biography','bio','notes']) || profileData.biografia || ''
+        const emailFromRow = getFirst(refreshed, ['email']) || profileData.email
+        const foto = getFirst(refreshed, ['foto_url','avatar_url','fotoUrl']) || profileData.foto_url
+        setProfileData((prev:any) => ({ ...prev, nome, email: emailFromRow, telefone, endereco, cidade, cep, biografia, foto_url: foto }))
+      }
+
+      setIsEditingProfile(false)
+      setToast({ type: 'success', msg: strings.sucesso })
+    } catch (err: any) {
+      console.warn('[PacientePage] erro ao atualizar paciente', err)
+      setToast({ type: 'error', msg: err?.message || strings.erroSalvar })
+    } finally {
+      setLoading(false)
+    }
   }
   const handleCancelEdit = () => {
     setIsEditingProfile(false)
   }
   function DashboardCards() {
+    const [nextAppt, setNextAppt] = useState<string | null>(null)
+    const [examsCount, setExamsCount] = useState<number | null>(null)
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+      let mounted = true
+      async function load() {
+        if (!patientId) {
+          setNextAppt(null)
+          setExamsCount(null)
+          return
+        }
+        setLoading(true)
+        try {
+          // Load appointments for this patient (upcoming)
+          const q = `patient_id=eq.${encodeURIComponent(String(patientId))}&order=scheduled_at.asc&limit=200`
+          const ags = await listarAgendamentos(q).catch(() => [])
+          if (!mounted) return
+          const now = Date.now()
+          // find the first appointment with scheduled_at >= now
+          const upcoming = (ags || []).map((a: any) => ({ ...a, _sched: a.scheduled_at ? new Date(a.scheduled_at).getTime() : null }))
+            .filter((a: any) => a._sched && a._sched >= now)
+            .sort((x: any, y: any) => Number(x._sched) - Number(y._sched))
+          if (upcoming && upcoming.length) {
+            setNextAppt(new Date(upcoming[0]._sched).toLocaleDateString('pt-BR'))
+          } else {
+            setNextAppt(null)
+          }
+
+          // Load reports/laudos count
+          const reports = await listarRelatoriosPorPaciente(String(patientId)).catch(() => [])
+          if (!mounted) return
+          setExamsCount(Array.isArray(reports) ? reports.length : 0)
+        } catch (e) {
+          console.warn('[DashboardCards] erro ao carregar dados', e)
+          if (!mounted) return
+          setNextAppt(null)
+          setExamsCount(null)
+        } finally {
+          if (mounted) setLoading(false)
+        }
+      }
+      load()
+      return () => { mounted = false }
+    }, [patientId])
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card className="flex flex-col items-center justify-center p-4">
           <Calendar className="mb-2 text-primary" aria-hidden />
           <span className="font-semibold">{strings.proximaConsulta}</span>
-          <span className="text-2xl">12/10/2025</span>
+          <span className="text-2xl">{loading ? '...' : (nextAppt ?? '-')}</span>
         </Card>
         <Card className="flex flex-col items-center justify-center p-4">
           <FileText className="mb-2 text-primary" aria-hidden />
           <span className="font-semibold">{strings.ultimosExames}</span>
-          <span className="text-2xl">2</span>
+          <span className="text-2xl">{loading ? '...' : (examsCount !== null ? String(examsCount) : '-')}</span>
         </Card>
-        <Card className="flex flex-col items-center justify-center p-4">
-          <MessageCircle className="mb-2 text-primary" aria-hidden />
-          <span className="font-semibold">{strings.mensagensNaoLidas}</span>
-          <span className="text-2xl">1</span>
-        </Card>
-  </div>
+      </div>
     )
   }
 
   // Consultas fictícias
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  // helper: produce a local YYYY-MM-DD key (uses local timezone, not toISOString UTC)
+  const localDateKey = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const consultasFicticias = [
     {
       id: 1,
       medico: "Dr. Carlos Andrade",
       especialidade: "Cardiologia",
       local: "Clínica Coração Feliz",
-      data: new Date().toISOString().split('T')[0],
+      data: localDateKey(new Date()),
       hora: "09:00",
       status: "Confirmada"
     },
@@ -282,7 +382,7 @@ export default function PacientePage() {
       medico: "Dra. Fernanda Lima",
       especialidade: "Dermatologia",
       local: "Clínica Pele Viva",
-      data: new Date().toISOString().split('T')[0],
+      data: localDateKey(new Date()),
       hora: "14:30",
       status: "Pendente"
     },
@@ -291,7 +391,7 @@ export default function PacientePage() {
       medico: "Dr. João Silva",
       especialidade: "Ortopedia",
       local: "Hospital Ortopédico",
-      data: (() => { let d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0] })(),
+      data: (() => { let d = new Date(); d.setDate(d.getDate()+1); return localDateKey(d) })(),
       hora: "11:00",
       status: "Cancelada"
     },
@@ -310,7 +410,7 @@ export default function PacientePage() {
     setCurrentDate(new Date());
   }
 
-  const todayStr = currentDate.toISOString().split('T')[0];
+  const todayStr = localDateKey(currentDate)
   const consultasDoDia = consultasFicticias.filter(c => c.data === todayStr);
 
   function Consultas() {
@@ -323,18 +423,131 @@ export default function PacientePage() {
     const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
     const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
     const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
-    const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
+  const isSelectedDateToday = selectedDate.getTime() === today.getTime()
 
-    const handlePesquisar = () => {
-      const params = new URLSearchParams({
-        tipo: tipoConsulta,
-        especialidade,
-        local: localizacao
-      })
-      router.push(`/resultados?${params.toString()}`)
+  
+
+    // Appointments state (loaded when "Ver consultas agendadas" is opened)
+    const [appointments, setAppointments] = useState<any[] | null>(null)
+    const [loadingAppointments, setLoadingAppointments] = useState(false)
+    const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
+
+    useEffect(() => {
+      let mounted = true
+      if (!mostrarAgendadas) return
+      if (!patientId) {
+        setAppointmentsError('Paciente não identificado. Faça login novamente.')
+        return
+      }
+
+      async function loadAppointments() {
+        try {
+          setLoadingAppointments(true)
+          setAppointmentsError(null)
+          setAppointments(null)
+
+          // Try `eq.` first, then fallback to `in.(id)` which some views expect
+          const baseEncoded = encodeURIComponent(String(patientId))
+          const queriesToTry = [
+            `patient_id=eq.${baseEncoded}&order=scheduled_at.asc&limit=200`,
+            `patient_id=in.(${baseEncoded})&order=scheduled_at.asc&limit=200`,
+          ];
+
+          let rows: any[] = []
+          for (const q of queriesToTry) {
+            try {
+              // Debug: also fetch raw response to inspect headers/response body in the browser
+              try {
+                const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                const headers: Record<string,string> = {
+                  apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
+                  Accept: 'application/json',
+                }
+                if (token) headers.Authorization = `Bearer ${token}`
+                const rawUrl = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/appointments?${q}`
+                console.debug('[Consultas][debug] GET', rawUrl, 'Headers(masked):', { ...headers, Authorization: headers.Authorization ? `${String(headers.Authorization).slice(0,6)}...${String(headers.Authorization).slice(-6)}` : undefined })
+                const rawRes = await fetch(rawUrl, { method: 'GET', headers })
+                const rawText = await rawRes.clone().text().catch(() => '')
+                console.debug('[Consultas][debug] raw response', { url: rawUrl, status: rawRes.status, bodyPreview: (typeof rawText === 'string' && rawText.length > 0) ? rawText.slice(0, 200) : rawText })
+              } catch (dbgErr) {
+                console.debug('[Consultas][debug] não foi possível capturar raw response', dbgErr)
+              }
+
+              const r = await listarAgendamentos(q)
+              if (r && Array.isArray(r) && r.length) {
+                rows = r
+                break
+              }
+              // if r is empty array, continue to next query format
+            } catch (e) {
+              // keep trying next format
+              console.debug('[Consultas] tentativa listarAgendamentos falhou para query', q, e)
+            }
+          }
+
+          if (!mounted) return
+          if (!rows || rows.length === 0) {
+            // no appointments found for this patient using either filter
+            setAppointments([])
+            return
+          }
+
+          const doctorIds = Array.from(new Set(rows.map((r: any) => r.doctor_id).filter(Boolean)))
+          const doctorsMap: Record<string, any> = {}
+          if (doctorIds.length) {
+            try {
+              const docs = await buscarMedicosPorIds(doctorIds).catch(() => [])
+              for (const d of docs || []) doctorsMap[d.id] = d
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          const mapped = (rows || []).map((a: any) => {
+            const sched = a.scheduled_at ? new Date(a.scheduled_at) : null
+            const doc = a.doctor_id ? doctorsMap[String(a.doctor_id)] : null
+            return {
+              id: a.id,
+              medico: doc?.full_name || a.doctor_id || '---',
+              especialidade: doc?.specialty || '',
+              local: a.location || a.place || '',
+              data: sched ? localDateKey(sched) : '',
+              hora: sched ? sched.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+              status: a.status ? String(a.status) : 'Pendente',
+            }
+          })
+
+          setAppointments(mapped)
+        } catch (err: any) {
+          console.warn('[Consultas] falha ao carregar agendamentos', err)
+          if (!mounted) return
+          setAppointmentsError(err?.message ?? 'Falha ao carregar agendamentos.')
+          setAppointments([])
+        } finally {
+          if (mounted) setLoadingAppointments(false)
+        }
+      }
+
+      loadAppointments()
+      return () => { mounted = false }
+    }, [mostrarAgendadas, patientId])
+
+    // Monta a URL de resultados com os filtros atuais
+    const buildResultadosHref = () => {
+      const qs = new URLSearchParams()
+      qs.set('tipo', tipoConsulta) // 'teleconsulta' | 'presencial'
+      if (especialidade) qs.set('especialidade', especialidade)
+      if (localizacao) qs.set('local', localizacao)
+      // indicate navigation origin so destination can alter UX (e.g., show modal instead of redirect)
+      qs.set('origin', 'paciente')
+      return `/resultados?${qs.toString()}`
     }
+
+    // derived lists for the "Ver consultas agendadas" dialog (computed after appointments state is declared)
+    const _dialogSource = (appointments !== null ? appointments : consultasFicticias)
+    const _todaysAppointments = (_dialogSource || []).filter((c: any) => c.data === todayStr)
 
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
@@ -398,11 +611,11 @@ export default function PacientePage() {
               </div>
             </div>
 
-            <Button
-              className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}
-              onClick={handlePesquisar}
-            >
-              Pesquisar
+            {/* Botão agora redireciona direto para /resultados */}
+            <Button asChild className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}>
+              <Link href={buildResultadosHref()} prefetch={false}>
+                Pesquisar
+              </Link>
             </Button>
           </div>
 
@@ -419,7 +632,7 @@ export default function PacientePage() {
         </div>
 
         <Dialog open={mostrarAgendadas} onOpenChange={open => setMostrarAgendadas(open)}>
-          <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden">
+    <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-2xl font-semibold text-foreground">Consultas agendadas</DialogTitle>
               <DialogDescription>Gerencie suas consultas confirmadas, pendentes ou canceladas.</DialogDescription>
@@ -431,7 +644,7 @@ export default function PacientePage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => navigateDate('prev')}
+                  onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
                   className={`group shadow-sm ${hoverPrimaryIconClass}`}
                 >
@@ -442,7 +655,7 @@ export default function PacientePage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => navigateDate('next')}
+                  onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
                   className={`group shadow-sm ${hoverPrimaryIconClass}`}
                 >
@@ -462,84 +675,95 @@ export default function PacientePage() {
                 )}
               </div>
               <div className="text-sm text-muted-foreground">
-                {consultasDoDia.length} consulta{consultasDoDia.length !== 1 ? 's' : ''} agendada{consultasDoDia.length !== 1 ? 's' : ''}
+                {`${_todaysAppointments.length} consulta${_todaysAppointments.length !== 1 ? 's' : ''} agendada${_todaysAppointments.length !== 1 ? 's' : ''}`}
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] pr-1 sm:pr-2">
-              {consultasDoDia.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
-                  <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
-                  <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
-                </div>
+            <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 sm:pr-2 pb-6">
+              {loadingAppointments && mostrarAgendadas ? (
+                <div className="text-center py-10 text-muted-foreground">Carregando consultas...</div>
+              ) : appointmentsError ? (
+                <div className="text-center py-10 text-red-600">{appointmentsError}</div>
               ) : (
-                consultasDoDia.map(consulta => (
-                  <div
-                    key={consulta.id}
-                    className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
-                  >
-                    <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
-                          style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
-                        />
-                        <div className="space-y-1">
-                          <div className="font-medium flex items-center gap-2 text-foreground">
-                            <Stethoscope className="h-4 w-4 text-muted-foreground" />
-                            {consulta.medico}
+                // prefer appointments (client-loaded) when present; fallback to fictitious list
+                (() => {
+                  const todays = _todaysAppointments
+                  if (!todays || todays.length === 0) {
+                    return (
+                      <div className="text-center py-10 text-muted-foreground">
+                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
+                        <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
+                        <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
+                      </div>
+                    )
+                  }
+                  return todays.map((consulta: any) => (
+                    <div
+                      key={consulta.id}
+                      className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
+                    >
+                      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
+                        <div className="flex items-start gap-3">
+                          <span
+                            className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
+                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
+                          />
+                          <div className="space-y-1">
+                            <div className="font-medium flex items-center gap-2 text-foreground">
+                              <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                              {consulta.medico}
+                            </div>
+                            <p className="text-sm text-muted-foreground break-words">
+                              {consulta.especialidade} • {consulta.local}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground break-words">
-                            {consulta.especialidade} • {consulta.local}
-                          </p>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{consulta.hora}</span>
-                      </div>
+                        <div className="flex items-center gap-2 text-foreground">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{consulta.hora}</span>
+                        </div>
 
-                      <div className="flex items-center">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
-                          {consulta.status}
-                        </span>
-                      </div>
+                        <div className="flex items-center">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
+                            {consulta.status}
+                          </span>
+                        </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
-                        >
-                          Detalhes
-                        </Button>
-                        {consulta.status !== 'Cancelada' && (
-                          <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
-                            Reagendar
-                          </Button>
-                        )}
-                        {consulta.status !== 'Cancelada' && (
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Button
                             type="button"
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
-                            className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                            className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
                           >
-                            Cancelar
+                            Detalhes
                           </Button>
-                        )}
+                          {consulta.status !== 'Cancelada' && (
+                            <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
+                              Reagendar
+                            </Button>
+                          )}
+                          {consulta.status !== 'Cancelada' && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                            >
+                              Cancelar
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))
+                })()
               )}
             </div>
 
             <DialogFooter className="justify-center border-t border-border pt-4 mt-2">
-              <Button variant="outline" onClick={() => setMostrarAgendadas(false)} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={() => { setMostrarAgendadas(false) }} className="w-full sm:w-auto">
                 Fechar
               </Button>
             </DialogFooter>
@@ -549,120 +773,164 @@ export default function PacientePage() {
     )
   }
 
-  // Reports (laudos) hook
-  const { reports, loadReportsByPatient, loading: reportsLoading } = useReports()
+  // Selected report state
   const [selectedReport, setSelectedReport] = useState<any | null>(null)
 
   function ExamesLaudos() {
+    const [reports, setReports] = useState<any[] | null>(null)
+    const [loadingReports, setLoadingReports] = useState(false)
+    const [reportsError, setReportsError] = useState<string | null>(null)
+    const [reportDoctorName, setReportDoctorName] = useState<string | null>(null)
+
     useEffect(() => {
+      let mounted = true
       if (!patientId) return
-      // load laudos for this patient
-      loadReportsByPatient(patientId).catch(() => {})
+      setLoadingReports(true)
+      setReportsError(null)
+      listarRelatoriosPorPaciente(String(patientId))
+        .then(res => {
+          if (!mounted) return
+          setReports(Array.isArray(res) ? res : [])
+        })
+        .catch(err => {
+          console.warn('[ExamesLaudos] erro ao carregar laudos', err)
+          if (!mounted) return
+          setReportsError('Falha ao carregar laudos.')
+        })
+        .finally(() => { if (mounted) setLoadingReports(false) })
+
+      return () => { mounted = false }
     }, [patientId])
+
+    // When a report is selected, try to fetch doctor name if we have an id
+    useEffect(() => {
+      let mounted = true
+      if (!selectedReport) {
+        setReportDoctorName(null)
+        return
+      }
+      const maybeDoctorId = selectedReport.doctor_id || selectedReport.created_by || null
+      if (!maybeDoctorId) {
+        setReportDoctorName(null)
+        return
+      }
+      (async () => {
+        try {
+          const docs = await buscarMedicosPorIds([String(maybeDoctorId)]).catch(() => [])
+          if (!mounted) return
+          if (docs && docs.length) {
+            const doc0: any = docs[0]
+            setReportDoctorName(doc0.full_name || doc0.name || doc0.fullName || null)
+          }
+        } catch (e) {
+          // ignore
+        }
+      })()
+      return () => { mounted = false }
+    }, [selectedReport])
 
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <h2 className="text-2xl font-bold mb-6">Laudos</h2>
 
-        {reportsLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Carregando laudos...</div>
-        ) : (!reports || reports.length === 0) ? (
-          <div className="text-center py-8 text-muted-foreground">Nenhum laudo salvo.</div>
-        ) : (
-          <div className="space-y-3">
-            {reports.map((r: any) => (
-              <div key={r.id || r.order_number || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
+        <div className="space-y-3">
+          {loadingReports ? (
+            <div className="text-center py-8 text-muted-foreground">{strings.carregando}</div>
+          ) : reportsError ? (
+            <div className="text-center py-8 text-red-600">{reportsError}</div>
+          ) : (!reports || reports.length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
+          ) : (
+            reports.map((r) => (
+              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
                 <div>
-                  <div className="font-medium text-foreground">{r.title || r.report_type || r.exame || r.name || 'Laudo'}</div>
-                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.data || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                  <div className="font-medium text-foreground">{r.title || r.name || r.report_name || 'Laudo'}</div>
+                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" onClick={async () => { setSelectedReport(r); }}>Visualizar</Button>
-                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado (debug).' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>Compartilhar</Button>
+                  <Button variant="outline" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
 
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Laudo Médico</DialogTitle>
-              <DialogDescription>
-                {selectedReport && (
-                  <>
-                    <div className="font-semibold mb-2">{selectedReport.title || selectedReport.report_type || selectedReport.exame || 'Laudo'}</div>
-                    <div className="text-sm text-muted-foreground mb-4">Data: {new Date(selectedReport.report_date || selectedReport.data || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
-                    <div className="mb-4 whitespace-pre-line">{selectedReport.content || selectedReport.laudo || selectedReport.body || JSON.stringify(selectedReport, null, 2)}</div>
-                  </>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
-            </DialogFooter>
-          </DialogContent>
+              <DialogHeader>
+                <DialogTitle>Laudo Médico</DialogTitle>
+                <DialogDescription>
+                  {selectedReport && (
+                    <>
+                      <div className="mb-2">
+                        <div className="font-semibold text-lg">{selectedReport.title || selectedReport.name || 'Laudo'}</div>
+                        <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                        {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
+                      </div>
+
+                      {/* Standardized laudo sections: CID, Exame, Diagnóstico, Conclusão, Notas (prefer HTML when available) */}
+                      {(() => {
+                        const cid = selectedReport.cid ?? selectedReport.cid_code ?? selectedReport.cidCode ?? selectedReport.cie ?? '-'
+                        const exam = selectedReport.exam ?? selectedReport.exame ?? selectedReport.especialidade ?? selectedReport.report_type ?? '-'
+                        const diagnosis = selectedReport.diagnosis ?? selectedReport.diagnostico ?? selectedReport.diagnosis_text ?? selectedReport.diagnostico_text ?? ''
+                        const conclusion = selectedReport.conclusion ?? selectedReport.conclusao ?? selectedReport.conclusion_text ?? selectedReport.conclusao_text ?? ''
+                        const notesHtml = selectedReport.content_html ?? selectedReport.conteudo_html ?? selectedReport.contentHtml ?? null
+                        const notesText = selectedReport.content ?? selectedReport.body ?? selectedReport.conteudo ?? selectedReport.notes ?? selectedReport.observacoes ?? ''
+                        return (
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <div className="text-xs text-muted-foreground">CID</div>
+                              <div className="text-foreground">{cid || '-'}</div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-muted-foreground">Exame</div>
+                              <div className="text-foreground">{exam || '-'}</div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-muted-foreground">Diagnóstico</div>
+                              <div className="whitespace-pre-line text-foreground">{diagnosis || '-'}</div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-muted-foreground">Conclusão</div>
+                              <div className="whitespace-pre-line text-foreground">{conclusion || '-'}</div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs text-muted-foreground">Notas do Profissional</div>
+                              {notesHtml ? (
+                                <div className="prose max-w-none p-2 bg-muted rounded" dangerouslySetInnerHTML={{ __html: String(notesHtml) }} />
+                              ) : (
+                                <div className="whitespace-pre-line text-foreground p-2 bg-muted rounded">{notesText || '-'}</div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                      {/* Optional: doctor signature or footer */}
+                      {selectedReport.doctor_signature && (
+                        <div className="mt-4 text-sm text-muted-foreground">Assinatura: <img src={selectedReport.doctor_signature} alt="assinatura" className="inline-block h-10" /></div>
+                      )}
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
+              </DialogFooter>
+            </DialogContent>
         </Dialog>
       </section>
     )
   }
 
-  function Mensagens() {
-    const [msgs, setMsgs] = useState<any[]>([])
-    const [loadingMsgs, setLoadingMsgs] = useState(false)
-    const [msgsError, setMsgsError] = useState<string | null>(null)
-
-    useEffect(() => {
-      let mounted = true
-      if (!patientId) return
-      setLoadingMsgs(true)
-      setMsgsError(null)
-      listarMensagensPorPaciente(String(patientId))
-        .then(res => {
-          if (!mounted) return
-          setMsgs(Array.isArray(res) ? res : [])
-        })
-        .catch(err => {
-          console.warn('[Mensagens] erro ao carregar mensagens', err)
-          if (!mounted) return
-          setMsgsError('Falha ao carregar mensagens.')
-        })
-        .finally(() => { if (mounted) setLoadingMsgs(false) })
-
-      return () => { mounted = false }
-    }, [patientId])
-
-    return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-bold mb-6">Mensagens Recebidas</h2>
-        <div className="space-y-3">
-          {loadingMsgs ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando mensagens...</div>
-          ) : msgsError ? (
-            <div className="text-center py-8 text-red-600">{msgsError}</div>
-          ) : (!msgs || msgs.length === 0) ? (
-            <div className="text-center py-8 text-muted-foreground">Nenhuma mensagem encontrada.</div>
-          ) : (
-            msgs.map((msg: any) => (
-              <div key={msg.id || JSON.stringify(msg)} className="bg-muted rounded p-4">
-                <div className="font-medium text-foreground flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" />
-                  {msg.sender_name || msg.from || msg.doctor_name || 'Remetente'}
-                  {!msg.read && <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-primary text-white">Nova</span>}
-                </div>
-                <div className="text-sm text-muted-foreground mb-2">{new Date(msg.created_at || msg.data || Date.now()).toLocaleString('pt-BR')}</div>
-                <div className="text-foreground whitespace-pre-line">{msg.body || msg.content || msg.text || JSON.stringify(msg)}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-    )
-  }
+  
 
   function Perfil() {
-    const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep || profileData.biografia)
+    const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep)
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
@@ -732,14 +1000,7 @@ export default function PacientePage() {
                   <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
                 )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="biografia">Biografia</Label>
-                {isEditingProfile ? (
-                  <Textarea id="biografia" value={profileData.biografia} onChange={e => handleProfileChange('biografia', e.target.value)} rows={4} placeholder="Conte um pouco sobre você..." />
-                ) : (
-                  <p className="p-2 bg-muted/50 rounded min-h-[100px] text-foreground">{profileData.biografia}</p>
-                )}
-              </div>
+              {/* Biografia removed: not used */}
             </div>
           )}
         </div>
@@ -784,7 +1045,7 @@ export default function PacientePage() {
             <Button variant={tab==='dashboard'?'secondary':'ghost'} aria-current={tab==='dashboard'} onClick={()=>setTab('dashboard')} className="justify-start"><Calendar className="mr-2 h-5 w-5" />{strings.dashboard}</Button>
             <Button variant={tab==='consultas'?'secondary':'ghost'} aria-current={tab==='consultas'} onClick={()=>setTab('consultas')} className="justify-start"><Calendar className="mr-2 h-5 w-5" />{strings.consultas}</Button>
             <Button variant={tab==='exames'?'secondary':'ghost'} aria-current={tab==='exames'} onClick={()=>setTab('exames')} className="justify-start"><FileText className="mr-2 h-5 w-5" />{strings.exames}</Button>
-            <Button variant={tab==='mensagens'?'secondary':'ghost'} aria-current={tab==='mensagens'} onClick={()=>setTab('mensagens')} className="justify-start"><MessageCircle className="mr-2 h-5 w-5" />{strings.mensagens}</Button>
+            
             <Button variant={tab==='perfil'?'secondary':'ghost'} aria-current={tab==='perfil'} onClick={()=>setTab('perfil')} className="justify-start"><UserCog className="mr-2 h-5 w-5" />{strings.perfil}</Button>
           </nav>
           {/* Conteúdo principal */}
@@ -804,7 +1065,7 @@ export default function PacientePage() {
                 {tab==='dashboard' && <DashboardCards />}
                 {tab==='consultas' && <Consultas />}
                 {tab==='exames' && <ExamesLaudos />}
-                {tab==='mensagens' && <Mensagens />}
+                
                 {tab==='perfil' && <Perfil />}
               </main>
             )}

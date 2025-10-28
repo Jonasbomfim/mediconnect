@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { SidebarTrigger } from "../ui/sidebar"
 import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 
 export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
   const { logout, user } = useAuth();
+  const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -84,7 +86,14 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
               </div>
               
               <div className="py-1">
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer">
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDropdownOpen(false);
+                    router.push('/perfil');
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                >
                   👤 Perfil
                 </button>
                 <button className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer">

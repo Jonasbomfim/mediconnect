@@ -2390,6 +2390,47 @@ export async function getUserInfo(): Promise<UserInfo> {
   return await parse<UserInfo>(res);
 }
 
+/**
+ * Retorna dados de usuário específico (apenas admin/gestor)
+ * 
+ * Endpoint: POST /functions/v1/user-info-by-id/{userId}
+ * 
+ * @param userId - UUID do usuário a ser consultado
+ * @returns Informações do usuário (user, profile, roles)
+ * @throws Erro se não autenticado (401) ou sem permissão (403)
+ * 
+ * Documentação: https://docs.mediconnect.com
+ */
+export async function getUserInfoById(userId: string): Promise<UserInfo> {
+  const jwt = getAuthToken();
+  if (!jwt) {
+    // No token available — avoid calling the protected function and throw a friendly error
+    throw new Error('Você não está autenticado. Faça login para acessar informações do usuário.');
+  }
+
+  if (!userId) {
+    throw new Error('userId é obrigatório');
+  }
+
+  // ID na URL path, não no body
+  const url = `${API_BASE}/functions/v1/user-info-by-id/${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: baseHeaders(),
+  });
+
+  // Avoid calling parse() for auth errors to prevent noisy console dumps
+  if (!res.ok && res.status === 401) {
+    throw new Error('Você não está autenticado. Faça login novamente.');
+  }
+
+  if (!res.ok && res.status === 403) {
+    throw new Error('Você não tem permissão para acessar informações de outro usuário. Apenas admin/gestor podem.');
+  }
+
+  return await parse<UserInfo>(res);
+}
+
 export type CreateUserInput = {
   email: string;
   password: string;
@@ -2920,3 +2961,206 @@ export async function excluirPerfil(id: string | number): Promise<void> {
   await parse<any>(res);
 }
 
+// ===== DASHBOARD WIDGETS =====
+
+/**
+ * Busca contagem total de pacientes
+ */
+export async function countTotalPatients(): Promise<number> {
+  try {
+    const url = `${REST}/patients?select=id&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        ...baseHeaders(),
+        'Prefer': 'count=exact'
+      }
+    });
+    const countHeader = res.headers.get('content-range');
+    if (countHeader) {
+      const match = countHeader.match(/\/(\d+)$/);
+      return match ? parseInt(match[1]) : 0;
+    }
+    return 0;
+  } catch (err) {
+    console.error('[countTotalPatients] Erro:', err);
+    return 0;
+  }
+}
+
+/**
+ * Busca contagem total de médicos
+ */
+export async function countTotalDoctors(): Promise<number> {
+  try {
+    const url = `${REST}/doctors?select=id&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        ...baseHeaders(),
+        'Prefer': 'count=exact'
+      }
+    });
+    const countHeader = res.headers.get('content-range');
+    if (countHeader) {
+      const match = countHeader.match(/\/(\d+)$/);
+      return match ? parseInt(match[1]) : 0;
+    }
+    return 0;
+  } catch (err) {
+    console.error('[countTotalDoctors] Erro:', err);
+    return 0;
+  }
+}
+
+/**
+ * Busca contagem de agendamentos para hoje
+ */
+export async function countAppointmentsToday(): Promise<number> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    
+    const url = `${REST}/appointments?scheduled_at=gte.${today}T00:00:00&scheduled_at=lt.${tomorrow}T00:00:00&select=id&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        ...baseHeaders(),
+        'Prefer': 'count=exact'
+      }
+    });
+    const countHeader = res.headers.get('content-range');
+    if (countHeader) {
+      const match = countHeader.match(/\/(\d+)$/);
+      return match ? parseInt(match[1]) : 0;
+    }
+    return 0;
+  } catch (err) {
+    console.error('[countAppointmentsToday] Erro:', err);
+    return 0;
+  }
+}
+
+/**
+ * Busca próximas consultas (próximos 7 dias)
+ */
+export async function getUpcomingAppointments(limit: number = 10): Promise<any[]> {
+  try {
+    const today = new Date().toISOString();
+    const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString();
+    
+    const url = `${REST}/appointments?scheduled_at=gte.${today}&scheduled_at=lt.${nextWeek}&order=scheduled_at.asc&limit=${limit}&select=id,scheduled_at,status,doctor_id,patient_id`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    return await parse<any[]>(res);
+  } catch (err) {
+    console.error('[getUpcomingAppointments] Erro:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca agendamentos por data (para gráfico)
+ */
+export async function getAppointmentsByDateRange(days: number = 14): Promise<any[]> {
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const endDate = new Date().toISOString();
+    
+    const url = `${REST}/appointments?scheduled_at=gte.${startDate.toISOString()}&scheduled_at=lt.${endDate}&select=scheduled_at,status&order=scheduled_at.asc`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    return await parse<any[]>(res);
+  } catch (err) {
+    console.error('[getAppointmentsByDateRange] Erro:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca novos usuários (últimos 7 dias)
+ */
+export async function getNewUsersLastDays(days: number = 7): Promise<any[]> {
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const url = `${REST}/profiles?created_at=gte.${startDate.toISOString()}&order=created_at.desc&limit=10&select=id,full_name,email`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    return await parse<any[]>(res);
+  } catch (err) {
+    console.error('[getNewUsersLastDays] Erro:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca relatórios pendentes (draft)
+ */
+export async function getPendingReports(limit: number = 5): Promise<any[]> {
+  try {
+    const url = `${REST}/reports?status=eq.draft&order=created_at.desc&limit=${limit}&select=id,order_number,patient_id,exam,requested_by,created_at`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    return await parse<any[]>(res);
+  } catch (err) {
+    console.error('[getPendingReports] Erro:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca usuários desabilitados (alertas)
+ */
+export async function getDisabledUsers(limit: number = 5): Promise<any[]> {
+  try {
+    const url = `${REST}/profiles?disabled=eq.true&order=updated_at.desc&limit=${limit}&select=id,full_name,email,disabled`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    return await parse<any[]>(res);
+  } catch (err) {
+    console.error('[getDisabledUsers] Erro:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca disponibilidade de médicos (para hoje)
+ */
+export async function getDoctorsAvailabilityToday(): Promise<any[]> {
+  try {
+    const today = new Date();
+    const weekday = today.getDay();
+    
+    const url = `${REST}/doctor_availability?weekday=eq.${weekday}&active=eq.true&select=id,doctor_id,start_time,end_time,slot_minutes,appointment_type`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    return await parse<any[]>(res);
+  } catch (err) {
+    console.error('[getDoctorsAvailabilityToday] Erro:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca detalhes de paciente por ID
+ */
+export async function getPatientById(patientId: string): Promise<any> {
+  try {
+    const url = `${REST}/patients?id=eq.${patientId}&select=*&limit=1`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    const arr = await parse<any[]>(res);
+    return arr && arr.length > 0 ? arr[0] : null;
+  } catch (err) {
+    console.error('[getPatientById] Erro:', err);
+    return null;
+  }
+}
+
+/**
+ * Busca detalhes de médico por ID
+ */
+export async function getDoctorById(doctorId: string): Promise<any> {
+  try {
+    const url = `${REST}/doctors?id=eq.${doctorId}&select=*&limit=1`;
+    const res = await fetch(url, { headers: baseHeaders() });
+    const arr = await parse<any[]>(res);
+    return arr && arr.length > 0 ? arr[0] : null;
+  } catch (err) {
+    console.error('[getDoctorById] Erro:', err);
+    return null;
+  }
+}

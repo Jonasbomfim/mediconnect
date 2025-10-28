@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { loginUser, logoutUser, AuthenticationError } from '@/lib/auth'
-import { getUserInfo } from '@/lib/api'
+import { getUserInfo, getCurrentUser } from '@/lib/api'
 import { ENV_CONFIG } from '@/lib/env-config'
 import { isExpired, parseJwt } from '@/lib/jwt'
 import { httpClient } from '@/lib/http'
@@ -132,6 +132,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Restaurar sessão válida
       const userData = JSON.parse(storedUser) as UserData
       setToken(storedToken)
+      // Também buscar o usuário autenticado (/auth/v1/user) para garantir id/email atualizados
+      try {
+        const authUser = await getCurrentUser().catch(() => null)
+        if (authUser) {
+          userData.id = authUser.id ?? userData.id
+          userData.email = authUser.email ?? userData.email
+        }
+      } catch (e) {
+        console.warn('[AUTH] Falha ao buscar /auth/v1/user durante restauração de sessão:', e)
+      }
       // Tentar buscar profile consolidado (user-info) e mesclar
       try {
         const info = await getUserInfo()
@@ -245,6 +255,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.warn('[AUTH] Falha ao buscar user-info após login (não crítico):', err)
+      }
+
+      // Também chamar /auth/v1/user para obter dados básicos do usuário autenticado
+      try {
+        const curRes = await fetch(`${ENV_CONFIG.SUPABASE_URL}/auth/v1/user`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${response.access_token}`,
+            'apikey': ENV_CONFIG.SUPABASE_ANON_KEY,
+          }
+        })
+        if (curRes.ok) {
+          const cu = await curRes.json().catch(() => null)
+          if (cu && response.user) {
+            response.user.id = cu.id ?? response.user.id
+            response.user.email = cu.email ?? response.user.email
+          }
+        } else {
+          // não crítico
+          console.warn('[AUTH] /auth/v1/user retornou', curRes.status)
+        }
+      } catch (e) {
+        console.warn('[AUTH] Erro ao chamar /auth/v1/user após login (não crítico):', e)
       }
 
       saveAuthData(

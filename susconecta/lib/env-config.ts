@@ -19,8 +19,19 @@ function extractProjectRef(url: string): string | null {
  */
 function extractProjectRefFromKey(apiKey: string): string | null {
   try {
-    const payload = JSON.parse(atob(apiKey.split('.')[1]));
-    return payload.ref || null;
+    const part = apiKey.split('.')[1];
+    if (!part) return null;
+    // Decode base64 payload in both browser and Node environments
+    let jsonStr: string | null = null;
+    if (typeof atob === 'function') {
+      try { jsonStr = atob(part); } catch (e) { jsonStr = null; }
+    }
+    if (!jsonStr && typeof Buffer !== 'undefined') {
+      try { jsonStr = Buffer.from(part, 'base64').toString('utf8'); } catch (e) { jsonStr = null; }
+    }
+    if (!jsonStr) return null;
+    const payload = JSON.parse(jsonStr);
+    return payload?.ref ?? payload?.project_ref ?? null;
   } catch {
     return null;
   }

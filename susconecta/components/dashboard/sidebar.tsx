@@ -25,14 +25,13 @@ import {
   FileText,
   BarChart3,
   Stethoscope,
-  User,
 } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Calendario", href: "/calendar", icon: Calendar },
   { name: "Pacientes", href: "/pacientes", icon: Users },
-  { name: "Médicos", href: "/doutores", icon: User },
+  { name: "Médicos", href: "/doutores", icon: Stethoscope },
   { name: "Consultas", href: "/consultas", icon: UserCheck },
   { name: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
 ]

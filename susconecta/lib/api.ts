@@ -2390,6 +2390,47 @@ export async function getUserInfo(): Promise<UserInfo> {
   return await parse<UserInfo>(res);
 }
 
+/**
+ * Retorna dados de usuário específico (apenas admin/gestor)
+ * 
+ * Endpoint: POST /functions/v1/user-info-by-id/{userId}
+ * 
+ * @param userId - UUID do usuário a ser consultado
+ * @returns Informações do usuário (user, profile, roles)
+ * @throws Erro se não autenticado (401) ou sem permissão (403)
+ * 
+ * Documentação: https://docs.mediconnect.com
+ */
+export async function getUserInfoById(userId: string): Promise<UserInfo> {
+  const jwt = getAuthToken();
+  if (!jwt) {
+    // No token available — avoid calling the protected function and throw a friendly error
+    throw new Error('Você não está autenticado. Faça login para acessar informações do usuário.');
+  }
+
+  if (!userId) {
+    throw new Error('userId é obrigatório');
+  }
+
+  // ID na URL path, não no body
+  const url = `${API_BASE}/functions/v1/user-info-by-id/${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: baseHeaders(),
+  });
+
+  // Avoid calling parse() for auth errors to prevent noisy console dumps
+  if (!res.ok && res.status === 401) {
+    throw new Error('Você não está autenticado. Faça login novamente.');
+  }
+
+  if (!res.ok && res.status === 403) {
+    throw new Error('Você não tem permissão para acessar informações de outro usuário. Apenas admin/gestor podem.');
+  }
+
+  return await parse<UserInfo>(res);
+}
+
 export type CreateUserInput = {
   email: string;
   password: string;

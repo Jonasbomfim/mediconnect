@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import { sendMagicLink } from '@/lib/api'
+import { ENV_CONFIG } from '@/lib/env-config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,6 +74,84 @@ export default function LoginPacientePage() {
       setMagicError(err?.message ?? String(err))
     } finally {
       setMagicLoading(false)
+    }
+  }
+
+  // --- Auto-cadastro (client-side) ---
+  const [showRegister, setShowRegister] = useState(false)
+  const [reg, setReg] = useState({ email: '', full_name: '', phone_mobile: '', cpf: '', birth_date: '' })
+  const [regLoading, setRegLoading] = useState(false)
+  const [regError, setRegError] = useState('')
+  const [regSuccess, setRegSuccess] = useState('')
+
+  function cleanCpf(cpf: string) {
+    return String(cpf || '').replace(/\D/g, '')
+  }
+
+  function validateCPF(cpfRaw: string) {
+    const cpf = cleanCpf(cpfRaw)
+    if (!/^\d{11}$/.test(cpf)) return false
+    if (/^([0-9])\1+$/.test(cpf)) return false
+    const digits = cpf.split('').map((d) => Number(d))
+    const calc = (len: number) => {
+      let sum = 0
+      for (let i = 0; i < len; i++) sum += digits[i] * (len + 1 - i)
+      const v = (sum * 10) % 11
+      return v === 10 ? 0 : v
+    }
+    return calc(9) === digits[9] && calc(10) === digits[10]
+  }
+
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setRegError('')
+    setRegSuccess('')
+
+    // client-side validation
+    if (!reg.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(reg.email)) return setRegError('Email inválido')
+    if (!reg.full_name || reg.full_name.trim().length < 3) return setRegError('Nome deve ter ao menos 3 caracteres')
+    if (!reg.phone_mobile || !/^\d{10,11}$/.test(reg.phone_mobile)) return setRegError('Telefone inválido (10-11 dígitos)')
+    if (!reg.cpf || !/^\d{11}$/.test(cleanCpf(reg.cpf))) return setRegError('CPF deve conter 11 dígitos')
+    if (!validateCPF(reg.cpf)) return setRegError('CPF inválido')
+
+    setRegLoading(true)
+    try {
+      const url = `${ENV_CONFIG.SUPABASE_URL}/functions/v1/register-patient`
+        const body = {
+          email: reg.email,
+          full_name: reg.full_name,
+          phone_mobile: reg.phone_mobile,
+          cpf: cleanCpf(reg.cpf),
+          // always include redirect to patient landing as requested
+          redirect_url: 'https://mediconecta-app-liart.vercel.app/'
+        } as any
+        if (reg.birth_date) body.birth_date = reg.birth_date
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      const json = await res.json().catch(() => null)
+      if (res.ok) {
+        setRegSuccess(json?.message ?? 'Cadastro realizado com sucesso! Verifique seu email para acessar a plataforma.')
+        // clear form but keep email for convenience
+        setReg({ ...reg, full_name: '', phone_mobile: '', cpf: '', birth_date: '' })
+      } else if (res.status === 400) {
+        setRegError(json?.error ?? json?.message ?? 'Dados inválidos')
+      } else if (res.status === 409) {
+        setRegError(json?.error ?? 'CPF ou email já cadastrado')
+      } else if (res.status === 429) {
+        setRegError(json?.error ?? 'Rate limit excedido. Tente novamente mais tarde.')
+      } else {
+        setRegError(json?.error ?? json?.message ?? `Erro (${res.status})`)
+      }
+    } catch (err: any) {
+      console.error('[REGISTER PACIENTE] erro', err)
+      setRegError(err?.message ?? String(err))
+    } finally {
+      setRegLoading(false)
     }
   }
 
@@ -166,6 +245,53 @@ export default function LoginPacientePage() {
                   Voltar ao Início
                 </Link>
               </Button>
+            </div>
+            <div className="mt-6">
+              <div className="text-sm text-muted-foreground mb-2">Ainda não tem conta? <button className="text-primary underline ml-2" onClick={() => setShowRegister(!showRegister)}>{showRegister ? 'Fechar' : 'Criar conta'}</button></div>
+
+              {showRegister && (
+                <Card className="mt-2">
+                  <CardHeader>
+                    <CardTitle className="text-center">Auto-cadastro de Paciente</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleRegister} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">Nome completo</label>
+                        <Input value={reg.full_name} onChange={(e) => setReg({...reg, full_name: e.target.value})} required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">Email</label>
+                        <Input type="email" value={reg.email} onChange={(e) => setReg({...reg, email: e.target.value})} required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">Telefone (apenas números)</label>
+                        <Input value={reg.phone_mobile} onChange={(e) => setReg({...reg, phone_mobile: e.target.value.replace(/\D/g,'')})} placeholder="11999998888" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">CPF (11 dígitos)</label>
+                        <Input value={reg.cpf} onChange={(e) => setReg({...reg, cpf: e.target.value.replace(/\D/g,'')})} placeholder="12345678901" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">Data de nascimento (opcional)</label>
+                        <Input type="date" value={reg.birth_date} onChange={(e) => setReg({...reg, birth_date: e.target.value})} />
+                      </div>
+
+                      {regError && (
+                        <Alert variant="destructive"><AlertDescription>{regError}</AlertDescription></Alert>
+                      )}
+                      {regSuccess && (
+                        <Alert><AlertDescription>{regSuccess}</AlertDescription></Alert>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button type="submit" className="flex-1" disabled={regLoading}>{regLoading ? 'Criando...' : 'Criar Conta'}</Button>
+                        <Button variant="ghost" onClick={() => setShowRegister(false)} disabled={regLoading}>Cancelar</Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </CardContent>
         </Card>

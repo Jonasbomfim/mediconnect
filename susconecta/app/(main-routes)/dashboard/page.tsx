@@ -283,15 +283,15 @@ export default function DashboardPage() {
             <Plus className="h-4 w-4" />
             Novo Paciente
           </Button>
-          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2">
+          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
             <Calendar className="h-4 w-4" />
             Novo Agendamento
           </Button>
-          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2">
+          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
             <Stethoscope className="h-4 w-4" />
             Novo Médico
           </Button>
-          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2">
+          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
             <FileText className="h-4 w-4" />
             Ver Relatórios
           </Button>

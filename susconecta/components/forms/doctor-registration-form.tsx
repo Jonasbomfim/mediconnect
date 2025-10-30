@@ -1165,7 +1165,7 @@ async function handleSubmit(ev: React.FormEvent) {
         </Collapsible>
 
         <div className="flex justify-end gap-4 pt-6 border-t">
-          <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
+          <Button type="button" variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
             <XCircle className="mr-2 h-4 w-4" />
             Cancelar
           </Button>

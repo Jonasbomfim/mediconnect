@@ -437,7 +437,7 @@ export default function ConsultasPage() {
         </div>
   <CalendarRegistrationForm formData={localForm} onFormChange={onFormChange} createMode={true} />
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={handleCancel}>
             Cancelar
           </Button>
           <Button onClick={saveLocal}>Salvar</Button>

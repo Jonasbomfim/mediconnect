@@ -476,7 +476,7 @@ export function PatientRegistrationForm({
         </Collapsible>
 
         <div className="flex justify-end gap-4 pt-6 border-t">
-          <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}><XCircle className="mr-2 h-4 w-4" /> Cancelar</Button>
+          <Button type="button" variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}><XCircle className="mr-2 h-4 w-4" /> Cancelar</Button>
           <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{isSubmitting ? "Salvando..." : mode === "create" ? "Salvar Paciente" : "Atualizar Paciente"}</Button>
         </div>
       </form>

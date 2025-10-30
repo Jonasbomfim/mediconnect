@@ -730,6 +730,60 @@ export default function PacientePage() {
     const [loadingReports, setLoadingReports] = useState(false)
     const [reportsError, setReportsError] = useState<string | null>(null)
     const [reportDoctorName, setReportDoctorName] = useState<string | null>(null)
+  const [doctorsMap, setDoctorsMap] = useState<Record<string, any>>({})
+
+    // Helper to derive a human-friendly title for a report/laudo
+    const reportTitle = (rep: any, preferDoctorName?: string | null) => {
+      if (!rep) return 'Laudo'
+      // prefer a resolved doctor name when we have a map
+      try {
+        const maybeId = rep?.doctor_id ?? rep?.created_by ?? rep?.doctor ?? null
+        if (maybeId) {
+          const doc = doctorsMap[String(maybeId)]
+          if (doc) {
+            const name = doc.full_name || doc.name || doc.fullName || doc.doctor_name || null
+            if (name) return String(name)
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      // Try common fields that may contain the doctor's/author name first
+      const tryKeys = [
+        'doctor_name', 'doctor_full_name', 'doctorFullName', 'doctorName',
+        'requested_by_name', 'requested_by', 'requester_name', 'requester',
+        'created_by_name', 'created_by', 'executante', 'executante_name',
+        'title', 'name', 'report_name', 'report_title'
+      ]
+      for (const k of tryKeys) {
+        const v = rep[k]
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
+      }
+      if (preferDoctorName) return preferDoctorName
+      return 'Laudo'
+    }
+
+    // When reports are loaded, try to resolve doctor records for display
+    useEffect(() => {
+      let mounted = true
+      if (!reports || !Array.isArray(reports) || reports.length === 0) return
+      ;(async () => {
+        try {
+          const ids = Array.from(new Set(reports.map((r: any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
+          if (ids.length === 0) return
+          const docs = await buscarMedicosPorIds(ids).catch(() => [])
+          if (!mounted) return
+          const map: Record<string, any> = {}
+          for (const d of docs || []) {
+            if (d && d.id !== undefined && d.id !== null) map[String(d.id)] = d
+          }
+          setDoctorsMap(map)
+        } catch (e) {
+          // ignore resolution errors
+        }
+      })()
+      return () => { mounted = false }
+    }, [reports])
 
     useEffect(() => {
       let mounted = true
@@ -789,11 +843,11 @@ export default function PacientePage() {
             <div className="text-center py-8 text-red-600">{reportsError}</div>
           ) : (!reports || reports.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
-          ) : (
+            ) : (
             reports.map((r) => (
               <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
                 <div>
-                  <div className="font-medium text-foreground">{r.title || r.name || r.report_name || 'Laudo'}</div>
+                  <div className="font-medium text-foreground">{reportTitle(r)}</div>
                   <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
@@ -813,7 +867,7 @@ export default function PacientePage() {
                   {selectedReport && (
                     <>
                       <div className="mb-2">
-                        <div className="font-semibold text-lg">{selectedReport.title || selectedReport.name || 'Laudo'}</div>
+                        <div className="font-semibold text-lg">{reportTitle(selectedReport, reportDoctorName)}</div>
                         <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                         {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
                       </div>

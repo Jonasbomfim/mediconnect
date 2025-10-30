@@ -170,6 +170,7 @@ export default function AgendamentoPage() {
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                 initialView="dayGridMonth"
                 locale={pt_br_locale}
+                timeZone={"America/Sao_Paulo"}
                 events={requestsList}
                 headerToolbar={{
                   left: "prev,next today",

@@ -690,9 +690,9 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
+              className="p-2 hover:!bg-primary hover:!text-white cursor-pointer transition-colors"
             >
-              <ChevronLeft className="h-4 w-4 hover:!text-white" />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
             <h3 className="text-lg font-medium text-foreground">
               {formatDate(currentCalendarDate)}
@@ -701,9 +701,9 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 hover:bg-blue-50 cursor-pointer dark:hover:bg-primary dark:hover:text-primary-foreground"
+              className="p-2 hover:!bg-primary hover:!text-white cursor-pointer transition-colors"
             >
-              <ChevronRight className="h-4 w-4 hover:!text-white" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
             
           </div>
@@ -900,7 +900,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'todos' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('todos')}
-            className="hover:bg-primary/10 hover:text-primary"
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Todos
           </Button>
@@ -908,7 +908,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'semana' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('semana')}
-            className="hover:bg-primary/10 hover:text-primary"
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Semana
           </Button>
@@ -916,7 +916,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'mes' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('mes')}
-            className="hover:bg-primary/10 hover:text-primary"
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Mês
           </Button>
@@ -1077,7 +1077,7 @@ const ProfissionalPage = () => {
             <Button size="sm" onClick={doSearch} disabled={searching}>
               Buscar
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleClear}>
+            <Button size="sm" variant="ghost" onClick={handleClear} className="hover:!bg-primary hover:!text-white transition-colors">
               Limpar
             </Button>
           </div>
@@ -1383,7 +1383,7 @@ const ProfissionalPage = () => {
                                 setIsViewing(true);
                               }
                             }}
-                            className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
+                            className="flex items-center gap-1 hover:!bg-primary hover:!text-white transition-colors"
                           >
                             <Eye className="w-4 h-4" />
                             Ver Laudo
@@ -2457,7 +2457,7 @@ const ProfissionalPage = () => {
                 Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+                <Button variant="outline" onClick={onClose} className="hover:!bg-primary hover:!text-white transition-colors">
                   Cancelar
                 </Button>
                 {/* botão 'Salvar Rascunho' removido por não ser utilizado */}
@@ -2656,7 +2656,7 @@ const ProfissionalPage = () => {
             <Button onClick={handleSaveProfile} className="flex items-center gap-2">
               Salvar
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit} className="hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground">
+            <Button variant="outline" onClick={handleCancelEdit} className="hover:!bg-primary hover:!text-white transition-colors">
               Cancelar
             </Button>
           </div>
@@ -2779,7 +2779,7 @@ const ProfissionalPage = () => {
           </Avatar>
           {isEditingProfile && (
             <div className="space-y-2">
-              <Button variant="outline" size="sm" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
+              <Button variant="outline" size="sm" className="hover:!bg-primary hover:!text-white transition-colors">
                 Alterar Foto
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -2875,7 +2875,7 @@ const ProfissionalPage = () => {
           <nav className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
               onClick={() => setActiveSection('calendario')}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -2883,7 +2883,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'pacientes' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
               onClick={() => setActiveSection('pacientes')}
             >
               <Users className="mr-2 h-4 w-4" />
@@ -2891,7 +2891,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
               onClick={() => setActiveSection('laudos')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -2899,7 +2899,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
@@ -2907,7 +2907,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary hover:text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
               onClick={() => setActiveSection('perfil')}
             >
               <Settings className="mr-2 h-4 w-4" />
@@ -2957,7 +2957,7 @@ const ProfissionalPage = () => {
                   <Button
                     onClick={() => setShowPopup(false)}
                     variant="outline"
-                    className="flex-1 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
+                    className="flex-1 hover:!bg-primary hover:!text-white transition-colors"
                   >
                     Cancelar
                   </Button>
@@ -3072,7 +3072,7 @@ const ProfissionalPage = () => {
             <Button
               onClick={() => setShowActionModal(false)}
               variant="outline"
-              className="w-full mt-2 hover:bg-blue-50 dark:hover:bg-accent dark:hover:text-accent-foreground"
+              className="w-full mt-2 hover:!bg-primary hover:!text-white transition-colors"
             >
               Cancelar
             </Button>

@@ -982,7 +982,7 @@ export default function PacientePage() {
           <div className="flex items-center gap-2">
             <User className="h-6 w-6 text-primary" aria-hidden />
             <span className="font-bold">Portal do Paciente</span>
-            <Button asChild variant="outline" className="ml-4">
+            <Button asChild variant="outline" className="ml-4 hover:!bg-primary hover:!text-white hover:!border-primary transition-colors">
               <Link href="/">
                 <Home className="h-4 w-4 mr-1" /> Início
               </Link>
@@ -990,7 +990,15 @@ export default function PacientePage() {
           </div>
           <div className="flex items-center gap-2">
             <SimpleThemeToggle />
-            <Button onClick={handleLogout} variant="destructive" aria-label={strings.sair} disabled={loading} className="ml-2"><LogOut className="h-4 w-4" /> {strings.sair}</Button>
+            <Button 
+              onClick={handleLogout} 
+              variant="outline" 
+              aria-label={strings.sair} 
+              disabled={loading} 
+              className="ml-2 bg-background hover:!bg-destructive hover:!text-white hover:!border-destructive transition-colors"
+            >
+              <LogOut className="h-4 w-4" /> {strings.sair}
+            </Button>
           </div>
         </header>
 
@@ -1001,7 +1009,7 @@ export default function PacientePage() {
               variant={tab==='dashboard'?'secondary':'ghost'}
               aria-current={tab==='dashboard'}
               onClick={()=>setTab('dashboard')}
-              className={`justify-start ${tab==='dashboard' ? 'bg-primary/10 text-primary' : ''}`}
+              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='dashboard' ? 'bg-primary/10 text-primary' : ''}`}
             >
               <Calendar className="mr-2 h-5 w-5" />{strings.dashboard}
             </Button>
@@ -1009,7 +1017,7 @@ export default function PacientePage() {
               variant={tab==='consultas'?'secondary':'ghost'}
               aria-current={tab==='consultas'}
               onClick={()=>setTab('consultas')}
-              className={`justify-start ${tab==='consultas' ? 'bg-primary/10 text-primary' : ''}`}
+              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='consultas' ? 'bg-primary/10 text-primary' : ''}`}
             >
               <Calendar className="mr-2 h-5 w-5" />{strings.consultas}
             </Button>
@@ -1017,7 +1025,7 @@ export default function PacientePage() {
               variant={tab==='exames'?'secondary':'ghost'}
               aria-current={tab==='exames'}
               onClick={()=>setTab('exames')}
-              className={`justify-start ${tab==='exames' ? 'bg-primary/10 text-primary' : ''}`}
+              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='exames' ? 'bg-primary/10 text-primary' : ''}`}
             >
               <FileText className="mr-2 h-5 w-5" />{strings.exames}
             </Button>
@@ -1026,7 +1034,7 @@ export default function PacientePage() {
               variant={tab==='perfil'?'secondary':'ghost'}
               aria-current={tab==='perfil'}
               onClick={()=>setTab('perfil')}
-              className={`justify-start ${tab==='perfil' ? 'bg-primary/10 text-primary' : ''}`}
+              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='perfil' ? 'bg-primary/10 text-primary' : ''}`}
             >
               <UserCog className="mr-2 h-5 w-5" />{strings.perfil}
             </Button>

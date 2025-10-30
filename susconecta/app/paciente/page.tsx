@@ -558,65 +558,14 @@ export default function PacientePage() {
           </header>
 
           <div className="space-y-6 rounded-lg border border-border bg-muted/40 p-6">
-            <div className="space-y-3">
-              <Label>Tipo de consulta</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  className={tipoConsulta === 'teleconsulta' ? activeToggleClass : inactiveToggleClass}
-                  aria-pressed={tipoConsulta === 'teleconsulta'}
-                  onClick={() => setTipoConsulta('teleconsulta')}
-                >
-                  Teleconsulta
-                </Button>
-                <Button
-                  type="button"
-                  className={tipoConsulta === 'presencial' ? activeToggleClass : inactiveToggleClass}
-                  aria-pressed={tipoConsulta === 'presencial'}
-                  onClick={() => setTipoConsulta('presencial')}
-                >
-                  Consulta no local
-                </Button>
-              </div>
+            {/* Remover campos de especialidade e localização, deixar só o botão centralizado */}
+            <div className="flex justify-center">
+              <Button asChild className={`w-full md:w-40 ${hoverPrimaryClass}`}>
+                <Link href={buildResultadosHref()} prefetch={false}>
+                  Pesquisar
+                </Link>
+              </Button>
             </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Especialidade</Label>
-                <Select value={especialidade} onValueChange={setEspecialidade}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cardiologia">Cardiologia</SelectItem>
-                    <SelectItem value="pediatria">Pediatria</SelectItem>
-                    <SelectItem value="dermatologia">Dermatologia</SelectItem>
-                    <SelectItem value="ortopedia">Ortopedia</SelectItem>
-                    <SelectItem value="ginecologia">Ginecologia</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Localização (opcional)</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={localizacao}
-                    onChange={event => setLocalizacao(event.target.value)}
-                    placeholder="Cidade ou estado"
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Botão agora redireciona direto para /resultados */}
-            <Button asChild className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}>
-              <Link href={buildResultadosHref()} prefetch={false}>
-                Pesquisar
-              </Link>
-            </Button>
           </div>
 
           <div className="text-center">

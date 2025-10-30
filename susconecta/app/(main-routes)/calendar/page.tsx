@@ -165,25 +165,118 @@ export default function AgendamentoPage() {
           </div>
 
           {activeTab === "calendar" ? (
-            <div className="flex w-full">
-              <FullCalendar
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView="dayGridMonth"
-                locale={pt_br_locale}
-                events={requestsList}
-                headerToolbar={{
-                  left: "prev,next today",
-                  center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay",
-                }}
-                dateClick={(info) => {
-                  info.view.calendar.changeView("timeGridDay", info.dateStr);
-                }}
-                selectable={true}
-                selectMirror={true}
-                dayMaxEvents={true}
-                dayMaxEventRows={3}
-              />
+            <div className="flex w-full flex-col">
+              {/* Cabeçalho do calendário */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full"
+                    onClick={() => {
+                        const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                        if (calendarApi) calendarApi.prev();
+                      }}
+                  >
+                    &lt;
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full"
+                    onClick={() => {
+                        const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                        if (calendarApi) calendarApi.today();
+                      }}
+                  >
+                    Hoje
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full"
+                    onClick={() => {
+                        const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                        if (calendarApi) calendarApi.next();
+                      }}
+                  >
+                    &gt;
+                  </Button>
+                  <span className="ml-4 text-xl font-semibold" id="calendar-title"></span>
+                </div>
+                <div className="flex gap-2 mt-4 md:mt-0">
+                  <Button
+                    variant="outline"
+                    className="rounded-[8px] px-4"
+                    onClick={() => {
+                      const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                      if (calendarApi) calendarApi.changeView('dayGridMonth');
+                    }}
+                  >
+                    Mês
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-[8px] px-4"
+                    onClick={() => {
+                      const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                      if (calendarApi) calendarApi.changeView('timeGridWeek');
+                    }}
+                  >
+                    Semana
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-[8px] px-4"
+                    onClick={() => {
+                      const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                      if (calendarApi) calendarApi.changeView('timeGridDay');
+                    }}
+                  >
+                    Dia
+                  </Button>
+                </div>
+              </div>
+              {/* Calendário em si */}
+              <div className="rounded-lg border bg-white dark:bg-card p-2 shadow">
+                <FullCalendar
+                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                  initialView="dayGridMonth"
+                  locale={pt_br_locale}
+                  events={requestsList}
+                  headerToolbar={false}
+                  height="auto"
+                  datesSet={(info) => {
+                    // Atualiza o título do calendário para ficar igual ao Google Calendar
+                    const title = info.view.title.charAt(0).toUpperCase() + info.view.title.slice(1);
+                    const el = document.getElementById('calendar-title');
+                    if (el) el.textContent = title;
+                  }}
+                  dayMaxEvents={3}
+                  dayMaxEventRows={3}
+                  eventDisplay="block"
+                  eventTimeFormat={{
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  }}
+                  eventContent={function(arg) {
+                    // Mostra horário e nome do paciente, igual ao Google Calendar
+                    const time = arg.timeText ? <b>{arg.timeText}</b> : null;
+                    return (
+                      <div className="flex flex-col text-xs">
+                        <span>{time} {arg.event.title}</span>
+                      </div>
+                    );
+                  }}
+                  dateClick={(info) => {
+                    // Ao clicar em um dia, muda para o modo dia igual ao Google Calendar
+                    info.view.calendar.changeView("timeGridDay", info.dateStr);
+                  }}
+                  selectable={true}
+                  selectMirror={true}
+                />
+              </div>
             </div>
           ) : (
             <ListaEspera

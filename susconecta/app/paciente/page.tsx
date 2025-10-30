@@ -347,11 +347,11 @@ export default function PacientePage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Calendar className="h-6 w-6" aria-hidden />
             </div>
-            <span className="text-lg md:text-xl font-medium text-muted-foreground tracking-wide">
+            {/* rótulo e número com mesma fonte e mesmo tamanho (harmônico) */}
+            <span className="text-lg md:text-xl font-semibold text-muted-foreground tracking-wide">
               {strings.proximaConsulta}
             </span>
-            {/* mesmo tamanho e fonte do rótulo */}
-            <span className="text-lg md:text-xl font-medium text-foreground" aria-live="polite">
+            <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
               {loading ? '—' : (nextAppt ?? '-')}
             </span>
           </div>
@@ -362,11 +362,10 @@ export default function PacientePage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <FileText className="h-6 w-6" aria-hidden />
             </div>
-            <span className="text-lg md:text-xl font-medium text-muted-foreground tracking-wide">
+            <span className="text-lg md:text-xl font-semibold text-muted-foreground tracking-wide">
               {strings.ultimosExames}
             </span>
-            {/* mesmo tamanho e fonte do rótulo */}
-            <span className="text-lg md:text-xl font-medium text-foreground" aria-live="polite">
+            <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
               {loading ? '—' : (examsCount !== null ? String(examsCount) : '-')}
             </span>
           </div>
@@ -864,20 +863,20 @@ export default function PacientePage() {
             <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
             ) : (
             reports.map((r) => (
-              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
+              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-5">
                 <div>
-                  <div className="font-medium text-foreground">{reportTitle(r)}</div>
-                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                  <div className="font-medium text-foreground text-lg md:text-xl">{reportTitle(r)}</div>
+                  <div className="text-base md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
-                <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
+                <div className="flex gap-2 mt-3 md:mt-0">
+                  <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground text-sm md:text-base" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" className="text-sm md:text-base" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
             ))
           )}
         </div>
-
+ 
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
               <DialogHeader>
@@ -886,7 +885,7 @@ export default function PacientePage() {
                   {selectedReport && (
                     <>
                       <div className="mb-2">
-                        <div className="font-semibold text-lg">{reportTitle(selectedReport, reportDoctorName)}</div>
+                        <div className="font-semibold text-xl md:text-2xl">{reportTitle(selectedReport, reportDoctorName)}</div>
                         <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                         {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
                       </div>

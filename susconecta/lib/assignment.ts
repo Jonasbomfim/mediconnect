@@ -139,15 +139,12 @@ export async function listAssignmentsForPatient(patientId: string): Promise<Pati
  * Útil para obter os patient_id dos pacientes atribuídos ao usuário.
  */
 export async function listAssignmentsForUser(userId: string): Promise<PatientAssignment[]> {
-  console.log(`🔍 [ASSIGNMENT] Listando atribuições para o usuário: ${userId}`);
+  // Log removido por segurança
   const url = `${ASSIGNMENTS_URL}?user_id=eq.${encodeURIComponent(userId)}`;
 
   try {
     const headers = getHeaders();
-    console.debug('[ASSIGNMENT] GET', url, 'headers(masked)=', {
-      ...headers,
-      Authorization: headers.Authorization ? '<<masked>>' : undefined,
-    });
+    // Logs removidos por segurança
     const response = await fetch(url, {
       method: 'GET',
       headers,
@@ -156,7 +153,7 @@ export async function listAssignmentsForUser(userId: string): Promise<PatientAss
     // dump raw text for debugging when content-type isn't JSON or when empty
     const contentType = response.headers.get('content-type') || '';
     const txt = await response.clone().text().catch(() => '');
-    console.debug('[ASSIGNMENT] response status=', response.status, response.statusText, 'content-type=', contentType, 'bodyPreview=', txt ? (txt.length > 1000 ? txt.slice(0,1000) + '...[truncated]' : txt) : '<empty>');
+    // Log removido por segurança
 
     if (!response.ok) {
       const errorBody = txt || '';

@@ -99,14 +99,14 @@ export default function NovoAgendamentoPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="flex flex-col h-full bg-background">
       <HeaderAgenda />
-      <main className="flex-1 mx-auto w-full max-w-7xl px-8 py-8">
-    <CalendarRegistrationForm 
-      formData={formData as any} 
-      onFormChange={handleFormChange as any} 
-      createMode
-    />
+      <main className="flex-1 mx-auto w-full max-w-7xl px-8 py-8 overflow-auto">
+        <CalendarRegistrationForm 
+          formData={formData as any} 
+          onFormChange={handleFormChange as any} 
+          createMode
+        />
       </main>
       <FooterAgenda onSave={handleSave} onCancel={handleCancel} />
     </div>

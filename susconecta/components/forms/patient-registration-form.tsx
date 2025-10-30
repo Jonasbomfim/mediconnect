@@ -98,6 +98,30 @@ export function PatientRegistrationForm({
   const [form, setForm] = useState<FormData>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false });
+
+  // Funções de formatação
+  const formatRG = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 9) {
+      return cleaned.replace(/(\d{2})(\d{3})(\d{3})(\d{1})/, '$1.$2.$3-$4');
+    }
+    return cleaned.slice(0, 9);
+  };
+
+  const formatTelefone = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 10) {
+      return cleaned.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    }
+    return cleaned.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  };
+
+  const formatDataNascimento = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 2) return cleaned;
+    if (cleaned.length <= 4) return `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+  };
   const [isSubmitting, setSubmitting] = useState(false);
   const [isUploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSearchingCEP, setSearchingCEP] = useState(false);
@@ -362,7 +386,7 @@ export function PatientRegistrationForm({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>CPF *</Label><Input value={form.cpf} onChange={(e) => handleCPFChange(e.target.value)} placeholder="000.000.000-00" maxLength={14} className={errors.cpf ? "border-destructive" : ""} />{errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}</div>
-                  <div className="space-y-2"><Label>RG</Label><Input value={form.rg} onChange={(e) => setField("rg", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>RG</Label><Input value={form.rg} onChange={(e) => setField("rg", formatRG(e.target.value))} placeholder="00.000.000-0" maxLength={12} /></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -372,7 +396,7 @@ export function PatientRegistrationForm({
                       <SelectContent><SelectItem value="masculino">Masculino</SelectItem><SelectItem value="feminino">Feminino</SelectItem><SelectItem value="outro">Outro</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2"><Label>Data de Nascimento</Label><Input placeholder="dd/mm/aaaa" value={form.birth_date} onChange={(e) => { const v = e.target.value.replace(/[^0-9\/]*/g, "").slice(0, 10); setField("birth_date", v); }} onBlur={() => { const raw = form.birth_date; const parts = raw.split(/\D+/).filter(Boolean); if (parts.length === 3) { const d = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2].padStart(4,'0')}`; setField("birth_date", d); } }} /></div>
+                  <div className="space-y-2"><Label>Data de Nascimento</Label><Input placeholder="dd/mm/aaaa" value={form.birth_date} onChange={(e) => setField("birth_date", formatDataNascimento(e.target.value))} maxLength={10} /></div>
                 </div>
               </CardContent>
             </CollapsibleContent>
@@ -388,7 +412,7 @@ export function PatientRegistrationForm({
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>E-mail</Label><Input value={form.email} onChange={(e) => setField("email", e.target.value)} />{errors.email && <p className="text-sm text-destructive">{errors.email}</p>}</div>
-                  <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setField("telefone", e.target.value)} />{errors.telefone && <p className="text-sm text-destructive">{errors.telefone}</p>}</div>
+                  <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setField("telefone", formatTelefone(e.target.value))} placeholder="(00) 00000-0000" maxLength={15} />{errors.telefone && <p className="text-sm text-destructive">{errors.telefone}</p>}</div>
                 </div>
               </CardContent>
             </CollapsibleContent>
@@ -476,7 +500,7 @@ export function PatientRegistrationForm({
         </Collapsible>
 
         <div className="flex justify-end gap-4 pt-6 border-t">
-          <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}><XCircle className="mr-2 h-4 w-4" /> Cancelar</Button>
+          <Button type="button" variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}><XCircle className="mr-2 h-4 w-4" /> Cancelar</Button>
           <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{isSubmitting ? "Salvando..." : mode === "create" ? "Salvar Paciente" : "Atualizar Paciente"}</Button>
         </div>
       </form>

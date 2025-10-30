@@ -49,6 +49,10 @@ export default function PacientesPage() {
   const [viewingPatient, setViewingPatient] = useState<Paciente | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignPatientId, setAssignPatientId] = useState<string | null>(null);
+  
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   async function loadAll() {
     try {
@@ -94,6 +98,20 @@ export default function PacientesPage() {
       return byName || byCPF || byId || byEmail;
     });
   }, [patients, search]);
+
+  // Dados paginados
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  // Reset para página 1 quando mudar a busca ou itens por página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, itemsPerPage]);
 
   function handleAdd() {
     setEditingId(null);
@@ -228,8 +246,8 @@ export default function PacientesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length > 0 ? (
-              filtered.map((p) => (
+            {paginatedData.length > 0 ? (
+              paginatedData.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.full_name || "(sem nome)"}</TableCell>
                   <TableCell>{p.cpf || "-"}</TableCell>
@@ -275,6 +293,64 @@ export default function PacientesPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Controles de paginação */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Itens por página:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value={10}>10</option>
+            <option value={15}>15</option>
+            <option value={20}>20</option>
+          </select>
+          <span className="text-sm text-muted-foreground">
+            Mostrando {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
+            {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            Primeira
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages || 1}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Próxima
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Última
+          </Button>
+        </div>
       </div>
 
       {viewingPatient && (
@@ -326,8 +402,6 @@ export default function PacientesPage() {
           onSaved={() => { setAssignDialogOpen(false); setAssignPatientId(null); loadAll(); }}
         />
       )}
-
-      <div className="text-sm text-muted-foreground">Mostrando {filtered.length} de {patients.length}</div>
     </div>
   );
 }

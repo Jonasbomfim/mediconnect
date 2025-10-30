@@ -1,25 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Search, ChevronDown, RotateCcw } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { Plus } from "lucide-react";
 import HeaderAgenda from "@/components/agenda/HeaderAgenda";
 import FooterAgenda from "@/components/agenda/FooterAgenda";
 
 export default function ProcedimentoPage() {
-  const pathname = usePathname();
   const router = useRouter();
-  const [bloqueio, setBloqueio] = useState(false);
-
-  const isAg = pathname?.startsWith("/agendamento");
-  const isPr = pathname?.startsWith("/procedimento");
-  const isFi = pathname?.startsWith("/financeiro");
   
   const handleSave = () => {
     // Lógica de salvar será implementada
@@ -30,20 +22,12 @@ export default function ProcedimentoPage() {
     router.push("/calendar");
   };
 
-  const tab = (active: boolean, extra = "") =>
-    `px-4 py-1.5 text-[13px] border ${
-      active
-        ? "border-sky-500 bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 font-medium"
-        : "text-muted-foreground hover:bg-muted border-border"
-    } ${extra}`;
-
   return (
-    <div className="w-full min-h-screen flex flex-col bg-background">
-      {/* HEADER */}
+    <div className="flex flex-col h-full bg-background">
       <HeaderAgenda />
 
       {/* CORPO */}
-      <main className="mx-auto w-full max-w-7xl px-8 py-6 space-y-6 flex-grow">
+      <main className="mx-auto w-full max-w-7xl px-8 py-6 space-y-6 flex-1 overflow-auto">
         {/* ATENDIMENTOS */}
         <section className="space-y-6">
           {/* Selo Atendimento com + dentro da bolinha */}

@@ -115,7 +115,7 @@ export default function PerfilPage() {
           <Button
             variant="outline"
             onClick={() => router.back()}
-            className="mt-4"
+            className="mt-4 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
@@ -641,6 +641,7 @@ export default function PerfilPage() {
             <Button
               variant="outline"
               onClick={() => router.back()}
+              className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar

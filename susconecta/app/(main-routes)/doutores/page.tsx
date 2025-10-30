@@ -141,6 +141,10 @@ export default function DoutoresPage() {
   const [searchMode, setSearchMode] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
  
   async function load() {
     setLoading(true);
@@ -309,6 +313,20 @@ export default function DoutoresPage() {
     console.log('🔍 Resultados filtrados:', filtered.length);
     return filtered;
   }, [doctors, search, searchMode, searchResults]);
+
+  // Dados paginados
+  const paginatedDoctors = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return displayedDoctors.slice(startIndex, endIndex);
+  }, [displayedDoctors, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(displayedDoctors.length / itemsPerPage);
+
+  // Reset para página 1 quando mudar a busca ou itens por página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, itemsPerPage, searchMode]);
 
   function handleAdd() {
     setEditingId(null);
@@ -480,8 +498,8 @@ export default function DoutoresPage() {
                   Carregando…
                 </TableCell>
               </TableRow>
-            ) : displayedDoctors.length > 0 ? (
-              displayedDoctors.map((doctor) => (
+            ) : paginatedDoctors.length > 0 ? (
+              paginatedDoctors.map((doctor) => (
                 <TableRow key={doctor.id}>
                   <TableCell className="font-medium">{doctor.full_name}</TableCell>
                   <TableCell>
@@ -578,6 +596,64 @@ export default function DoutoresPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Controles de paginação */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Itens por página:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value={10}>10</option>
+            <option value={15}>15</option>
+            <option value={20}>20</option>
+          </select>
+          <span className="text-sm text-muted-foreground">
+            Mostrando {paginatedDoctors.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
+            {Math.min(currentPage * itemsPerPage, displayedDoctors.length)} de {displayedDoctors.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            Primeira
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages || 1}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Próxima
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Última
+          </Button>
+        </div>
       </div>
 
       {viewingDoctor && (
@@ -753,7 +829,7 @@ export default function DoutoresPage() {
       )}
 
       <div className="text-sm text-muted-foreground">
-        Mostrando {displayedDoctors.length} {searchMode ? 'resultado(s) da busca' : `de ${doctors.length}`}
+        {searchMode ? 'Resultado(s) da busca' : `Total de ${doctors.length} médico(s)`}
       </div>
       {/* Dialog para pacientes atribuídos */}
       <Dialog open={assignedDialogOpen} onOpenChange={(open) => { if (!open) { setAssignedDialogOpen(false); setAssignedPatients([]); setAssignedDoctor(null); } }}>

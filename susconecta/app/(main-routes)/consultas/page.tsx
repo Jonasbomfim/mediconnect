@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   MoreHorizontal,
   PlusCircle,
@@ -86,6 +86,10 @@ export default function ConsultasPage() {
   const [viewingAppointment, setViewingAppointment] = useState<any | null>(null);
   // Local form state used when editing. Keep hook at top-level to avoid Hooks order changes.
   const [localForm, setLocalForm] = useState<any | null>(null);
+
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const mapAppointmentToFormData = (appointment: any) => {
     // prefer scheduled_at (ISO) if available
@@ -177,8 +181,8 @@ export default function ConsultasPage() {
       let duration_minutes = 30;
       try {
         if (formData.startTime && formData.endTime) {
-          const [sh, sm] = String(formData.startTime).split(":").map((n: string) => Number(n));
-          const [eh, em] = String(formData.endTime).split(":").map((n: string) => Number(n));
+          const [sh, sm] = String(formData.startTime).split(":").map(Number);
+          const [eh, em] = String(formData.endTime).split(":").map(Number);
           const start = (sh || 0) * 60 + (sm || 0);
           const end = (eh || 0) * 60 + (em || 0);
           if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) duration_minutes = end - start;
@@ -404,11 +408,27 @@ export default function ConsultasPage() {
       performSearch(searchValue);
     }, 250);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchValue, originalAppointments]);
 
   useEffect(() => {
     applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, filterDate, originalAppointments]);
+
+  // Dados paginados
+  const paginatedAppointments = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return appointments.slice(startIndex, endIndex);
+  }, [appointments, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(appointments.length / itemsPerPage);
+
+  // Reset para página 1 quando mudar a busca ou itens por página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchValue, selectedStatus, filterDate, itemsPerPage]);
 
   // Keep localForm synchronized with editingAppointment
   useEffect(() => {
@@ -437,7 +457,7 @@ export default function ConsultasPage() {
         </div>
   <CalendarRegistrationForm formData={localForm} onFormChange={onFormChange} createMode={true} />
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={handleCancel}>
             Cancelar
           </Button>
           <Button onClick={saveLocal}>Salvar</Button>
@@ -515,7 +535,7 @@ export default function ConsultasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {appointments.map((appointment) => {
+                {paginatedAppointments.map((appointment) => {
                   // appointment.professional may now contain the doctor's name (resolved)
                   const professionalLookup = mockProfessionals.find((p) => p.id === appointment.professional);
                   const professionalName = typeof appointment.professional === "string" && appointment.professional && !professionalLookup
@@ -573,6 +593,64 @@ export default function ConsultasPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Controles de paginação */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Itens por página:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value={10}>10</option>
+            <option value={15}>15</option>
+            <option value={20}>20</option>
+          </select>
+          <span className="text-sm text-muted-foreground">
+            Mostrando {paginatedAppointments.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
+            {Math.min(currentPage * itemsPerPage, appointments.length)} de {appointments.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            Primeira
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages || 1}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Próxima
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Última
+          </Button>
+        </div>
+      </div>
 
       {viewingAppointment && (
         <Dialog open={!!viewingAppointment} onOpenChange={() => setViewingAppointment(null)}>

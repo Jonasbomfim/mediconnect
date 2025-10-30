@@ -1,27 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Search, ChevronDown, Calculator, DollarSign } from "lucide-react";
-import { Plus } from "lucide-react";
+import { Calculator, DollarSign } from "lucide-react";
 import HeaderAgenda from "@/components/agenda/HeaderAgenda";
 import FooterAgenda from "@/components/agenda/FooterAgenda";
 
 export default function FinanceiroPage() {
-  const pathname = usePathname();
   const router = useRouter();
-  const [bloqueio, setBloqueio] = useState(false);
   const [formaTipo, setFormaTipo] = useState("");
-  const [parcelas, setParcelas] = useState("1");
-
-  const isAg = pathname?.startsWith("/agendamento");
-  const isPr = pathname?.startsWith("/procedimento");
-  const isFi = pathname?.startsWith("/financeiro");
 
   const handleSave = () => {
     // Lógica de salvar será implementada
@@ -33,12 +22,11 @@ export default function FinanceiroPage() {
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-background">
-      {/* HEADER */}
+    <div className="flex flex-col h-full bg-background">
       <HeaderAgenda />
 
       {/* CORPO */}
-      <main className="mx-auto w-full max-w-7xl px-8 py-6 space-y-6 flex-grow">
+      <main className="mx-auto w-full max-w-7xl px-8 py-6 space-y-6 flex-1 overflow-auto">
         {/* INFORMAÇÕES FINANCEIRAS */}
         <section className="space-y-6">
           {/* Selo Financeiro */}
@@ -58,7 +46,7 @@ export default function FinanceiroPage() {
               Valor do Atendimento
             </Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Valor Particular</Label>
                 <div className="relative">
                   <DollarSign className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -68,7 +56,7 @@ export default function FinanceiroPage() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Valor Convênio</Label>
                 <div className="relative">
                   <DollarSign className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -90,7 +78,7 @@ export default function FinanceiroPage() {
               Forma de Pagamento
             </Label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Tipo</Label>
                 <select value={formaTipo} onChange={(e) => setFormaTipo(e.target.value)} className="h-10 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400">
                   <option value="">Selecionar</option>
@@ -100,7 +88,7 @@ export default function FinanceiroPage() {
                   <option value="convenio">Convênio</option>
                 </select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Parcelas</Label>
                 <select className="h-10 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-8 pl-3 text-[13px] appearance-none transition-colors hover:bg-muted/30 hover:border-gray-400">
                   <option value="1">1x</option>
@@ -111,7 +99,7 @@ export default function FinanceiroPage() {
                   <option value="6">6x</option>
                 </select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Desconto</Label>
                 <div className="relative">
                   <Calculator className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

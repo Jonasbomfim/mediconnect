@@ -936,14 +936,6 @@ async function handleSubmit(ev: React.FormEvent) {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Celular</Label>
-                    <Input 
-                      value={form.celular} 
-                      onChange={(e) => setField("celular", formatPhone(e.target.value))}
-                      placeholder="(XX) XXXXX-XXXX"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label>Contato de Emergência</Label>
                     <Input 
                       value={form.contato_emergencia} 
@@ -1165,7 +1157,7 @@ async function handleSubmit(ev: React.FormEvent) {
         </Collapsible>
 
         <div className="flex justify-end gap-4 pt-6 border-t">
-          <Button type="button" variant="outline" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
+          <Button type="button" variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={() => (inline ? onClose?.() : onOpenChange?.(false))} disabled={isSubmitting}>
             <XCircle className="mr-2 h-4 w-4" />
             Cancelar
           </Button>

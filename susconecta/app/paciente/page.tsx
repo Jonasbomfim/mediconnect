@@ -558,72 +558,21 @@ export default function PacientePage() {
           </header>
 
           <div className="space-y-6 rounded-lg border border-border bg-muted/40 p-6">
-            <div className="space-y-3">
-              <Label>Tipo de consulta</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  className={tipoConsulta === 'teleconsulta' ? activeToggleClass : inactiveToggleClass}
-                  aria-pressed={tipoConsulta === 'teleconsulta'}
-                  onClick={() => setTipoConsulta('teleconsulta')}
-                >
-                  Teleconsulta
-                </Button>
-                <Button
-                  type="button"
-                  className={tipoConsulta === 'presencial' ? activeToggleClass : inactiveToggleClass}
-                  aria-pressed={tipoConsulta === 'presencial'}
-                  onClick={() => setTipoConsulta('presencial')}
-                >
-                  Consulta no local
-                </Button>
-              </div>
+            {/* Remover campos de especialidade e localização, deixar só o botão centralizado */}
+            <div className="flex justify-center">
+              <Button asChild className={`w-full md:w-40 ${hoverPrimaryClass}`}>
+                <Link href={buildResultadosHref()} prefetch={false}>
+                  Pesquisar
+                </Link>
+              </Button>
             </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Especialidade</Label>
-                <Select value={especialidade} onValueChange={setEspecialidade}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a especialidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cardiologia">Cardiologia</SelectItem>
-                    <SelectItem value="pediatria">Pediatria</SelectItem>
-                    <SelectItem value="dermatologia">Dermatologia</SelectItem>
-                    <SelectItem value="ortopedia">Ortopedia</SelectItem>
-                    <SelectItem value="ginecologia">Ginecologia</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Localização (opcional)</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={localizacao}
-                    onChange={event => setLocalizacao(event.target.value)}
-                    placeholder="Cidade ou estado"
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Botão agora redireciona direto para /resultados */}
-            <Button asChild className={`w-full md:w-auto md:self-start ${hoverPrimaryClass}`}>
-              <Link href={buildResultadosHref()} prefetch={false}>
-                Pesquisar
-              </Link>
-            </Button>
           </div>
 
           <div className="text-center">
             <Button
               variant="ghost"
               size="sm"
-              className="transition duration-200 bg-white text-[#1e293b] border border-black/10 rounded-md shadow-[0_2px_6px_rgba(0,0,0,0.03)] hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:hover:bg-[#2563eb] dark:hover:text-white"
+              className="transition duration-200 bg-[#2563eb] text-white border border-[#2563eb]/40 rounded-md shadow-[0_2px_6px_rgba(0,0,0,0.03)] hover:bg-[#1e40af] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 dark:bg-[#2563eb] dark:text-white dark:border-[#2563eb]/50 dark:hover:bg-[#1e40af]"
               onClick={() => setMostrarAgendadas(true)}
             >
               Ver consultas agendadas
@@ -848,7 +797,7 @@ export default function PacientePage() {
                   <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
                   <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
@@ -940,9 +889,15 @@ export default function PacientePage() {
               Editar Perfil
             </Button>
           ) : (
-            <div className="flex gap-2">
+              <div className="flex gap-2">
               <Button onClick={handleSaveProfile} className="flex items-center gap-2">Salvar</Button>
-              <Button variant="outline" onClick={handleCancelEdit}>Cancelar</Button>
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                className="transition duration-200 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
+              >
+                Cancelar
+              </Button>
             </div>
           )}
         </div>
@@ -1042,11 +997,39 @@ export default function PacientePage() {
         <div className="flex flex-1 min-h-0">
           {/* Sidebar vertical */}
           <nav aria-label="Navegação do dashboard" className="w-56 bg-card border-r flex flex-col py-6 px-2 gap-2">
-            <Button variant={tab==='dashboard'?'secondary':'ghost'} aria-current={tab==='dashboard'} onClick={()=>setTab('dashboard')} className="justify-start"><Calendar className="mr-2 h-5 w-5" />{strings.dashboard}</Button>
-            <Button variant={tab==='consultas'?'secondary':'ghost'} aria-current={tab==='consultas'} onClick={()=>setTab('consultas')} className="justify-start"><Calendar className="mr-2 h-5 w-5" />{strings.consultas}</Button>
-            <Button variant={tab==='exames'?'secondary':'ghost'} aria-current={tab==='exames'} onClick={()=>setTab('exames')} className="justify-start"><FileText className="mr-2 h-5 w-5" />{strings.exames}</Button>
+            <Button
+              variant={tab==='dashboard'?'secondary':'ghost'}
+              aria-current={tab==='dashboard'}
+              onClick={()=>setTab('dashboard')}
+              className={`justify-start ${tab==='dashboard' ? 'bg-primary/10 text-primary' : ''}`}
+            >
+              <Calendar className="mr-2 h-5 w-5" />{strings.dashboard}
+            </Button>
+            <Button
+              variant={tab==='consultas'?'secondary':'ghost'}
+              aria-current={tab==='consultas'}
+              onClick={()=>setTab('consultas')}
+              className={`justify-start ${tab==='consultas' ? 'bg-primary/10 text-primary' : ''}`}
+            >
+              <Calendar className="mr-2 h-5 w-5" />{strings.consultas}
+            </Button>
+            <Button
+              variant={tab==='exames'?'secondary':'ghost'}
+              aria-current={tab==='exames'}
+              onClick={()=>setTab('exames')}
+              className={`justify-start ${tab==='exames' ? 'bg-primary/10 text-primary' : ''}`}
+            >
+              <FileText className="mr-2 h-5 w-5" />{strings.exames}
+            </Button>
             
-            <Button variant={tab==='perfil'?'secondary':'ghost'} aria-current={tab==='perfil'} onClick={()=>setTab('perfil')} className="justify-start"><UserCog className="mr-2 h-5 w-5" />{strings.perfil}</Button>
+            <Button
+              variant={tab==='perfil'?'secondary':'ghost'}
+              aria-current={tab==='perfil'}
+              onClick={()=>setTab('perfil')}
+              className={`justify-start ${tab==='perfil' ? 'bg-primary/10 text-primary' : ''}`}
+            >
+              <UserCog className="mr-2 h-5 w-5" />{strings.perfil}
+            </Button>
           </nav>
           {/* Conteúdo principal */}
           <div className="flex-1 min-w-0 p-4 max-w-4xl mx-auto w-full">

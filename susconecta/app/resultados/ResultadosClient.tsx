@@ -617,7 +617,7 @@ export default function ResultadosClient() {
           </Toggle>
 
           <Select value={convenio} onValueChange={setConvenio}>
-            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary">
               <SelectValue placeholder="Convênio" />
             </SelectTrigger>
             <SelectContent>
@@ -631,7 +631,7 @@ export default function ResultadosClient() {
           </Select>
 
           <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary">
               <SelectValue placeholder="Bairro" />
             </SelectTrigger>
             <SelectContent>
@@ -644,7 +644,7 @@ export default function ResultadosClient() {
 
           <Button
             variant="outline"
-            className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+            className="rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary"
           >
             <Filter className="mr-2 h-4 w-4" />
             Mais filtros
@@ -782,7 +782,7 @@ export default function ResultadosClient() {
                   >
                     Agendar consulta
                   </Button>
-                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary">
                     Enviar mensagem
                   </Button>
                   <Button

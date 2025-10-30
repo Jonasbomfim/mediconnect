@@ -90,6 +90,7 @@ export function UploadAvatar({ userId, currentAvatarUrl, onAvatarChange, userNam
               size="sm"
               onClick={() => document.getElementById('avatar-upload')?.click()}
               disabled={isUploading}
+              className="transition duration-200 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
             >
               <Upload className="h-4 w-4 mr-2" />
               {isUploading ? 'Enviando...' : 'Upload'}
@@ -100,6 +101,7 @@ export function UploadAvatar({ userId, currentAvatarUrl, onAvatarChange, userNam
                 variant="outline"
                 size="sm"
                 onClick={handleDownload}
+                className="transition duration-200 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download

@@ -936,14 +936,6 @@ async function handleSubmit(ev: React.FormEvent) {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Celular</Label>
-                    <Input 
-                      value={form.celular} 
-                      onChange={(e) => setField("celular", formatPhone(e.target.value))}
-                      placeholder="(XX) XXXXX-XXXX"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label>Contato de Emergência</Label>
                     <Input 
                       value={form.contato_emergencia} 

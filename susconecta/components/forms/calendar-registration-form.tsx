@@ -1080,8 +1080,8 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                     </SelectContent>
                   </Select>
                 </div>
-                                <div className="grid grid-cols-3 gap-3 mt-3">
-                                  <div>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="space-y-1">
                                     <Label className="text-[13px]">Status</Label>
                                     <select name="status" className="h-11 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-3 text-[13px]" value={formData.status || ''} onChange={handleChange}>
                                       <option value="">Selecione</option>
@@ -1094,50 +1094,50 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                       <option value="no_show">Não compareceu</option>
                                     </select>
                                   </div>
-                                  <div>
+                                  <div className="space-y-1">
                                     <Label className="text-[13px]">Duração (min)</Label>
                                       <Input name="duration_minutes" type="number" min={1} className="h-11 w-full rounded-md" value={formData.duration_minutes ?? ''} onChange={handleChange} readOnly={lockedDurationFromSlot} disabled={lockedDurationFromSlot} />
                                   </div>
-                                  <div>
+                                  <div className="space-y-1">
                                     <Label className="text-[13px]">Convênio</Label>
                                     <Input name="insurance_provider" placeholder="Operadora" className="h-11 w-full rounded-md" value={formData.insurance_provider || ''} onChange={handleChange} />
                                   </div>
                                 </div>
                 </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 mt-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-[13px]">Observações</Label>
                   
                                 </div>
                                 <Textarea name="notes" rows={4} className="text-[13px] min-h-[80px] resize-none rounded-md transition-colors hover:bg-muted/30" value={formData.notes || ''} onChange={handleChange} />
 
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                                <div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div className="space-y-1">
                                   <Label className="text-[13px]">Queixa principal</Label>
                                   <Textarea name="chief_complaint" rows={3} className="text-[13px] rounded-md" value={formData.chief_complaint || ''} onChange={handleChange} />
                                 </div>
-                                <div>
+                                <div className="space-y-1">
                                   <Label className="text-[13px]">Notas do paciente</Label>
                                   <Textarea name="patient_notes" rows={3} className="text-[13px] rounded-md" value={formData.patient_notes || ''} onChange={handleChange} />
                                 </div>
                               </div>
 
-                                <div className="grid grid-cols-3 gap-3 mt-3">
-                                  <div>
+                                <div className="grid grid-cols-3 gap-3 mt-4">
+                                  <div className="space-y-1">
                                     <Label className="text-[13px]">Horário de check-in</Label>
                                     <Input name="checked_in_at" type="datetime-local" className="h-11 w-full rounded-md" value={isoToDatetimeLocal(formData.checked_in_at as any)} onChange={handleChange} />
                                   </div>
-                                  <div>
+                                  <div className="space-y-1">
                                     <Label className="text-[13px]">Concluído em</Label>
                                     <Input name="completed_at" type="datetime-local" className="h-11 w-full rounded-md" value={isoToDatetimeLocal(formData.completed_at as any)} onChange={handleChange} />
                                   </div>
-                                  <div>
+                                  <div className="space-y-1">
                                     <Label className="text-[13px]">Cancelado em</Label>
                                     <Input name="cancelled_at" type="datetime-local" className="h-11 w-full rounded-md" value={isoToDatetimeLocal(formData.cancelled_at as any)} onChange={handleChange} />
                                   </div>
                                 </div>
 
-                              <div className="mt-3">
+                              <div className="mt-4 space-y-1">
                                 <Label className="text-[13px]">Motivo do cancelamento</Label>
                                 <Input name="cancellation_reason" className="h-11 w-full rounded-md" value={formData.cancellation_reason || ''} onChange={handleChange} />
                               </div>

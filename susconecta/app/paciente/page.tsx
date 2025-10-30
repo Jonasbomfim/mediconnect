@@ -341,16 +341,35 @@ export default function PacientePage() {
     }, [patientId])
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Card className="flex flex-col items-center justify-center p-4">
-          <Calendar className="mb-2 text-primary" aria-hidden />
-          <span className="font-semibold">{strings.proximaConsulta}</span>
-          <span className="text-2xl">{loading ? '...' : (nextAppt ?? '-')}</span>
+      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
+        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <div className="flex h-40 w-full flex-col items-center justify-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Calendar className="h-6 w-6" aria-hidden />
+            </div>
+            <span className="text-lg md:text-xl font-medium text-muted-foreground tracking-wide">
+              {strings.proximaConsulta}
+            </span>
+            {/* mesmo tamanho e fonte do rótulo */}
+            <span className="text-lg md:text-xl font-medium text-foreground" aria-live="polite">
+              {loading ? '—' : (nextAppt ?? '-')}
+            </span>
+          </div>
         </Card>
-        <Card className="flex flex-col items-center justify-center p-4">
-          <FileText className="mb-2 text-primary" aria-hidden />
-          <span className="font-semibold">{strings.ultimosExames}</span>
-          <span className="text-2xl">{loading ? '...' : (examsCount !== null ? String(examsCount) : '-')}</span>
+
+        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <div className="flex h-40 w-full flex-col items-center justify-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <FileText className="h-6 w-6" aria-hidden />
+            </div>
+            <span className="text-lg md:text-xl font-medium text-muted-foreground tracking-wide">
+              {strings.ultimosExames}
+            </span>
+            {/* mesmo tamanho e fonte do rótulo */}
+            <span className="text-lg md:text-xl font-medium text-foreground" aria-live="polite">
+              {loading ? '—' : (examsCount !== null ? String(examsCount) : '-')}
+            </span>
+          </div>
         </Card>
       </div>
     )

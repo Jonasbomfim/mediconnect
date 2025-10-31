@@ -147,7 +147,7 @@ export default function AgendamentoPage() {
               <div className="flex flex-row">
                 <Button
                   variant={"outline"}
-                  className="bg-muted hover:bg-muted/80 hover:text-foreground rounded-l-[100px] rounded-r-[0px]"
+                  className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-l-[100px] rounded-r-[0px]"
                   onClick={() => setActiveTab("calendar")}
                 >
                   Calendário
@@ -155,7 +155,7 @@ export default function AgendamentoPage() {
 
                 <Button
                   variant={"outline"}
-                  className="bg-muted hover:bg-muted/80 hover:text-foreground rounded-r-[100px] rounded-l-[0px]"
+                  className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-r-[100px] rounded-l-[0px]"
                   onClick={() => setActiveTab("espera")}
                 >
                   Lista de espera

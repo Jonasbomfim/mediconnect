@@ -93,11 +93,15 @@ export default function AgendamentoPage() {
         const threeDEvents: CalendarEvent[] = (arr || []).map((obj: any) => {
           const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
           const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
-          const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
+          const appointmentType = obj.appointment_type ?? obj.type ?? 'Consulta';
+          const title = `${patient}: ${appointmentType}`.trim();
           return {
             id: obj.id || String(Date.now()),
             title,
             date: scheduled ? new Date(scheduled).toISOString() : new Date().toISOString(),
+            status: obj.status || 'pending',
+            patient,
+            type: appointmentType,
           };
         });
         setThreeDEvents(threeDEvents);
@@ -225,7 +229,7 @@ export default function AgendamentoPage() {
               />
             </div>
           ) : activeTab === "3d" ? (
-            <div className="flex w-full">
+            <div className="flex w-full justify-center">
               <ThreeDWallCalendar
                 events={threeDEvents}
                 onAddEvent={handleAddEvent}

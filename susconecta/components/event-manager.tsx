@@ -72,6 +72,17 @@ export function EventManager({
   availableTags = ["Important", "Urgent", "Work", "Personal", "Team", "Client"],
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents)
+  // Sincroniza estado interno quando a prop inicialEvents mudar (vinda da API)
+  React.useEffect(() => {
+    setEvents(initialEvents || []);
+  }, [initialEvents]);
+
+  // controla dias expandidos no MonthView (key = YYYY-MM-DD)
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({})
+  const toggleExpandedDay = useCallback((dayKey: string) => {
+    setExpandedDays(prev => ({ ...prev, [dayKey]: !prev[dayKey] }))
+  }, [])
+
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<"month" | "week" | "day" | "list">(defaultView)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -384,20 +395,32 @@ export function EventManager({
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          {/* Botão lupa fora do input */}
+          <button
+            type="button"
+            aria-label="Buscar"
+            className="flex items-center justify-center h-9 w-9 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+
+          {/* Input ocupa o espaço restante */}
           <Input
             placeholder="Buscar eventos..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="flex-1"
           />
+
+          {/* Botão limpar visível quando há query */}
           {searchQuery && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+              className="h-9 w-9"
               onClick={() => setSearchQuery("")}
+              aria-label="Limpar busca"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -682,6 +705,8 @@ export function EventManager({
           onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          expandedDays={expandedDays}
+          toggleExpandedDay={toggleExpandedDay}
         />
       )}
 
@@ -1124,6 +1149,8 @@ function MonthView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  expandedDays,
+  toggleExpandedDay,
 }: {
   currentDate: Date
   events: Event[]
@@ -1132,6 +1159,8 @@ function MonthView({
   onDragEnd: () => void
   onDrop: (date: Date) => void
   getColorClasses: (color: string) => { bg: string; text: string }
+  expandedDays: Record<string, boolean>
+  toggleExpandedDay: (dayKey: string) => void
 }) {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
   const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -1170,6 +1199,9 @@ function MonthView({
       <div className="grid grid-cols-7">
         {days.map((day, index) => {
           const dayEvents = getEventsForDay(day)
+          const dayKey = day.toISOString().slice(0, 10) // YYYY-MM-DD
+          const isExpanded = !!expandedDays?.[dayKey]
+          const eventsToShow = isExpanded ? dayEvents : dayEvents.slice(0, 3)
           const isCurrentMonth = day.getMonth() === currentDate.getMonth()
           const isToday = day.toDateString() === new Date().toDateString()
 
@@ -1193,7 +1225,7 @@ function MonthView({
                 {day.getDate()}
               </div>
               <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event) => (
+                {eventsToShow.map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
@@ -1204,8 +1236,16 @@ function MonthView({
                     variant="compact"
                   />
                 ))}
-                  {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-muted-foreground sm:text-xs">+{dayEvents.length - 3} mais</div>
+                {dayEvents.length > 3 && (
+                  <div className="text-[10px] text-muted-foreground sm:text-xs">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpandedDay(dayKey)}
+                      className="text-primary underline hover:text-primary/80"
+                    >
+                      {isExpanded ? "Mostrar menos" : `+${dayEvents.length - 3} mais`}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1234,8 +1274,14 @@ function WeekView({
   onDrop: (date: Date, hour: number) => void
   getColorClasses: (color: string) => { bg: string; text: string }
 }) {
+  // calcula corretamente o início da semana (segunda-feira)
   const startOfWeek = new Date(currentDate)
-  startOfWeek.setDate(currentDate.getDay())
+  // 0 = Dom ... 6 = Sáb
+  const dayOfWeek = startOfWeek.getDay()
+  // diff para segunda-feira (0 -> 6, 1 -> 0, 2 -> 1, ...)
+  const diffToMonday = (dayOfWeek + 6) % 7
+  startOfWeek.setDate(startOfWeek.getDate() - diffToMonday)
+  startOfWeek.setHours(0, 0, 0, 0)
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek)
@@ -1277,7 +1323,7 @@ function WeekView({
       </div>
       <div className="grid grid-cols-8">
         {hours.map((hour) => (
-          <>
+          <React.Fragment key={`hour-${hour}`}>
             <div
               key={`time-${hour}`}
               className="border-b border-r p-1 text-[10px] text-muted-foreground sm:p-2 sm:text-xs"
@@ -1309,7 +1355,7 @@ function WeekView({
                 </div>
               )
             })}
-          </>
+          </React.Fragment>
         ))}
       </div>
     </Card>

@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar";
 
 const ListaEspera = dynamic(
   () => import("@/components/agendamento/ListaEspera"),
@@ -29,8 +30,9 @@ const ListaEspera = dynamic(
 export default function AgendamentoPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [waitingList, setWaitingList] = useState(mockWaitingList);
-  const [activeTab, setActiveTab] = useState<"calendar" | "espera">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
   const [requestsList, setRequestsList] = useState<EventInput[]>();
+  const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
@@ -39,6 +41,9 @@ export default function AgendamentoPage() {
       }
       if (event.key === "f") {
         setActiveTab("espera");
+      }
+      if (event.key === "3") {
+        setActiveTab("3d");
       }
     });
   }, []);
@@ -49,17 +54,19 @@ export default function AgendamentoPage() {
     (async () => {
       try {
         // listarAgendamentos accepts a query string; request a reasonable limit and order
-        const arr = await (await import('@/lib/api')).listarAgendamentos('select=*&order=scheduled_at.desc&limit=500').catch(() => []);
+        const api = await import('@/lib/api');
+        const arr = await api.listarAgendamentos('select=*&order=scheduled_at.desc&limit=500').catch(() => []);
         if (!mounted) return;
         if (!arr || !arr.length) {
           setAppointments([]);
           setRequestsList([]);
+          setThreeDEvents([]);
           return;
         }
 
         // Batch-fetch patient names for display
         const patientIds = Array.from(new Set(arr.map((a: any) => a.patient_id).filter(Boolean)));
-        const patients = (patientIds && patientIds.length) ? await (await import('@/lib/api')).buscarPacientesPorIds(patientIds) : [];
+        const patients = (patientIds && patientIds.length) ? await api.buscarPacientesPorIds(patientIds) : [];
         const patientsById: Record<string, any> = {};
         (patients || []).forEach((p: any) => { if (p && p.id) patientsById[String(p.id)] = p; });
 
@@ -81,10 +88,24 @@ export default function AgendamentoPage() {
           } as EventInput;
         });
         setRequestsList(events || []);
+
+        // Convert to 3D calendar events
+        const threeDEvents: CalendarEvent[] = (arr || []).map((obj: any) => {
+          const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
+          const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
+          const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
+          return {
+            id: obj.id || String(Date.now()),
+            title,
+            date: scheduled ? new Date(scheduled).toISOString() : new Date().toISOString(),
+          };
+        });
+        setThreeDEvents(threeDEvents);
       } catch (err) {
         console.warn('[AgendamentoPage] falha ao carregar agendamentos', err);
         setAppointments([]);
         setRequestsList([]);
+        setThreeDEvents([]);
       }
     })();
     return () => { mounted = false; };
@@ -109,16 +130,25 @@ export default function AgendamentoPage() {
     console.log(`Notificando paciente ${patientId}`);
   };
 
+  const handleAddEvent = (event: CalendarEvent) => {
+    setThreeDEvents((prev) => [...prev, event]);
+  };
+
+  const handleRemoveEvent = (id: string) => {
+    setThreeDEvents((prev) => prev.filter((e) => e.id !== id));
+  };
+
   return (
     <div className="flex flex-row bg-background">
       <div className="flex w-full flex-col">
         <div className="flex w-full flex-col gap-10 p-6">
           <div className="flex flex-row justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{activeTab === "calendar" ? "Calendário" : "Lista de Espera"}</h1>
+              <h1 className="text-2xl font-bold text-foreground">
+                {activeTab === "calendar" ? "Calendário" : activeTab === "3d" ? "Calendário 3D" : "Lista de Espera"}
+              </h1>
               <p className="text-muted-foreground">
-                Navegue através dos atalhos: Calendário (C) ou Fila de espera
-                (F).
+                Navegue através dos atalhos: Calendário (C), Fila de espera (F) ou 3D (3).
               </p>
             </div>
             <div className="flex space-x-2">
@@ -155,6 +185,14 @@ export default function AgendamentoPage() {
 
                 <Button
                   variant={"outline"}
+                  className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-none"
+                  onClick={() => setActiveTab("3d")}
+                >
+                  3D
+                </Button>
+
+                <Button
+                  variant={"outline"}
                   className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-r-[100px] rounded-l-[0px]"
                   onClick={() => setActiveTab("espera")}
                 >
@@ -184,6 +222,14 @@ export default function AgendamentoPage() {
                 selectMirror={true}
                 dayMaxEvents={true}
                 dayMaxEventRows={3}
+              />
+            </div>
+          ) : activeTab === "3d" ? (
+            <div className="flex w-full">
+              <ThreeDWallCalendar
+                events={threeDEvents}
+                onAddEvent={handleAddEvent}
+                onRemoveEvent={handleRemoveEvent}
               />
             </div>
           ) : (

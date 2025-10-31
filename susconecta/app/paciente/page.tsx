@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -17,7 +17,8 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, atualizarPaciente, buscarPacientePorId } from '@/lib/api'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById } from '@/lib/api'
+import { buscarRelatorioPorId, listarRelatoriosPorMedico } from '@/lib/reports'
 import { ENV_CONFIG } from '@/lib/env-config'
 import { listarRelatoriosPorPaciente } from '@/lib/reports'
 // reports are rendered statically for now
@@ -749,6 +750,140 @@ export default function PacientePage() {
     const [reportsError, setReportsError] = useState<string | null>(null)
     const [reportDoctorName, setReportDoctorName] = useState<string | null>(null)
   const [doctorsMap, setDoctorsMap] = useState<Record<string, any>>({})
+  const [resolvingDoctors, setResolvingDoctors] = useState(false)
+  const [reportsPage, setReportsPage] = useState<number>(1)
+  const [reportsPerPage, setReportsPerPage] = useState<number>(5)
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [remoteMatch, setRemoteMatch] = useState<any | null>(null)
+  const [searchingRemote, setSearchingRemote] = useState<boolean>(false)
+
+  // derived filtered list based on search term
+  const filteredReports = useMemo(() => {
+    if (!reports || !Array.isArray(reports)) return []
+    const qRaw = String(searchTerm || '').trim()
+    const q = qRaw.toLowerCase()
+
+    // If we have a remote-match result for this query, prefer it. remoteMatch
+    // may be a single report (for id-like queries) or an array (for doctor-name search).
+  const hexOnlyRaw = String(qRaw).replace(/[^0-9a-fA-F]/g, '')
+  // defensive: compute length via explicit number conversion to avoid any
+  // accidental transpilation/patch artifacts that could turn a comparison
+  // into an unexpected call. This avoids runtime "8 is not a function".
+  const hexLenRaw = (typeof hexOnlyRaw === 'string') ? hexOnlyRaw.length : (Number(hexOnlyRaw) || 0)
+  const looksLikeId = hexLenRaw >= 8
+    if (remoteMatch) {
+      if (Array.isArray(remoteMatch)) return remoteMatch
+      return [remoteMatch]
+    }
+
+    if (!q) return reports
+    return reports.filter((r: any) => {
+      try {
+        const id = r.id ? String(r.id).toLowerCase() : ''
+        const title = String(reportTitle(r) || '').toLowerCase()
+        const exam = String(r.exam || r.exame || r.report_type || r.especialidade || '').toLowerCase()
+        const date = String(r.report_date || r.created_at || r.data || '').toLowerCase()
+        const notes = String(r.content || r.body || r.conteudo || r.notes || r.observacoes || '').toLowerCase()
+        const cid = String(r.cid || r.cid_code || r.cidCode || r.cie || '').toLowerCase()
+        const diagnosis = String(r.diagnosis || r.diagnostico || r.diagnosis_text || r.diagnostico_text || '').toLowerCase()
+        const conclusion = String(r.conclusion || r.conclusao || r.conclusion_text || r.conclusao_text || '').toLowerCase()
+        const orderNumber = String(r.order_number || r.orderNumber || r.numero_pedido || '').toLowerCase()
+
+        // patient fields
+        const patientName = String(
+          r?.paciente?.full_name || r?.paciente?.nome || r?.patient?.full_name || r?.patient?.nome || r?.patient_name || r?.patient_full_name || ''
+        ).toLowerCase()
+
+        // requester/executor fields
+        const requestedBy = String(r.requested_by_name || r.requested_by || r.requester_name || r.requester || '').toLowerCase()
+        const executor = String(r.executante || r.executante_name || r.executor || r.executor_name || '').toLowerCase()
+
+        // try to resolve doctor name from map when available
+        const maybeId = r?.doctor_id || r?.created_by || r?.doctor || null
+        const doctorName = maybeId ? String(doctorsMap[String(maybeId)]?.full_name || doctorsMap[String(maybeId)]?.name || '').toLowerCase() : ''
+
+        // build search corpus
+        const corpus = [id, title, exam, date, notes, cid, diagnosis, conclusion, orderNumber, patientName, requestedBy, executor, doctorName].join(' ')
+        return corpus.includes(q)
+      } catch (e) {
+        return false
+      }
+    })
+  }, [reports, searchTerm, doctorsMap, remoteMatch])
+
+  // When the search term looks like an id, attempt a direct fetch using the reports API
+  useEffect(() => {
+    let mounted = true
+    const q = String(searchTerm || '').trim()
+    if (!q) {
+      setRemoteMatch(null)
+      setSearchingRemote(false)
+      return
+    }
+  // heuristic: id-like strings contain many hex characters (UUID-like) —
+  // avoid calling RegExp.test/match to sidestep any env/type issues here.
+  const hexOnly = String(q).replace(/[^0-9a-fA-F]/g, '')
+  // defensive length computation as above
+  const hexLen = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0)
+  const looksLikeId = hexLen >= 8
+  // If it looks like an id, try the single-report lookup. Otherwise, if it's a
+  // textual query, try searching doctors by full_name and then fetch reports
+  // authored/requested by those doctors.
+  ;(async () => {
+      try {
+        setSearchingRemote(true)
+        setRemoteMatch(null)
+
+        if (looksLikeId) {
+          const r = await buscarRelatorioPorId(q).catch(() => null)
+          if (!mounted) return
+          if (r) setRemoteMatch(r)
+          return
+        }
+
+        // textual search: try to find doctors whose full_name matches the query
+        // and then fetch reports for those doctors. Only run for reasonably
+        // long queries to avoid excessive network calls.
+        if (q.length >= 2) {
+          const docs = await buscarMedicos(q).catch(() => [])
+          if (!mounted) return
+          if (docs && Array.isArray(docs) && docs.length) {
+            // fetch reports for matching doctors in parallel
+            const promises = docs.map(d => listarRelatoriosPorMedico(String(d.id)).catch(() => []))
+            const arrays = await Promise.all(promises)
+            if (!mounted) return
+            const combined = ([] as any[]).concat(...arrays)
+            // dedupe by report id
+            const seen = new Set<string>()
+            const unique: any[] = []
+            for (const rr of combined) {
+              try {
+                const rid = String(rr.id)
+                if (!seen.has(rid)) {
+                  seen.add(rid)
+                  unique.push(rr)
+                }
+              } catch (e) {
+                // skip malformed item
+              }
+            }
+            if (unique.length) setRemoteMatch(unique)
+            else setRemoteMatch(null)
+            return
+          }
+        }
+
+        // nothing useful found
+        if (mounted) setRemoteMatch(null)
+      } catch (e) {
+        if (mounted) setRemoteMatch(null)
+      } finally {
+        if (mounted) setSearchingRemote(false)
+      }
+    })()
+
+    return () => { mounted = false }
+  }, [searchTerm])
 
     // Helper to derive a human-friendly title for a report/laudo
     const reportTitle = (rep: any, preferDoctorName?: string | null) => {
@@ -787,17 +922,69 @@ export default function PacientePage() {
       if (!reports || !Array.isArray(reports) || reports.length === 0) return
       ;(async () => {
         try {
+          setResolvingDoctors(true)
           const ids = Array.from(new Set(reports.map((r: any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
           if (ids.length === 0) return
           const docs = await buscarMedicosPorIds(ids).catch(() => [])
           if (!mounted) return
           const map: Record<string, any> = {}
+          // index returned docs by both their id and user_id (some reports store user_id)
           for (const d of docs || []) {
-            if (d && d.id !== undefined && d.id !== null) map[String(d.id)] = d
+            if (!d) continue
+            try {
+              if (d.id !== undefined && d.id !== null) map[String(d.id)] = d
+            } catch {}
+            try {
+              if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d
+            } catch {}
           }
+
+          // attempt per-id fallback for any unresolved ids (try getDoctorById)
+          const unresolved = ids.filter(i => !map[i])
+          if (unresolved.length) {
+            for (const u of unresolved) {
+              try {
+                const d = await getDoctorById(String(u)).catch(() => null)
+                if (d) {
+                  if (d.id !== undefined && d.id !== null) map[String(d.id)] = d
+                  if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d
+                }
+              } catch (e) {
+                // ignore per-id failure
+              }
+            }
+          }
+
+          // final fallback: try lookup by user_id (direct REST using baseHeaders)
+          const stillUnresolved = ids.filter(i => !map[i])
+          if (stillUnresolved.length) {
+            for (const u of stillUnresolved) {
+              try {
+                const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+                if (token) headers.Authorization = `Bearer ${token}`
+                const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(u))}&limit=1`
+                const res = await fetch(url, { method: 'GET', headers })
+                if (!res || res.status >= 400) continue
+                const rows = await res.json().catch(() => [])
+                if (rows && Array.isArray(rows) && rows.length) {
+                  const d = rows[0]
+                  if (d) {
+                    if (d.id !== undefined && d.id !== null) map[String(d.id)] = d
+                    if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d
+                  }
+                }
+              } catch (e) {
+                // ignore network errors
+              }
+            }
+          }
+
           setDoctorsMap(map)
+          setResolvingDoctors(false)
         } catch (e) {
           // ignore resolution errors
+          setResolvingDoctors(false)
         }
       })()
       return () => { mounted = false }
@@ -842,6 +1029,36 @@ export default function PacientePage() {
           if (docs && docs.length) {
             const doc0: any = docs[0]
             setReportDoctorName(doc0.full_name || doc0.name || doc0.fullName || null)
+            return
+          }
+
+          // fallback: try single-id lookup
+          try {
+            const d = await getDoctorById(String(maybeDoctorId)).catch(() => null)
+            if (d && mounted) {
+              setReportDoctorName(d.full_name || d.name || d.fullName || null)
+              return
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          // final fallback: query doctors by user_id
+          try {
+            const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+            const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+            if (token) headers.Authorization = `Bearer ${token}`
+            const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(maybeDoctorId))}&limit=1`
+            const res = await fetch(url, { method: 'GET', headers })
+            if (res && res.status < 400) {
+              const rows = await res.json().catch(() => [])
+              if (rows && Array.isArray(rows) && rows.length) {
+                const d = rows[0]
+                if (d && mounted) setReportDoctorName(d.full_name || d.name || d.fullName || null)
+              }
+            }
+          } catch (e) {
+            // ignore
           }
         } catch (e) {
           // ignore
@@ -850,22 +1067,57 @@ export default function PacientePage() {
       return () => { mounted = false }
     }, [selectedReport])
 
+    // reset pagination when reports change
+    useEffect(() => {
+      setReportsPage(1)
+    }, [reports])
+
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <h2 className="text-2xl font-bold mb-6">Laudos</h2>
 
         <div className="space-y-3">
+          {/* Search box: allow searching by id, doctor, exam, date or text */}
+          <div className="mb-4 flex items-center gap-2">
+            <Input placeholder="Pesquisar laudo, médico, exame, data ou id" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setReportsPage(1) }} />
+            {searchTerm && (
+              <Button variant="ghost" onClick={() => { setSearchTerm(''); setReportsPage(1) }}>Limpar</Button>
+            )}
+          </div>
           {loadingReports ? (
             <div className="text-center py-8 text-muted-foreground">{strings.carregando}</div>
           ) : reportsError ? (
             <div className="text-center py-8 text-red-600">{reportsError}</div>
           ) : (!reports || reports.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
+            ) : (filteredReports.length === 0) ? (
+              searchingRemote ? (
+                <div className="text-center py-8 text-muted-foreground">Buscando laudo...</div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">Nenhum laudo corresponde à pesquisa.</div>
+              )
             ) : (
-            reports.map((r) => (
+            (() => {
+              const total = Array.isArray(filteredReports) ? filteredReports.length : 0
+              const totalPages = Math.max(1, Math.ceil(total / reportsPerPage))
+              // keep page inside bounds
+              const page = Math.min(Math.max(1, reportsPage), totalPages)
+              const start = (page - 1) * reportsPerPage
+              const end = start + reportsPerPage
+              const pageItems = (filteredReports || []).slice(start, end)
+
+              return (
+                <>
+                  {pageItems.map((r) => (
               <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-5">
                 <div>
-                  <div className="font-medium text-foreground text-lg md:text-xl">{reportTitle(r)}</div>
+                  {(() => {
+                    const maybeId = r?.doctor_id || r?.created_by || r?.doctor || null
+                    if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) {
+                      return <div className="font-medium text-muted-foreground text-lg md:text-xl">{strings.carregando}</div>
+                    }
+                    return <div className="font-medium text-foreground text-lg md:text-xl">{reportTitle(r)}</div>
+                  })()}
                   <div className="text-base md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-3 md:mt-0">
@@ -873,7 +1125,20 @@ export default function PacientePage() {
                   <Button variant="secondary" className="text-sm md:text-base" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
-            ))
+                  ))}
+
+                  {/* Pagination controls */}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">Mostrando {Math.min(start+1, total)}–{Math.min(end, total)} de {total}</div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.max(1, p-1))} disabled={page <= 1} className="px-3">Anterior</Button>
+                      <div className="text-sm text-muted-foreground">{page} / {totalPages}</div>
+                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="px-3">Próxima</Button>
+                    </div>
+                  </div>
+                </>
+              )
+            })()
           )}
         </div>
  
@@ -885,7 +1150,15 @@ export default function PacientePage() {
                   {selectedReport && (
                     <>
                       <div className="mb-2">
-                        <div className="font-semibold text-xl md:text-2xl">{reportTitle(selectedReport, reportDoctorName)}</div>
+                                  {
+                                    // prefer the resolved doctor name; while resolving, show a loading indicator instead of raw IDs
+                                    (() => {
+                                      const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null
+                                      if (reportDoctorName) return <div className="font-semibold text-xl md:text-2xl">{reportTitle(selectedReport, reportDoctorName)}</div>
+                                      if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
+                                      return <div className="font-semibold text-xl md:text-2xl">{reportTitle(selectedReport)}</div>
+                                    })()
+                                  }
                         <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                         {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
                       </div>

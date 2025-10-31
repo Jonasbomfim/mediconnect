@@ -51,6 +51,7 @@ export function ThreeDWallCalendar({
   const isDragging = React.useRef(false)
   const dragStart = React.useRef<{ x: number; y: number } | null>(null)
   const hasDragged = React.useRef(false)
+  const clickStart = React.useRef<{ x: number; y: number } | null>(null)
 
   // month days
   const days = eachDayOfInterval({
@@ -64,11 +65,9 @@ export function ThreeDWallCalendar({
   const selectedDayEvents = selectedDay ? eventsForDay(selectedDay) : []
 
   const handleDayClick = (day: Date) => {
-    // Só abre o dialog se não foi um drag
-    if (!hasDragged.current) {
-      setSelectedDay(day)
-      setIsDialogOpen(true)
-    }
+    console.log('Day clicked:', format(day, 'dd/MM/yyyy'))
+    setSelectedDay(day)
+    setIsDialogOpen(true)
   }
 
   // Add event handler
@@ -115,6 +114,10 @@ export function ThreeDWallCalendar({
   const onPointerUp = () => {
     isDragging.current = false
     dragStart.current = null
+    // Reset hasDragged após um curto delay para permitir o clique ser processado
+    setTimeout(() => {
+      hasDragged.current = false
+    }, 100)
   }
 
   const gap = 12
@@ -131,6 +134,16 @@ export function ThreeDWallCalendar({
           <div className="font-semibold text-lg">{format(dateRef, "MMMM yyyy", { locale: ptBR })}</div>
           <Button onClick={() => setDateRef((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
             Próximo Mês
+          </Button>
+          {/* Botão Pacientes de hoje */}
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setSelectedDay(new Date())
+              setIsDialogOpen(true)
+            }}
+          >
+            Pacientes de hoje
           </Button>
         </div>
         
@@ -168,12 +181,12 @@ export function ThreeDWallCalendar({
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           className="w-full overflow-auto"
-          style={{ perspective: 1200 }}
+          style={{ perspective: 1200, maxWidth: 1100 }}
         >
         <div
           className="mx-auto"
           style={{
-            width: columns * (panelWidth + gap),
+            width: Math.max(700, columns * (panelWidth + gap)),
             transformStyle: "preserve-3d",
             transform: `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`,
             transition: "transform 120ms linear",
@@ -204,7 +217,21 @@ export function ThreeDWallCalendar({
                     transform: `translateZ(${z}px)`,
                     zIndex: Math.round(100 - Math.abs(rowOffset)),
                   }}
-                  onClick={() => handleDayClick(day)}
+                  onPointerDown={(e) => {
+                    clickStart.current = { x: e.clientX, y: e.clientY }
+                  }}
+                  onPointerUp={(e) => {
+                    if (clickStart.current) {
+                      const dx = Math.abs(e.clientX - clickStart.current.x)
+                      const dy = Math.abs(e.clientY - clickStart.current.y)
+                      // Se moveu menos de 5 pixels, é um clique
+                      if (dx < 5 && dy < 5) {
+                        e.stopPropagation()
+                        handleDayClick(day)
+                      }
+                      clickStart.current = null
+                    }
+                  }}
                 >
                   <Card className="h-full overflow-visible hover:shadow-lg transition-shadow">
                     <CardContent className="p-2 h-full flex flex-col">
@@ -318,14 +345,32 @@ export function ThreeDWallCalendar({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">
-              {selectedDay && format(selectedDay, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </DialogTitle>
+            {/* Navegação de dias */}
+            <div className="flex items-center justify-between mb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDay((prev) => prev ? new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 1) : new Date())}
+                aria-label="Dia anterior"
+              >
+                &#x276E;
+              </Button>
+              <DialogTitle className="text-xl">
+                {selectedDay && format(selectedDay, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDay((prev) => prev ? new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1) : new Date())}
+                aria-label="Próximo dia"
+              >
+                &#x276F;
+              </Button>
+            </div>
             <DialogDescription>
               {selectedDayEvents.length} {selectedDayEvents.length === 1 ? 'paciente agendado' : 'pacientes agendados'}
             </DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-3 mt-4">
             {selectedDayEvents.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">

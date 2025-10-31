@@ -13,7 +13,6 @@ import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { PagesHeader } from "@/components/dashboard/header";
 import { Button } from "@/components/ui/button";
-import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
 import {
   DropdownMenu,
@@ -23,15 +22,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
 
-const ListaEspera = dynamic(
-  () => import("@/components/agendamento/ListaEspera"),
-  { ssr: false }
-);
-
 export default function AgendamentoPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [waitingList, setWaitingList] = useState(mockWaitingList);
-  const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "3d">("calendar");
 
   const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
 
@@ -44,9 +37,6 @@ export default function AgendamentoPage() {
     document.addEventListener("keydown", (event) => {
       if (event.key === "c") {
         setActiveTab("calendar");
-      }
-      if (event.key === "f") {
-        setActiveTab("espera");
       }
       if (event.key === "3") {
         setActiveTab("3d");
@@ -146,10 +136,6 @@ export default function AgendamentoPage() {
     }
   };
 
-  const handleNotifyPatient = (patientId: string) => {
-    console.log(`Notificando paciente ${patientId}`);
-  };
-
   const handleAddEvent = (event: CalendarEvent) => {
     setThreeDEvents((prev) => [...prev, event]);
   };
@@ -166,10 +152,10 @@ export default function AgendamentoPage() {
             {/* Todo o cabeçalho foi mantido */}
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {activeTab === "calendar" ? "Calendário" : activeTab === "3d" ? "Calendário 3D" : "Lista de Espera"}
+                {activeTab === "calendar" ? "Calendário" : activeTab === "3d" ? "Calendário 3D" : "Calendário"}
               </h1>
               <p className="text-muted-foreground">
-                Navegue através dos atalhos: Calendário (C), Fila de espera (F) ou 3D (3).
+                Navegue através dos atalhos: Calendário (C) ou 3D (3).
               </p>
             </div>
             <div className="flex space-x-2">
@@ -201,18 +187,10 @@ export default function AgendamentoPage() {
 
                 <Button
                   variant={"outline"}
-                  className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-none"
+                  className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-r-[100px] rounded-l-[0px]"
                   onClick={() => setActiveTab("3d")}
                 >
                   3D
-                </Button>
-
-                <Button
-                  variant={"outline"}
-                  className="bg-muted hover:!bg-primary hover:!text-white transition-colors rounded-r-[100px] rounded-l-[0px]"
-                  onClick={() => setActiveTab("espera")}
-                >
-                  Lista de espera
                 </Button>
               </div>
             </div>
@@ -244,14 +222,7 @@ export default function AgendamentoPage() {
                 onRemoveEvent={handleRemoveEvent}
               />
             </div>
-          ) : (
-            // A Lista de Espera foi MANTIDA
-            <ListaEspera
-              patients={waitingList}
-              onNotify={handleNotifyPatient}
-              onAddToWaitlist={() => {}}
-            />
-          )}
+          ) : null}
         </div>
       </div>
     </div>

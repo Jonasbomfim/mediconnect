@@ -38,6 +38,7 @@ export default function AgendamentoPage() {
   // --- NOVO ESTADO ---
   // Estado para alimentar o NOVO EventManager com dados da API
   const [managerEvents, setManagerEvents] = useState<Event[]>([]);
+  const [managerLoading, setManagerLoading] = useState<boolean>(true);
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
@@ -57,6 +58,7 @@ export default function AgendamentoPage() {
     let mounted = true;
     (async () => {
       try {
+        setManagerLoading(true);
         const api = await import('@/lib/api');
         const arr = await api.listarAgendamentos('select=*&order=scheduled_at.desc&limit=500').catch(() => []);
         if (!mounted) return;
@@ -64,6 +66,7 @@ export default function AgendamentoPage() {
           setAppointments([]);
           setThreeDEvents([]);
           setManagerEvents([]); // Limpa o novo calendário
+          setManagerLoading(false);
           return;
         }
 
@@ -98,6 +101,7 @@ export default function AgendamentoPage() {
           };
         });
         setManagerEvents(newManagerEvents);
+        setManagerLoading(false);
         // --- FIM DA LÓGICA ---
 
         // Convert to 3D calendar events (MANTIDO 100%)
@@ -121,6 +125,7 @@ export default function AgendamentoPage() {
         setAppointments([]);
         setThreeDEvents([]);
         setManagerEvents([]); // Limpa o novo calendário
+        setManagerLoading(false);
       }
     })();
     return () => { mounted = false; };
@@ -216,9 +221,19 @@ export default function AgendamentoPage() {
           {/* --- AQUI ESTÁ A SUBSTITUIÇÃO --- */}
           {activeTab === "calendar" ? (
             <div className="flex w-full">
-              {/* O FullCalendar foi substituído pelo EventManager,
-                  agora alimentado pelo estado dinâmico 'managerEvents' */}
-              <EventManager events={managerEvents} />
+              {/* mostra loading até managerEvents ser preenchido (API integrada desde a entrada) */}
+              <div className="w-full">
+                {managerLoading ? (
+                  <div className="flex items-center justify-center w-full min-h-[70vh]">
+                    <div className="text-sm text-muted-foreground">Conectando ao calendário — carregando agendamentos...</div>
+                  </div>
+                ) : (
+                  // EventManager ocupa a área principal e já recebe events da API
+                  <div className="w-full min-h-[70vh]">
+                    <EventManager events={managerEvents} className="compact-event-manager" />
+                  </div>
+                )}
+              </div>
             </div>
           ) : activeTab === "3d" ? (
             // O calendário 3D (ThreeDWallCalendar) foi MANTIDO 100%

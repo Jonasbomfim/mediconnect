@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -263,30 +263,30 @@ export function EventManager({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <h2 className="text-xl font-semibold sm:text-2xl">
             {view === "month" &&
-              currentDate.toLocaleDateString("en-US", {
+              currentDate.toLocaleDateString("pt-BR", {
                 month: "long",
                 year: "numeric",
               })}
             {view === "week" &&
-              `Week of ${currentDate.toLocaleDateString("en-US", {
+              `Semana de ${currentDate.toLocaleDateString("pt-BR", {
                 month: "short",
                 day: "numeric",
               })}`}
             {view === "day" &&
-              currentDate.toLocaleDateString("en-US", {
+              currentDate.toLocaleDateString("pt-BR", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
                 year: "numeric",
               })}
-            {view === "list" && "All Events"}
+            {view === "list" && "Todos os eventos"}
           </h2>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={() => navigateDate("prev")} className="h-8 w-8">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
-              Today
+              Hoje
             </Button>
             <Button variant="outline" size="icon" onClick={() => navigateDate("next")} className="h-8 w-8">
               <ChevronRight className="h-4 w-4" />
@@ -305,25 +305,25 @@ export function EventManager({
                 <SelectItem value="month">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    Month View
+                    Mês
                   </div>
                 </SelectItem>
                 <SelectItem value="week">
                   <div className="flex items-center gap-2">
                     <Grid3x3 className="h-4 w-4" />
-                    Week View
+                    Semana
                   </div>
                 </SelectItem>
                 <SelectItem value="day">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Day View
+                    Dia
                   </div>
                 </SelectItem>
                 <SelectItem value="list">
                   <div className="flex items-center gap-2">
                     <List className="h-4 w-4" />
-                    List View
+                    Lista
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -339,7 +339,7 @@ export function EventManager({
               className="h-8"
             >
               <Calendar className="h-4 w-4" />
-              <span className="ml-1">Month</span>
+              <span className="ml-1">Mês</span>
             </Button>
             <Button
               variant={view === "week" ? "secondary" : "ghost"}
@@ -348,7 +348,7 @@ export function EventManager({
               className="h-8"
             >
               <Grid3x3 className="h-4 w-4" />
-              <span className="ml-1">Week</span>
+              <span className="ml-1">Semana</span>
             </Button>
             <Button
               variant={view === "day" ? "secondary" : "ghost"}
@@ -357,7 +357,7 @@ export function EventManager({
               className="h-8"
             >
               <Clock className="h-4 w-4" />
-              <span className="ml-1">Day</span>
+              <span className="ml-1">Dia</span>
             </Button>
             <Button
               variant={view === "list" ? "secondary" : "ghost"}
@@ -366,7 +366,7 @@ export function EventManager({
               className="h-8"
             >
               <List className="h-4 w-4" />
-              <span className="ml-1">List</span>
+              <span className="ml-1">Lista</span>
             </Button>
           </div>
 
@@ -378,7 +378,7 @@ export function EventManager({
             className="w-full sm:w-auto"
           >
             <Plus className="mr-2 h-4 w-4" />
-            New Event
+            Novo Evento
           </Button>
         </div>
       </div>
@@ -387,7 +387,7 @@ export function EventManager({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search events..."
+            placeholder="Buscar eventos..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -412,7 +412,7 @@ export function EventManager({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent">
                   <Filter className="h-4 w-4" />
-                  Colors
+                  Cores
                   {selectedColors.length > 0 && (
                     <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                       {selectedColors.length}
@@ -421,7 +421,7 @@ export function EventManager({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by Color</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtrar por Cor</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {colors.map((color) => (
                   <DropdownMenuCheckboxItem
@@ -456,7 +456,7 @@ export function EventManager({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by Tag</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtrar por Tag</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {availableTags.map((tag) => (
                   <DropdownMenuCheckboxItem
@@ -477,7 +477,7 @@ export function EventManager({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent">
                   <Filter className="h-4 w-4" />
-                  Categories
+                  Categorias
                   {selectedCategories.length > 0 && (
                     <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                       {selectedCategories.length}
@@ -486,7 +486,7 @@ export function EventManager({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtrar por Categoria</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {categories.map((category) => (
                   <DropdownMenuCheckboxItem
@@ -512,7 +512,7 @@ export function EventManager({
                 className="gap-2 whitespace-nowrap flex-shrink-0"
               >
                 <X className="h-4 w-4" />
-                Clear Filters
+                Limpar Filtros
               </Button>
             )}
           </div>
@@ -525,7 +525,7 @@ export function EventManager({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 bg-transparent">
                 <Filter className="h-4 w-4" />
-                Colors
+                Cores
                 {selectedColors.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1">
                     {selectedColors.length}
@@ -534,7 +534,7 @@ export function EventManager({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter by Color</DropdownMenuLabel>
+              <DropdownMenuLabel>Filtrar por Cor</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {colors.map((color) => (
                 <DropdownMenuCheckboxItem
@@ -569,7 +569,7 @@ export function EventManager({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter by Tag</DropdownMenuLabel>
+              <DropdownMenuLabel>Filtrar por Tag</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {availableTags.map((tag) => (
                 <DropdownMenuCheckboxItem
@@ -590,7 +590,7 @@ export function EventManager({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 bg-transparent">
                 <Filter className="h-4 w-4" />
-                Categories
+                Categorias
                 {selectedCategories.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1">
                     {selectedCategories.length}
@@ -599,7 +599,7 @@ export function EventManager({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
+              <DropdownMenuLabel>Filtrar por Categoria</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {categories.map((category) => (
                 <DropdownMenuCheckboxItem
@@ -620,7 +620,7 @@ export function EventManager({
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
               <X className="h-4 w-4" />
-              Clear
+              Limpar
             </Button>
           )}
         </div>
@@ -628,7 +628,7 @@ export function EventManager({
 
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
+          <span className="text-sm text-muted-foreground">Filtros ativos:</span>
           {selectedColors.map((colorValue) => {
             const color = getColorClasses(colorValue)
             return (
@@ -678,8 +678,8 @@ export function EventManager({
             setSelectedEvent(event)
             setIsDialogOpen(true)
           }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+          onDragStart={(event) => handleDragStart(event)}
+          onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
         />
@@ -693,8 +693,8 @@ export function EventManager({
             setSelectedEvent(event)
             setIsDialogOpen(true)
           }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+          onDragStart={(event) => handleDragStart(event)}
+          onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
         />
@@ -708,8 +708,8 @@ export function EventManager({
             setSelectedEvent(event)
             setIsDialogOpen(true)
           }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+          onDragStart={(event) => handleDragStart(event)}
+          onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
         />
@@ -730,15 +730,15 @@ export function EventManager({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isCreating ? "Create Event" : "Event Details"}</DialogTitle>
+            <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Evento"}</DialogTitle>
             <DialogDescription>
-              {isCreating ? "Add a new event to your calendar" : "View and edit event details"}
+              {isCreating ? "Adicione um novo evento ao seu calendário" : "Visualizar e editar detalhes do evento"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">Título</Label>
               <Input
                 id="title"
                 value={isCreating ? newEvent.title : selectedEvent?.title}
@@ -747,12 +747,12 @@ export function EventManager({
                     ? setNewEvent((prev) => ({ ...prev, title: e.target.value }))
                     : setSelectedEvent((prev) => (prev ? { ...prev, title: e.target.value } : null))
                 }
-                placeholder="Event title"
+                placeholder="Título do evento"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Descrição</Label>
               <Textarea
                 id="description"
                 value={isCreating ? newEvent.description : selectedEvent?.description}
@@ -764,14 +764,14 @@ export function EventManager({
                       }))
                     : setSelectedEvent((prev) => (prev ? { ...prev, description: e.target.value } : null))
                 }
-                placeholder="Event description"
+                placeholder="Descrição do evento"
                 rows={3}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
+                <Label htmlFor="startTime">Início</Label>
                 <Input
                   id="startTime"
                   type="datetime-local"
@@ -800,7 +800,7 @@ export function EventManager({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
+                <Label htmlFor="endTime">Fim</Label>
                 <Input
                   id="endTime"
                   type="datetime-local"
@@ -829,7 +829,7 @@ export function EventManager({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">Categoria</Label>
                 <Select
                   value={isCreating ? newEvent.category : selectedEvent?.category}
                   onValueChange={(value) =>
@@ -839,7 +839,7 @@ export function EventManager({
                   }
                 >
                   <SelectTrigger id="category">
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Selecione a categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
@@ -852,7 +852,7 @@ export function EventManager({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="color">Color</Label>
+                <Label htmlFor="color">Cor</Label>
                 <Select
                   value={isCreating ? newEvent.color : selectedEvent?.color}
                   onValueChange={(value) =>
@@ -862,7 +862,7 @@ export function EventManager({
                   }
                 >
                   <SelectTrigger id="color">
-                    <SelectValue placeholder="Select color" />
+                    <SelectValue placeholder="Selecione a cor" />
                   </SelectTrigger>
                   <SelectContent>
                     {colors.map((color) => (
@@ -901,7 +901,7 @@ export function EventManager({
           <DialogFooter>
             {!isCreating && (
               <Button variant="destructive" onClick={() => selectedEvent && handleDeleteEvent(selectedEvent.id)}>
-                Delete
+                Deletar
               </Button>
             )}
             <Button
@@ -912,10 +912,10 @@ export function EventManager({
                 setSelectedEvent(null)
               }}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button onClick={isCreating ? handleCreateEvent : handleUpdateEvent}>
-              {isCreating ? "Create" : "Save"}
+              {isCreating ? "Criar" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1160,7 +1160,7 @@ function MonthView({
   return (
     <Card className="overflow-hidden">
       <div className="grid grid-cols-7 border-b">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
           <div key={day} className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm">
             <span className="hidden sm:inline">{day}</span>
             <span className="sm:hidden">{day.charAt(0)}</span>
@@ -1204,8 +1204,8 @@ function MonthView({
                     variant="compact"
                   />
                 ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-muted-foreground sm:text-xs">+{dayEvents.length - 3} more</div>
+                  {dayEvents.length > 3 && (
+                  <div className="text-[10px] text-muted-foreground sm:text-xs">+{dayEvents.length - 3} mais</div>
                 )}
               </div>
             </div>
@@ -1261,16 +1261,16 @@ function WeekView({
   return (
     <Card className="overflow-auto">
       <div className="grid grid-cols-8 border-b">
-        <div className="border-r p-2 text-center text-xs font-medium sm:text-sm">Time</div>
+        <div className="border-r p-2 text-center text-xs font-medium sm:text-sm">Hora</div>
         {weekDays.map((day) => (
           <div
             key={day.toISOString()}
             className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm"
           >
-            <div className="hidden sm:block">{day.toLocaleDateString("en-US", { weekday: "short" })}</div>
-            <div className="sm:hidden">{day.toLocaleDateString("en-US", { weekday: "narrow" })}</div>
+            <div className="hidden sm:block">{day.toLocaleDateString("pt-BR", { weekday: "short" })}</div>
+            <div className="sm:hidden">{day.toLocaleDateString("pt-BR", { weekday: "narrow" })}</div>
             <div className="text-[10px] text-muted-foreground sm:text-xs">
-              {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              {day.toLocaleDateString("pt-BR", { month: "short", day: "numeric" })}
             </div>
           </div>
         ))}
@@ -1401,7 +1401,7 @@ function ListView({
 
   const groupedEvents = sortedEvents.reduce(
     (acc, event) => {
-      const dateKey = event.startTime.toLocaleDateString("en-US", {
+      const dateKey = event.startTime.toLocaleDateString("pt-BR", {
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -1456,15 +1456,7 @@ function ListView({
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground sm:gap-4 sm:text-xs">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {event.startTime.toLocaleTimeString("en-US", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            -{" "}
-                            {event.endTime.toLocaleTimeString("en-US", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {event.startTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - {event.endTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                           </div>
                           {event.tags && event.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">
@@ -1485,7 +1477,7 @@ function ListView({
           </div>
         ))}
         {sortedEvents.length === 0 && (
-          <div className="py-12 text-center text-sm text-muted-foreground sm:text-base">No events found</div>
+          <div className="py-12 text-center text-sm text-muted-foreground sm:text-base">Nenhum evento encontrado</div>
         )}
       </div>
     </Card>

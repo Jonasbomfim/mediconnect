@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import pt_br_locale from "@fullcalendar/core/locales/pt-br";
 import FullCalendar from "@fullcalendar/react";
@@ -31,6 +31,8 @@ export default function AgendamentoPage() {
   const [waitingList, setWaitingList] = useState(mockWaitingList);
   const [activeTab, setActiveTab] = useState<"calendar" | "espera">("calendar");
   const [requestsList, setRequestsList] = useState<EventInput[]>();
+  const calendarRef = useRef<any | null>(null);
+  const [viewMode, setViewMode] = useState<'month'|'week'|'day'>('month');
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
@@ -174,7 +176,7 @@ export default function AgendamentoPage() {
                     size="icon"
                     className="rounded-full"
                     onClick={() => {
-                        const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                        const calendarApi = calendarRef.current?.getApi?.();
                         if (calendarApi) calendarApi.prev();
                       }}
                   >
@@ -185,7 +187,7 @@ export default function AgendamentoPage() {
                     size="icon"
                     className="rounded-full"
                     onClick={() => {
-                        const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                        const calendarApi = calendarRef.current?.getApi?.();
                         if (calendarApi) calendarApi.today();
                       }}
                   >
@@ -196,7 +198,7 @@ export default function AgendamentoPage() {
                     size="icon"
                     className="rounded-full"
                     onClick={() => {
-                        const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
+                        const calendarApi = calendarRef.current?.getApi?.();
                         if (calendarApi) calendarApi.next();
                       }}
                   >
@@ -206,31 +208,34 @@ export default function AgendamentoPage() {
                 </div>
                 <div className="flex gap-2 mt-4 md:mt-0">
                   <Button
-                    variant="outline"
+                    variant={viewMode === 'month' ? 'secondary' : 'outline'}
                     className="rounded-[8px] px-4"
                     onClick={() => {
-                      const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
-                      if (calendarApi) calendarApi.changeView('dayGridMonth');
+                      setViewMode('month');
+                      const api = calendarRef.current?.getApi?.();
+                      api?.changeView('dayGridMonth');
                     }}
                   >
                     Mês
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={viewMode === 'week' ? 'secondary' : 'outline'}
                     className="rounded-[8px] px-4"
                     onClick={() => {
-                      const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
-                      if (calendarApi) calendarApi.changeView('timeGridWeek');
+                      setViewMode('week');
+                      const api = calendarRef.current?.getApi?.();
+                      api?.changeView('timeGridWeek');
                     }}
                   >
                     Semana
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={viewMode === 'day' ? 'secondary' : 'outline'}
                     className="rounded-[8px] px-4"
                     onClick={() => {
-                      const calendarApi = (document.querySelector('.fc') as any)?.__fullCalendar;
-                      if (calendarApi) calendarApi.changeView('timeGridDay');
+                      setViewMode('day');
+                      const api = calendarRef.current?.getApi?.();
+                      api?.changeView('timeGridDay');
                     }}
                   >
                     Dia
@@ -240,6 +245,7 @@ export default function AgendamentoPage() {
               {/* Calendário em si */}
               <div className="rounded-lg border bg-white dark:bg-card p-2 shadow">
                 <FullCalendar
+                  ref={(el) => { calendarRef.current = el; }}
                   plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                   initialView="dayGridMonth"
                   locale={pt_br_locale}
@@ -270,8 +276,10 @@ export default function AgendamentoPage() {
                     );
                   }}
                   dateClick={(info) => {
-                    // Ao clicar em um dia, muda para o modo dia igual ao Google Calendar
-                    info.view.calendar.changeView("timeGridDay", info.dateStr);
+                    // Ao clicar em um dia, muda para a view diária e destaca botão
+                    setViewMode('day');
+                    const api = calendarRef.current?.getApi?.();
+                    api?.changeView('timeGridDay', info.dateStr);
                   }}
                   selectable={true}
                   selectMirror={true}

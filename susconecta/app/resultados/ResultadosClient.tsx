@@ -922,50 +922,7 @@ export default function ResultadosClient() {
                   </Button>
                 </div>
 
-                {/* Agenda: 4 colunas como no layout. Se ainda não carregou, mostra placeholders. */}
-                <div className="mt-4 overflow-x-auto">
-                  <div className="grid min-w-[360px] grid-cols-4 gap-3">
-                    {(agenda || [
-                      { label: 'HOJE', data: fmtDay(new Date()), horarios: [] },
-                      { label: 'AMANHÃ', data: fmtDay(new Date(Date.now()+86400000)), horarios: [] },
-                      { label: shortWeek[new Date(Date.now()+2*86400000).getDay()], data: fmtDay(new Date(Date.now()+2*86400000)), horarios: [] },
-                      { label: shortWeek[new Date(Date.now()+3*86400000).getDay()], data: fmtDay(new Date(Date.now()+3*86400000)), horarios: [] },
-                    ]).map((col, idx) => {
-                      const horarios = agendasExpandida[id] ? col.horarios : col.horarios.slice(0, 3)
-                      return (
-                        <div key={`${id}-${col.label}-${idx}`} className="rounded-2xl border border-border p-3 text-center">
-                          <p className="text-xs font-semibold uppercase text-muted-foreground">{col.label}</p>
-                          <p className="text-[10px] text-muted-foreground">{col.data}</p>
-                          <div className="mt-3 flex flex-col gap-2">
-                            {isLoadingAgenda && !agenda ? (
-                              <span className="rounded-lg border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground">
-                                Carregando...
-                              </span>
-                            ) : horarios.length ? (
-                              horarios.map(h => (
-                                <button
-                                  key={h.iso}
-                                  type="button"
-                                  className="rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary hover:text-primary-foreground"
-                                  onClick={() => openConfirmDialog(id, h.iso)}
-                                >
-                                  {h.label}
-                                </button>
-                              ))
-                            ) : (
-                              <span className="rounded-lg border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground">
-                                Sem horários
-                              </span>
-                            )}
-                            {!agendasExpandida[id] && (col.horarios.length > 3) && (
-                              <span className="text-[10px] text-muted-foreground">+{col.horarios.length - 3} horários</span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                {/* Horários compactos removidos conforme solicitação do design (colunas HOJE/AMANHÃ/etc.). */}
               </Card>
             )
           })}

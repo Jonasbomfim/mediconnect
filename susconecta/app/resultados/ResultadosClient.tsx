@@ -31,6 +31,7 @@ import {
   getAvailableSlots,
   criarAgendamento,
   criarAgendamentoDireto,
+  listarAgendamentos,
   getUserInfo,
   buscarPacientes,
   listarDisponibilidades,
@@ -61,6 +62,8 @@ export default function ResultadosClient() {
   const [especialidadeHero, setEspecialidadeHero] = useState<string>(params?.get('especialidade') || 'Psicólogo')
   const [convenio, setConvenio] = useState<string>('Todos')
   const [bairro, setBairro] = useState<string>('Todos')
+  // Busca por nome do médico
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   // Estado dinâmico
   const [patientId, setPatientId] = useState<string | null>(null)
@@ -126,6 +129,9 @@ export default function ResultadosClient() {
 
   // 2) Buscar médicos conforme especialidade selecionada
   useEffect(() => {
+    // If the user is actively searching by name, this effect should not run
+    if (searchQuery && String(searchQuery).trim().length > 1) return
+
     let mounted = true
     ;(async () => {
       try {
@@ -146,6 +152,31 @@ export default function ResultadosClient() {
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [especialidadeHero])
+
+  // Debounced search by doctor name. When searchQuery is non-empty (>=2 chars), call buscarMedicos
+  useEffect(() => {
+    let mounted = true
+    const term = String(searchQuery || '').trim()
+    const handle = setTimeout(async () => {
+      if (!mounted) return
+      // if no meaningful search, do nothing (the specialidade effect will run)
+      if (!term || term.length < 2) return
+      try {
+        setLoadingMedicos(true)
+        setMedicos([])
+        setAgendaByDoctor({})
+        setAgendasExpandida({})
+        const list = await buscarMedicos(term).catch(() => [])
+        if (!mounted) return
+        setMedicos(Array.isArray(list) ? list : [])
+      } catch (e: any) {
+        showToast('error', e?.message || 'Falha ao buscar profissionais')
+      } finally {
+        if (mounted) setLoadingMedicos(false)
+      }
+    }, 350)
+    return () => { mounted = false; clearTimeout(handle) }
+  }, [searchQuery])
 
   // 3) Carregar horários disponíveis para um médico (próximos 7 dias) e agrupar por dia
   async function loadAgenda(doctorId: string) {
@@ -237,7 +268,26 @@ export default function ResultadosClient() {
   }
 
   // Open confirmation dialog for a selected slot instead of immediately booking
-  function openConfirmDialog(doctorId: string, iso: string) {
+  async function openConfirmDialog(doctorId: string, iso: string) {
+    // Pre-check: ensure there is no existing appointment for this doctor at this exact datetime
+    try {
+      // build query: exact match on doctor_id and scheduled_at
+      const params = new URLSearchParams();
+      params.set('doctor_id', `eq.${String(doctorId)}`);
+      params.set('scheduled_at', `eq.${String(iso)}`);
+      params.set('limit', '1');
+      const existing = await listarAgendamentos(params.toString()).catch(() => [])
+      if (existing && (existing as any).length) {
+        showToast('error', 'Não é possível agendar: já existe uma consulta neste horário para o profissional selecionado.')
+        return
+      }
+    } catch (err) {
+      // If checking fails (auth or network), surface a friendly error and avoid opening the dialog to prevent accidental duplicates.
+      console.warn('[ResultadosClient] falha ao checar conflitos de agendamento', err)
+      showToast('error', 'Não foi possível verificar disponibilidade. Tente novamente em instantes.')
+      return
+    }
+
     setPendingAppointment({ doctorId, iso })
     setConfirmOpen(true)
   }
@@ -255,6 +305,24 @@ export default function ResultadosClient() {
   showToast('success', 'Iniciando agendamento...')
     setConfirmLoading(true)
       try {
+      // Final conflict check to avoid race conditions: query appointments for same doctor + scheduled_at
+      try {
+        const params = new URLSearchParams();
+        params.set('doctor_id', `eq.${String(doctorId)}`);
+        params.set('scheduled_at', `eq.${String(iso)}`);
+        params.set('limit', '1');
+        const existing = await listarAgendamentos(params.toString()).catch(() => [])
+        if (existing && (existing as any).length) {
+          showToast('error', 'Não é possível agendar: já existe uma consulta neste horário para o profissional selecionado.')
+          setConfirmLoading(false)
+          return
+        }
+      } catch (err) {
+        console.warn('[ResultadosClient] falha ao checar conflito antes de criar agendamento', err)
+        showToast('error', 'Falha ao verificar conflito de agendamento. Tente novamente.')
+        setConfirmLoading(false)
+        return
+      }
       // Use direct POST to ensure creation even if availability checks would block
       await criarAgendamentoDireto({
         patient_id: String(patientId),
@@ -505,6 +573,20 @@ export default function ResultadosClient() {
     })
   }, [medicos, convenio, bairro])
 
+  // Paginação local para a lista de médicos
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
+
+  // Resetar para página 1 quando o conjunto de profissionais (filtro) ou itemsPerPage mudar
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [profissionais, itemsPerPage])
+
+  const totalPages = Math.max(1, Math.ceil((profissionais || []).length / itemsPerPage))
+  const paginatedProfissionais = (profissionais || []).slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  const startItem = (profissionais || []).length ? (currentPage - 1) * itemsPerPage + 1 : 0
+  const endItem = Math.min(currentPage * itemsPerPage, (profissionais || []).length)
+
   // Render
   return (
     <div className="min-h-screen bg-background">
@@ -642,13 +724,47 @@ export default function ResultadosClient() {
             </SelectContent>
           </Select>
 
-          <Button
-            variant="outline"
-            className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors"
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            Mais filtros
-          </Button>
+          {/* Search input para buscar médico por nome */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Buscar médico por nome"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="min-w-[220px] rounded-full"
+            />
+            {searchQuery ? (
+              <Button
+                variant="ghost"
+                className="h-10"
+                onClick={async () => {
+                  // limpar o termo de busca e restaurar a lista por especialidade
+                  setSearchQuery('')
+                  setCurrentPage(1)
+                  try {
+                    setLoadingMedicos(true)
+                    setMedicos([])
+                    setAgendaByDoctor({})
+                    setAgendasExpandida({})
+                    const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
+                    const list = await buscarMedicos(termo).catch(() => [])
+                    setMedicos(Array.isArray(list) ? list : [])
+                  } catch (e: any) {
+                    showToast('error', e?.message || 'Falha ao buscar profissionais')
+                  } finally {
+                    setLoadingMedicos(false)
+                  }
+                }}
+              >Limpar</Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors"
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Mais filtros
+              </Button>
+            )}
+          </div>
 
           <Button
             variant="ghost"
@@ -668,7 +784,7 @@ export default function ResultadosClient() {
             </Card>
           )}
 
-          {!loadingMedicos && profissionais.map((medico) => {
+          {!loadingMedicos && paginatedProfissionais.map((medico) => {
             const id = String(medico.id)
             const agenda = agendaByDoctor[id]
             const isLoadingAgenda = !!agendaLoading[id]
@@ -858,6 +974,29 @@ export default function ResultadosClient() {
             <Card className="flex flex-col items-center justify-center gap-3 border border-dashed border-border bg-card/60 p-12 text-center text-muted-foreground">
               Nenhum profissional encontrado. Ajuste os filtros para ver outras opções.
             </Card>
+          )}
+
+          {/* Pagination controls */}
+          {!loadingMedicos && profissionais.length > 0 && (
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <span>Itens por página:</span>
+                <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+                <span>Mostrando {startItem} a {endItem} de {profissionais.length}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:!bg-primary hover:!text-white">Primeira</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:!bg-primary hover:!text-white">Anterior</Button>
+                <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:!bg-primary hover:!text-white">Próxima</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:!bg-primary hover:!text-white">Última</Button>
+              </div>
+            </div>
           )}
         </section>
 

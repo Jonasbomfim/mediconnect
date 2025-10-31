@@ -324,10 +324,84 @@ export default function PacientePage() {
             setNextAppt(null)
           }
 
-          // Load reports/laudos count
+          // Load reports/laudos and compute count matching the Laudos session rules
           const reports = await listarRelatoriosPorPaciente(String(patientId)).catch(() => [])
           if (!mounted) return
-          setExamsCount(Array.isArray(reports) ? reports.length : 0)
+          let count = 0
+          try {
+            if (!Array.isArray(reports) || reports.length === 0) {
+              count = 0
+            } else {
+              // Use the same robust doctor-resolution strategy as ExamesLaudos so
+              // the card matches the list: try buscarMedicosPorIds, then per-id
+              // getDoctorById and finally a REST fallback by user_id.
+              const ids = Array.from(new Set((reports as any[]).map((r:any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
+              if (ids.length === 0) {
+                // fallback: count reports that have any direct doctor reference
+                count = (reports as any[]).filter((r:any) => !!(r && (r.doctor_id || r.created_by || r.doctor || r.user_id))).length
+              } else {
+                const docs = await buscarMedicosPorIds(ids).catch(() => [])
+                const map: Record<string, any> = {}
+                for (const d of docs || []) {
+                  if (!d) continue
+                  try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                  try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = map[String(d.user_id)] || d } catch {}
+                }
+
+                // Try per-id fallback using getDoctorById for any unresolved ids
+                const unresolved = ids.filter(i => !map[i])
+                if (unresolved.length) {
+                  for (const u of unresolved) {
+                    try {
+                      const d = await getDoctorById(String(u)).catch(() => null)
+                      if (d) {
+                        try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                        try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                      }
+                    } catch (e) {
+                      // ignore per-id failure
+                    }
+                  }
+                }
+
+                // REST fallback: try lookup by user_id for still unresolved ids
+                const stillUnresolved = ids.filter(i => !map[i])
+                if (stillUnresolved.length) {
+                  for (const u of stillUnresolved) {
+                    try {
+                      const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                      const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+                      if (token) headers.Authorization = `Bearer ${token}`
+                      const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(u))}&limit=1`
+                      const res = await fetch(url, { method: 'GET', headers })
+                      if (!res || res.status >= 400) continue
+                      const rows = await res.json().catch(() => [])
+                      if (rows && Array.isArray(rows) && rows.length) {
+                        const d = rows[0]
+                        if (d) {
+                          try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                          try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                        }
+                      }
+                    } catch (e) {
+                      // ignore network errors
+                    }
+                  }
+                }
+
+                // Count only reports whose referenced doctor record has user_id
+                count = (reports as any[]).filter((r:any) => {
+                  const maybeId = String(r.doctor_id || r.created_by || r.doctor || '')
+                  const doc = map[maybeId]
+                  return !!(doc && (doc.user_id || (doc as any).user_id))
+                }).length
+              }
+            }
+          } catch (e) {
+            count = Array.isArray(reports) ? reports.length : 0
+          }
+          if (!mounted) return
+          setExamsCount(count)
         } catch (e) {
           console.warn('[DashboardCards] erro ao carregar dados', e)
           if (!mounted) return
@@ -353,7 +427,7 @@ export default function PacientePage() {
               {strings.proximaConsulta}
             </span>
             <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
-              {loading ? '—' : (nextAppt ?? '-')}
+              {loading ? strings.carregando : (nextAppt ?? '-')}
             </span>
           </div>
         </Card>
@@ -367,7 +441,7 @@ export default function PacientePage() {
               {strings.ultimosExames}
             </span>
             <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
-              {loading ? '—' : (examsCount !== null ? String(examsCount) : '-')}
+              {loading ? strings.carregando : (examsCount !== null ? String(examsCount) : '-')}
             </span>
           </div>
         </Card>
@@ -847,9 +921,24 @@ export default function PacientePage() {
         if (q.length >= 2) {
           const docs = await buscarMedicos(q).catch(() => [])
           if (!mounted) return
-          if (docs && Array.isArray(docs) && docs.length) {
-            // fetch reports for matching doctors in parallel
-            const promises = docs.map(d => listarRelatoriosPorMedico(String(d.id)).catch(() => []))
+            if (docs && Array.isArray(docs) && docs.length) {
+            // fetch reports for matching doctors in parallel. Some report rows
+            // reference the doctor's account `user_id` in `requested_by` while
+            // others reference the doctor's record `id`. Try both per doctor.
+            const promises = docs.map(async (d: any) => {
+              try {
+                const byId = await listarRelatoriosPorMedico(String(d.id)).catch(() => [])
+                if (Array.isArray(byId) && byId.length) return byId
+                // fallback: if the doctor record has a user_id, try that too
+                if (d && (d.user_id || d.userId)) {
+                  const byUser = await listarRelatoriosPorMedico(String(d.user_id || d.userId)).catch(() => [])
+                  if (Array.isArray(byUser) && byUser.length) return byUser
+                }
+                return []
+              } catch (e) {
+                return []
+              }
+            })
             const arrays = await Promise.all(promises)
             if (!mounted) return
             const combined = ([] as any[]).concat(...arrays)
@@ -981,6 +1070,22 @@ export default function PacientePage() {
           }
 
           setDoctorsMap(map)
+          // After resolving doctor records, filter out reports whose doctor
+          // record doesn't have a user_id (doctor_userid). If a report's
+          // referenced doctor lacks user_id, we hide that laudo.
+          try {
+            const filtered = (reports || []).filter((r: any) => {
+              const maybeId = String(r?.doctor_id || r?.created_by || r?.doctor || '')
+              const doc = map[maybeId]
+              return !!(doc && (doc.user_id || (doc as any).user_id))
+            })
+            // Only update when different to avoid extra cycles
+            if (Array.isArray(filtered) && filtered.length !== (reports || []).length) {
+              setReports(filtered)
+            }
+          } catch (e) {
+            // ignore filtering errors
+          }
           setResolvingDoctors(false)
         } catch (e) {
           // ignore resolution errors
@@ -995,17 +1100,101 @@ export default function PacientePage() {
       if (!patientId) return
       setLoadingReports(true)
       setReportsError(null)
-      listarRelatoriosPorPaciente(String(patientId))
-        .then(res => {
+
+      ;(async () => {
+        try {
+          const res = await listarRelatoriosPorPaciente(String(patientId)).catch(() => [])
           if (!mounted) return
-          setReports(Array.isArray(res) ? res : [])
-        })
-        .catch(err => {
+
+          // If no reports, set empty and return
+          if (!Array.isArray(res) || res.length === 0) {
+            setReports([])
+            return
+          }
+
+          // Resolve referenced doctor ids and only keep reports whose
+          // referenced doctor record has a truthy user_id (i.e., created by a doctor)
+          try {
+            setResolvingDoctors(true)
+            const ids = Array.from(new Set((res as any[]).map((r:any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
+            const map: Record<string, any> = {}
+            if (ids.length) {
+              const docs = await buscarMedicosPorIds(ids).catch(() => [])
+              for (const d of docs || []) {
+                if (!d) continue
+                try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = map[String(d.user_id)] || d } catch {}
+              }
+
+              // per-id fallback
+              const unresolved = ids.filter(i => !map[i])
+              if (unresolved.length) {
+                for (const u of unresolved) {
+                  try {
+                    const d = await getDoctorById(String(u)).catch(() => null)
+                    if (d) {
+                      try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                      try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+              }
+
+              // REST fallback by user_id
+              const stillUnresolved = ids.filter(i => !map[i])
+              if (stillUnresolved.length) {
+                for (const u of stillUnresolved) {
+                  try {
+                    const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                    const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+                    if (token) headers.Authorization = `Bearer ${token}`
+                    const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(u))}&limit=1`
+                    const r = await fetch(url, { method: 'GET', headers })
+                    if (!r || r.status >= 400) continue
+                    const rows = await r.json().catch(() => [])
+                    if (rows && Array.isArray(rows) && rows.length) {
+                      const d = rows[0]
+                      if (d) {
+                        try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                        try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                      }
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+              }
+            }
+
+            // Now filter reports to only those whose referenced doctor has user_id
+            const filtered = (res || []).filter((r: any) => {
+              const maybeId = String(r?.doctor_id || r?.created_by || r?.doctor || '')
+              const doc = map[maybeId]
+              return !!(doc && (doc.user_id || (doc as any).user_id))
+            })
+
+            // Update doctorsMap and reports
+            setDoctorsMap(map)
+            setReports(filtered)
+            setResolvingDoctors(false)
+            return
+          } catch (e) {
+            // If resolution fails, fall back to setting raw results
+            console.warn('[ExamesLaudos] falha ao resolver médicos para filtragem', e)
+            setReports(Array.isArray(res) ? res : [])
+            setResolvingDoctors(false)
+            return
+          }
+        } catch (err) {
           console.warn('[ExamesLaudos] erro ao carregar laudos', err)
           if (!mounted) return
           setReportsError('Falha ao carregar laudos.')
-        })
-        .finally(() => { if (mounted) setLoadingReports(false) })
+        } finally {
+          if (mounted) setLoadingReports(false)
+        }
+      })()
 
       return () => { mounted = false }
     }, [patientId])
@@ -1099,11 +1288,13 @@ export default function PacientePage() {
             ) : (
             (() => {
               const total = Array.isArray(filteredReports) ? filteredReports.length : 0
-              const totalPages = Math.max(1, Math.ceil(total / reportsPerPage))
+              // enforce a maximum of 5 laudos per page
+              const perPage = Math.max(1, Math.min(reportsPerPage || 5, 5))
+              const totalPages = Math.max(1, Math.ceil(total / perPage))
               // keep page inside bounds
               const page = Math.min(Math.max(1, reportsPage), totalPages)
-              const start = (page - 1) * reportsPerPage
-              const end = start + reportsPerPage
+              const start = (page - 1) * perPage
+              const end = start + perPage
               const pageItems = (filteredReports || []).slice(start, end)
 
               return (
@@ -1223,7 +1414,13 @@ export default function PacientePage() {
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedReport(null)}
+                  className="transition duration-200 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
+                >
+                  Fechar
+                </Button>
               </DialogFooter>
             </DialogContent>
         </Dialog>

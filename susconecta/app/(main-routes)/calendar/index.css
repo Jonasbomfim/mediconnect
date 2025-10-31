@@ -1,4 +1,3 @@
-
 .fc-media-screen {
   flex-grow: 1;
   height: 74vh;
@@ -39,3 +38,46 @@
   font-weight: bold;
   color: var(--color-gray-900);
 }
+
+/* Compact mode for embedded EventManager */
+.compact-event-manager {
+  gap: 0.5rem;
+}
+.compact-event-manager h2 {
+  font-size: 1rem; /* menor título */
+  margin-bottom: 0.25rem;
+}
+.compact-event-manager .sm\\:flex { /* reduz grupo de botões */
+  gap: 0.25rem;
+}
+.compact-event-manager .button,
+.compact-event-manager .btn,
+.compact-event-manager .chakra-button {
+  padding: 6px 8px;
+  font-size: 0.9rem;
+}
+
+/* Inputs dentro do EventManager compactos */
+.compact-event-manager input,
+.compact-event-manager .input {
+  padding: 6px 8px;
+  font-size: 0.95rem;
+}
+
+/* reduzir padding dos cards e dos toolbars internos */
+.compact-event-manager .p-4 { padding: 0.5rem; }
+.compact-event-manager .p-3 { padding: 0.4rem; }
+
+/* reduzir altura das linhas na vista semana/dia custom */
+.compact-event-manager .min-h-16 { min-height: 3.2rem; }
+.compact-event-manager .min-h-20 { min-height: 3.6rem; }
+
+/* tornar os botões de filtro menores */
+.compact-event-manager .dropdown-trigger,
+.compact-event-manager .dropdown-menu-trigger {
+  padding: 6px 8px;
+  font-size: 0.9rem;
+}
+
+/* melhorar harmonia: menos margem entre header e calendário */
+.compact-event-manager { margin-top: 0.25rem; margin-bottom: 0.25rem; }

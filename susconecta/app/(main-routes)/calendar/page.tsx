@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-// --- Imports do FullCalendar (ANTIGO) - REMOVIDOS ---
-// import pt_br_locale from "@fullcalendar/core/locales/pt-br";
-// import FullCalendar from "@fullcalendar/react";
-// import dayGridPlugin from "@fullcalendar/daygrid";
-// import interactionPlugin from "@fullcalendar/interaction";
-// import timeGridPlugin from "@fullcalendar/timegrid";
-// import { EventInput } from "@fullcalendar/core/index.js";
+// --- Imports do FullCalendar (restaurados) ---
+import pt_br_locale from "@fullcalendar/core/locales/pt-br";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import { EventInput } from "@fullcalendar/core/index.js";
 
 // --- Imports do EventManager (NOVO) - ADICIONADOS ---
 import { EventManager, type Event } from "@/components/event-manager";
@@ -41,8 +41,8 @@ export default function AgendamentoPage() {
   const [waitingList, setWaitingList] = useState(mockWaitingList);
   const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
   
-  // O 'requestsList' do FullCalendar foi removido.
-  // const [requestsList, setRequestsList] = useState<EventInput[]>(); 
+  // Estado para alimentar o FullCalendar (restaurado)
+  const [requestsList, setRequestsList] = useState<EventInput[]>([]);
   
   const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
 
@@ -158,27 +158,31 @@ export default function AgendamentoPage() {
         // });
         // setRequestsList(events || []);
 
-        // Convert to 3D calendar events (MANTIDO)
-        const threeDEvents: CalendarEvent[] = (arr || []).map((obj: any) => {
-          const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
-          const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
-          const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
-          return {
-            id: obj.id || String(Date.now()),
-            title,
-            date: scheduled ? new Date(scheduled).toISOString() : new Date().toISOString(),
-          };
-        });
-        setThreeDEvents(threeDEvents);
-      } catch (err) {
-        console.warn('[AgendamentoPage] falha ao carregar agendamentos', err);
-        setAppointments([]);
-        // setRequestsList([]); // Removido
-        setThreeDEvents([]);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+        // Convert to 3D calendar events
+        const threeDEvents: CalendarEvent[] = (arr || []).map((obj: any) => {
+          const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
+          const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
+          const appointmentType = obj.appointment_type ?? obj.type ?? 'Consulta';
+          const title = `${patient}: ${appointmentType}`.trim();
+          return {
+            id: obj.id || String(Date.now()),
+            title,
+            date: scheduled ? new Date(scheduled).toISOString() : new Date().toISOString(),
+            status: obj.status || 'pending',
+            patient,
+            type: appointmentType,
+          };
+        });
+        setThreeDEvents(threeDEvents);
+      } catch (err) {
+        console.warn('[AgendamentoPage] falha ao carregar agendamentos', err);
+        setAppointments([]);
+        setRequestsList([]);
+        setThreeDEvents([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   // Handlers mantidos
   const handleSaveAppointment = (appointment: any) => {
@@ -267,31 +271,45 @@ export default function AgendamentoPage() {
             </div>
           </div>
 
-          {/* --- AQUI ESTÁ A MUDANÇA --- */}
-          {activeTab === "calendar" ? (
-            <div className="flex w-full">
-              {/* O FullCalendar antigo foi substituído por este */}
-              <EventManager events={demoEvents} />
-            </div>
-          ) : activeTab === "3d" ? (
-            // O calendário 3D foi mantido intacto
-            <div className="flex w-full">
-              <ThreeDWallCalendar
-                events={threeDEvents}
-                onAddEvent={handleAddEvent}
-                onRemoveEvent={handleRemoveEvent}
-              />
-            </div>
-          ) : (
-            // A Lista de Espera foi mantida intacta
-            <ListaEspera
-              patients={waitingList}
-              onNotify={handleNotifyPatient}
-              onAddToWaitlist={() => {}}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
+          {activeTab === "calendar" ? (
+            <div className="flex w-full">
+              <FullCalendar
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                initialView="dayGridMonth"
+                locale={pt_br_locale}
+                timeZone={"America/Sao_Paulo"}
+                events={requestsList}
+                headerToolbar={{
+                  left: "prev,next today",
+                  center: "title",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay",
+                }}
+                dateClick={(info) => {
+                  info.view.calendar.changeView("timeGridDay", info.dateStr);
+                }}
+                selectable={true}
+                selectMirror={true}
+                dayMaxEvents={true}
+                dayMaxEventRows={3}
+              />
+            </div>
+          ) : activeTab === "3d" ? (
+            <div className="flex w-full justify-center">
+              <ThreeDWallCalendar
+                events={threeDEvents}
+                onAddEvent={handleAddEvent}
+                onRemoveEvent={handleRemoveEvent}
+              />
+            </div>
+          ) : (
+            <ListaEspera
+              patients={waitingList}
+              onNotify={handleNotifyPatient}
+              onAddToWaitlist={() => {}}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -10,8 +10,6 @@ import { EventManager, type Event } from "@/components/event-manager";
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { PagesHeader } from "@/components/dashboard/header";
 import { Button } from "@/components/ui/button";
 import "./index.css";
 import {
@@ -20,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
 
 export default function AgendamentoPage() {
@@ -175,6 +174,9 @@ export default function AgendamentoPage() {
                   </Link>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Theme toggle — substitui ícones de lua espalhados */}
+              <ThemeToggle />
 
               <div className="flex flex-row">
                 <Button

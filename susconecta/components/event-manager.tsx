@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, Filter, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -339,6 +340,11 @@ export function EventManager({
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Theme toggle no header do EventManager */}
+          <div className="hidden sm:flex items-center px-2">
+            <ThemeToggle />
           </div>
 
           {/* Desktop: Button group */}

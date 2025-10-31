@@ -573,7 +573,7 @@ export default function ResultadosClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground hover:text-primary"
+              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:!bg-primary-foreground hover:!text-primary transition-colors"
             >
               Ajustar filtros
             </Button>
@@ -617,7 +617,7 @@ export default function ResultadosClient() {
           </Toggle>
 
           <Select value={convenio} onValueChange={setConvenio}>
-            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary">
+            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:!border-primary focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Convênio" />
             </SelectTrigger>
             <SelectContent>
@@ -631,7 +631,7 @@ export default function ResultadosClient() {
           </Select>
 
           <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary">
+            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:!border-primary focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Bairro" />
             </SelectTrigger>
             <SelectContent>
@@ -644,7 +644,7 @@ export default function ResultadosClient() {
 
           <Button
             variant="outline"
-            className="rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary"
+            className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors"
           >
             <Filter className="mr-2 h-4 w-4" />
             Mais filtros
@@ -652,7 +652,7 @@ export default function ResultadosClient() {
 
           <Button
             variant="ghost"
-            className="ml-auto rounded-full text-primary hover:bg-primary/10"
+            className="ml-auto rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
             onClick={() => router.back()}
           >
             Voltar
@@ -711,7 +711,7 @@ export default function ResultadosClient() {
                   </div>
                   <Button
                     variant="ghost"
-                    className="ml-auto h-fit rounded-full text-primary hover:bg-primary/10"
+                    className="ml-auto h-fit rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
                     onClick={() => {
                       setMedicoSelecionado(medico)
                       setAbaDetalhe('experiencia')
@@ -782,12 +782,12 @@ export default function ResultadosClient() {
                   >
                     Agendar consulta
                   </Button>
-                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary transition duration-200 hover:bg-primary/10 hover:text-primary">
+                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors">
                     Enviar mensagem
                   </Button>
                   <Button
                     variant="ghost"
-                    className="h-11 rounded-full text-primary hover:bg-primary/10"
+                    className="h-11 rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
                     onClick={() => {
                       const willOpen = !agendasExpandida[id]
                       setAgendasExpandida(prev => ({ ...prev, [id]: !prev[id] }))
@@ -979,18 +979,17 @@ export default function ResultadosClient() {
         </Dialog>
         {/* Dialog: Mostrar mais horários (escolher data arbitrária) */}
         <Dialog open={!!moreTimesForDoctor} onOpenChange={(open) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
-          <DialogContent className="w-full max-w-2xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between gap-4">
-              <DialogHeader>
-                <DialogTitle>Mais horários</DialogTitle>
-              </DialogHeader>
-              <div className="ml-auto flex items-center gap-2">
-                <input type="date" className="rounded-md border border-border px-3 py-2 text-sm" value={moreTimesDate} onChange={(e) => setMoreTimesDate(e.target.value)} />
-                <Button className="h-10" onClick={async () => { if (moreTimesForDoctor) await fetchSlotsForDate(moreTimesForDoctor, moreTimesDate) }}>Buscar horários</Button>
-              </div>
+          <DialogContent className="w-full max-w-2xl border border-border bg-card p-6">
+            <DialogHeader className="mb-4">
+              <DialogTitle>Mais horários</DialogTitle>
+            </DialogHeader>
+            
+            <div className="flex items-center gap-2 mb-4">
+              <input type="date" className="flex-1 rounded-md border border-border px-3 py-2 text-sm" value={moreTimesDate} onChange={(e) => setMoreTimesDate(e.target.value)} />
+              <Button className="h-10" onClick={async () => { if (moreTimesForDoctor) await fetchSlotsForDate(moreTimesForDoctor, moreTimesDate) }}>Buscar horários</Button>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-2">
               {moreTimesLoading ? (
                 <div className="text-sm text-muted-foreground">Carregando horários...</div>
               ) : moreTimesException ? (

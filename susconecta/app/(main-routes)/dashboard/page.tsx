@@ -340,7 +340,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">{report.exam || 'Sem descrição'}</p>
                 </div>
               ))}
-              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2" size="sm">
+              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:!bg-primary hover:!text-white transition-colors" size="sm">
                 Ver Todos
               </Button>
             </div>

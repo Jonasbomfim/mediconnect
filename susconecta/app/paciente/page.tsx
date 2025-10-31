@@ -418,25 +418,21 @@ export default function PacientePage() {
     const [tipoConsulta, setTipoConsulta] = useState<'teleconsulta' | 'presencial'>('teleconsulta')
     const [especialidade, setEspecialidade] = useState('cardiologia')
     const [localizacao, setLocalizacao] = useState('')
-    const [mostrarAgendadas, setMostrarAgendadas] = useState(false)
     const hoverPrimaryClass = "transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97]"
     const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
     const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
     const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
-  const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
+    const isSelectedDateToday = selectedDate.getTime() === today.getTime()
 
-  
-
-    // Appointments state (loaded when "Ver consultas agendadas" is opened)
+    // Appointments state (loaded when component mounts)
     const [appointments, setAppointments] = useState<any[] | null>(null)
     const [loadingAppointments, setLoadingAppointments] = useState(false)
     const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
 
     useEffect(() => {
       let mounted = true
-      if (!mostrarAgendadas) return
       if (!patientId) {
         setAppointmentsError('Paciente não identificado. Faça login novamente.')
         return
@@ -532,7 +528,7 @@ export default function PacientePage() {
 
       loadAppointments()
       return () => { mounted = false }
-    }, [mostrarAgendadas, patientId])
+    }, [patientId])
 
     // Monta a URL de resultados com os filtros atuais
     const buildResultadosHref = () => {
@@ -545,70 +541,63 @@ export default function PacientePage() {
       return `/resultados?${qs.toString()}`
     }
 
-    // derived lists for the "Ver consultas agendadas" dialog (computed after appointments state is declared)
+    // derived lists for the page (computed after appointments state is declared)
     const _dialogSource = (appointments !== null ? appointments : consultasFicticias)
     const _todaysAppointments = (_dialogSource || []).filter((c: any) => c.data === todayStr)
 
     return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <div className="max-w-3xl mx-auto space-y-8">
-          <header className="text-center space-y-2">
-            <h2 className="text-3xl font-semibold text-foreground">Agende sua próxima consulta</h2>
-            <p className="text-muted-foreground">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
-          </header>
+      <div className="space-y-6">
+        {/* Hero Section */}
+        <section className="bg-gradient-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
+          <div className="max-w-3xl mx-auto space-y-8">
+            <header className="text-center space-y-4">
+              <h2 className="text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
+            </header>
 
-          <div className="space-y-6 rounded-lg border border-border bg-muted/40 p-6">
-            {/* Remover campos de especialidade e localização, deixar só o botão centralizado */}
-            <div className="flex justify-center">
-              <Button asChild className={`w-full md:w-40 ${hoverPrimaryClass}`}>
-                <Link href={buildResultadosHref()} prefetch={false}>
-                  Pesquisar
-                </Link>
-              </Button>
+            <div className="space-y-6 rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
+              <div className="flex justify-center">
+                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:!bg-primary/90 hover:!text-white transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
+                  <Link href={buildResultadosHref()} prefetch={false}>
+                    Pesquisar Médicos
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="text-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="transition duration-200 bg-[#2563eb] text-white border border-[#2563eb]/40 rounded-md shadow-[0_2px_6px_rgba(0,0,0,0.03)] hover:bg-[#1e40af] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 dark:bg-[#2563eb] dark:text-white dark:border-[#2563eb]/50 dark:hover:bg-[#1e40af]"
-              onClick={() => setMostrarAgendadas(true)}
-            >
-              Ver consultas agendadas
-            </Button>
-          </div>
-        </div>
+        {/* Consultas Agendadas Section */}
+        <section className="bg-card shadow-md rounded-lg border border-border p-6">
+          <div className="space-y-6">
+            <header>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Suas Consultas Agendadas</h2>
+              <p className="text-muted-foreground">Gerencie suas consultas confirmadas, pendentes ou canceladas.</p>
+            </header>
 
-        <Dialog open={mostrarAgendadas} onOpenChange={open => setMostrarAgendadas(open)}>
-    <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-semibold text-foreground">Consultas agendadas</DialogTitle>
-              <DialogDescription>Gerencie suas consultas confirmadas, pendentes ou canceladas.</DialogDescription>
-            </DialogHeader>
-
-            <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
+            {/* Date Navigation */}
+            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
-                  className={`group shadow-sm ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
                 >
-                  <ChevronLeft className="h-4 w-4 transition group-hover:text-white" />
+                  <ChevronLeft className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
-                <span className="text-lg font-medium text-foreground">{formatDatePt(currentDate)}</span>
+                <span className="text-base sm:text-lg font-semibold text-foreground min-w-fit">{formatDatePt(currentDate)}</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
-                  className={`group shadow-sm ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
                 >
-                  <ChevronRight className="h-4 w-4 transition group-hover:text-white" />
+                  <ChevronRight className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
                 {isSelectedDateToday && (
                   <Button
@@ -617,88 +606,105 @@ export default function PacientePage() {
                     size="sm"
                     onClick={goToToday}
                     disabled
-                    className="border border-border text-foreground focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] hover:bg-transparent hover:text-foreground disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground"
+                    className="border border-border/50 text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.97] hover:bg-primary/5 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground"
                   >
                     Hoje
                   </Button>
                 )}
               </div>
-              <div className="text-sm text-muted-foreground">
-                {`${_todaysAppointments.length} consulta${_todaysAppointments.length !== 1 ? 's' : ''} agendada${_todaysAppointments.length !== 1 ? 's' : ''}`}
+              <div className="text-sm font-medium text-muted-foreground bg-background/50 px-4 py-2 rounded-lg">
+                <span className="text-primary font-semibold">{_todaysAppointments.length}</span> consulta{_todaysAppointments.length !== 1 ? 's' : ''} agendada{_todaysAppointments.length !== 1 ? 's' : ''}
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 sm:pr-2 pb-6">
-              {loadingAppointments && mostrarAgendadas ? (
+            {/* Appointments List */}
+            <div className="flex flex-col gap-6">
+              {loadingAppointments ? (
                 <div className="text-center py-10 text-muted-foreground">Carregando consultas...</div>
               ) : appointmentsError ? (
                 <div className="text-center py-10 text-red-600">{appointmentsError}</div>
               ) : (
-                // prefer appointments (client-loaded) when present; fallback to fictitious list
                 (() => {
                   const todays = _todaysAppointments
                   if (!todays || todays.length === 0) {
                     return (
-                      <div className="text-center py-10 text-muted-foreground">
-                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
-                        <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
-                        <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
+                      <div className="flex flex-col items-center justify-center py-16 px-4">
+                        <div className="rounded-full bg-primary/10 p-4 mb-4">
+                          <Calendar className="h-10 w-10 text-primary" />
+                        </div>
+                        <p className="text-xl font-bold text-foreground mb-2">Nenhuma consulta agendada para este dia</p>
+                        <p className="text-base text-muted-foreground text-center max-w-sm">Use a busca acima para marcar uma nova consulta ou navegue entre os dias.</p>
                       </div>
                     )
                   }
                   return todays.map((consulta: any) => (
                     <div
                       key={consulta.id}
-                      className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
+                      className="rounded-2xl border border-primary/15 bg-card shadow-md hover:shadow-xl transition-all duration-300 p-6 hover:border-primary/30 hover:bg-card/95"
                     >
-                      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
-                        <div className="flex items-start gap-3">
+                      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_0.8fr_1fr_1.2fr] items-start">
+                        {/* Doctor Info */}
+                        <div className="flex items-start gap-4 min-w-0">
                           <span
-                            className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
-                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
+                            className="mt-2 h-4 w-4 flex-shrink-0 rounded-full shadow-sm"
+                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
+                            aria-hidden
                           />
-                          <div className="space-y-1">
-                            <div className="font-medium flex items-center gap-2 text-foreground">
-                              <Stethoscope className="h-4 w-4 text-muted-foreground" />
-                              {consulta.medico}
+                          <div className="space-y-3 min-w-0">
+                            <div className="font-bold flex items-center gap-2.5 text-foreground text-lg leading-tight">
+                              <Stethoscope className="h-5 w-5 text-primary flex-shrink-0" />
+                              <span className="truncate">{consulta.medico}</span>
                             </div>
-                            <p className="text-sm text-muted-foreground break-words">
-                              {consulta.especialidade} • {consulta.local}
+                            <p className="text-sm text-muted-foreground break-words leading-relaxed">
+                              <span className="font-medium text-foreground/70">{consulta.especialidade}</span>
+                              <span className="mx-1.5">•</span>
+                              <span>{consulta.local}</span>
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-foreground">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{consulta.hora}</span>
+                        {/* Time */}
+                        <div className="flex items-center justify-start gap-2.5 text-foreground">
+                          <Clock className="h-5 w-5 text-primary flex-shrink-0" />
+                          <span className="font-bold text-lg">{consulta.hora}</span>
                         </div>
 
-                        <div className="flex items-center">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
+                        {/* Status Badge */}
+                        <div className="flex items-center justify-start">
+                          <span className={`px-4 py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
+                            consulta.status === 'Confirmada' 
+                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
+                              : consulta.status === 'Pendente' 
+                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
+                              : 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/20'
+                          }`}>
                             {consulta.status}
                           </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row items-stretch gap-2">
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
-                            className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
+                            className="border border-primary/30 text-primary bg-primary/5 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
                           >
                             Detalhes
                           </Button>
                           {consulta.status !== 'Cancelada' && (
-                            <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
+                            <Button 
+                              type="button" 
+                              size="sm" 
+                              className="bg-primary/10 text-primary border border-primary/30 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                            >
                               Reagendar
                             </Button>
                           )}
                           {consulta.status !== 'Cancelada' && (
                             <Button
                               type="button"
-                              variant="destructive"
                               size="sm"
-                              className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:!bg-destructive hover:!text-white hover:!border-destructive transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
                             >
                               Cancelar
                             </Button>
@@ -710,15 +716,9 @@ export default function PacientePage() {
                 })()
               )}
             </div>
-
-            <DialogFooter className="justify-center border-t border-border pt-4 mt-2">
-              <Button variant="outline" onClick={() => { setMostrarAgendadas(false) }} className="w-full sm:w-auto">
-                Fechar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </section>
+          </div>
+        </section>
+      </div>
     )
   }
 
@@ -797,8 +797,8 @@ export default function PacientePage() {
                   <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
+                  <Button variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
             ))
@@ -976,74 +976,84 @@ export default function PacientePage() {
   // Renderização principal
   return (
     <ProtectedRoute requiredUserType={["paciente"]}>
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        {/* Header só com título e botão de sair */}
-        <header className="flex items-center justify-between px-4 py-2 border-b bg-card">
-          <div className="flex items-center gap-2">
-            <User className="h-6 w-6 text-primary" aria-hidden />
-            <span className="font-bold">Portal do Paciente</span>
-            <Button asChild variant="outline" className="ml-4 hover:!bg-primary hover:!text-white hover:!border-primary transition-colors">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header com informações do paciente */}
+        <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-12 w-12">
+              <AvatarFallback className="bg-primary text-white font-bold">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm text-muted-foreground">Conta do paciente</span>
+              <span className="font-bold text-lg leading-none">{profileData.nome || 'Paciente'}</span>
+              <span className="text-sm text-muted-foreground truncate">{profileData.email || 'Email não disponível'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <SimpleThemeToggle />
+            <Button asChild variant="outline" className="hover:!bg-primary hover:!text-white hover:!border-primary transition-colors">
               <Link href="/">
                 <Home className="h-4 w-4 mr-1" /> Início
               </Link>
             </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <SimpleThemeToggle />
             <Button 
               onClick={handleLogout} 
               variant="outline" 
               aria-label={strings.sair} 
               disabled={loading} 
-              className="ml-2 bg-background hover:!bg-destructive hover:!text-white hover:!border-destructive transition-colors"
+              className="text-destructive border-destructive hover:!bg-destructive hover:!text-white hover:!border-destructive transition-colors"
             >
-              <LogOut className="h-4 w-4" /> {strings.sair}
+              <LogOut className="h-4 w-4 mr-1" /> {strings.sair}
             </Button>
           </div>
         </header>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Sidebar vertical */}
-          <nav aria-label="Navegação do dashboard" className="w-56 bg-card border-r flex flex-col py-6 px-2 gap-2">
-            <Button
-              variant={tab==='dashboard'?'secondary':'ghost'}
-              aria-current={tab==='dashboard'}
-              onClick={()=>setTab('dashboard')}
-              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='dashboard' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <Calendar className="mr-2 h-5 w-5" />{strings.dashboard}
-            </Button>
-            <Button
-              variant={tab==='consultas'?'secondary':'ghost'}
-              aria-current={tab==='consultas'}
-              onClick={()=>setTab('consultas')}
-              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='consultas' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <Calendar className="mr-2 h-5 w-5" />{strings.consultas}
-            </Button>
-            <Button
-              variant={tab==='exames'?'secondary':'ghost'}
-              aria-current={tab==='exames'}
-              onClick={()=>setTab('exames')}
-              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='exames' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <FileText className="mr-2 h-5 w-5" />{strings.exames}
-            </Button>
-            
-            <Button
-              variant={tab==='perfil'?'secondary':'ghost'}
-              aria-current={tab==='perfil'}
-              onClick={()=>setTab('perfil')}
-              className={`justify-start hover:!bg-primary hover:!text-white transition-colors ${tab==='perfil' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <UserCog className="mr-2 h-5 w-5" />{strings.perfil}
-            </Button>
-          </nav>
+        {/* Layout com sidebar e conteúdo */}
+        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
+          {/* Sidebar vertical - sticky */}
+          <aside className="sticky top-24 h-fit">
+            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1 z-30">
+              <Button
+                variant={tab==='dashboard'?'default':'ghost'}
+                aria-current={tab==='dashboard'}
+                onClick={()=>setTab('dashboard')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <Calendar className="mr-2 h-4 w-4" />{strings.dashboard}
+              </Button>
+              <Button
+                variant={tab==='consultas'?'default':'ghost'}
+                aria-current={tab==='consultas'}
+                onClick={()=>setTab('consultas')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <Calendar className="mr-2 h-4 w-4" />{strings.consultas}
+              </Button>
+              <Button
+                variant={tab==='exames'?'default':'ghost'}
+                aria-current={tab==='exames'}
+                onClick={()=>setTab('exames')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <FileText className="mr-2 h-4 w-4" />{strings.exames}
+              </Button>
+              
+              <Button
+                variant={tab==='perfil'?'default':'ghost'}
+                aria-current={tab==='perfil'}
+                onClick={()=>setTab('perfil')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <UserCog className="mr-2 h-4 w-4" />{strings.perfil}
+              </Button>
+            </nav>
+          </aside>
+          
           {/* Conteúdo principal */}
-          <div className="flex-1 min-w-0 p-4 max-w-4xl mx-auto w-full">
+          <main className="flex-1 w-full">
             {/* Toasts de feedback */}
             {toast && (
-              <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded shadow-lg ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">{toast.msg}</div>
+              <div className={`fixed top-24 right-4 z-50 px-4 py-2 rounded shadow-lg ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">{toast.msg}</div>
             )}
 
             {/* Loader global */}
@@ -1052,15 +1062,14 @@ export default function PacientePage() {
 
             {/* Conteúdo principal */}
             {!loading && !error && (
-              <main className="flex-1">
+              <>
                 {tab==='dashboard' && <DashboardCards />}
                 {tab==='consultas' && <Consultas />}
                 {tab==='exames' && <ExamesLaudos />}
-                
                 {tab==='perfil' && <Perfil />}
-              </main>
+              </>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </ProtectedRoute>

@@ -283,15 +283,15 @@ export default function DashboardPage() {
             <Plus className="h-4 w-4" />
             Novo Paciente
           </Button>
-          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
+          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 hover:!bg-primary hover:!text-white transition-colors">
             <Calendar className="h-4 w-4" />
             Novo Agendamento
           </Button>
-          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
+          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 hover:!bg-primary hover:!text-white transition-colors">
             <Stethoscope className="h-4 w-4" />
             Novo Médico
           </Button>
-          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground">
+          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 hover:!bg-primary hover:!text-white transition-colors">
             <FileText className="h-4 w-4" />
             Ver Relatórios
           </Button>
@@ -340,7 +340,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">{report.exam || 'Sem descrição'}</p>
                 </div>
               ))}
-              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2" size="sm">
+              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:!bg-primary hover:!text-white transition-colors" size="sm">
                 Ver Todos
               </Button>
             </div>

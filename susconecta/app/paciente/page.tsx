@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -17,7 +17,8 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, atualizarPaciente, buscarPacientePorId } from '@/lib/api'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById } from '@/lib/api'
+import { buscarRelatorioPorId, listarRelatoriosPorMedico } from '@/lib/reports'
 import { ENV_CONFIG } from '@/lib/env-config'
 import { listarRelatoriosPorPaciente } from '@/lib/reports'
 // reports are rendered statically for now
@@ -341,16 +342,34 @@ export default function PacientePage() {
     }, [patientId])
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Card className="flex flex-col items-center justify-center p-4">
-          <Calendar className="mb-2 text-primary" aria-hidden />
-          <span className="font-semibold">{strings.proximaConsulta}</span>
-          <span className="text-2xl">{loading ? '...' : (nextAppt ?? '-')}</span>
+      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
+        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <div className="flex h-40 w-full flex-col items-center justify-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Calendar className="h-6 w-6" aria-hidden />
+            </div>
+            {/* rótulo e número com mesma fonte e mesmo tamanho (harmônico) */}
+            <span className="text-lg md:text-xl font-semibold text-muted-foreground tracking-wide">
+              {strings.proximaConsulta}
+            </span>
+            <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
+              {loading ? '—' : (nextAppt ?? '-')}
+            </span>
+          </div>
         </Card>
-        <Card className="flex flex-col items-center justify-center p-4">
-          <FileText className="mb-2 text-primary" aria-hidden />
-          <span className="font-semibold">{strings.ultimosExames}</span>
-          <span className="text-2xl">{loading ? '...' : (examsCount !== null ? String(examsCount) : '-')}</span>
+
+        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <div className="flex h-40 w-full flex-col items-center justify-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <FileText className="h-6 w-6" aria-hidden />
+            </div>
+            <span className="text-lg md:text-xl font-semibold text-muted-foreground tracking-wide">
+              {strings.ultimosExames}
+            </span>
+            <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
+              {loading ? '—' : (examsCount !== null ? String(examsCount) : '-')}
+            </span>
+          </div>
         </Card>
       </div>
     )
@@ -418,25 +437,21 @@ export default function PacientePage() {
     const [tipoConsulta, setTipoConsulta] = useState<'teleconsulta' | 'presencial'>('teleconsulta')
     const [especialidade, setEspecialidade] = useState('cardiologia')
     const [localizacao, setLocalizacao] = useState('')
-    const [mostrarAgendadas, setMostrarAgendadas] = useState(false)
     const hoverPrimaryClass = "transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97]"
     const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
     const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
     const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
-  const isSelectedDateToday = selectedDate.getTime() === today.getTime()
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
+    const isSelectedDateToday = selectedDate.getTime() === today.getTime()
 
-  
-
-    // Appointments state (loaded when "Ver consultas agendadas" is opened)
+    // Appointments state (loaded when component mounts)
     const [appointments, setAppointments] = useState<any[] | null>(null)
     const [loadingAppointments, setLoadingAppointments] = useState(false)
     const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
 
     useEffect(() => {
       let mounted = true
-      if (!mostrarAgendadas) return
       if (!patientId) {
         setAppointmentsError('Paciente não identificado. Faça login novamente.')
         return
@@ -532,7 +547,7 @@ export default function PacientePage() {
 
       loadAppointments()
       return () => { mounted = false }
-    }, [mostrarAgendadas, patientId])
+    }, [patientId])
 
     // Monta a URL de resultados com os filtros atuais
     const buildResultadosHref = () => {
@@ -545,70 +560,63 @@ export default function PacientePage() {
       return `/resultados?${qs.toString()}`
     }
 
-    // derived lists for the "Ver consultas agendadas" dialog (computed after appointments state is declared)
+    // derived lists for the page (computed after appointments state is declared)
     const _dialogSource = (appointments !== null ? appointments : consultasFicticias)
     const _todaysAppointments = (_dialogSource || []).filter((c: any) => c.data === todayStr)
 
     return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <div className="max-w-3xl mx-auto space-y-8">
-          <header className="text-center space-y-2">
-            <h2 className="text-3xl font-semibold text-foreground">Agende sua próxima consulta</h2>
-            <p className="text-muted-foreground">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
-          </header>
+      <div className="space-y-6">
+        {/* Hero Section */}
+        <section className="bg-gradient-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
+          <div className="max-w-3xl mx-auto space-y-8">
+            <header className="text-center space-y-4">
+              <h2 className="text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
+            </header>
 
-          <div className="space-y-6 rounded-lg border border-border bg-muted/40 p-6">
-            {/* Remover campos de especialidade e localização, deixar só o botão centralizado */}
-            <div className="flex justify-center">
-              <Button asChild className={`w-full md:w-40 ${hoverPrimaryClass}`}>
-                <Link href={buildResultadosHref()} prefetch={false}>
-                  Pesquisar
-                </Link>
-              </Button>
+            <div className="space-y-6 rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
+              <div className="flex justify-center">
+                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:!bg-primary/90 hover:!text-white transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
+                  <Link href={buildResultadosHref()} prefetch={false}>
+                    Pesquisar Médicos
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="text-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="transition duration-200 bg-[#2563eb] text-white border border-[#2563eb]/40 rounded-md shadow-[0_2px_6px_rgba(0,0,0,0.03)] hover:bg-[#1e40af] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 dark:bg-[#2563eb] dark:text-white dark:border-[#2563eb]/50 dark:hover:bg-[#1e40af]"
-              onClick={() => setMostrarAgendadas(true)}
-            >
-              Ver consultas agendadas
-            </Button>
-          </div>
-        </div>
+        {/* Consultas Agendadas Section */}
+        <section className="bg-card shadow-md rounded-lg border border-border p-6">
+          <div className="space-y-6">
+            <header>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Suas Consultas Agendadas</h2>
+              <p className="text-muted-foreground">Gerencie suas consultas confirmadas, pendentes ou canceladas.</p>
+            </header>
 
-        <Dialog open={mostrarAgendadas} onOpenChange={open => setMostrarAgendadas(open)}>
-    <DialogContent className="max-w-3xl space-y-6 sm:max-h-[85vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-semibold text-foreground">Consultas agendadas</DialogTitle>
-              <DialogDescription>Gerencie suas consultas confirmadas, pendentes ou canceladas.</DialogDescription>
-            </DialogHeader>
-
-            <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
+            {/* Date Navigation */}
+            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
-                  className={`group shadow-sm ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
                 >
-                  <ChevronLeft className="h-4 w-4 transition group-hover:text-white" />
+                  <ChevronLeft className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
-                <span className="text-lg font-medium text-foreground">{formatDatePt(currentDate)}</span>
+                <span className="text-base sm:text-lg font-semibold text-foreground min-w-fit">{formatDatePt(currentDate)}</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
-                  className={`group shadow-sm ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
                 >
-                  <ChevronRight className="h-4 w-4 transition group-hover:text-white" />
+                  <ChevronRight className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
                 {isSelectedDateToday && (
                   <Button
@@ -617,88 +625,105 @@ export default function PacientePage() {
                     size="sm"
                     onClick={goToToday}
                     disabled
-                    className="border border-border text-foreground focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] hover:bg-transparent hover:text-foreground disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground"
+                    className="border border-border/50 text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.97] hover:bg-primary/5 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground"
                   >
                     Hoje
                   </Button>
                 )}
               </div>
-              <div className="text-sm text-muted-foreground">
-                {`${_todaysAppointments.length} consulta${_todaysAppointments.length !== 1 ? 's' : ''} agendada${_todaysAppointments.length !== 1 ? 's' : ''}`}
+              <div className="text-sm font-medium text-muted-foreground bg-background/50 px-4 py-2 rounded-lg">
+                <span className="text-primary font-semibold">{_todaysAppointments.length}</span> consulta{_todaysAppointments.length !== 1 ? 's' : ''} agendada{_todaysAppointments.length !== 1 ? 's' : ''}
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 sm:pr-2 pb-6">
-              {loadingAppointments && mostrarAgendadas ? (
+            {/* Appointments List */}
+            <div className="flex flex-col gap-6">
+              {loadingAppointments ? (
                 <div className="text-center py-10 text-muted-foreground">Carregando consultas...</div>
               ) : appointmentsError ? (
                 <div className="text-center py-10 text-red-600">{appointmentsError}</div>
               ) : (
-                // prefer appointments (client-loaded) when present; fallback to fictitious list
                 (() => {
                   const todays = _todaysAppointments
                   if (!todays || todays.length === 0) {
                     return (
-                      <div className="text-center py-10 text-muted-foreground">
-                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-60" />
-                        <p className="text-lg font-medium">Nenhuma consulta agendada para este dia</p>
-                        <p className="text-sm">Use a busca para marcar uma nova consulta.</p>
+                      <div className="flex flex-col items-center justify-center py-16 px-4">
+                        <div className="rounded-full bg-primary/10 p-4 mb-4">
+                          <Calendar className="h-10 w-10 text-primary" />
+                        </div>
+                        <p className="text-xl font-bold text-foreground mb-2">Nenhuma consulta agendada para este dia</p>
+                        <p className="text-base text-muted-foreground text-center max-w-sm">Use a busca acima para marcar uma nova consulta ou navegue entre os dias.</p>
                       </div>
                     )
                   }
                   return todays.map((consulta: any) => (
                     <div
                       key={consulta.id}
-                      className="rounded-xl border border-black/5 dark:border-white/10 bg-card shadow-[0_4px_12px_rgba(0,0,0,0.05)] dark:shadow-none p-5"
+                      className="rounded-2xl border border-primary/15 bg-card shadow-md hover:shadow-xl transition-all duration-300 p-6 hover:border-primary/30 hover:bg-card/95"
                     >
-                      <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-start">
-                        <div className="flex items-start gap-3">
+                      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_0.8fr_1fr_1.2fr] items-start">
+                        {/* Doctor Info */}
+                        <div className="flex items-start gap-4 min-w-0">
                           <span
-                            className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
-                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#22c55e' : consulta.status === 'Pendente' ? '#fbbf24' : '#ef4444' }}
+                            className="mt-2 h-4 w-4 flex-shrink-0 rounded-full shadow-sm"
+                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
+                            aria-hidden
                           />
-                          <div className="space-y-1">
-                            <div className="font-medium flex items-center gap-2 text-foreground">
-                              <Stethoscope className="h-4 w-4 text-muted-foreground" />
-                              {consulta.medico}
+                          <div className="space-y-3 min-w-0">
+                            <div className="font-bold flex items-center gap-2.5 text-foreground text-lg leading-tight">
+                              <Stethoscope className="h-5 w-5 text-primary flex-shrink-0" />
+                              <span className="truncate">{consulta.medico}</span>
                             </div>
-                            <p className="text-sm text-muted-foreground break-words">
-                              {consulta.especialidade} • {consulta.local}
+                            <p className="text-sm text-muted-foreground break-words leading-relaxed">
+                              <span className="font-medium text-foreground/70">{consulta.especialidade}</span>
+                              <span className="mx-1.5">•</span>
+                              <span>{consulta.local}</span>
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-foreground">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{consulta.hora}</span>
+                        {/* Time */}
+                        <div className="flex items-center justify-start gap-2.5 text-foreground">
+                          <Clock className="h-5 w-5 text-primary flex-shrink-0" />
+                          <span className="font-bold text-lg">{consulta.hora}</span>
                         </div>
 
-                        <div className="flex items-center">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${consulta.status === 'Confirmada' ? 'bg-green-600' : consulta.status === 'Pendente' ? 'bg-yellow-500' : 'bg-red-600'}`}>
+                        {/* Status Badge */}
+                        <div className="flex items-center justify-start">
+                          <span className={`px-4 py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
+                            consulta.status === 'Confirmada' 
+                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
+                              : consulta.status === 'Pendente' 
+                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
+                              : 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/20'
+                          }`}>
                             {consulta.status}
                           </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row items-stretch gap-2">
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
-                            className="border border-[#2563eb]/40 text-[#2563eb] hover:bg-transparent hover:text-[#2563eb] focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 active:scale-[0.97]"
+                            className="border border-primary/30 text-primary bg-primary/5 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
                           >
                             Detalhes
                           </Button>
                           {consulta.status !== 'Cancelada' && (
-                            <Button type="button" variant="secondary" size="sm" className={hoverPrimaryClass}>
+                            <Button 
+                              type="button" 
+                              size="sm" 
+                              className="bg-primary/10 text-primary border border-primary/30 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                            >
                               Reagendar
                             </Button>
                           )}
                           {consulta.status !== 'Cancelada' && (
                             <Button
                               type="button"
-                              variant="destructive"
                               size="sm"
-                              className="transition duration-200 hover:bg-[#dc2626] focus-visible:ring-2 focus-visible:ring-[#dc2626]/60 active:scale-[0.97]"
+                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:!bg-destructive hover:!text-white hover:!border-destructive transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
                             >
                               Cancelar
                             </Button>
@@ -710,15 +735,9 @@ export default function PacientePage() {
                 })()
               )}
             </div>
-
-            <DialogFooter className="justify-center border-t border-border pt-4 mt-2">
-              <Button variant="outline" onClick={() => { setMostrarAgendadas(false) }} className="w-full sm:w-auto">
-                Fechar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </section>
+          </div>
+        </section>
+      </div>
     )
   }
 
@@ -730,6 +749,246 @@ export default function PacientePage() {
     const [loadingReports, setLoadingReports] = useState(false)
     const [reportsError, setReportsError] = useState<string | null>(null)
     const [reportDoctorName, setReportDoctorName] = useState<string | null>(null)
+  const [doctorsMap, setDoctorsMap] = useState<Record<string, any>>({})
+  const [resolvingDoctors, setResolvingDoctors] = useState(false)
+  const [reportsPage, setReportsPage] = useState<number>(1)
+  const [reportsPerPage, setReportsPerPage] = useState<number>(5)
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [remoteMatch, setRemoteMatch] = useState<any | null>(null)
+  const [searchingRemote, setSearchingRemote] = useState<boolean>(false)
+
+  // derived filtered list based on search term
+  const filteredReports = useMemo(() => {
+    if (!reports || !Array.isArray(reports)) return []
+    const qRaw = String(searchTerm || '').trim()
+    const q = qRaw.toLowerCase()
+
+    // If we have a remote-match result for this query, prefer it. remoteMatch
+    // may be a single report (for id-like queries) or an array (for doctor-name search).
+  const hexOnlyRaw = String(qRaw).replace(/[^0-9a-fA-F]/g, '')
+  // defensive: compute length via explicit number conversion to avoid any
+  // accidental transpilation/patch artifacts that could turn a comparison
+  // into an unexpected call. This avoids runtime "8 is not a function".
+  const hexLenRaw = (typeof hexOnlyRaw === 'string') ? hexOnlyRaw.length : (Number(hexOnlyRaw) || 0)
+  const looksLikeId = hexLenRaw >= 8
+    if (remoteMatch) {
+      if (Array.isArray(remoteMatch)) return remoteMatch
+      return [remoteMatch]
+    }
+
+    if (!q) return reports
+    return reports.filter((r: any) => {
+      try {
+        const id = r.id ? String(r.id).toLowerCase() : ''
+        const title = String(reportTitle(r) || '').toLowerCase()
+        const exam = String(r.exam || r.exame || r.report_type || r.especialidade || '').toLowerCase()
+        const date = String(r.report_date || r.created_at || r.data || '').toLowerCase()
+        const notes = String(r.content || r.body || r.conteudo || r.notes || r.observacoes || '').toLowerCase()
+        const cid = String(r.cid || r.cid_code || r.cidCode || r.cie || '').toLowerCase()
+        const diagnosis = String(r.diagnosis || r.diagnostico || r.diagnosis_text || r.diagnostico_text || '').toLowerCase()
+        const conclusion = String(r.conclusion || r.conclusao || r.conclusion_text || r.conclusao_text || '').toLowerCase()
+        const orderNumber = String(r.order_number || r.orderNumber || r.numero_pedido || '').toLowerCase()
+
+        // patient fields
+        const patientName = String(
+          r?.paciente?.full_name || r?.paciente?.nome || r?.patient?.full_name || r?.patient?.nome || r?.patient_name || r?.patient_full_name || ''
+        ).toLowerCase()
+
+        // requester/executor fields
+        const requestedBy = String(r.requested_by_name || r.requested_by || r.requester_name || r.requester || '').toLowerCase()
+        const executor = String(r.executante || r.executante_name || r.executor || r.executor_name || '').toLowerCase()
+
+        // try to resolve doctor name from map when available
+        const maybeId = r?.doctor_id || r?.created_by || r?.doctor || null
+        const doctorName = maybeId ? String(doctorsMap[String(maybeId)]?.full_name || doctorsMap[String(maybeId)]?.name || '').toLowerCase() : ''
+
+        // build search corpus
+        const corpus = [id, title, exam, date, notes, cid, diagnosis, conclusion, orderNumber, patientName, requestedBy, executor, doctorName].join(' ')
+        return corpus.includes(q)
+      } catch (e) {
+        return false
+      }
+    })
+  }, [reports, searchTerm, doctorsMap, remoteMatch])
+
+  // When the search term looks like an id, attempt a direct fetch using the reports API
+  useEffect(() => {
+    let mounted = true
+    const q = String(searchTerm || '').trim()
+    if (!q) {
+      setRemoteMatch(null)
+      setSearchingRemote(false)
+      return
+    }
+  // heuristic: id-like strings contain many hex characters (UUID-like) —
+  // avoid calling RegExp.test/match to sidestep any env/type issues here.
+  const hexOnly = String(q).replace(/[^0-9a-fA-F]/g, '')
+  // defensive length computation as above
+  const hexLen = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0)
+  const looksLikeId = hexLen >= 8
+  // If it looks like an id, try the single-report lookup. Otherwise, if it's a
+  // textual query, try searching doctors by full_name and then fetch reports
+  // authored/requested by those doctors.
+  ;(async () => {
+      try {
+        setSearchingRemote(true)
+        setRemoteMatch(null)
+
+        if (looksLikeId) {
+          const r = await buscarRelatorioPorId(q).catch(() => null)
+          if (!mounted) return
+          if (r) setRemoteMatch(r)
+          return
+        }
+
+        // textual search: try to find doctors whose full_name matches the query
+        // and then fetch reports for those doctors. Only run for reasonably
+        // long queries to avoid excessive network calls.
+        if (q.length >= 2) {
+          const docs = await buscarMedicos(q).catch(() => [])
+          if (!mounted) return
+          if (docs && Array.isArray(docs) && docs.length) {
+            // fetch reports for matching doctors in parallel
+            const promises = docs.map(d => listarRelatoriosPorMedico(String(d.id)).catch(() => []))
+            const arrays = await Promise.all(promises)
+            if (!mounted) return
+            const combined = ([] as any[]).concat(...arrays)
+            // dedupe by report id
+            const seen = new Set<string>()
+            const unique: any[] = []
+            for (const rr of combined) {
+              try {
+                const rid = String(rr.id)
+                if (!seen.has(rid)) {
+                  seen.add(rid)
+                  unique.push(rr)
+                }
+              } catch (e) {
+                // skip malformed item
+              }
+            }
+            if (unique.length) setRemoteMatch(unique)
+            else setRemoteMatch(null)
+            return
+          }
+        }
+
+        // nothing useful found
+        if (mounted) setRemoteMatch(null)
+      } catch (e) {
+        if (mounted) setRemoteMatch(null)
+      } finally {
+        if (mounted) setSearchingRemote(false)
+      }
+    })()
+
+    return () => { mounted = false }
+  }, [searchTerm])
+
+    // Helper to derive a human-friendly title for a report/laudo
+    const reportTitle = (rep: any, preferDoctorName?: string | null) => {
+      if (!rep) return 'Laudo'
+      // prefer a resolved doctor name when we have a map
+      try {
+        const maybeId = rep?.doctor_id ?? rep?.created_by ?? rep?.doctor ?? null
+        if (maybeId) {
+          const doc = doctorsMap[String(maybeId)]
+          if (doc) {
+            const name = doc.full_name || doc.name || doc.fullName || doc.doctor_name || null
+            if (name) return String(name)
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      // Try common fields that may contain the doctor's/author name first
+      const tryKeys = [
+        'doctor_name', 'doctor_full_name', 'doctorFullName', 'doctorName',
+        'requested_by_name', 'requested_by', 'requester_name', 'requester',
+        'created_by_name', 'created_by', 'executante', 'executante_name',
+        'title', 'name', 'report_name', 'report_title'
+      ]
+      for (const k of tryKeys) {
+        const v = rep[k]
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v)
+      }
+      if (preferDoctorName) return preferDoctorName
+      return 'Laudo'
+    }
+
+    // When reports are loaded, try to resolve doctor records for display
+    useEffect(() => {
+      let mounted = true
+      if (!reports || !Array.isArray(reports) || reports.length === 0) return
+      ;(async () => {
+        try {
+          setResolvingDoctors(true)
+          const ids = Array.from(new Set(reports.map((r: any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
+          if (ids.length === 0) return
+          const docs = await buscarMedicosPorIds(ids).catch(() => [])
+          if (!mounted) return
+          const map: Record<string, any> = {}
+          // index returned docs by both their id and user_id (some reports store user_id)
+          for (const d of docs || []) {
+            if (!d) continue
+            try {
+              if (d.id !== undefined && d.id !== null) map[String(d.id)] = d
+            } catch {}
+            try {
+              if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d
+            } catch {}
+          }
+
+          // attempt per-id fallback for any unresolved ids (try getDoctorById)
+          const unresolved = ids.filter(i => !map[i])
+          if (unresolved.length) {
+            for (const u of unresolved) {
+              try {
+                const d = await getDoctorById(String(u)).catch(() => null)
+                if (d) {
+                  if (d.id !== undefined && d.id !== null) map[String(d.id)] = d
+                  if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d
+                }
+              } catch (e) {
+                // ignore per-id failure
+              }
+            }
+          }
+
+          // final fallback: try lookup by user_id (direct REST using baseHeaders)
+          const stillUnresolved = ids.filter(i => !map[i])
+          if (stillUnresolved.length) {
+            for (const u of stillUnresolved) {
+              try {
+                const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+                if (token) headers.Authorization = `Bearer ${token}`
+                const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(u))}&limit=1`
+                const res = await fetch(url, { method: 'GET', headers })
+                if (!res || res.status >= 400) continue
+                const rows = await res.json().catch(() => [])
+                if (rows && Array.isArray(rows) && rows.length) {
+                  const d = rows[0]
+                  if (d) {
+                    if (d.id !== undefined && d.id !== null) map[String(d.id)] = d
+                    if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d
+                  }
+                }
+              } catch (e) {
+                // ignore network errors
+              }
+            }
+          }
+
+          setDoctorsMap(map)
+          setResolvingDoctors(false)
+        } catch (e) {
+          // ignore resolution errors
+          setResolvingDoctors(false)
+        }
+      })()
+      return () => { mounted = false }
+    }, [reports])
 
     useEffect(() => {
       let mounted = true
@@ -770,6 +1029,36 @@ export default function PacientePage() {
           if (docs && docs.length) {
             const doc0: any = docs[0]
             setReportDoctorName(doc0.full_name || doc0.name || doc0.fullName || null)
+            return
+          }
+
+          // fallback: try single-id lookup
+          try {
+            const d = await getDoctorById(String(maybeDoctorId)).catch(() => null)
+            if (d && mounted) {
+              setReportDoctorName(d.full_name || d.name || d.fullName || null)
+              return
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          // final fallback: query doctors by user_id
+          try {
+            const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+            const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+            if (token) headers.Authorization = `Bearer ${token}`
+            const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(maybeDoctorId))}&limit=1`
+            const res = await fetch(url, { method: 'GET', headers })
+            if (res && res.status < 400) {
+              const rows = await res.json().catch(() => [])
+              if (rows && Array.isArray(rows) && rows.length) {
+                const d = rows[0]
+                if (d && mounted) setReportDoctorName(d.full_name || d.name || d.fullName || null)
+              }
+            }
+          } catch (e) {
+            // ignore
           }
         } catch (e) {
           // ignore
@@ -778,33 +1067,81 @@ export default function PacientePage() {
       return () => { mounted = false }
     }, [selectedReport])
 
+    // reset pagination when reports change
+    useEffect(() => {
+      setReportsPage(1)
+    }, [reports])
+
     return (
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <h2 className="text-2xl font-bold mb-6">Laudos</h2>
 
         <div className="space-y-3">
+          {/* Search box: allow searching by id, doctor, exam, date or text */}
+          <div className="mb-4 flex items-center gap-2">
+            <Input placeholder="Pesquisar laudo, médico, exame, data ou id" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setReportsPage(1) }} />
+            {searchTerm && (
+              <Button variant="ghost" onClick={() => { setSearchTerm(''); setReportsPage(1) }}>Limpar</Button>
+            )}
+          </div>
           {loadingReports ? (
             <div className="text-center py-8 text-muted-foreground">{strings.carregando}</div>
           ) : reportsError ? (
             <div className="text-center py-8 text-red-600">{reportsError}</div>
           ) : (!reports || reports.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
-          ) : (
-            reports.map((r) => (
-              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-4">
+            ) : (filteredReports.length === 0) ? (
+              searchingRemote ? (
+                <div className="text-center py-8 text-muted-foreground">Buscando laudo...</div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">Nenhum laudo corresponde à pesquisa.</div>
+              )
+            ) : (
+            (() => {
+              const total = Array.isArray(filteredReports) ? filteredReports.length : 0
+              const totalPages = Math.max(1, Math.ceil(total / reportsPerPage))
+              // keep page inside bounds
+              const page = Math.min(Math.max(1, reportsPage), totalPages)
+              const start = (page - 1) * reportsPerPage
+              const end = start + reportsPerPage
+              const pageItems = (filteredReports || []).slice(start, end)
+
+              return (
+                <>
+                  {pageItems.map((r) => (
+              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-5">
                 <div>
-                  <div className="font-medium text-foreground">{r.title || r.name || r.report_name || 'Laudo'}</div>
-                  <div className="text-sm text-muted-foreground">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                  {(() => {
+                    const maybeId = r?.doctor_id || r?.created_by || r?.doctor || null
+                    if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) {
+                      return <div className="font-medium text-muted-foreground text-lg md:text-xl">{strings.carregando}</div>
+                    }
+                    return <div className="font-medium text-foreground text-lg md:text-xl">{reportTitle(r)}</div>
+                  })()}
+                  <div className="text-base md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
+                  <Button variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
-            ))
+                  ))}
+
+                  {/* Pagination controls */}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">Mostrando {Math.min(start+1, total)}–{Math.min(end, total)} de {total}</div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.max(1, p-1))} disabled={page <= 1} className="px-3">Anterior</Button>
+                      <div className="text-sm text-muted-foreground">{page} / {totalPages}</div>
+                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="px-3">Próxima</Button>
+                    </div>
+                  </div>
+                </>
+              )
+            })()
           )}
         </div>
-
+ 
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
               <DialogHeader>
@@ -813,7 +1150,25 @@ export default function PacientePage() {
                   {selectedReport && (
                     <>
                       <div className="mb-2">
-                        <div className="font-semibold text-lg">{selectedReport.title || selectedReport.name || 'Laudo'}</div>
+                                  {
+                                    // prefer the resolved doctor name; while resolving, show a loading indicator instead of raw IDs
+                                    (() => {
+                                      const looksLikeIdStr = (s: any) => {
+                                        try {
+                                          const hexOnly = String(s || '').replace(/[^0-9a-fA-F]/g, '')
+                                          const len = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0)
+                                          return len >= 8
+                                        } catch { return false }
+                                      }
+                                      const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null
+                                      // derive the title text
+                                      const derived = reportDoctorName ? reportTitle(selectedReport, reportDoctorName) : reportTitle(selectedReport)
+                                      // if the derived title looks like an id (UUID/hex) avoid showing it — show loading instead
+                                      if (looksLikeIdStr(derived)) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
+                                      if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
+                                      return <div className="font-semibold text-xl md:text-2xl">{derived}</div>
+                                    })()
+                                  }
                         <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                         {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
                       </div>
@@ -976,66 +1331,84 @@ export default function PacientePage() {
   // Renderização principal
   return (
     <ProtectedRoute requiredUserType={["paciente"]}>
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        {/* Header só com título e botão de sair */}
-        <header className="flex items-center justify-between px-4 py-2 border-b bg-card">
-          <div className="flex items-center gap-2">
-            <User className="h-6 w-6 text-primary" aria-hidden />
-            <span className="font-bold">Portal do Paciente</span>
-            <Button asChild variant="outline" className="ml-4">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header com informações do paciente */}
+        <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-12 w-12">
+              <AvatarFallback className="bg-primary text-white font-bold">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm text-muted-foreground">Conta do paciente</span>
+              <span className="font-bold text-lg leading-none">{profileData.nome || 'Paciente'}</span>
+              <span className="text-sm text-muted-foreground truncate">{profileData.email || 'Email não disponível'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <SimpleThemeToggle />
+            <Button asChild variant="outline" className="hover:!bg-primary hover:!text-white hover:!border-primary transition-colors">
               <Link href="/">
                 <Home className="h-4 w-4 mr-1" /> Início
               </Link>
             </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <SimpleThemeToggle />
-            <Button onClick={handleLogout} variant="destructive" aria-label={strings.sair} disabled={loading} className="ml-2"><LogOut className="h-4 w-4" /> {strings.sair}</Button>
+            <Button 
+              onClick={handleLogout} 
+              variant="outline" 
+              aria-label={strings.sair} 
+              disabled={loading} 
+              className="text-destructive border-destructive hover:!bg-destructive hover:!text-white hover:!border-destructive transition-colors"
+            >
+              <LogOut className="h-4 w-4 mr-1" /> {strings.sair}
+            </Button>
           </div>
         </header>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Sidebar vertical */}
-          <nav aria-label="Navegação do dashboard" className="w-56 bg-card border-r flex flex-col py-6 px-2 gap-2">
-            <Button
-              variant={tab==='dashboard'?'secondary':'ghost'}
-              aria-current={tab==='dashboard'}
-              onClick={()=>setTab('dashboard')}
-              className={`justify-start ${tab==='dashboard' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <Calendar className="mr-2 h-5 w-5" />{strings.dashboard}
-            </Button>
-            <Button
-              variant={tab==='consultas'?'secondary':'ghost'}
-              aria-current={tab==='consultas'}
-              onClick={()=>setTab('consultas')}
-              className={`justify-start ${tab==='consultas' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <Calendar className="mr-2 h-5 w-5" />{strings.consultas}
-            </Button>
-            <Button
-              variant={tab==='exames'?'secondary':'ghost'}
-              aria-current={tab==='exames'}
-              onClick={()=>setTab('exames')}
-              className={`justify-start ${tab==='exames' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <FileText className="mr-2 h-5 w-5" />{strings.exames}
-            </Button>
-            
-            <Button
-              variant={tab==='perfil'?'secondary':'ghost'}
-              aria-current={tab==='perfil'}
-              onClick={()=>setTab('perfil')}
-              className={`justify-start ${tab==='perfil' ? 'bg-primary/10 text-primary' : ''}`}
-            >
-              <UserCog className="mr-2 h-5 w-5" />{strings.perfil}
-            </Button>
-          </nav>
+        {/* Layout com sidebar e conteúdo */}
+        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
+          {/* Sidebar vertical - sticky */}
+          <aside className="sticky top-24 h-fit">
+            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1 z-30">
+              <Button
+                variant={tab==='dashboard'?'default':'ghost'}
+                aria-current={tab==='dashboard'}
+                onClick={()=>setTab('dashboard')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <Calendar className="mr-2 h-4 w-4" />{strings.dashboard}
+              </Button>
+              <Button
+                variant={tab==='consultas'?'default':'ghost'}
+                aria-current={tab==='consultas'}
+                onClick={()=>setTab('consultas')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <Calendar className="mr-2 h-4 w-4" />{strings.consultas}
+              </Button>
+              <Button
+                variant={tab==='exames'?'default':'ghost'}
+                aria-current={tab==='exames'}
+                onClick={()=>setTab('exames')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <FileText className="mr-2 h-4 w-4" />{strings.exames}
+              </Button>
+              
+              <Button
+                variant={tab==='perfil'?'default':'ghost'}
+                aria-current={tab==='perfil'}
+                onClick={()=>setTab('perfil')}
+                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+              >
+                <UserCog className="mr-2 h-4 w-4" />{strings.perfil}
+              </Button>
+            </nav>
+          </aside>
+          
           {/* Conteúdo principal */}
-          <div className="flex-1 min-w-0 p-4 max-w-4xl mx-auto w-full">
+          <main className="flex-1 w-full">
             {/* Toasts de feedback */}
             {toast && (
-              <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded shadow-lg ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">{toast.msg}</div>
+              <div className={`fixed top-24 right-4 z-50 px-4 py-2 rounded shadow-lg ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">{toast.msg}</div>
             )}
 
             {/* Loader global */}
@@ -1044,15 +1417,14 @@ export default function PacientePage() {
 
             {/* Conteúdo principal */}
             {!loading && !error && (
-              <main className="flex-1">
+              <>
                 {tab==='dashboard' && <DashboardCards />}
                 {tab==='consultas' && <Consultas />}
                 {tab==='exames' && <ExamesLaudos />}
-                
                 {tab==='perfil' && <Perfil />}
-              </main>
+              </>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </ProtectedRoute>

@@ -35,9 +35,9 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
-      formatters={{
+        formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("default", { month: "short", timeZone: 'America/Sao_Paulo' }),
         ...formatters,
       }}
       classNames={{
@@ -155,7 +155,7 @@ function Calendar({
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
         },
-        DayButton: CalendarDayButton,
+  DayButton: CalendarDayButton,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -190,7 +190,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+  data-day={day.date.toLocaleDateString(undefined, { timeZone: 'America/Sao_Paulo' })}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

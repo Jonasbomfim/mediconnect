@@ -236,13 +236,13 @@ export default function PacientesPage() {
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>CPF</TableHead>
-              <TableHead>Telefone</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-[100px]">Ações</TableHead>
+            <TableRow className="bg-primary hover:bg-primary">
+              <TableHead className="text-primary-foreground">Nome</TableHead>
+              <TableHead className="text-primary-foreground">CPF</TableHead>
+              <TableHead className="text-primary-foreground">Telefone</TableHead>
+              <TableHead className="text-primary-foreground">Cidade</TableHead>
+              <TableHead className="text-primary-foreground">Estado</TableHead>
+              <TableHead className="w-[100px] text-primary-foreground">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -257,7 +257,7 @@ export default function PacientesPage() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent">
+                        <button className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-primary hover:text-white transition-colors">
                           <span className="sr-only">Abrir menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
@@ -302,7 +302,7 @@ export default function PacientesPage() {
           <select
             value={itemsPerPage}
             onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={15}>15</option>
@@ -320,6 +320,7 @@ export default function PacientesPage() {
             size="sm"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Primeira
           </Button>
@@ -328,6 +329,7 @@ export default function PacientesPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Anterior
           </Button>
@@ -339,6 +341,7 @@ export default function PacientesPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Próxima
           </Button>
@@ -347,6 +350,7 @@ export default function PacientesPage() {
             size="sm"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
+            className="hover:!bg-primary hover:!text-white transition-colors"
           >
             Última
           </Button>

@@ -66,7 +66,8 @@ export default function AgendaCalendar({
       weekday: 'long', 
       day: 'numeric', 
       month: 'long', 
-      year: 'numeric' 
+      year: 'numeric',
+      timeZone: 'America/Sao_Paulo'
     });
   };
 
@@ -205,18 +206,22 @@ export default function AgendaCalendar({
               
               <div className="flex-1">
                 <div className="h-12 border-b border-gray-200 flex items-center justify-center text-sm font-medium text-gray-500">
-                  {currentDate.toLocaleDateString('pt-BR', { weekday: 'long' })}
-                </div>
+                    {currentDate.toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' })}
+                  </div>
                 <div className="relative">
                   {timeSlots.map(time => (
                     <div key={time} className="h-16 border-b border-gray-200"></div>
                   ))}
                   
                   {filteredAppointments.map(app => {
-                    const [date, timeStr] = app.time.split('T');
-                    const [hours, minutes] = timeStr.split(':');
-                    const hour = parseInt(hours);
-                    const minute = parseInt(minutes);
+                    // parse appointment time in Brazil timezone
+                    const d = new Date(app.time);
+                    // extract hour/minute in America/Sao_Paulo using Intl.DateTimeFormat
+                    const parts = new Intl.DateTimeFormat('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).formatToParts(d);
+                    const hourPart = parts.find(p => p.type === 'hour')?.value ?? '00';
+                    const minutePart = parts.find(p => p.type === 'minute')?.value ?? '00';
+                    const hour = parseInt(hourPart, 10);
+                    const minute = parseInt(minutePart, 10);
                     
                     return (
                       <div
@@ -236,7 +241,7 @@ export default function AgendaCalendar({
                             </div>
                             <div className="text-xs flex items-center mt-1">
                               <Clock className="h-3 w-3 mr-1" />
-                              {hours}:{minutes} - {app.type} {getTypeIcon(app.type)}
+                              {String(hour).padStart(2,'0')}:{String(minute).padStart(2,'0')} - {app.type} {getTypeIcon(app.type)}
                             </div>
                             <div className="text-xs mt-1">
                               {professionals.find(p => p.id === app.professional)?.name}
@@ -260,9 +265,13 @@ export default function AgendaCalendar({
       {view === 'month' && (
         <div className="p-4">
           <div className="space-y-4">
-            {filteredAppointments.map(app => {
-              const [date, timeStr] = app.time.split('T');
-              const [hours, minutes] = timeStr.split(':');
+              {filteredAppointments.map(app => {
+              const d = new Date(app.time);
+              const parts = new Intl.DateTimeFormat('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).formatToParts(d);
+              const hourPart = parts.find(p => p.type === 'hour')?.value ?? '00';
+              const minutePart = parts.find(p => p.type === 'minute')?.value ?? '00';
+              const hours = String(hourPart).padStart(2,'0');
+              const minutes = String(minutePart).padStart(2,'0');
               
               return (
                 <div key={app.id} className={`border-l-4 p-4 rounded-lg shadow-sm ${getStatusColor(app.status)}`}>

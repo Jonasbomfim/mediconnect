@@ -1,26 +1,27 @@
 "use client";
 
+// Imports mantidos
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import pt_br_locale from "@fullcalendar/core/locales/pt-br";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import { EventInput } from "@fullcalendar/core/index.js";
+import Link from "next/link";
+
+// --- Imports do EventManager (NOVO) - MANTIDOS ---
+import { EventManager, type Event } from "@/components/event-manager";
+import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
+
+// Imports mantidos
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { PagesHeader } from "@/components/dashboard/header";
 import { Button } from "@/components/ui/button";
 import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
-import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar";
+import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
 
 const ListaEspera = dynamic(
   () => import("@/components/agendamento/ListaEspera"),
@@ -31,8 +32,13 @@ export default function AgendamentoPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [waitingList, setWaitingList] = useState(mockWaitingList);
   const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
-  const [requestsList, setRequestsList] = useState<EventInput[]>();
+
   const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
+
+  // --- NOVO ESTADO ---
+  // Estado para alimentar o NOVO EventManager com dados da API
+  const [managerEvents, setManagerEvents] = useState<Event[]>([]);
+  const [managerLoading, setManagerLoading] = useState<boolean>(true);
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
@@ -49,22 +55,21 @@ export default function AgendamentoPage() {
   }, []);
 
   useEffect(() => {
-    // Fetch real appointments and map to calendar events
     let mounted = true;
     (async () => {
       try {
-        // listarAgendamentos accepts a query string; request a reasonable limit and order
+        setManagerLoading(true);
         const api = await import('@/lib/api');
         const arr = await api.listarAgendamentos('select=*&order=scheduled_at.desc&limit=500').catch(() => []);
         if (!mounted) return;
         if (!arr || !arr.length) {
           setAppointments([]);
-          setRequestsList([]);
           setThreeDEvents([]);
+          setManagerEvents([]); // Limpa o novo calendário
+          setManagerLoading(false);
           return;
         }
 
-        // Batch-fetch patient names for display
         const patientIds = Array.from(new Set(arr.map((a: any) => a.patient_id).filter(Boolean)));
         const patients = (patientIds && patientIds.length) ? await api.buscarPacientesPorIds(patientIds) : [];
         const patientsById: Record<string, any> = {};
@@ -72,24 +77,34 @@ export default function AgendamentoPage() {
 
         setAppointments(arr || []);
 
-        const events: EventInput[] = (arr || []).map((obj: any) => {
+        // --- LÓGICA DE TRANSFORMAÇÃO PARA O NOVO EVENTMANAGER ---
+        const newManagerEvents: Event[] = (arr || []).map((obj: any) => {
           const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
-          const start = scheduled ? new Date(scheduled) : null;
+          const start = scheduled ? new Date(scheduled) : new Date();
           const duration = Number(obj.duration_minutes ?? obj.duration ?? 30) || 30;
+          const end = new Date(start.getTime() + duration * 60 * 1000);
+          
           const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
           const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
-          const color = obj.status === 'confirmed' ? '#68d68a' : obj.status === 'pending' ? '#ffe55f' : '#ff5f5fff';
-          return {
-            title,
-            start: start || new Date(),
-            end: start ? new Date(start.getTime() + duration * 60 * 1000) : undefined,
-            color,
-            extendedProps: { raw: obj },
-          } as EventInput;
-        });
-        setRequestsList(events || []);
+          
+          let color = "gray"; // Cor padrão
+          if (obj.status === 'confirmed') color = 'green';
+          if (obj.status === 'pending') color = 'orange';
 
-        // Convert to 3D calendar events
+          return {
+            id: obj.id || uuidv4(), // Usa ID da API ou gera um
+            title: title,
+            description: `Agendamento para ${patient}. Status: ${obj.status || 'N/A'}.`, 
+            startTime: start,
+            endTime: end,
+            color: color,
+          };
+        });
+        setManagerEvents(newManagerEvents);
+        setManagerLoading(false);
+        // --- FIM DA LÓGICA ---
+
+        // Convert to 3D calendar events (MANTIDO 100%)
         const threeDEvents: CalendarEvent[] = (arr || []).map((obj: any) => {
           const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
           const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
@@ -108,14 +123,15 @@ export default function AgendamentoPage() {
       } catch (err) {
         console.warn('[AgendamentoPage] falha ao carregar agendamentos', err);
         setAppointments([]);
-        setRequestsList([]);
         setThreeDEvents([]);
+        setManagerEvents([]); // Limpa o novo calendário
+        setManagerLoading(false);
       }
     })();
     return () => { mounted = false; };
   }, []);
 
-  // mantive para caso a lógica de salvar consulta passe a funcionar
+  // Handlers mantidos
   const handleSaveAppointment = (appointment: any) => {
     if (appointment.id) {
       setAppointments((prev) =>
@@ -147,6 +163,7 @@ export default function AgendamentoPage() {
       <div className="flex w-full flex-col">
         <div className="flex w-full flex-col gap-10 p-6">
           <div className="flex flex-row justify-between items-center">
+            {/* Todo o cabeçalho foi mantido */}
             <div>
               <h1 className="text-2xl font-bold text-foreground">
                 {activeTab === "calendar" ? "Calendário" : activeTab === "3d" ? "Calendário 3D" : "Lista de Espera"}
@@ -156,11 +173,6 @@ export default function AgendamentoPage() {
               </p>
             </div>
             <div className="flex space-x-2">
-              {/* <Link href={"/agenda"}>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  Agenda
-                </Button>
-              </Link> */}
               <DropdownMenu>
                 <DropdownMenuTrigger className="bg-primary hover:bg-primary/90 px-5 py-1 text-primary-foreground rounded-sm">
                   Opções &#187;
@@ -206,29 +218,25 @@ export default function AgendamentoPage() {
             </div>
           </div>
 
+          {/* --- AQUI ESTÁ A SUBSTITUIÇÃO --- */}
           {activeTab === "calendar" ? (
             <div className="flex w-full">
-              <FullCalendar
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView="dayGridMonth"
-                locale={pt_br_locale}
-                timeZone={"America/Sao_Paulo"}
-                events={requestsList}
-                headerToolbar={{
-                  left: "prev,next today",
-                  center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay",
-                }}
-                dateClick={(info) => {
-                  info.view.calendar.changeView("timeGridDay", info.dateStr);
-                }}
-                selectable={true}
-                selectMirror={true}
-                dayMaxEvents={true}
-                dayMaxEventRows={3}
-              />
+              {/* mostra loading até managerEvents ser preenchido (API integrada desde a entrada) */}
+              <div className="w-full">
+                {managerLoading ? (
+                  <div className="flex items-center justify-center w-full min-h-[70vh]">
+                    <div className="text-sm text-muted-foreground">Conectando ao calendário — carregando agendamentos...</div>
+                  </div>
+                ) : (
+                  // EventManager ocupa a área principal e já recebe events da API
+                  <div className="w-full min-h-[70vh]">
+                    <EventManager events={managerEvents} className="compact-event-manager" />
+                  </div>
+                )}
+              </div>
             </div>
           ) : activeTab === "3d" ? (
+            // O calendário 3D (ThreeDWallCalendar) foi MANTIDO 100%
             <div className="flex w-full justify-center">
               <ThreeDWallCalendar
                 events={threeDEvents}
@@ -237,6 +245,7 @@ export default function AgendamentoPage() {
               />
             </div>
           ) : (
+            // A Lista de Espera foi MANTIDA
             <ListaEspera
               patients={waitingList}
               onNotify={handleNotifyPatient}

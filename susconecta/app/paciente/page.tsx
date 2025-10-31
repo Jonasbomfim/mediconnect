@@ -1153,10 +1153,20 @@ export default function PacientePage() {
                                   {
                                     // prefer the resolved doctor name; while resolving, show a loading indicator instead of raw IDs
                                     (() => {
+                                      const looksLikeIdStr = (s: any) => {
+                                        try {
+                                          const hexOnly = String(s || '').replace(/[^0-9a-fA-F]/g, '')
+                                          const len = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0)
+                                          return len >= 8
+                                        } catch { return false }
+                                      }
                                       const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null
-                                      if (reportDoctorName) return <div className="font-semibold text-xl md:text-2xl">{reportTitle(selectedReport, reportDoctorName)}</div>
+                                      // derive the title text
+                                      const derived = reportDoctorName ? reportTitle(selectedReport, reportDoctorName) : reportTitle(selectedReport)
+                                      // if the derived title looks like an id (UUID/hex) avoid showing it — show loading instead
+                                      if (looksLikeIdStr(derived)) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
                                       if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
-                                      return <div className="font-semibold text-xl md:text-2xl">{reportTitle(selectedReport)}</div>
+                                      return <div className="font-semibold text-xl md:text-2xl">{derived}</div>
                                     })()
                                   }
                         <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>

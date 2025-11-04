@@ -655,7 +655,7 @@ export default function ResultadosClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:!bg-primary-foreground hover:!text-primary transition-colors"
+              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground! hover:text-primary! transition-colors"
             >
               Ajustar filtros
             </Button>
@@ -699,7 +699,7 @@ export default function ResultadosClient() {
           </Toggle>
 
           <Select value={convenio} onValueChange={setConvenio}>
-            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:!border-primary focus:ring-2 focus:ring-primary cursor-pointer">
+            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Convênio" />
             </SelectTrigger>
             <SelectContent>
@@ -713,7 +713,7 @@ export default function ResultadosClient() {
           </Select>
 
           <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:!border-primary focus:ring-2 focus:ring-primary cursor-pointer">
+            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Bairro" />
             </SelectTrigger>
             <SelectContent>
@@ -758,7 +758,7 @@ export default function ResultadosClient() {
             ) : (
               <Button
                 variant="outline"
-                className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors"
+                className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors"
               >
                 <Filter className="mr-2 h-4 w-4" />
                 Mais filtros
@@ -768,7 +768,7 @@ export default function ResultadosClient() {
 
           <Button
             variant="ghost"
-            className="ml-auto rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
+            className="ml-auto rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
             onClick={() => router.back()}
           >
             Voltar
@@ -827,7 +827,7 @@ export default function ResultadosClient() {
                   </div>
                   <Button
                     variant="ghost"
-                    className="ml-auto h-fit rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
+                    className="ml-auto h-fit rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
                     onClick={() => {
                       setMedicoSelecionado(medico)
                       setAbaDetalhe('experiencia')
@@ -898,12 +898,12 @@ export default function ResultadosClient() {
                   >
                     Agendar consulta
                   </Button>
-                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors">
+                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors">
                     Enviar mensagem
                   </Button>
                   <Button
                     variant="ghost"
-                    className="h-11 rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
+                    className="h-11 rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
                     onClick={() => {
                       const willOpen = !agendasExpandida[id]
                       setAgendasExpandida(prev => ({ ...prev, [id]: !prev[id] }))
@@ -947,11 +947,11 @@ export default function ResultadosClient() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:!bg-primary hover:!text-white">Primeira</Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:!bg-primary hover:!text-white">Anterior</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Primeira</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Anterior</Button>
                 <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:!bg-primary hover:!text-white">Próxima</Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:!bg-primary hover:!text-white">Última</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Próxima</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Última</Button>
               </div>
             </div>
           )}

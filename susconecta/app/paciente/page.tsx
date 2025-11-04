@@ -650,7 +650,7 @@ export default function PacientePage() {
 
             <div className="space-y-6 rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
               <div className="flex justify-center">
-                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:!bg-primary/90 hover:!text-white transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
+                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:bg-primary/90! hover:text-white! transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
                   <Link href={buildResultadosHref()} prefetch={false}>
                     Pesquisar Médicos
                   </Link>
@@ -677,7 +677,7 @@ export default function PacientePage() {
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
-                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
                 >
                   <ChevronLeft className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
@@ -688,7 +688,7 @@ export default function PacientePage() {
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
-                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
                 >
                   <ChevronRight className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
@@ -780,7 +780,7 @@ export default function PacientePage() {
                           <Button
                             type="button"
                             size="sm"
-                            className="border border-primary/30 text-primary bg-primary/5 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                            className="border border-primary/30 text-primary bg-primary/5 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
                           >
                             Detalhes
                           </Button>
@@ -788,7 +788,7 @@ export default function PacientePage() {
                             <Button 
                               type="button" 
                               size="sm" 
-                              className="bg-primary/10 text-primary border border-primary/30 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                              className="bg-primary/10 text-primary border border-primary/30 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
                             >
                               Reagendar
                             </Button>
@@ -797,7 +797,7 @@ export default function PacientePage() {
                             <Button
                               type="button"
                               size="sm"
-                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:!bg-destructive hover:!text-white hover:!border-destructive transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
+                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive! hover:text-white! hover:border-destructive! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
                             >
                               Cancelar
                             </Button>
@@ -1312,8 +1312,8 @@ export default function PacientePage() {
                   <div className="text-base md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
+                  <Button variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" className="hover:bg-primary! hover:text-white! transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
                   ))}
@@ -1543,7 +1543,7 @@ export default function PacientePage() {
           </div>
           <div className="flex items-center gap-3">
             <SimpleThemeToggle />
-            <Button asChild variant="outline" className="hover:!bg-primary hover:!text-white hover:!border-primary transition-colors">
+            <Button asChild variant="outline" className="hover:bg-primary! hover:text-white! hover:border-primary! transition-colors">
               <Link href="/">
                 <Home className="h-4 w-4 mr-1" /> Início
               </Link>
@@ -1553,7 +1553,7 @@ export default function PacientePage() {
               variant="outline" 
               aria-label={strings.sair} 
               disabled={loading} 
-              className="text-destructive border-destructive hover:!bg-destructive hover:!text-white hover:!border-destructive transition-colors"
+              className="text-destructive border-destructive hover:bg-destructive! hover:text-white! hover:border-destructive! transition-colors"
             >
               <LogOut className="h-4 w-4 mr-1" /> {strings.sair}
             </Button>
@@ -1569,7 +1569,7 @@ export default function PacientePage() {
                 variant={tab==='dashboard'?'default':'ghost'}
                 aria-current={tab==='dashboard'}
                 onClick={()=>setTab('dashboard')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <Calendar className="mr-2 h-4 w-4" />{strings.dashboard}
               </Button>
@@ -1577,7 +1577,7 @@ export default function PacientePage() {
                 variant={tab==='consultas'?'default':'ghost'}
                 aria-current={tab==='consultas'}
                 onClick={()=>setTab('consultas')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <Calendar className="mr-2 h-4 w-4" />{strings.consultas}
               </Button>
@@ -1585,7 +1585,7 @@ export default function PacientePage() {
                 variant={tab==='exames'?'default':'ghost'}
                 aria-current={tab==='exames'}
                 onClick={()=>setTab('exames')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <FileText className="mr-2 h-4 w-4" />{strings.exames}
               </Button>
@@ -1594,7 +1594,7 @@ export default function PacientePage() {
                 variant={tab==='perfil'?'default':'ghost'}
                 aria-current={tab==='perfil'}
                 onClick={()=>setTab('perfil')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <UserCog className="mr-2 h-4 w-4" />{strings.perfil}
               </Button>

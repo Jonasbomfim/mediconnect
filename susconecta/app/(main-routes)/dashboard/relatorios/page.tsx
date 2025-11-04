@@ -350,7 +350,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><BarChart2 className="w-5 h-5" /> Consultas por Período</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Consultas por Período", "Resumo das consultas realizadas por período.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Consultas por Período", "Resumo das consultas realizadas por período.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           {loading ? (
             <div className="h-[220px] flex items-center justify-center text-muted-foreground">Carregando dados...</div>
@@ -371,7 +371,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><DollarSign className="w-5 h-5" /> Faturamento Mensal</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Faturamento Mensal", "Resumo do faturamento mensal.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Faturamento Mensal", "Resumo do faturamento mensal.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           {loading ? (
             <div className="h-[220px] flex items-center justify-center text-muted-foreground">Carregando dados...</div>
@@ -394,7 +394,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><UserCheck className="w-5 h-5" /> Taxa de No-show</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Taxa de No-show", "Resumo da taxa de no-show.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Taxa de No-show", "Resumo da taxa de no-show.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           {loading ? (
             <div className="h-[220px] flex items-center justify-center text-muted-foreground">Carregando dados...</div>
@@ -415,7 +415,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><ThumbsUp className="w-5 h-5" /> Satisfação dos Pacientes</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Satisfação dos Pacientes", "Resumo dos indicadores de satisfação.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Satisfação dos Pacientes", "Resumo dos indicadores de satisfação.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           <div className="flex flex-col items-center justify-center h-[220px]">
             <span className="text-2xl font-bold text-foreground">Dados não foram disponibilizados</span>
@@ -429,7 +429,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><Users className="w-5 h-5" /> Pacientes Mais Atendidos</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Pacientes Mais Atendidos", "Lista dos pacientes mais atendidos.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Pacientes Mais Atendidos", "Lista dos pacientes mais atendidos.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           <table className="w-full text-sm mt-4">
             <thead>
@@ -463,7 +463,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><Briefcase className="w-5 h-5" /> Médicos Mais Produtivos</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Médicos Mais Produtivos", "Lista dos médicos mais produtivos.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Médicos Mais Produtivos", "Lista dos médicos mais produtivos.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           <table className="w-full text-sm mt-4">
             <thead>
@@ -499,7 +499,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><DollarSign className="w-5 h-5" /> Análise de Convênios</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Análise de Convênios", "Resumo da análise de convênios.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Análise de Convênios", "Resumo da análise de convênios.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           {loading ? (
             <div className="h-[220px] flex items-center justify-center text-muted-foreground">Carregando dados...</div>
@@ -522,7 +522,7 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><TrendingUp className="w-5 h-5" /> Performance por Médico</h2>
-            <Button size="sm" variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={() => exportPDF("Performance por Médico", "Resumo da performance por médico.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Performance por Médico", "Resumo da performance por médico.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
           <table className="w-full text-sm mt-4">
             <thead>

@@ -238,7 +238,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
 
   // Normalize weekday to integer expected by the OpenAPI (0=Sunday .. 6=Saturday)
   const mapWeekdayToInt = (w?: string | number): number | null => {
-    if (w === null || typeof w === 'undefined') return null;
+    if (w === null || w === undefined) return null;
     if (typeof w === 'number') return Number(w);
     const s = String(w).toLowerCase().trim();
     const map: Record<string, number> = {
@@ -270,7 +270,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
     end_time: input.end_time,
     slot_minutes: input.slot_minutes ?? 30,
     appointment_type: input.appointment_type ?? 'presencial',
-    active: typeof input.active === 'undefined' ? true : input.active,
+    active: input.active === undefined ? true : input.active,
     created_by: createdBy,
   };
 
@@ -307,7 +307,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
       end_time: end,
       slot_minutes: input.slot_minutes ?? 30,
       appointment_type: input.appointment_type ?? 'presencial',
-      active: typeof input.active === 'undefined' ? true : input.active,
+      active: input.active === undefined ? true : input.active,
       created_by: createdBy,
     };
 
@@ -349,7 +349,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
       end_time: end,
       slot_minutes: input.slot_minutes ?? 30,
       appointment_type: input.appointment_type ?? 'presencial',
-      active: typeof input.active === 'undefined' ? true : input.active,
+      active: input.active === undefined ? true : input.active,
       created_by: createdBy,
     };
     try {
@@ -381,7 +381,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
 export async function listarDisponibilidades(params?: { doctorId?: string; active?: boolean }): Promise<DoctorAvailability[]> {
   const qs = new URLSearchParams();
   if (params?.doctorId) qs.set('doctor_id', `eq.${encodeURIComponent(String(params.doctorId))}`);
-  if (typeof params?.active !== 'undefined') qs.set('active', `eq.${params.active ? 'true' : 'false'}`);
+  if (params?.active !== undefined) qs.set('active', `eq.${params.active ? 'true' : 'false'}`);
 
   const url = `${REST}/doctor_availability${qs.toString() ? `?${qs.toString()}` : ''}`;
   const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
@@ -616,9 +616,19 @@ function buildRedirectUrl(target?: 'paciente' | 'medico' | 'admin' | 'default', 
 
   const base = DEFAULT_REDIRECT_BASE.replace(/\/$/, '');
   let path = '/';
-  if (target === 'paciente') path = '/paciente';
-  else if (target === 'medico') path = '/profissional';
-  else if (target === 'admin') path = '/dashboard';
+  switch (target) {
+    case 'paciente':
+      path = '/paciente';
+      break;
+    case 'medico':
+      path = '/profissional';
+      break;
+    case 'admin':
+      path = '/dashboard';
+      break;
+    default:
+      path = '/';
+  }
   return `${base}${path}`;
 }
 
@@ -866,7 +876,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
     try {
             const [key, val] = String(query).split('=');
             const params = new URLSearchParams();
-            if (key && typeof val !== 'undefined') params.set(key, val);
+            if (key && val !== undefined) params.set(key, val);
             params.set('limit', '10');
             const url = `${REST}/patients?${params.toString()}`;
       const headers = baseHeaders();
@@ -1115,23 +1125,21 @@ export async function criarAgendamento(input: AppointmentCreate): Promise<Appoin
           }
           // Otherwise check overlap with scheduled time
           // Parse exception times and scheduled time to minutes
-          const parseToMinutes = (t?: string | null) => {
-            if (!t) return null;
-            const parts = String(t).split(':').map((p) => Number(p));
-            if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1];
-            return null;
-          };
-          const exStart = parseToMinutes(ex.start_time ?? undefined);
-          const exEnd = parseToMinutes(ex.end_time ?? undefined);
+                  const parseToMinutes = (t?: string | null) => {
+                    if (!t) return null;
+                    const parts = String(t).split(':').map(Number);
+                    if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1];
+                    return null;
+                  };
+                  const exStart = parseToMinutes(ex.start_time ?? undefined);
+                  const exEnd = parseToMinutes(ex.end_time ?? undefined);
           const sched = new Date(input.scheduled_at);
           const schedMinutes = sched.getHours() * 60 + sched.getMinutes();
           const schedDuration = input.duration_minutes ?? 30;
           const schedEndMinutes = schedMinutes + Number(schedDuration);
-          if (exStart != null && exEnd != null) {
-            if (schedMinutes < exEnd && exStart < schedEndMinutes) {
-              const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
-              throw new Error(`Não é possível agendar neste horário por uma exceção que bloqueia parte do dia.${reason}`);
-            }
+          if (exStart != null && exEnd != null && schedMinutes < exEnd && exStart < schedEndMinutes) {
+            const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
+            throw new Error(`Não é possível agendar neste horário por uma exceção que bloqueia parte do dia.${reason}`);
           }
         } catch (inner) {
           // Propagate the exception as user-facing error
@@ -1767,9 +1775,9 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
     try {
       // Build the URL safely using URLSearchParams so special characters (like @) are encoded correctly
       // query is like 'nome_social=ilike.*something*' -> split into key/value
-      const [key, val] = String(query).split('=');
-      const params = new URLSearchParams();
-      if (key && typeof val !== 'undefined') params.set(key, val);
+  const [key, val] = String(query).split('=');
+  const params = new URLSearchParams();
+  if (key && val !== undefined) params.set(key, val);
       params.set('limit', '10');
       const url = `${REST}/doctors?${params.toString()}`;
       const headers = baseHeaders();
@@ -1800,7 +1808,7 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico | n
   const sId = String(id);
 
   // Helper para escape de aspas
-  const escapeQuotes = (v: string) => v.replace(/"/g, '\\"');
+  const escapeQuotes = (v: string) => JSON.stringify(v).slice(1, -1);
 
   try {
     // 1) Se parece UUID, busca por id direto
@@ -2085,9 +2093,9 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
       crm_uf: crmUf,
       create_user: false,
     };
-    if (input.specialty) fallbackPayload.specialty = input.specialty;
-    if (input.phone_mobile) fallbackPayload.phone_mobile = input.phone_mobile;
-    if (typeof input.phone2 !== 'undefined') fallbackPayload.phone2 = input.phone2;
+  if (input.specialty) fallbackPayload.specialty = input.specialty;
+  if (input.phone_mobile) fallbackPayload.phone_mobile = input.phone_mobile;
+  if (input.phone2 !== undefined) fallbackPayload.phone2 = input.phone2;
 
     const url = `${API_BASE}/functions/v1/create-doctor`;
     const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string, string>;
@@ -2685,7 +2693,8 @@ export async function criarUsuarioPaciente(paciente: { email: string; full_name:
 
   const parsed = await parse<any>(res as Response);
   // Attach the generated password so callers (UI) can display it if necessary
-  return { ...(parsed || {}), password };
+  if (parsed && typeof parsed === 'object') return { ...(parsed as any), password };
+  return { password };
 }
 
 

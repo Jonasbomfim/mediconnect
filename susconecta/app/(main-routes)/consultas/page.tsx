@@ -619,7 +619,7 @@ export default function ConsultasPage() {
             size="sm"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Primeira
           </Button>
@@ -628,7 +628,7 @@ export default function ConsultasPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Anterior
           </Button>
@@ -640,7 +640,7 @@ export default function ConsultasPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Próxima
           </Button>
@@ -649,7 +649,7 @@ export default function ConsultasPage() {
             size="sm"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Última
           </Button>

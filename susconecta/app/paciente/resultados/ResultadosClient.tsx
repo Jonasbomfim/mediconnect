@@ -55,15 +55,16 @@ export default function ResultadosClient() {
   const params = useSearchParams()
   const router = useRouter()
 
-  // Filtros/controles da UI
-  const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>(
-    params?.get('tipo') === 'presencial' ? 'local' : 'teleconsulta'
-  )
-  const [especialidadeHero, setEspecialidadeHero] = useState<string>(params?.get('especialidade') || 'Psicólogo')
+  // Filtros/controles da UI - initialize with defaults to avoid hydration mismatch
+  const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>('teleconsulta')
+  const [especialidadeHero, setEspecialidadeHero] = useState<string>('Psicólogo')
   const [convenio, setConvenio] = useState<string>('Todos')
   const [bairro, setBairro] = useState<string>('Todos')
   // Busca por nome do médico
   const [searchQuery, setSearchQuery] = useState<string>('')
+
+  // Track if URL params have been synced to avoid race condition
+  const [paramsSync, setParamsSync] = useState(false)
 
   // Estado dinâmico
   const [patientId, setPatientId] = useState<string | null>(null)
@@ -107,7 +108,20 @@ export default function ResultadosClient() {
   const [bookingSuccessOpen, setBookingSuccessOpen] = useState(false)
   const [bookedWhenLabel, setBookedWhenLabel] = useState<string | null>(null)
 
-  // 1) Obter patientId a partir do usuário autenticado (email -> patients)
+  // 1) Sincronize URL params with state after client mount (prevent hydration mismatch)
+  useEffect(() => {
+    if (!params) return
+    const tipoParam = params.get('tipo')
+    if (tipoParam === 'presencial') setTipoConsulta('local')
+    
+    const especialidadeParam = params.get('especialidade')
+    if (especialidadeParam) setEspecialidadeHero(especialidadeParam)
+    
+    // Mark params as synced
+    setParamsSync(true)
+  }, [params])
+
+  // 2) Fetch patient ID from auth
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -127,10 +141,31 @@ export default function ResultadosClient() {
     return () => { mounted = false }
   }, [])
 
-  // 2) Buscar médicos conforme especialidade selecionada
+  // 3) Initial doctors fetch on mount (one-time initialization)
   useEffect(() => {
-    // If the user is actively searching by name, this effect should not run
-    if (searchQuery && String(searchQuery).trim().length > 1) return
+    let mounted = true
+    ;(async () => {
+      try {
+        setLoadingMedicos(true)
+        console.log('[ResultadosClient] Initial doctors fetch starting')
+        const list = await buscarMedicos('medico').catch((err) => {
+          console.error('[ResultadosClient] Initial fetch error:', err)
+          return []
+        })
+        if (!mounted) return
+        console.log('[ResultadosClient] Initial fetch completed, got:', list?.length || 0, 'doctors')
+        setMedicos(Array.isArray(list) ? list : [])
+      } finally {
+        if (mounted) setLoadingMedicos(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  // 4) Re-fetch doctors when especialidade changes (after initial sync)
+  useEffect(() => {
+    // Skip if this is the initial render or if user is searching by name
+    if (!paramsSync || (searchQuery && String(searchQuery).trim().length > 1)) return
 
     let mounted = true
     ;(async () => {
@@ -139,10 +174,15 @@ export default function ResultadosClient() {
         setMedicos([])
         setAgendaByDoctor({})
         setAgendasExpandida({})
-        // termo de busca: usar a especialidade escolhida (fallback para string genérica)
-        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
-        const list = await buscarMedicos(termo).catch(() => [])
+        // termo de busca: usar a especialidade escolhida
+        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : 'medico'
+        console.log('[ResultadosClient] Fetching doctors with term:', termo)
+        const list = await buscarMedicos(termo).catch((err) => {
+          console.error('[ResultadosClient] buscarMedicos error:', err)
+          return []
+        })
         if (!mounted) return
+        console.log('[ResultadosClient] Doctors fetched:', list?.length || 0)
         setMedicos(Array.isArray(list) ? list : [])
       } catch (e: any) {
         showToast('error', e?.message || 'Falha ao buscar profissionais')
@@ -151,9 +191,9 @@ export default function ResultadosClient() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [especialidadeHero])
+  }, [especialidadeHero, paramsSync])
 
-  // Debounced search by doctor name. When searchQuery is non-empty (>=2 chars), call buscarMedicos
+  // 5) Debounced search by doctor name
   useEffect(() => {
     let mounted = true
     const term = String(searchQuery || '').trim()
@@ -387,7 +427,7 @@ export default function ResultadosClient() {
       let start: Date
       let end: Date
       try {
-        const parts = String(dateOnly).split('-').map((p) => Number(p))
+        const parts = String(dateOnly).split('-').map(Number)
         if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
           const [y, m, d] = parts
           start = new Date(y, m - 1, d, 0, 0, 0, 0)
@@ -425,12 +465,12 @@ export default function ResultadosClient() {
           5: ['5','fri','friday','sexta','sexta-feira'],
           6: ['6','sat','saturday','sabado','sábado']
         }
-        const allowed = (weekdayNames[weekdayNumber] || []).map(s => String(s).toLowerCase())
+        const allowed = new Set((weekdayNames[weekdayNumber] || []).map(s => String(s).toLowerCase()))
         const matched = (disponibilidades || []).filter((d: any) => {
           try {
             const raw = String(d.weekday ?? d.weekday_name ?? d.day ?? d.day_of_week ?? '').toLowerCase()
             if (!raw) return false
-            if (allowed.includes(raw)) return true
+            if (allowed.has(raw)) return true
             if (typeof d.weekday === 'number' && d.weekday === weekdayNumber) return true
             if (typeof d.day_of_week === 'number' && d.day_of_week === weekdayNumber) return true
             return false
@@ -441,7 +481,7 @@ export default function ResultadosClient() {
           const windows = matched.map((d: any) => {
             const parseTime = (t?: string) => {
               if (!t) return { hh: 0, mm: 0, ss: 0 }
-              const parts = String(t).split(':').map((p) => Number(p))
+              const parts = String(t).split(':').map(Number)
               return { hh: parts[0] || 0, mm: parts[1] || 0, ss: parts[2] || 0 }
             }
             const s = parseTime(d.start_time)
@@ -488,8 +528,8 @@ export default function ResultadosClient() {
                   cursorMs += perWindowStep * 60000
                 }
               } else {
-                const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1]
-                let cursorMs = lastBackendMs + perWindowStep * 60000
+                const lastBackendMs = backendSlotsInWindow.at(-1)
+                let cursorMs = (lastBackendMs ?? 0) + perWindowStep * 60000
                 while (cursorMs <= lastStartMs) {
                   generatedSet.add(new Date(cursorMs).toISOString())
                   cursorMs += perWindowStep * 60000
@@ -682,7 +722,7 @@ export default function ResultadosClient() {
           <Toggle
             pressed={tipoConsulta === 'teleconsulta'}
             onPressedChange={() => setTipoConsulta('teleconsulta')}
-            className={cn('rounded-full px-4 py-[10px] text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
+            className={cn('rounded-full px-4 py-2.5 text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
               tipoConsulta === 'teleconsulta' ? 'bg-primary text-primary-foreground' : 'border border-primary/40 text-primary')}
           >
             <Globe className="mr-2 h-4 w-4" />
@@ -691,7 +731,7 @@ export default function ResultadosClient() {
           <Toggle
             pressed={tipoConsulta === 'local'}
             onPressedChange={() => setTipoConsulta('local')}
-            className={cn('rounded-full px-4 py-[10px] text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
+            className={cn('rounded-full px-4 py-2.5 text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
               tipoConsulta === 'local' ? 'bg-primary text-primary-foreground' : 'border border-primary/40 text-primary')}
           >
             <Building2 className="mr-2 h-4 w-4" />
@@ -713,7 +753,7 @@ export default function ResultadosClient() {
           </Select>
 
           <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
+            <SelectTrigger className="h-10 min-w-40 rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Bairro" />
             </SelectTrigger>
             <SelectContent>
@@ -778,6 +818,11 @@ export default function ResultadosClient() {
 
         {/* Lista de profissionais */}
         <section className="space-y-4">
+          {/* Debug card */}
+          <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded">
+            Status: loading={loadingMedicos} | medicos={medicos.length} | profissionais={profissionais.length} | especialidade={especialidadeHero} | paramsSync={paramsSync}
+          </div>
+
           {loadingMedicos && (
             <Card className="flex items-center justify-center border border-dashed border-border bg-card/60 p-12 text-muted-foreground">
               Buscando profissionais...

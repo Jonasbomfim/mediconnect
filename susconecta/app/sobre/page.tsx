@@ -1,5 +1,5 @@
 import { Header } from "@/components/layout/header"
-import { AboutSection } from "@/components/about-section"
+import { AboutSection } from "@/components/features/general/about-section"
 import { Footer } from "@/components/layout/footer"
 
 export default function AboutPage() {

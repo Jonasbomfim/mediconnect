@@ -162,18 +162,23 @@ export async function listarRelatorios(filtros?: { patient_id?: string; status?:
  */
 export async function buscarRelatorioPorId(id: string): Promise<Report> {
   try {
-    // Log removido por segurança
-    const resposta = await fetch(`${BASE_API_RELATORIOS}?id=eq.${id}`, {
+    // Validar ID antes de fazer requisição
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      console.warn('[REPORTS] ID vazio ou inválido ao buscar relatório');
+      throw new Error('ID de relatório inválido');
+    }
+
+    const encodedId = encodeURIComponent(id.trim());
+    const resposta = await fetch(`${BASE_API_RELATORIOS}?id=eq.${encodedId}`, {
       method: 'GET',
       headers: obterCabecalhos(),
     });
     const resultado = await tratarRespostaApi<Report[]>(resposta);
     const relatorio = Array.isArray(resultado) && resultado.length > 0 ? resultado[0] : null;
-    // Log removido por segurança
     if (!relatorio) throw new Error('Relatório não encontrado');
     return relatorio;
   } catch (erro) {
-    console.error('❌ [API RELATÓRIOS] Erro ao buscar relatório:', erro);
+    console.error('[REPORTS] Erro ao buscar relatório:', erro);
     throw erro;
   }
 }
@@ -259,39 +264,38 @@ export async function deletarRelatorio(id: string): Promise<void> {
  */
 export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<Report[]> {
   try {
-    // Logs removidos por segurança
+    // Validar ID antes de fazer requisição
+    if (!idPaciente || typeof idPaciente !== 'string' || idPaciente.trim() === '') {
+      console.warn('[REPORTS] ID paciente vazio ou inválido ao listar relatórios');
+      return [];
+    }
+
     // Try a strict eq lookup first (encode the id)
-    const encodedId = encodeURIComponent(String(idPaciente));
+    const encodedId = encodeURIComponent(String(idPaciente).trim());
     let url = `${BASE_API_RELATORIOS}?patient_id=eq.${encodedId}`;
     const headers = obterCabecalhos();
-    const masked = (headers as any)['Authorization'] ? `${String((headers as any)['Authorization']).slice(0,6)}...${String((headers as any)['Authorization']).slice(-6)}` : null;
-    // Logs removidos por segurança
     const resposta = await fetch(url, {
       method: 'GET',
       headers,
     });
     const resultado = await tratarRespostaApi<Report[]>(resposta);
-    // Log removido por segurança
     // If eq returned results, return them. Otherwise retry using `in.(id)` which some setups prefer.
     if (Array.isArray(resultado) && resultado.length) return resultado;
 
     // Retry with in.(id) clause as a fallback
     try {
-      const inClause = encodeURIComponent(`(${String(idPaciente)})`);
+      const inClause = encodeURIComponent(`(${String(idPaciente).trim()})`);
       const urlIn = `${BASE_API_RELATORIOS}?patient_id=in.${inClause}`;
-      // Log removido por segurança
       const resp2 = await fetch(urlIn, { method: 'GET', headers });
       const res2 = await tratarRespostaApi<Report[]>(resp2);
-      // Log removido por segurança
       return Array.isArray(res2) ? res2 : [];
     } catch (e) {
-      // Log removido por segurança
+      // Fallback falhou, retornar vazio
+      return [];
     }
-
-    return [];
   } catch (erro) {
-    console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios do paciente:', erro);
-    throw erro;
+    console.error('[REPORTS] Erro ao buscar relatórios do paciente:', erro);
+    return [];
   }
 }
 
@@ -300,20 +304,24 @@ export async function listarRelatoriosPorPaciente(idPaciente: string): Promise<R
  */
 export async function listarRelatoriosPorMedico(idMedico: string): Promise<Report[]> {
   try {
-    console.log('👨‍⚕️ [API RELATÓRIOS] Buscando relatórios do médico:', idMedico);
-    const url = `${BASE_API_RELATORIOS}?requested_by=eq.${idMedico}`;
+    // Validar ID antes de fazer requisição
+    if (!idMedico || typeof idMedico !== 'string' || idMedico.trim() === '') {
+      console.warn('[REPORTS] ID médico vazio ou inválido ao listar relatórios');
+      return [];
+    }
+
+    const encodedId = encodeURIComponent(idMedico.trim());
+    const url = `${BASE_API_RELATORIOS}?requested_by=eq.${encodedId}`;
     const headers = obterCabecalhos();
-    // Logs removidos por segurança
     const resposta = await fetch(url, {
       method: 'GET',
       headers: obterCabecalhos(),
     });
     const resultado = await tratarRespostaApi<Report[]>(resposta);
-    // Log removido por segurança
-    return resultado;
+    return Array.isArray(resultado) ? resultado : [];
   } catch (erro) {
-    console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios do médico:', erro);
-    throw erro;
+    console.error('[REPORTS] Erro ao buscar relatórios do médico:', erro);
+    return [];
   }
 }
 
@@ -328,19 +336,17 @@ export async function listarRelatoriosPorPacientes(ids: string[]): Promise<Repor
     const cleaned = ids.map(i => String(i).trim()).filter(Boolean);
     if (!cleaned.length) return [];
 
-    // monta cláusula in.(id1,id2,...)
-    const inClause = cleaned.join(',');
-    const url = `${BASE_API_RELATORIOS}?patient_id=in.(${inClause})`;
+    // monta cláusula in.(id1,id2,...) com proper encoding
+    const encodedIds = cleaned.map(id => encodeURIComponent(id)).join(',');
+    const url = `${BASE_API_RELATORIOS}?patient_id=in.(${encodedIds})`;
     const headers = obterCabecalhos();
-    // Logs removidos por segurança
 
     const resposta = await fetch(url, { method: 'GET', headers });
     const resultado = await tratarRespostaApi<Report[]>(resposta);
-    // Log removido por segurança
-    return resultado;
+    return Array.isArray(resultado) ? resultado : [];
   } catch (erro) {
-    console.error('❌ [API RELATÓRIOS] Erro ao buscar relatórios para vários pacientes:', erro);
-    throw erro;
+    console.error('[REPORTS] Erro ao buscar relatórios para vários pacientes:', erro);
+    return [];
   }
 }
 

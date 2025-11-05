@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
+import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

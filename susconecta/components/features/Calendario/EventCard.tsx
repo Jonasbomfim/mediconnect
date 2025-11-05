@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Event } from "@/components/event-manager";
+import { Event } from "@/components/features/general/event-manager";
 import { cn } from "@/lib/utils";
 
 /*

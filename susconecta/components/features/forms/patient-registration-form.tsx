@@ -30,7 +30,7 @@ import { getAvatarPublicUrl } from '@/lib/api';
 
 import { validarCPFLocal } from "@/lib/utils";
 import { verificarCpfDuplicado } from "@/lib/api";
-import { CredentialsDialog } from "@/components/credentials-dialog";
+import { CredentialsDialog } from "@/components/features/general/credentials-dialog";
 
 type Mode = "create" | "edit";
 

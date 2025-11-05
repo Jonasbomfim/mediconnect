@@ -32,7 +32,7 @@ import { getAvatarPublicUrl } from '@/lib/api';
 ;
 
 import { buscarCepAPI } from "@/lib/api";
-import { CredentialsDialog } from "@/components/credentials-dialog"; 
+import { CredentialsDialog } from "@/components/features/general/credentials-dialog"; 
 
 type FormacaoAcademica = {
   instituicao: string;

@@ -742,7 +742,8 @@ async function parse<T>(res: Response): Promise<T> {
     }
 
     // For other errors, log a concise error and try to produce a friendly message
-    console.error('[API ERROR] Status:', res.status, json ? 'JSON response' : 'no-json', rawText ? 'raw body present' : 'no raw body');
+    const endpoint = res.url ? new URL(res.url).pathname : 'unknown';
+    console.error('[API ERROR] Status:', res.status, 'Endpoint:', endpoint, json ? 'JSON response' : 'no-json', rawText ? 'raw body present' : 'no raw body', 'Message:', msg || 'N/A');
 
     // Mensagens amigáveis para erros comuns
     let friendlyMessage = msg;
@@ -847,7 +848,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   
   // Busca por ID se parece com UUID
   if (searchTerm.includes('-') && searchTerm.length > 10) {
-    queries.push(`id=eq.${searchTerm}`);
+    queries.push(`id=eq.${encodeURIComponent(searchTerm)}`);
   }
   
   // Busca por CPF (com e sem formatação)
@@ -858,14 +859,14 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   }
   
   // Busca por nome (usando ilike para busca case-insensitive)
+  // NOTA: apenas full_name existe, social_name foi removido
   if (searchTerm.length >= 2) {
-    queries.push(`full_name=ilike.*${searchTerm}*`);
-    queries.push(`social_name=ilike.*${searchTerm}*`);
+    queries.push(`full_name=ilike.*${q}*`);
   }
   
   // Busca por email se contém @
   if (searchTerm.includes('@')) {
-    queries.push(`email=ilike.*${searchTerm}*`);
+    queries.push(`email=ilike.*${q}*`);
   }
   
   const results: Paciente[] = [];
@@ -874,13 +875,8 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-            const [key, val] = String(query).split('=');
-            const params = new URLSearchParams();
-            if (key && val !== undefined) params.set(key, val);
-            params.set('limit', '10');
-            const url = `${REST}/patients?${params.toString()}`;
+      const url = `${REST}/patients?${query}&limit=10`;
       const headers = baseHeaders();
-      // Logs removidos por segurança
       const res = await fetch(url, { method: "GET", headers });
       const arr = await parse<Paciente[]>(res);
       
@@ -893,7 +889,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
         }
       }
     } catch (error) {
-      console.warn(`Erro na busca com query: ${query}`, error);
+      console.warn(`[API] Erro na busca de pacientes com query: ${query}`, error);
     }
   }
   
@@ -1729,8 +1725,7 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   
   const searchTerm = termo.toLowerCase().trim();
   const digitsOnly = searchTerm.replace(/\D/g, '');
-  // Do not pre-encode the searchTerm here; we'll let URLSearchParams handle encoding
-  const q = searchTerm;
+  const q = encodeURIComponent(searchTerm);
   
   // Monta queries para buscar em múltiplos campos
   const queries = [];
@@ -1742,21 +1737,19 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   
   // Busca por CRM (com e sem formatação)
   if (digitsOnly.length >= 3) {
-    queries.push(`crm=ilike.*${digitsOnly}*`);
+    queries.push(`crm=ilike.*${encodeURIComponent(digitsOnly)}*`);
   }
   
   // Busca por nome (usando ilike para busca case-insensitive)
+  // NOTA: apenas full_name existe na tabela, nome_social foi removido
   if (searchTerm.length >= 2) {
     queries.push(`full_name=ilike.*${q}*`);
-    queries.push(`nome_social=ilike.*${q}*`);
   }
   
   // Busca por email se contém @
   if (searchTerm.includes('@')) {
     // Quando o usuário pesquisa por email (contendo '@'), limitar as queries apenas ao campo email.
-    // Em alguns esquemas de banco / views, buscar por outros campos com um email pode provocar
-    // erros de requisição (400) dependendo das colunas e políticas. Reduzimos o escopo para evitar 400s.
-    queries.length = 0; // limpar queries anteriores
+    queries.length = 0;
     queries.push(`email=ilike.*${q}*`);
   }
   
@@ -1764,8 +1757,6 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   if (searchTerm.length >= 2) {
     queries.push(`specialty=ilike.*${q}*`);
   }
-
-  // Debug removido por segurança
   
   const results: Medico[] = [];
   const seenIds = new Set<string>();
@@ -1773,15 +1764,8 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      // Build the URL safely using URLSearchParams so special characters (like @) are encoded correctly
-      // query is like 'nome_social=ilike.*something*' -> split into key/value
-  const [key, val] = String(query).split('=');
-  const params = new URLSearchParams();
-  if (key && val !== undefined) params.set(key, val);
-      params.set('limit', '10');
-      const url = `${REST}/doctors?${params.toString()}`;
+      const url = `${REST}/doctors?${query}&limit=10`;
       const headers = baseHeaders();
-      // Logs removidos por segurança
       const res = await fetch(url, { method: 'GET', headers });
       const arr = await parse<Medico[]>(res);
       
@@ -1794,7 +1778,7 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
         }
       }
     } catch (error) {
-      console.warn(`Erro na busca com query: ${query}`, error);
+      console.warn(`[API] Erro na busca de médicos com query: ${query}`, error);
     }
   }
   

@@ -3,7 +3,7 @@ import { EventCard } from "./EventCard";
 import { Card } from "@/components/ui/card";
 
 // Types
-import { Event } from "@/components/event-manager";
+import { Event } from "@/components/features/general/event-manager";
 
 // Week View Component
 export function WeekView({

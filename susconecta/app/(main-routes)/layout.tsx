@@ -1,5 +1,5 @@
 import type React from "react";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { Sidebar } from "@/components/layout/sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PagesHeader } from "@/components/features/dashboard/header";

@@ -12,10 +12,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, LogOut, Calendar, FileText, MessageCircle, UserCog, Home, Clock, FolderOpen, ChevronLeft, ChevronRight, MapPin, Stethoscope } from 'lucide-react'
-import { SimpleThemeToggle } from '@/components/simple-theme-toggle'
+import { SimpleThemeToggle } from '@/components/ui/simple-theme-toggle'
 import { UploadAvatar } from '@/components/ui/upload-avatar'
 import Link from 'next/link'
-import ProtectedRoute from '@/components/ProtectedRoute'
+import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById } from '@/lib/api'
@@ -632,7 +632,7 @@ export default function PacientePage() {
       if (localizacao) qs.set('local', localizacao)
       // indicate navigation origin so destination can alter UX (e.g., show modal instead of redirect)
       qs.set('origin', 'paciente')
-      return `/resultados?${qs.toString()}`
+      return `/paciente/resultados?${qs.toString()}`
     }
 
     // derived lists for the page (computed after appointments state is declared)

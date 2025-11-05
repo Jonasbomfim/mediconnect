@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 
 // --- Imports do EventManager (NOVO) - MANTIDOS ---
-import { EventManager, type Event } from "@/components/event-manager";
+import { EventManager, type Event } from "@/components/features/general/event-manager";
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos

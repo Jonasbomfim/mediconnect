@@ -56,7 +56,7 @@ import {
 
 import { mockProfessionals } from "@/lib/mocks/appointment-mocks";
 import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento, buscarAgendamentoPorId, deletarAgendamento } from "@/lib/api";
-import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
+import { CalendarRegistrationForm } from "@/components/features/forms/calendar-registration-form";
 
 const formatDate = (date: string | Date) => {
   if (!date) return "";

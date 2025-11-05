@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, ChevronDown } from "lucide-react";
 import { Plus } from "lucide-react";
-import HeaderAgenda from "@/components/agenda/HeaderAgenda";
-import FooterAgenda from "@/components/agenda/FooterAgenda";
+import HeaderAgenda from "@/components/features/agenda/HeaderAgenda";
+import FooterAgenda from "@/components/features/agenda/FooterAgenda";
 
 export default function ProcedimentoPage() {
   const router = useRouter();

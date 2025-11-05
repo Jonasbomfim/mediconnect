@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Eye, Edit, Trash2, ArrowLeft } from "lucide-react";
 
 import { Paciente, Endereco, listarPacientes, buscarPacientes, buscarPacientePorId, excluirPaciente } from "@/lib/api";
-import { PatientRegistrationForm } from "@/components/forms/patient-registration-form";
-import AssignmentForm from "@/components/admin/AssignmentForm";
+import { PatientRegistrationForm } from "@/components/features/forms/patient-registration-form";
+import AssignmentForm from "@/components/features/admin/AssignmentForm";
 
 
 function normalizePaciente(p: any): Paciente {

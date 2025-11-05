@@ -20,8 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Calendar, Users, Stethoscope, Clock, FileText, AlertTriangle, Plus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { PatientRegistrationForm } from '@/components/forms/patient-registration-form';
-import { DoctorRegistrationForm } from '@/components/forms/doctor-registration-form';
+import { PatientRegistrationForm } from '@/components/features/forms/patient-registration-form';
+import { DoctorRegistrationForm } from '@/components/features/forms/doctor-registration-form';
 
 interface DashboardStats {
   totalPatients: number;

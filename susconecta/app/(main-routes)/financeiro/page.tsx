@@ -5,8 +5,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calculator, DollarSign } from "lucide-react";
-import HeaderAgenda from "@/components/agenda/HeaderAgenda";
-import FooterAgenda from "@/components/agenda/FooterAgenda";
+import HeaderAgenda from "@/components/features/agenda/HeaderAgenda";
+import FooterAgenda from "@/components/features/agenda/FooterAgenda";
 
 export default function FinanceiroPage() {
   const router = useRouter();

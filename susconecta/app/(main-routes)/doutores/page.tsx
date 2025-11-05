@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
-import AvailabilityForm from '@/components/forms/availability-form'
-import ExceptionForm from '@/components/forms/exception-form'
+import { DoctorRegistrationForm } from "@/components/features/forms/doctor-registration-form";
+import AvailabilityForm from '@/components/features/forms/availability-form'
+import ExceptionForm from '@/components/features/forms/exception-form'
 import { listarDisponibilidades, DoctorAvailability, deletarDisponibilidade, listarExcecoes, DoctorException, deletarExcecao } from '@/lib/api'
 
 

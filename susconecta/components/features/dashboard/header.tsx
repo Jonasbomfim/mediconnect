@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { SidebarTrigger } from "../ui/sidebar"
+import { SidebarTrigger } from "../../ui/sidebar"
 import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
 
 export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {

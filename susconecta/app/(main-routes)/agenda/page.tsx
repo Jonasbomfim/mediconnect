@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { CalendarRegistrationForm } from "@/components/forms/calendar-registration-form";
-import HeaderAgenda from "@/components/agenda/HeaderAgenda";
-import FooterAgenda from "@/components/agenda/FooterAgenda";
+import { CalendarRegistrationForm } from "@/components/features/forms/calendar-registration-form";
+import HeaderAgenda from "@/components/features/agenda/HeaderAgenda";
+import FooterAgenda from "@/components/features/agenda/FooterAgenda";
 import { useState } from "react";
 import { criarAgendamento } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';

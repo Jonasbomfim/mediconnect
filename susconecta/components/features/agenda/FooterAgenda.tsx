@@ -1,9 +1,9 @@
 "use client";
 
 import { Save } from "lucide-react";
-import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { Switch } from "../ui/switch";
+import { Button } from "../../ui/button";
+import { Label } from "../../ui/label";
+import { Switch } from "../../ui/switch";
 import { useState } from "react";
 
 interface FooterAgendaProps {

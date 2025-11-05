@@ -2806,7 +2806,7 @@ export async function uploadFotoPaciente(_id: string | number, _file: File): Pro
   form.append('file', _file, `avatar.${ext}`);
 
   const headers: Record<string, string> = {
-    // Supabase requires the anon key in 'apikey' header for client-side uploads
+    // Supabase requires the anon  key in 'apikey' header for client-side uploads
     apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
     // Accept json
     Accept: 'application/json',

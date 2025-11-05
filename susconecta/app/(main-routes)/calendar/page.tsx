@@ -10,8 +10,8 @@ import { EventManager, type Event } from "@/components/event-manager";
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { PagesHeader } from "@/components/dashboard/header";
+import { Sidebar } from "@/components/layout/sidebar";
+import { PagesHeader } from "@/components/features/dashboard/header";
 import { Button } from "@/components/ui/button";
 import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
@@ -24,7 +24,7 @@ import {
 import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
 
 const ListaEspera = dynamic(
-  () => import("@/components/agendamento/ListaEspera"),
+  () => import("@/components/features/agendamento/ListaEspera"),
   { ssr: false }
 );
 

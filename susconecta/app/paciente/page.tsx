@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -908,7 +909,7 @@ export default function PacientePage() {
         setSearchingRemote(true)
         setRemoteMatch(null)
 
-        if (looksLikeId) {
+        if (looksLikeId && q) { // Adicionada verificação para q não ser vazio
           const r = await buscarRelatorioPorId(q).catch(() => null)
           if (!mounted) return
           if (r) setRemoteMatch(r)
@@ -1336,64 +1337,62 @@ export default function PacientePage() {
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
               <DialogHeader>
-                <DialogTitle>Laudo Médico</DialogTitle>
-                <DialogDescription>
+                <DialogTitle>
+                  {selectedReport && (
+                    (() => {
+                      const looksLikeIdStr = (s: any) => {
+                        try {
+                          const hexOnly = String(s || '').replace(/[^0-9a-fA-F]/g, '');
+                          const len = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0);
+                          return len >= 8;
+                        } catch { return false; }
+                      };
+                      const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null;
+                      const derived = reportDoctorName ? reportTitle(selectedReport, reportDoctorName) : reportTitle(selectedReport);
+
+                      if (looksLikeIdStr(derived)) {
+                        return <span className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</span>;
+                      }
+                      if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) {
+                        return <span className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</span>;
+                      }
+                      return <span className="font-semibold text-xl md:text-2xl">{derived}</span>;
+                    })()
+                  )}
+                </DialogTitle>
+                <DialogDescription className="sr-only">Detalhes do laudo</DialogDescription>
+                <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
                   {selectedReport && (
                     <>
-                      <div className="mb-2">
-                                  {
-                                    // prefer the resolved doctor name; while resolving, show a loading indicator instead of raw IDs
-                                    (() => {
-                                      const looksLikeIdStr = (s: any) => {
-                                        try {
-                                          const hexOnly = String(s || '').replace(/[^0-9a-fA-F]/g, '')
-                                          const len = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0)
-                                          return len >= 8
-                                        } catch { return false }
-                                      }
-                                      const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null
-                                      // derive the title text
-                                      const derived = reportDoctorName ? reportTitle(selectedReport, reportDoctorName) : reportTitle(selectedReport)
-                                      // if the derived title looks like an id (UUID/hex) avoid showing it — show loading instead
-                                      if (looksLikeIdStr(derived)) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
-                                      if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
-                                      return <div className="font-semibold text-xl md:text-2xl">{derived}</div>
-                                    })()
-                                  }
-                        <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
-                        {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
-                      </div>
+                      <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                      {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
 
-                      {/* Standardized laudo sections: CID, Exame, Diagnóstico, Conclusão, Notas (prefer HTML when available) */}
+                      {/* Standardized laudo sections */}
                       {(() => {
-                        const cid = selectedReport.cid ?? selectedReport.cid_code ?? selectedReport.cidCode ?? selectedReport.cie ?? '-'
-                        const exam = selectedReport.exam ?? selectedReport.exame ?? selectedReport.especialidade ?? selectedReport.report_type ?? '-'
-                        const diagnosis = selectedReport.diagnosis ?? selectedReport.diagnostico ?? selectedReport.diagnosis_text ?? selectedReport.diagnostico_text ?? ''
-                        const conclusion = selectedReport.conclusion ?? selectedReport.conclusao ?? selectedReport.conclusion_text ?? selectedReport.conclusao_text ?? ''
-                        const notesHtml = selectedReport.content_html ?? selectedReport.conteudo_html ?? selectedReport.contentHtml ?? null
-                        const notesText = selectedReport.content ?? selectedReport.body ?? selectedReport.conteudo ?? selectedReport.notes ?? selectedReport.observacoes ?? ''
+                        const cid = selectedReport.cid ?? selectedReport.cid_code ?? selectedReport.cidCode ?? selectedReport.cie ?? '-';
+                        const exam = selectedReport.exam ?? selectedReport.exame ?? selectedReport.especialidade ?? selectedReport.report_type ?? '-';
+                        const diagnosis = selectedReport.diagnosis ?? selectedReport.diagnostico ?? selectedReport.diagnosis_text ?? selectedReport.diagnostico_text ?? '';
+                        const conclusion = selectedReport.conclusion ?? selectedReport.conclusao ?? selectedReport.conclusion_text ?? selectedReport.conclusao_text ?? '';
+                        const notesHtml = selectedReport.content_html ?? selectedReport.conteudo_html ?? selectedReport.contentHtml ?? null;
+                        const notesText = selectedReport.content ?? selectedReport.body ?? selectedReport.conteudo ?? selectedReport.notes ?? selectedReport.observacoes ?? '';
                         return (
-                          <div className="space-y-3 mb-4">
+                          <div className="space-y-3">
                             <div>
                               <div className="text-xs text-muted-foreground">CID</div>
                               <div className="text-foreground">{cid || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Exame</div>
                               <div className="text-foreground">{exam || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Diagnóstico</div>
                               <div className="whitespace-pre-line text-foreground">{diagnosis || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Conclusão</div>
                               <div className="whitespace-pre-line text-foreground">{conclusion || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Notas do Profissional</div>
                               {notesHtml ? (
@@ -1403,15 +1402,14 @@ export default function PacientePage() {
                               )}
                             </div>
                           </div>
-                        )
+                        );
                       })()}
-                      {/* Optional: doctor signature or footer */}
                       {selectedReport.doctor_signature && (
-                        <div className="mt-4 text-sm text-muted-foreground">Assinatura: <img src={selectedReport.doctor_signature} alt="assinatura" className="inline-block h-10" /></div>
+                        <div className="mt-4 text-sm text-muted-foreground">Assinatura: <Image src={selectedReport.doctor_signature} alt="assinatura" width={40} height={40} className="inline-block h-10 w-auto" /></div>
                       )}
                     </>
                   )}
-                </DialogDescription>
+                </div>
               </DialogHeader>
               <DialogFooter>
                 <Button

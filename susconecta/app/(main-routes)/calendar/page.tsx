@@ -17,6 +17,21 @@ export default function AgendamentoPage() {
   const [activeTab, setActiveTab] = useState<"calendar" | "3d">("calendar");
   const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
 
+  // Padroniza idioma da página para pt-BR (afeta componentes que usam o lang do documento)
+  useEffect(() => {
+    try {
+      // Atributos no <html>
+      document.documentElement.lang = "pt-BR";
+      document.documentElement.setAttribute("xml:lang", "pt-BR");
+      document.documentElement.setAttribute("data-lang", "pt-BR");
+      // Cookie de locale (usado por apps com i18n)
+      const oneYear = 60 * 60 * 24 * 365;
+      document.cookie = `NEXT_LOCALE=pt-BR; Path=/; Max-Age=${oneYear}; SameSite=Lax`;
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // --- NOVO ESTADO ---
   // Estado para alimentar o NOVO EventManager com dados da API
   const [managerEvents, setManagerEvents] = useState<Event[]>([]);

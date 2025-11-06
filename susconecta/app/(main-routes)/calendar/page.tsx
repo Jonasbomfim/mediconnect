@@ -2,6 +2,7 @@
 
 // Imports mantidos
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 
 // --- Imports do EventManager (NOVO) - MANTIDOS ---
 import { EventManager, type Event } from "@/components/features/general/event-manager";

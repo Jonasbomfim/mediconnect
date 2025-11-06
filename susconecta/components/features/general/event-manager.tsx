@@ -517,9 +517,9 @@ export function EventManager({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Evento"}</DialogTitle>
+            <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Agendamento"}</DialogTitle>
             <DialogDescription>
-              {isCreating ? "Adicione um novo evento ao seu calendário" : "Visualizar e editar detalhes do evento"}
+              {isCreating ? "Adicione um novo evento ao seu calendário" : "Visualizar e editar detalhes do agendamento"}
             </DialogDescription>
           </DialogHeader>
 

@@ -8,7 +8,6 @@ import { EventManager, type Event } from "@/components/features/general/event-ma
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos
-import { Button } from "@/components/ui/button";
 import "./index.css";
 
 export default function AgendamentoPage() {

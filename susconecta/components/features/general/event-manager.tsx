@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Clock, Grid3x3, List, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface Event {
@@ -343,17 +343,6 @@ export function EventManager({
               <span className="ml-1">Lista</span>
             </Button>
           </div>
-
-          <Button
-            onClick={() => {
-              setIsCreating(true)
-              setIsDialogOpen(true)
-            }}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Evento
-          </Button>
         </div>
       </div>
 

@@ -385,43 +385,23 @@ export function EventManager({
 
       <div className="flex flex-col gap-2">
         <div className="relative flex-1">
-          <div className="flex items-center">
-            {/* Lupa minimalista à esquerda (somente ícone) */}
-            <button
-              type="button"
-              aria-label="Buscar"
-              className="flex items-center justify-center h-10 w-10 p-0 text-muted-foreground bg-transparent border-0"
-              onClick={() => {
-                const el = document.querySelector<HTMLInputElement>('input[placeholder="Buscar eventos..."]')
-                el?.focus()
-              }}
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar eventos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+              onClick={() => setSearchQuery("")}
             >
-              <Search className="h-5 w-5" />
-            </button>
-
-            {/* Input central com altura consistente e foco visível */}
-            <Input
-              placeholder="Buscar eventos..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={cn(
-                "flex-1 h-10 px-3 border border-border focus:ring-2 focus:ring-primary/20 outline-none",
-                searchQuery ? "rounded-l-md rounded-r-none" : "rounded-md"
-              )}
-            />
-
-            {/* Botão limpar discreto à direita (aparece somente com query) */}
-            {searchQuery ? (
-              <button
-                type="button"
-                aria-label="Limpar busca"
-                className="flex items-center justify-center h-10 w-10 p-0 text-muted-foreground bg-transparent border-0"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            ) : null}
-          </div>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         {/* Mobile: Horizontal scroll with full-length buttons */}

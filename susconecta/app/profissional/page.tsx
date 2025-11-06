@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
+import { ENV_CONFIG } from '@/lib/env-config';
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,6 @@ import {
 
 
 import dynamic from "next/dynamic";
-import { ENV_CONFIG } from '@/lib/env-config';
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -182,7 +182,7 @@ const ProfissionalPage = () => {
             const q = `doctor_id=eq.${encodeURIComponent(String(resolvedDoctorId))}&select=patient_id&limit=200`;
             const appts = await listarAgendamentos(q).catch(() => []);
             for (const a of (appts || [])) {
-              const pid = a.patient_id ?? a.patient ?? a.patient_id_raw ?? null;
+              const pid = (a as any).patient_id ?? null;
               if (pid) patientIdSet.add(String(pid));
             }
           } catch (e) {
@@ -211,6 +211,7 @@ const ProfissionalPage = () => {
     })();
     return () => { mounted = false; };
     // Re-run when user id becomes available so patients assigned to the logged-in doctor are loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   // Carregar perfil do médico correspondente ao usuário logado
@@ -429,6 +430,9 @@ const ProfissionalPage = () => {
   const [commPhoneNumber, setCommPhoneNumber] = useState('');
   const [commMessage, setCommMessage] = useState('');
   const [commPatientId, setCommPatientId] = useState<string | null>(null);
+  const [commResponses, setCommResponses] = useState<any[]>([]);
+  const [commResponsesLoading, setCommResponsesLoading] = useState(false);
+  const [commResponsesError, setCommResponsesError] = useState<string | null>(null);
   const [smsSending, setSmsSending] = useState(false);
 
   const handleSave = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -517,6 +521,68 @@ const ProfissionalPage = () => {
     } finally {
       setSmsSending(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const loadCommResponses = async (patientId?: string) => {
+    const pid = patientId ?? commPatientId;
+    if (!pid) {
+      setCommResponses([]);
+      setCommResponsesError('Selecione um paciente para ver respostas');
+      return;
+    }
+    setCommResponsesLoading(true);
+    setCommResponsesError(null);
+    try {
+      // 1) tentar buscar por patient_id (o comportamento ideal)
+      const qs = new URLSearchParams();
+      qs.set('patient_id', `eq.${String(pid)}`);
+      qs.set('order', 'created_at.desc');
+      const url = `${(ENV_CONFIG as any).REST}/messages?${qs.toString()}`;
+      const headers: Record<string,string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if ((ENV_CONFIG as any)?.SUPABASE_ANON_KEY) headers['apikey'] = (ENV_CONFIG as any).SUPABASE_ANON_KEY;
+      const r = await fetch(url, { method: 'GET', headers });
+      let data = await r.json().catch(() => []);
+      data = Array.isArray(data) ? data : [];
+
+      // 2) Se não houver mensagens por patient_id, tentar buscar por número (from/to)
+      if ((!data || data.length === 0) && commPhoneNumber) {
+        try {
+          const norm = normalizePhoneNumber(commPhoneNumber);
+          if (norm) {
+            // Primeiro tenta buscar mensagens onde `from` é o número
+            const qsFrom = new URLSearchParams();
+            qsFrom.set('from', `eq.${String(norm)}`);
+            qsFrom.set('order', 'created_at.desc');
+            const urlFrom = `${(ENV_CONFIG as any).REST}/messages?${qsFrom.toString()}`;
+            const rf = await fetch(urlFrom, { method: 'GET', headers });
+            const dataFrom = await rf.json().catch(() => []);
+            if (Array.isArray(dataFrom) && dataFrom.length) {
+              data = dataFrom;
+            } else {
+              // se nada, tenta `to` (caso o provedor grave a direção inversa)
+              const qsTo = new URLSearchParams();
+              qsTo.set('to', `eq.${String(norm)}`);
+              qsTo.set('order', 'created_at.desc');
+              const urlTo = `${(ENV_CONFIG as any).REST}/messages?${qsTo.toString()}`;
+              const rt = await fetch(urlTo, { method: 'GET', headers });
+              const dataTo = await rt.json().catch(() => []);
+              if (Array.isArray(dataTo) && dataTo.length) data = dataTo;
+            }
+          }
+        } catch (phoneErr) {
+          // não bloqueara o fluxo principal; apenas log
+          console.warn('[ProfissionalPage] fallback por telefone falhou', phoneErr);
+        }
+      }
+
+      setCommResponses(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setCommResponsesError(String(e?.message || e || 'Falha ao buscar respostas'));
+      setCommResponses([]);
+    } finally {
+      setCommResponsesLoading(false);
     }
   };
 
@@ -2638,6 +2704,9 @@ const ProfissionalPage = () => {
                 // Use a sentinel value "__none" for the "-- nenhum --" choice and map it to null here.
                 const v = val === "__none" ? null : (val || null);
                 setCommPatientId(v);
+                // clear previous responses when changing selection
+                setCommResponses([]);
+                setCommResponsesError(null);
                 if (!v) {
                   setCommPhoneNumber('');
                   return;
@@ -2655,6 +2724,8 @@ const ProfissionalPage = () => {
                   console.warn('[ProfissionalPage] erro ao preencher telefone do paciente selecionado', e);
                   setCommPhoneNumber('');
                 }
+                // carregar respostas do paciente selecionado
+                void loadCommResponses(String(v));
               }}
             >
               <SelectTrigger className="w-full">
@@ -2685,6 +2756,35 @@ const ProfissionalPage = () => {
             <Button onClick={handleSave} disabled={smsSending}>
               {smsSending ? 'Enviando...' : 'Enviar SMS'}
             </Button>
+          </div>
+
+          {/* Respostas do paciente */}
+          <div className="mt-6 border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Últimas respostas do paciente</h3>
+              <div>
+                <Button size="sm" variant="outline" onClick={() => void loadCommResponses()} disabled={!commPatientId || commResponsesLoading}>
+                  {commResponsesLoading ? 'Atualizando...' : 'Atualizar respostas'}
+                </Button>
+              </div>
+            </div>
+
+            {commResponsesLoading ? (
+              <div className="text-sm text-muted-foreground">Carregando respostas...</div>
+            ) : commResponsesError ? (
+              <div className="text-sm text-red-500">{commResponsesError}</div>
+            ) : (commResponses && commResponses.length) ? (
+              <div className="space-y-2">
+                {commResponses.map((m:any) => (
+                  <div key={m.id} className="p-3 rounded border border-border bg-muted/10">
+                    <div className="text-xs text-muted-foreground">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
+                    <div className="mt-1 whitespace-pre-wrap">{m.body ?? m.content ?? m.message ?? '-'}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Nenhuma resposta encontrada para o paciente selecionado.</div>
+            )}
           </div>
         </div>
       </div>
@@ -2941,8 +3041,8 @@ const ProfissionalPage = () => {
     );
       case 'laudos':
         return renderLaudosSection();
-      // case 'comunicacao':
-      //   return renderComunicacaoSection();
+      case 'comunicacao':
+        return renderComunicacaoSection();
       case 'perfil':
         return renderPerfilSection();
       default:
@@ -3013,15 +3113,14 @@ const ProfissionalPage = () => {
               <FileText className="mr-2 h-4 w-4" />
               Laudos
             </Button>
-            {/* Comunicação removida - campos embaixo do calendário */}
-            {/* <Button 
+            <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              Comunicação
-            </Button> */}
+              SMS
+            </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"

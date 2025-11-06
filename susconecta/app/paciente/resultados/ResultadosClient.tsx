@@ -244,8 +244,12 @@ export default function ResultadosClient() {
       }
 
       const onlyAvail = (res?.slots || []).filter((s: any) => s.available)
+      const nowMs = Date.now()
       for (const s of onlyAvail) {
         const dt = new Date(s.datetime)
+        const dtMs = dt.getTime()
+        // Filtrar: só mostrar horários que são posteriores ao horário atual
+        if (dtMs < nowMs) continue
         const key = dt.toISOString().split('T')[0]
         const bucket = days.find(d => d.dateKey === key)
         if (!bucket) continue
@@ -260,7 +264,6 @@ export default function ResultadosClient() {
 
       // compute nearest slot (earliest available in the returned window, but after now)
       let nearest: { iso: string; label: string } | null = null
-      const nowMs = Date.now()
       const allSlots = days.flatMap(d => d.horarios || [])
       const futureSorted = allSlots
         .map(s => ({ ...s, ms: new Date(s.iso).getTime() }))
@@ -582,17 +585,24 @@ export default function ResultadosClient() {
           })
 
           const merged = Array.from(mergedMap.values()).sort((a:any,b:any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
-          const formatted = (merged || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
+          const nowMs = Date.now()
+          // Filtrar: só mostrar horários que são posteriores ao horário atual
+          const futureOnly = merged.filter((s: any) => new Date(s.datetime).getTime() >= nowMs)
+          const formatted = (futureOnly || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
           setMoreTimesSlots(formatted)
           return formatted
         } else {
-          const slots = (av.slots || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
+          const nowMs = Date.now()
+          // Filtrar: só mostrar horários que são posteriores ao horário atual
+          const slots = (av.slots || []).filter((s:any) => new Date(s.datetime).getTime() >= nowMs).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
           setMoreTimesSlots(slots)
           return slots
         }
       } catch (e) {
         console.warn('[ResultadosClient] erro ao filtrar por disponibilidades', e)
-        const slots = (av.slots || []).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
+        const nowMs = Date.now()
+        // Filtrar: só mostrar horários que são posteriores ao horário atual
+        const slots = (av.slots || []).filter((s:any) => new Date(s.datetime).getTime() >= nowMs).map((s:any) => ({ iso: s.datetime, label: new Date(s.datetime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }))
         setMoreTimesSlots(slots)
         return slots
       }

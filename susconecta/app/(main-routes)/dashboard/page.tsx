@@ -20,8 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Calendar, Users, Stethoscope, Clock, FileText, AlertTriangle, Plus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { PatientRegistrationForm } from '@/components/forms/patient-registration-form';
-import { DoctorRegistrationForm } from '@/components/forms/doctor-registration-form';
+import { PatientRegistrationForm } from '@/components/features/forms/patient-registration-form';
+import { DoctorRegistrationForm } from '@/components/features/forms/doctor-registration-form';
 
 interface DashboardStats {
   totalPatients: number;
@@ -283,15 +283,15 @@ export default function DashboardPage() {
             <Plus className="h-4 w-4" />
             Novo Paciente
           </Button>
-          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 hover:!bg-primary hover:!text-white transition-colors">
+          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 hover:bg-primary! hover:text-white! transition-colors">
             <Calendar className="h-4 w-4" />
             Novo Agendamento
           </Button>
-          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 hover:!bg-primary hover:!text-white transition-colors">
+          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 hover:bg-primary! hover:text-white! transition-colors">
             <Stethoscope className="h-4 w-4" />
             Novo Médico
           </Button>
-          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 hover:!bg-primary hover:!text-white transition-colors">
+          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 hover:bg-primary! hover:text-white! transition-colors">
             <FileText className="h-4 w-4" />
             Ver Relatórios
           </Button>
@@ -340,7 +340,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">{report.exam || 'Sem descrição'}</p>
                 </div>
               ))}
-              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:!bg-primary hover:!text-white transition-colors" size="sm">
+              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors" size="sm">
                 Ver Todos
               </Button>
             </div>
@@ -388,7 +388,7 @@ export default function DashboardPage() {
       )}
 
       {/* 11. LINK PARA RELATÓRIOS */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-lg border border-blue-500/20">
+      <div className="bg-linear-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-lg border border-blue-500/20">
         <h2 className="text-lg font-semibold text-foreground mb-2">Seção de Relatórios</h2>
         <p className="text-muted-foreground text-sm mb-4">
           Acesse a seção de relatórios médicos para gerenciar, visualizar e exportar documentos.

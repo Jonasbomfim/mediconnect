@@ -31,6 +31,7 @@ import {
   getAvailableSlots,
   criarAgendamento,
   criarAgendamentoDireto,
+  listarAgendamentos,
   getUserInfo,
   buscarPacientes,
   listarDisponibilidades,
@@ -54,13 +55,16 @@ export default function ResultadosClient() {
   const params = useSearchParams()
   const router = useRouter()
 
-  // Filtros/controles da UI
-  const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>(
-    params?.get('tipo') === 'presencial' ? 'local' : 'teleconsulta'
-  )
-  const [especialidadeHero, setEspecialidadeHero] = useState<string>(params?.get('especialidade') || 'Psicólogo')
+  // Filtros/controles da UI - initialize with defaults to avoid hydration mismatch
+  const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>('teleconsulta')
+  const [especialidadeHero, setEspecialidadeHero] = useState<string>('Psicólogo')
   const [convenio, setConvenio] = useState<string>('Todos')
   const [bairro, setBairro] = useState<string>('Todos')
+  // Busca por nome do médico
+  const [searchQuery, setSearchQuery] = useState<string>('')
+
+  // Track if URL params have been synced to avoid race condition
+  const [paramsSync, setParamsSync] = useState(false)
 
   // Estado dinâmico
   const [patientId, setPatientId] = useState<string | null>(null)
@@ -104,7 +108,20 @@ export default function ResultadosClient() {
   const [bookingSuccessOpen, setBookingSuccessOpen] = useState(false)
   const [bookedWhenLabel, setBookedWhenLabel] = useState<string | null>(null)
 
-  // 1) Obter patientId a partir do usuário autenticado (email -> patients)
+  // 1) Sincronize URL params with state after client mount (prevent hydration mismatch)
+  useEffect(() => {
+    if (!params) return
+    const tipoParam = params.get('tipo')
+    if (tipoParam === 'presencial') setTipoConsulta('local')
+    
+    const especialidadeParam = params.get('especialidade')
+    if (especialidadeParam) setEspecialidadeHero(especialidadeParam)
+    
+    // Mark params as synced
+    setParamsSync(true)
+  }, [params])
+
+  // 2) Fetch patient ID from auth
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -124,8 +141,32 @@ export default function ResultadosClient() {
     return () => { mounted = false }
   }, [])
 
-  // 2) Buscar médicos conforme especialidade selecionada
+  // 3) Initial doctors fetch on mount (one-time initialization)
   useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        setLoadingMedicos(true)
+        console.log('[ResultadosClient] Initial doctors fetch starting')
+        const list = await buscarMedicos('medico').catch((err) => {
+          console.error('[ResultadosClient] Initial fetch error:', err)
+          return []
+        })
+        if (!mounted) return
+        console.log('[ResultadosClient] Initial fetch completed, got:', list?.length || 0, 'doctors')
+        setMedicos(Array.isArray(list) ? list : [])
+      } finally {
+        if (mounted) setLoadingMedicos(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  // 4) Re-fetch doctors when especialidade changes (after initial sync)
+  useEffect(() => {
+    // Skip if this is the initial render or if user is searching by name
+    if (!paramsSync || (searchQuery && String(searchQuery).trim().length > 1)) return
+
     let mounted = true
     ;(async () => {
       try {
@@ -133,10 +174,15 @@ export default function ResultadosClient() {
         setMedicos([])
         setAgendaByDoctor({})
         setAgendasExpandida({})
-        // termo de busca: usar a especialidade escolhida (fallback para string genérica)
-        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
-        const list = await buscarMedicos(termo).catch(() => [])
+        // termo de busca: usar a especialidade escolhida
+        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : 'medico'
+        console.log('[ResultadosClient] Fetching doctors with term:', termo)
+        const list = await buscarMedicos(termo).catch((err) => {
+          console.error('[ResultadosClient] buscarMedicos error:', err)
+          return []
+        })
         if (!mounted) return
+        console.log('[ResultadosClient] Doctors fetched:', list?.length || 0)
         setMedicos(Array.isArray(list) ? list : [])
       } catch (e: any) {
         showToast('error', e?.message || 'Falha ao buscar profissionais')
@@ -145,7 +191,32 @@ export default function ResultadosClient() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [especialidadeHero])
+  }, [especialidadeHero, paramsSync])
+
+  // 5) Debounced search by doctor name
+  useEffect(() => {
+    let mounted = true
+    const term = String(searchQuery || '').trim()
+    const handle = setTimeout(async () => {
+      if (!mounted) return
+      // if no meaningful search, do nothing (the specialidade effect will run)
+      if (!term || term.length < 2) return
+      try {
+        setLoadingMedicos(true)
+        setMedicos([])
+        setAgendaByDoctor({})
+        setAgendasExpandida({})
+        const list = await buscarMedicos(term).catch(() => [])
+        if (!mounted) return
+        setMedicos(Array.isArray(list) ? list : [])
+      } catch (e: any) {
+        showToast('error', e?.message || 'Falha ao buscar profissionais')
+      } finally {
+        if (mounted) setLoadingMedicos(false)
+      }
+    }, 350)
+    return () => { mounted = false; clearTimeout(handle) }
+  }, [searchQuery])
 
   // 3) Carregar horários disponíveis para um médico (próximos 7 dias) e agrupar por dia
   async function loadAgenda(doctorId: string) {
@@ -172,7 +243,7 @@ export default function ResultadosClient() {
         days.push({ label, data: fmtDay(d), dateKey, horarios: [] })
       }
 
-      const onlyAvail = (res?.slots || []).filter(s => s.available)
+      const onlyAvail = (res?.slots || []).filter((s: any) => s.available)
       for (const s of onlyAvail) {
         const dt = new Date(s.datetime)
         const key = dt.toISOString().split('T')[0]
@@ -237,7 +308,26 @@ export default function ResultadosClient() {
   }
 
   // Open confirmation dialog for a selected slot instead of immediately booking
-  function openConfirmDialog(doctorId: string, iso: string) {
+  async function openConfirmDialog(doctorId: string, iso: string) {
+    // Pre-check: ensure there is no existing appointment for this doctor at this exact datetime
+    try {
+      // build query: exact match on doctor_id and scheduled_at
+      const params = new URLSearchParams();
+      params.set('doctor_id', `eq.${String(doctorId)}`);
+      params.set('scheduled_at', `eq.${String(iso)}`);
+      params.set('limit', '1');
+      const existing = await listarAgendamentos(params.toString()).catch(() => [])
+      if (existing && (existing as any).length) {
+        showToast('error', 'Não é possível agendar: já existe uma consulta neste horário para o profissional selecionado.')
+        return
+      }
+    } catch (err) {
+      // If checking fails (auth or network), surface a friendly error and avoid opening the dialog to prevent accidental duplicates.
+      console.warn('[ResultadosClient] falha ao checar conflitos de agendamento', err)
+      showToast('error', 'Não foi possível verificar disponibilidade. Tente novamente em instantes.')
+      return
+    }
+
     setPendingAppointment({ doctorId, iso })
     setConfirmOpen(true)
   }
@@ -255,6 +345,24 @@ export default function ResultadosClient() {
   showToast('success', 'Iniciando agendamento...')
     setConfirmLoading(true)
       try {
+      // Final conflict check to avoid race conditions: query appointments for same doctor + scheduled_at
+      try {
+        const params = new URLSearchParams();
+        params.set('doctor_id', `eq.${String(doctorId)}`);
+        params.set('scheduled_at', `eq.${String(iso)}`);
+        params.set('limit', '1');
+        const existing = await listarAgendamentos(params.toString()).catch(() => [])
+        if (existing && (existing as any).length) {
+          showToast('error', 'Não é possível agendar: já existe uma consulta neste horário para o profissional selecionado.')
+          setConfirmLoading(false)
+          return
+        }
+      } catch (err) {
+        console.warn('[ResultadosClient] falha ao checar conflito antes de criar agendamento', err)
+        showToast('error', 'Falha ao verificar conflito de agendamento. Tente novamente.')
+        setConfirmLoading(false)
+        return
+      }
       // Use direct POST to ensure creation even if availability checks would block
       await criarAgendamentoDireto({
         patient_id: String(patientId),
@@ -319,7 +427,7 @@ export default function ResultadosClient() {
       let start: Date
       let end: Date
       try {
-        const parts = String(dateOnly).split('-').map((p) => Number(p))
+        const parts = String(dateOnly).split('-').map(Number)
         if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
           const [y, m, d] = parts
           start = new Date(y, m - 1, d, 0, 0, 0, 0)
@@ -357,12 +465,12 @@ export default function ResultadosClient() {
           5: ['5','fri','friday','sexta','sexta-feira'],
           6: ['6','sat','saturday','sabado','sábado']
         }
-        const allowed = (weekdayNames[weekdayNumber] || []).map(s => String(s).toLowerCase())
+        const allowed = new Set((weekdayNames[weekdayNumber] || []).map(s => String(s).toLowerCase()))
         const matched = (disponibilidades || []).filter((d: any) => {
           try {
             const raw = String(d.weekday ?? d.weekday_name ?? d.day ?? d.day_of_week ?? '').toLowerCase()
             if (!raw) return false
-            if (allowed.includes(raw)) return true
+            if (allowed.has(raw)) return true
             if (typeof d.weekday === 'number' && d.weekday === weekdayNumber) return true
             if (typeof d.day_of_week === 'number' && d.day_of_week === weekdayNumber) return true
             return false
@@ -373,7 +481,7 @@ export default function ResultadosClient() {
           const windows = matched.map((d: any) => {
             const parseTime = (t?: string) => {
               if (!t) return { hh: 0, mm: 0, ss: 0 }
-              const parts = String(t).split(':').map((p) => Number(p))
+              const parts = String(t).split(':').map(Number)
               return { hh: parts[0] || 0, mm: parts[1] || 0, ss: parts[2] || 0 }
             }
             const s = parseTime(d.start_time)
@@ -420,8 +528,8 @@ export default function ResultadosClient() {
                   cursorMs += perWindowStep * 60000
                 }
               } else {
-                const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1]
-                let cursorMs = lastBackendMs + perWindowStep * 60000
+                const lastBackendMs = backendSlotsInWindow.at(-1)
+                let cursorMs = (lastBackendMs ?? 0) + perWindowStep * 60000
                 while (cursorMs <= lastStartMs) {
                   generatedSet.add(new Date(cursorMs).toISOString())
                   cursorMs += perWindowStep * 60000
@@ -505,6 +613,20 @@ export default function ResultadosClient() {
     })
   }, [medicos, convenio, bairro])
 
+  // Paginação local para a lista de médicos
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
+
+  // Resetar para página 1 quando o conjunto de profissionais (filtro) ou itemsPerPage mudar
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [profissionais, itemsPerPage])
+
+  const totalPages = Math.max(1, Math.ceil((profissionais || []).length / itemsPerPage))
+  const paginatedProfissionais = (profissionais || []).slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  const startItem = (profissionais || []).length ? (currentPage - 1) * itemsPerPage + 1 : 0
+  const endItem = Math.min(currentPage * itemsPerPage, (profissionais || []).length)
+
   // Render
   return (
     <div className="min-h-screen bg-background">
@@ -517,7 +639,7 @@ export default function ResultadosClient() {
         )}
 
         {/* Confirmation dialog shown when a user selects a slot */}
-        <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) { setConfirmOpen(false); setPendingAppointment(null); } }}>
+        <Dialog open={confirmOpen} onOpenChange={(open: boolean) => { if (!open) { setConfirmOpen(false); setPendingAppointment(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirmar agendamento</DialogTitle>
@@ -550,7 +672,7 @@ export default function ResultadosClient() {
         </Dialog>
 
           {/* Booking success modal shown when origin=paciente */}
-          <Dialog open={bookingSuccessOpen} onOpenChange={(open) => setBookingSuccessOpen(open)}>
+          <Dialog open={bookingSuccessOpen} onOpenChange={(open: boolean) => setBookingSuccessOpen(open)}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Consulta agendada</DialogTitle>
@@ -573,7 +695,7 @@ export default function ResultadosClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:!bg-primary-foreground hover:!text-primary transition-colors"
+              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground! hover:text-primary! transition-colors"
             >
               Ajustar filtros
             </Button>
@@ -600,7 +722,7 @@ export default function ResultadosClient() {
           <Toggle
             pressed={tipoConsulta === 'teleconsulta'}
             onPressedChange={() => setTipoConsulta('teleconsulta')}
-            className={cn('rounded-full px-4 py-[10px] text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
+            className={cn('rounded-full px-4 py-2.5 text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
               tipoConsulta === 'teleconsulta' ? 'bg-primary text-primary-foreground' : 'border border-primary/40 text-primary')}
           >
             <Globe className="mr-2 h-4 w-4" />
@@ -609,7 +731,7 @@ export default function ResultadosClient() {
           <Toggle
             pressed={tipoConsulta === 'local'}
             onPressedChange={() => setTipoConsulta('local')}
-            className={cn('rounded-full px-4 py-[10px] text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
+            className={cn('rounded-full px-4 py-2.5 text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
               tipoConsulta === 'local' ? 'bg-primary text-primary-foreground' : 'border border-primary/40 text-primary')}
           >
             <Building2 className="mr-2 h-4 w-4" />
@@ -617,7 +739,7 @@ export default function ResultadosClient() {
           </Toggle>
 
           <Select value={convenio} onValueChange={setConvenio}>
-            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:!border-primary focus:ring-2 focus:ring-primary cursor-pointer">
+            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Convênio" />
             </SelectTrigger>
             <SelectContent>
@@ -631,7 +753,7 @@ export default function ResultadosClient() {
           </Select>
 
           <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:!border-primary focus:ring-2 focus:ring-primary cursor-pointer">
+            <SelectTrigger className="h-10 min-w-40 rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
               <SelectValue placeholder="Bairro" />
             </SelectTrigger>
             <SelectContent>
@@ -642,17 +764,51 @@ export default function ResultadosClient() {
             </SelectContent>
           </Select>
 
-          <Button
-            variant="outline"
-            className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors"
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            Mais filtros
-          </Button>
+          {/* Search input para buscar médico por nome */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Buscar médico por nome"
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              className="min-w-[220px] rounded-full"
+            />
+            {searchQuery ? (
+              <Button
+                variant="ghost"
+                className="h-10"
+                onClick={async () => {
+                  // limpar o termo de busca e restaurar a lista por especialidade
+                  setSearchQuery('')
+                  setCurrentPage(1)
+                  try {
+                    setLoadingMedicos(true)
+                    setMedicos([])
+                    setAgendaByDoctor({})
+                    setAgendasExpandida({})
+                    const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
+                    const list = await buscarMedicos(termo).catch(() => [])
+                    setMedicos(Array.isArray(list) ? list : [])
+                  } catch (e: any) {
+                    showToast('error', e?.message || 'Falha ao buscar profissionais')
+                  } finally {
+                    setLoadingMedicos(false)
+                  }
+                }}
+              >Limpar</Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors"
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Mais filtros
+              </Button>
+            )}
+          </div>
 
           <Button
             variant="ghost"
-            className="ml-auto rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
+            className="ml-auto rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
             onClick={() => router.back()}
           >
             Voltar
@@ -668,7 +824,7 @@ export default function ResultadosClient() {
             </Card>
           )}
 
-          {!loadingMedicos && profissionais.map((medico) => {
+          {!loadingMedicos && paginatedProfissionais.map((medico) => {
             const id = String(medico.id)
             const agenda = agendaByDoctor[id]
             const isLoadingAgenda = !!agendaLoading[id]
@@ -711,7 +867,7 @@ export default function ResultadosClient() {
                   </div>
                   <Button
                     variant="ghost"
-                    className="ml-auto h-fit rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
+                    className="ml-auto h-fit rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
                     onClick={() => {
                       setMedicoSelecionado(medico)
                       setAbaDetalhe('experiencia')
@@ -782,12 +938,12 @@ export default function ResultadosClient() {
                   >
                     Agendar consulta
                   </Button>
-                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:!bg-primary hover:!text-white transition-colors">
+                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors">
                     Enviar mensagem
                   </Button>
                   <Button
                     variant="ghost"
-                    className="h-11 rounded-full text-primary hover:!bg-primary hover:!text-white transition-colors"
+                    className="h-11 rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
                     onClick={() => {
                       const willOpen = !agendasExpandida[id]
                       setAgendasExpandida(prev => ({ ...prev, [id]: !prev[id] }))
@@ -806,50 +962,7 @@ export default function ResultadosClient() {
                   </Button>
                 </div>
 
-                {/* Agenda: 4 colunas como no layout. Se ainda não carregou, mostra placeholders. */}
-                <div className="mt-4 overflow-x-auto">
-                  <div className="grid min-w-[360px] grid-cols-4 gap-3">
-                    {(agenda || [
-                      { label: 'HOJE', data: fmtDay(new Date()), horarios: [] },
-                      { label: 'AMANHÃ', data: fmtDay(new Date(Date.now()+86400000)), horarios: [] },
-                      { label: shortWeek[new Date(Date.now()+2*86400000).getDay()], data: fmtDay(new Date(Date.now()+2*86400000)), horarios: [] },
-                      { label: shortWeek[new Date(Date.now()+3*86400000).getDay()], data: fmtDay(new Date(Date.now()+3*86400000)), horarios: [] },
-                    ]).map((col, idx) => {
-                      const horarios = agendasExpandida[id] ? col.horarios : col.horarios.slice(0, 3)
-                      return (
-                        <div key={`${id}-${col.label}-${idx}`} className="rounded-2xl border border-border p-3 text-center">
-                          <p className="text-xs font-semibold uppercase text-muted-foreground">{col.label}</p>
-                          <p className="text-[10px] text-muted-foreground">{col.data}</p>
-                          <div className="mt-3 flex flex-col gap-2">
-                            {isLoadingAgenda && !agenda ? (
-                              <span className="rounded-lg border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground">
-                                Carregando...
-                              </span>
-                            ) : horarios.length ? (
-                              horarios.map(h => (
-                                <button
-                                  key={h.iso}
-                                  type="button"
-                                  className="rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary hover:text-primary-foreground"
-                                  onClick={() => openConfirmDialog(id, h.iso)}
-                                >
-                                  {h.label}
-                                </button>
-                              ))
-                            ) : (
-                              <span className="rounded-lg border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground">
-                                Sem horários
-                              </span>
-                            )}
-                            {!agendasExpandida[id] && (col.horarios.length > 3) && (
-                              <span className="text-[10px] text-muted-foreground">+{col.horarios.length - 3} horários</span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                {/* Horários compactos removidos conforme solicitação do design (colunas HOJE/AMANHÃ/etc.). */}
               </Card>
             )
           })}
@@ -859,10 +972,33 @@ export default function ResultadosClient() {
               Nenhum profissional encontrado. Ajuste os filtros para ver outras opções.
             </Card>
           )}
+
+          {/* Pagination controls */}
+          {!loadingMedicos && profissionais.length > 0 && (
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <span>Itens por página:</span>
+                <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+                <span>Mostrando {startItem} a {endItem} de {profissionais.length}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Primeira</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Anterior</Button>
+                <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Próxima</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Última</Button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Dialog de perfil completo (mantido e adaptado) */}
-        <Dialog open={!!medicoSelecionado} onOpenChange={open => !open && setMedicoSelecionado(null)}>
+        <Dialog open={!!medicoSelecionado} onOpenChange={(open: boolean) => !open && setMedicoSelecionado(null)}>
           <DialogContent className="max-h[90vh] max-h-[90vh] w-full max-w-5xl overflow-y-auto border border-border bg-card p-0">
             {medicoSelecionado && (
               <>
@@ -978,7 +1114,7 @@ export default function ResultadosClient() {
           </DialogContent>
         </Dialog>
         {/* Dialog: Mostrar mais horários (escolher data arbitrária) */}
-        <Dialog open={!!moreTimesForDoctor} onOpenChange={(open) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
+        <Dialog open={!!moreTimesForDoctor} onOpenChange={(open: boolean) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
           <DialogContent className="w-full max-w-2xl border border-border bg-card p-6">
             <DialogHeader className="mb-4">
               <DialogTitle>Mais horários</DialogTitle>

@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { SidebarTrigger } from "../ui/sidebar"
-import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
+import { SidebarTrigger } from "../../ui/sidebar"
+import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
 
 export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
   const { logout, user } = useAuth();
@@ -43,7 +43,7 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
       </div>
 
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="hover:!bg-primary hover:!text-white transition-colors">
+  <Button variant="ghost" size="icon" className="hover:bg-primary! hover:text-white! transition-colors">
           <Bell className="h-4 w-4" />
         </Button>
 

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,10 +12,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, LogOut, Calendar, FileText, MessageCircle, UserCog, Home, Clock, FolderOpen, ChevronLeft, ChevronRight, MapPin, Stethoscope } from 'lucide-react'
-import { SimpleThemeToggle } from '@/components/simple-theme-toggle'
+import { SimpleThemeToggle } from '@/components/ui/simple-theme-toggle'
 import { UploadAvatar } from '@/components/ui/upload-avatar'
 import Link from 'next/link'
-import ProtectedRoute from '@/components/ProtectedRoute'
+import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById } from '@/lib/api'
@@ -171,7 +172,6 @@ export default function PacientePage() {
 
     loadProfile()
     return () => { mounted = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.email])
 
   // Load authoritative patient row for the logged-in user (prefer user_id lookup)
@@ -324,10 +324,84 @@ export default function PacientePage() {
             setNextAppt(null)
           }
 
-          // Load reports/laudos count
+          // Load reports/laudos and compute count matching the Laudos session rules
           const reports = await listarRelatoriosPorPaciente(String(patientId)).catch(() => [])
           if (!mounted) return
-          setExamsCount(Array.isArray(reports) ? reports.length : 0)
+          let count = 0
+          try {
+            if (!Array.isArray(reports) || reports.length === 0) {
+              count = 0
+            } else {
+              // Use the same robust doctor-resolution strategy as ExamesLaudos so
+              // the card matches the list: try buscarMedicosPorIds, then per-id
+              // getDoctorById and finally a REST fallback by user_id.
+              const ids = Array.from(new Set((reports as any[]).map((r:any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
+              if (ids.length === 0) {
+                // fallback: count reports that have any direct doctor reference
+                count = (reports as any[]).filter((r:any) => !!(r && (r.doctor_id || r.created_by || r.doctor || r.user_id))).length
+              } else {
+                const docs = await buscarMedicosPorIds(ids).catch(() => [])
+                const map: Record<string, any> = {}
+                for (const d of docs || []) {
+                  if (!d) continue
+                  try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                  try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = map[String(d.user_id)] || d } catch {}
+                }
+
+                // Try per-id fallback using getDoctorById for any unresolved ids
+                const unresolved = ids.filter(i => !map[i])
+                if (unresolved.length) {
+                  for (const u of unresolved) {
+                    try {
+                      const d = await getDoctorById(String(u)).catch(() => null)
+                      if (d) {
+                        try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                        try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                      }
+                    } catch (e) {
+                      // ignore per-id failure
+                    }
+                  }
+                }
+
+                // REST fallback: try lookup by user_id for still unresolved ids
+                const stillUnresolved = ids.filter(i => !map[i])
+                if (stillUnresolved.length) {
+                  for (const u of stillUnresolved) {
+                    try {
+                      const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                      const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+                      if (token) headers.Authorization = `Bearer ${token}`
+                      const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(u))}&limit=1`
+                      const res = await fetch(url, { method: 'GET', headers })
+                      if (!res || res.status >= 400) continue
+                      const rows = await res.json().catch(() => [])
+                      if (rows && Array.isArray(rows) && rows.length) {
+                        const d = rows[0]
+                        if (d) {
+                          try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                          try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                        }
+                      }
+                    } catch (e) {
+                      // ignore network errors
+                    }
+                  }
+                }
+
+                // Count only reports whose referenced doctor record has user_id
+                count = (reports as any[]).filter((r:any) => {
+                  const maybeId = String(r.doctor_id || r.created_by || r.doctor || '')
+                  const doc = map[maybeId]
+                  return !!(doc && (doc.user_id || (doc as any).user_id))
+                }).length
+              }
+            }
+          } catch (e) {
+            count = Array.isArray(reports) ? reports.length : 0
+          }
+          if (!mounted) return
+          setExamsCount(count)
         } catch (e) {
           console.warn('[DashboardCards] erro ao carregar dados', e)
           if (!mounted) return
@@ -339,7 +413,7 @@ export default function PacientePage() {
       }
       load()
       return () => { mounted = false }
-    }, [patientId])
+    }, [])
 
     return (
       <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
@@ -353,7 +427,7 @@ export default function PacientePage() {
               {strings.proximaConsulta}
             </span>
             <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
-              {loading ? '—' : (nextAppt ?? '-')}
+              {loading ? strings.carregando : (nextAppt ?? '-')}
             </span>
           </div>
         </Card>
@@ -367,7 +441,7 @@ export default function PacientePage() {
               {strings.ultimosExames}
             </span>
             <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
-              {loading ? '—' : (examsCount !== null ? String(examsCount) : '-')}
+              {loading ? strings.carregando : (examsCount !== null ? String(examsCount) : '-')}
             </span>
           </div>
         </Card>
@@ -547,7 +621,7 @@ export default function PacientePage() {
 
       loadAppointments()
       return () => { mounted = false }
-    }, [patientId])
+    }, [])
 
     // Monta a URL de resultados com os filtros atuais
     const buildResultadosHref = () => {
@@ -557,7 +631,7 @@ export default function PacientePage() {
       if (localizacao) qs.set('local', localizacao)
       // indicate navigation origin so destination can alter UX (e.g., show modal instead of redirect)
       qs.set('origin', 'paciente')
-      return `/resultados?${qs.toString()}`
+      return `/paciente/resultados?${qs.toString()}`
     }
 
     // derived lists for the page (computed after appointments state is declared)
@@ -567,16 +641,16 @@ export default function PacientePage() {
     return (
       <div className="space-y-6">
         {/* Hero Section */}
-        <section className="bg-gradient-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
+        <section className="bg-linear-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
           <div className="max-w-3xl mx-auto space-y-8">
             <header className="text-center space-y-4">
               <h2 className="text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
               <p className="text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
             </header>
 
-            <div className="space-y-6 rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
+            <div className="space-y-6 rounded-2xl border border-primary/15 bg-linear-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
               <div className="flex justify-center">
-                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:!bg-primary/90 hover:!text-white transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
+                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:bg-primary/90! hover:text-white! transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
                   <Link href={buildResultadosHref()} prefetch={false}>
                     Pesquisar Médicos
                   </Link>
@@ -595,7 +669,7 @@ export default function PacientePage() {
             </header>
 
             {/* Date Navigation */}
-            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
+            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   type="button"
@@ -603,7 +677,7 @@ export default function PacientePage() {
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
-                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
                 >
                   <ChevronLeft className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
@@ -614,7 +688,7 @@ export default function PacientePage() {
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
-                  className={`group shadow-sm hover:!bg-primary hover:!text-white hover:!border-primary transition-all ${hoverPrimaryIconClass}`}
+                  className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
                 >
                   <ChevronRight className="h-5 w-5 transition group-hover:text-white" />
                 </Button>
@@ -665,16 +739,16 @@ export default function PacientePage() {
                         {/* Doctor Info */}
                         <div className="flex items-start gap-4 min-w-0">
                           <span
-                            className="mt-2 h-4 w-4 flex-shrink-0 rounded-full shadow-sm"
+                            className="mt-2 h-4 w-4 shrink-0 rounded-full shadow-sm"
                             style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
                             aria-hidden
                           />
                           <div className="space-y-3 min-w-0">
                             <div className="font-bold flex items-center gap-2.5 text-foreground text-lg leading-tight">
-                              <Stethoscope className="h-5 w-5 text-primary flex-shrink-0" />
+                              <Stethoscope className="h-5 w-5 text-primary shrink-0" />
                               <span className="truncate">{consulta.medico}</span>
                             </div>
-                            <p className="text-sm text-muted-foreground break-words leading-relaxed">
+                            <p className="text-sm text-muted-foreground wrap-break-word leading-relaxed">
                               <span className="font-medium text-foreground/70">{consulta.especialidade}</span>
                               <span className="mx-1.5">•</span>
                               <span>{consulta.local}</span>
@@ -684,7 +758,7 @@ export default function PacientePage() {
 
                         {/* Time */}
                         <div className="flex items-center justify-start gap-2.5 text-foreground">
-                          <Clock className="h-5 w-5 text-primary flex-shrink-0" />
+                          <Clock className="h-5 w-5 text-primary shrink-0" />
                           <span className="font-bold text-lg">{consulta.hora}</span>
                         </div>
 
@@ -692,10 +766,10 @@ export default function PacientePage() {
                         <div className="flex items-center justify-start">
                           <span className={`px-4 py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
                             consulta.status === 'Confirmada' 
-                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
+                              ? 'bg-linear-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
                               : consulta.status === 'Pendente' 
-                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
-                              : 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/20'
+                              ? 'bg-linear-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
+                              : 'bg-linear-to-r from-red-500 to-red-600 shadow-red-500/20'
                           }`}>
                             {consulta.status}
                           </span>
@@ -706,7 +780,7 @@ export default function PacientePage() {
                           <Button
                             type="button"
                             size="sm"
-                            className="border border-primary/30 text-primary bg-primary/5 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                            className="border border-primary/30 text-primary bg-primary/5 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
                           >
                             Detalhes
                           </Button>
@@ -714,7 +788,7 @@ export default function PacientePage() {
                             <Button 
                               type="button" 
                               size="sm" 
-                              className="bg-primary/10 text-primary border border-primary/30 hover:!bg-primary hover:!text-white hover:!border-primary transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                              className="bg-primary/10 text-primary border border-primary/30 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
                             >
                               Reagendar
                             </Button>
@@ -723,7 +797,7 @@ export default function PacientePage() {
                             <Button
                               type="button"
                               size="sm"
-                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:!bg-destructive hover:!text-white hover:!border-destructive transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
+                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive! hover:text-white! hover:border-destructive! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
                             >
                               Cancelar
                             </Button>
@@ -809,6 +883,7 @@ export default function PacientePage() {
         return false
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, searchTerm, doctorsMap, remoteMatch])
 
   // When the search term looks like an id, attempt a direct fetch using the reports API
@@ -834,7 +909,7 @@ export default function PacientePage() {
         setSearchingRemote(true)
         setRemoteMatch(null)
 
-        if (looksLikeId) {
+        if (looksLikeId && q) { // Adicionada verificação para q não ser vazio
           const r = await buscarRelatorioPorId(q).catch(() => null)
           if (!mounted) return
           if (r) setRemoteMatch(r)
@@ -847,9 +922,24 @@ export default function PacientePage() {
         if (q.length >= 2) {
           const docs = await buscarMedicos(q).catch(() => [])
           if (!mounted) return
-          if (docs && Array.isArray(docs) && docs.length) {
-            // fetch reports for matching doctors in parallel
-            const promises = docs.map(d => listarRelatoriosPorMedico(String(d.id)).catch(() => []))
+            if (docs && Array.isArray(docs) && docs.length) {
+            // fetch reports for matching doctors in parallel. Some report rows
+            // reference the doctor's account `user_id` in `requested_by` while
+            // others reference the doctor's record `id`. Try both per doctor.
+            const promises = docs.map(async (d: any) => {
+              try {
+                const byId = await listarRelatoriosPorMedico(String(d.id)).catch(() => [])
+                if (Array.isArray(byId) && byId.length) return byId
+                // fallback: if the doctor record has a user_id, try that too
+                if (d && (d.user_id || d.userId)) {
+                  const byUser = await listarRelatoriosPorMedico(String(d.user_id || d.userId)).catch(() => [])
+                  if (Array.isArray(byUser) && byUser.length) return byUser
+                }
+                return []
+              } catch (e) {
+                return []
+              }
+            })
             const arrays = await Promise.all(promises)
             if (!mounted) return
             const combined = ([] as any[]).concat(...arrays)
@@ -981,6 +1071,22 @@ export default function PacientePage() {
           }
 
           setDoctorsMap(map)
+          // After resolving doctor records, filter out reports whose doctor
+          // record doesn't have a user_id (doctor_userid). If a report's
+          // referenced doctor lacks user_id, we hide that laudo.
+          try {
+            const filtered = (reports || []).filter((r: any) => {
+              const maybeId = String(r?.doctor_id || r?.created_by || r?.doctor || '')
+              const doc = map[maybeId]
+              return !!(doc && (doc.user_id || (doc as any).user_id))
+            })
+            // Only update when different to avoid extra cycles
+            if (Array.isArray(filtered) && filtered.length !== (reports || []).length) {
+              setReports(filtered)
+            }
+          } catch (e) {
+            // ignore filtering errors
+          }
           setResolvingDoctors(false)
         } catch (e) {
           // ignore resolution errors
@@ -995,20 +1101,104 @@ export default function PacientePage() {
       if (!patientId) return
       setLoadingReports(true)
       setReportsError(null)
-      listarRelatoriosPorPaciente(String(patientId))
-        .then(res => {
+
+      ;(async () => {
+        try {
+          const res = await listarRelatoriosPorPaciente(String(patientId)).catch(() => [])
           if (!mounted) return
-          setReports(Array.isArray(res) ? res : [])
-        })
-        .catch(err => {
+
+          // If no reports, set empty and return
+          if (!Array.isArray(res) || res.length === 0) {
+            setReports([])
+            return
+          }
+
+          // Resolve referenced doctor ids and only keep reports whose
+          // referenced doctor record has a truthy user_id (i.e., created by a doctor)
+          try {
+            setResolvingDoctors(true)
+            const ids = Array.from(new Set((res as any[]).map((r:any) => r.doctor_id || r.created_by || r.doctor).filter(Boolean).map(String)))
+            const map: Record<string, any> = {}
+            if (ids.length) {
+              const docs = await buscarMedicosPorIds(ids).catch(() => [])
+              for (const d of docs || []) {
+                if (!d) continue
+                try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = map[String(d.user_id)] || d } catch {}
+              }
+
+              // per-id fallback
+              const unresolved = ids.filter(i => !map[i])
+              if (unresolved.length) {
+                for (const u of unresolved) {
+                  try {
+                    const d = await getDoctorById(String(u)).catch(() => null)
+                    if (d) {
+                      try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                      try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+              }
+
+              // REST fallback by user_id
+              const stillUnresolved = ids.filter(i => !map[i])
+              if (stillUnresolved.length) {
+                for (const u of stillUnresolved) {
+                  try {
+                    const token = (typeof window !== 'undefined') ? (localStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('auth_token') || sessionStorage.getItem('token')) : null
+                    const headers: Record<string,string> = { apikey: ENV_CONFIG.SUPABASE_ANON_KEY, Accept: 'application/json' }
+                    if (token) headers.Authorization = `Bearer ${token}`
+                    const url = `${ENV_CONFIG.SUPABASE_URL}/rest/v1/doctors?user_id=eq.${encodeURIComponent(String(u))}&limit=1`
+                    const r = await fetch(url, { method: 'GET', headers })
+                    if (!r || r.status >= 400) continue
+                    const rows = await r.json().catch(() => [])
+                    if (rows && Array.isArray(rows) && rows.length) {
+                      const d = rows[0]
+                      if (d) {
+                        try { if (d.id !== undefined && d.id !== null) map[String(d.id)] = d } catch {}
+                        try { if (d.user_id !== undefined && d.user_id !== null) map[String(d.user_id)] = d } catch {}
+                      }
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+              }
+            }
+
+            // Now filter reports to only those whose referenced doctor has user_id
+            const filtered = (res || []).filter((r: any) => {
+              const maybeId = String(r?.doctor_id || r?.created_by || r?.doctor || '')
+              const doc = map[maybeId]
+              return !!(doc && (doc.user_id || (doc as any).user_id))
+            })
+
+            // Update doctorsMap and reports
+            setDoctorsMap(map)
+            setReports(filtered)
+            setResolvingDoctors(false)
+            return
+          } catch (e) {
+            // If resolution fails, fall back to setting raw results
+            console.warn('[ExamesLaudos] falha ao resolver médicos para filtragem', e)
+            setReports(Array.isArray(res) ? res : [])
+            setResolvingDoctors(false)
+            return
+          }
+        } catch (err) {
           console.warn('[ExamesLaudos] erro ao carregar laudos', err)
           if (!mounted) return
           setReportsError('Falha ao carregar laudos.')
-        })
-        .finally(() => { if (mounted) setLoadingReports(false) })
+        } finally {
+          if (mounted) setLoadingReports(false)
+        }
+      })()
 
       return () => { mounted = false }
-    }, [patientId])
+    }, [])
 
     // When a report is selected, try to fetch doctor name if we have an id
     useEffect(() => {
@@ -1065,7 +1255,7 @@ export default function PacientePage() {
         }
       })()
       return () => { mounted = false }
-    }, [selectedReport])
+    }, [])
 
     // reset pagination when reports change
     useEffect(() => {
@@ -1099,11 +1289,13 @@ export default function PacientePage() {
             ) : (
             (() => {
               const total = Array.isArray(filteredReports) ? filteredReports.length : 0
-              const totalPages = Math.max(1, Math.ceil(total / reportsPerPage))
+              // enforce a maximum of 5 laudos per page
+              const perPage = Math.max(1, Math.min(reportsPerPage || 5, 5))
+              const totalPages = Math.max(1, Math.ceil(total / perPage))
               // keep page inside bounds
               const page = Math.min(Math.max(1, reportsPage), totalPages)
-              const start = (page - 1) * reportsPerPage
-              const end = start + reportsPerPage
+              const start = (page - 1) * perPage
+              const end = start + perPage
               const pageItems = (filteredReports || []).slice(start, end)
 
               return (
@@ -1121,8 +1313,8 @@ export default function PacientePage() {
                   <div className="text-base md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" className="hover:!bg-primary hover:!text-white transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
+                  <Button variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={async () => { setSelectedReport(r); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" className="hover:bg-primary! hover:text-white! transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
                   ))}
@@ -1145,64 +1337,62 @@ export default function PacientePage() {
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
               <DialogHeader>
-                <DialogTitle>Laudo Médico</DialogTitle>
-                <DialogDescription>
+                <DialogTitle>
+                  {selectedReport && (
+                    (() => {
+                      const looksLikeIdStr = (s: any) => {
+                        try {
+                          const hexOnly = String(s || '').replace(/[^0-9a-fA-F]/g, '');
+                          const len = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0);
+                          return len >= 8;
+                        } catch { return false; }
+                      };
+                      const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null;
+                      const derived = reportDoctorName ? reportTitle(selectedReport, reportDoctorName) : reportTitle(selectedReport);
+
+                      if (looksLikeIdStr(derived)) {
+                        return <span className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</span>;
+                      }
+                      if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) {
+                        return <span className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</span>;
+                      }
+                      return <span className="font-semibold text-xl md:text-2xl">{derived}</span>;
+                    })()
+                  )}
+                </DialogTitle>
+                <DialogDescription className="sr-only">Detalhes do laudo</DialogDescription>
+                <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
                   {selectedReport && (
                     <>
-                      <div className="mb-2">
-                                  {
-                                    // prefer the resolved doctor name; while resolving, show a loading indicator instead of raw IDs
-                                    (() => {
-                                      const looksLikeIdStr = (s: any) => {
-                                        try {
-                                          const hexOnly = String(s || '').replace(/[^0-9a-fA-F]/g, '')
-                                          const len = (typeof hexOnly === 'string') ? hexOnly.length : (Number(hexOnly) || 0)
-                                          return len >= 8
-                                        } catch { return false }
-                                      }
-                                      const maybeId = selectedReport?.doctor_id || selectedReport?.created_by || selectedReport?.doctor || null
-                                      // derive the title text
-                                      const derived = reportDoctorName ? reportTitle(selectedReport, reportDoctorName) : reportTitle(selectedReport)
-                                      // if the derived title looks like an id (UUID/hex) avoid showing it — show loading instead
-                                      if (looksLikeIdStr(derived)) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
-                                      if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) return <div className="font-semibold text-xl md:text-2xl text-muted-foreground">{strings.carregando}</div>
-                                      return <div className="font-semibold text-xl md:text-2xl">{derived}</div>
-                                    })()
-                                  }
-                        <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
-                        {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
-                      </div>
+                      <div className="text-sm text-muted-foreground">Data: {new Date(selectedReport.report_date || selectedReport.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                      {reportDoctorName && <div className="text-sm text-muted-foreground">Profissional: <strong className="text-foreground">{reportDoctorName}</strong></div>}
 
-                      {/* Standardized laudo sections: CID, Exame, Diagnóstico, Conclusão, Notas (prefer HTML when available) */}
+                      {/* Standardized laudo sections */}
                       {(() => {
-                        const cid = selectedReport.cid ?? selectedReport.cid_code ?? selectedReport.cidCode ?? selectedReport.cie ?? '-'
-                        const exam = selectedReport.exam ?? selectedReport.exame ?? selectedReport.especialidade ?? selectedReport.report_type ?? '-'
-                        const diagnosis = selectedReport.diagnosis ?? selectedReport.diagnostico ?? selectedReport.diagnosis_text ?? selectedReport.diagnostico_text ?? ''
-                        const conclusion = selectedReport.conclusion ?? selectedReport.conclusao ?? selectedReport.conclusion_text ?? selectedReport.conclusao_text ?? ''
-                        const notesHtml = selectedReport.content_html ?? selectedReport.conteudo_html ?? selectedReport.contentHtml ?? null
-                        const notesText = selectedReport.content ?? selectedReport.body ?? selectedReport.conteudo ?? selectedReport.notes ?? selectedReport.observacoes ?? ''
+                        const cid = selectedReport.cid ?? selectedReport.cid_code ?? selectedReport.cidCode ?? selectedReport.cie ?? '-';
+                        const exam = selectedReport.exam ?? selectedReport.exame ?? selectedReport.especialidade ?? selectedReport.report_type ?? '-';
+                        const diagnosis = selectedReport.diagnosis ?? selectedReport.diagnostico ?? selectedReport.diagnosis_text ?? selectedReport.diagnostico_text ?? '';
+                        const conclusion = selectedReport.conclusion ?? selectedReport.conclusao ?? selectedReport.conclusion_text ?? selectedReport.conclusao_text ?? '';
+                        const notesHtml = selectedReport.content_html ?? selectedReport.conteudo_html ?? selectedReport.contentHtml ?? null;
+                        const notesText = selectedReport.content ?? selectedReport.body ?? selectedReport.conteudo ?? selectedReport.notes ?? selectedReport.observacoes ?? '';
                         return (
-                          <div className="space-y-3 mb-4">
+                          <div className="space-y-3">
                             <div>
                               <div className="text-xs text-muted-foreground">CID</div>
                               <div className="text-foreground">{cid || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Exame</div>
                               <div className="text-foreground">{exam || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Diagnóstico</div>
                               <div className="whitespace-pre-line text-foreground">{diagnosis || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Conclusão</div>
                               <div className="whitespace-pre-line text-foreground">{conclusion || '-'}</div>
                             </div>
-
                             <div>
                               <div className="text-xs text-muted-foreground">Notas do Profissional</div>
                               {notesHtml ? (
@@ -1212,18 +1402,23 @@ export default function PacientePage() {
                               )}
                             </div>
                           </div>
-                        )
+                        );
                       })()}
-                      {/* Optional: doctor signature or footer */}
                       {selectedReport.doctor_signature && (
-                        <div className="mt-4 text-sm text-muted-foreground">Assinatura: <img src={selectedReport.doctor_signature} alt="assinatura" className="inline-block h-10" /></div>
+                        <div className="mt-4 text-sm text-muted-foreground">Assinatura: <Image src={selectedReport.doctor_signature} alt="assinatura" width={40} height={40} className="inline-block h-10 w-auto" /></div>
                       )}
                     </>
                   )}
-                </DialogDescription>
+                </div>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setSelectedReport(null)}>Fechar</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedReport(null)}
+                  className="transition duration-200 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
+                >
+                  Fechar
+                </Button>
               </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -1346,7 +1541,7 @@ export default function PacientePage() {
           </div>
           <div className="flex items-center gap-3">
             <SimpleThemeToggle />
-            <Button asChild variant="outline" className="hover:!bg-primary hover:!text-white hover:!border-primary transition-colors">
+            <Button asChild variant="outline" className="hover:bg-primary! hover:text-white! hover:border-primary! transition-colors">
               <Link href="/">
                 <Home className="h-4 w-4 mr-1" /> Início
               </Link>
@@ -1356,7 +1551,7 @@ export default function PacientePage() {
               variant="outline" 
               aria-label={strings.sair} 
               disabled={loading} 
-              className="text-destructive border-destructive hover:!bg-destructive hover:!text-white hover:!border-destructive transition-colors"
+              className="text-destructive border-destructive hover:bg-destructive! hover:text-white! hover:border-destructive! transition-colors"
             >
               <LogOut className="h-4 w-4 mr-1" /> {strings.sair}
             </Button>
@@ -1372,7 +1567,7 @@ export default function PacientePage() {
                 variant={tab==='dashboard'?'default':'ghost'}
                 aria-current={tab==='dashboard'}
                 onClick={()=>setTab('dashboard')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <Calendar className="mr-2 h-4 w-4" />{strings.dashboard}
               </Button>
@@ -1380,7 +1575,7 @@ export default function PacientePage() {
                 variant={tab==='consultas'?'default':'ghost'}
                 aria-current={tab==='consultas'}
                 onClick={()=>setTab('consultas')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <Calendar className="mr-2 h-4 w-4" />{strings.consultas}
               </Button>
@@ -1388,7 +1583,7 @@ export default function PacientePage() {
                 variant={tab==='exames'?'default':'ghost'}
                 aria-current={tab==='exames'}
                 onClick={()=>setTab('exames')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <FileText className="mr-2 h-4 w-4" />{strings.exames}
               </Button>
@@ -1397,7 +1592,7 @@ export default function PacientePage() {
                 variant={tab==='perfil'?'default':'ghost'}
                 aria-current={tab==='perfil'}
                 onClick={()=>setTab('perfil')}
-                className={`w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer`}
+                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
               >
                 <UserCog className="mr-2 h-4 w-4" />{strings.perfil}
               </Button>

@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { MoreHorizontal, Plus, Search, Edit, Trash2, ArrowLeft, Eye, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { DoctorRegistrationForm } from "@/components/forms/doctor-registration-form";
-import AvailabilityForm from '@/components/forms/availability-form'
-import ExceptionForm from '@/components/forms/exception-form'
+import { DoctorRegistrationForm } from "@/components/features/forms/doctor-registration-form";
+import AvailabilityForm from '@/components/features/forms/availability-form'
+import ExceptionForm from '@/components/features/forms/exception-form'
 import { listarDisponibilidades, DoctorAvailability, deletarDisponibilidade, listarExcecoes, DoctorException, deletarExcecao } from '@/lib/api'
 
 
@@ -20,7 +20,7 @@ import { listAssignmentsForUser } from '@/lib/assignment';
 
 function normalizeMedico(m: any): Medico {
   const normalizeSex = (v: any) => {
-    if (v === null || typeof v === 'undefined') return null;
+    if (v === undefined) return null;
     const s = String(v || '').trim().toLowerCase();
     if (!s) return null;
     const male = new Set(['m','masc','male','masculino','homem','h','1','mas']);
@@ -623,7 +623,7 @@ export default function DoutoresPage() {
             size="sm"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Primeira
           </Button>
@@ -632,7 +632,7 @@ export default function DoutoresPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Anterior
           </Button>
@@ -644,7 +644,7 @@ export default function DoutoresPage() {
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Próxima
           </Button>
@@ -653,7 +653,7 @@ export default function DoutoresPage() {
             size="sm"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Última
           </Button>

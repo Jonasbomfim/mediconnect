@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
@@ -12,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { SimpleThemeToggle } from "@/components/simple-theme-toggle";
+import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
 import {
   Table,
   TableBody,
@@ -174,7 +176,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [user?.id, doctorId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Carregar perfil do médico correspondente ao usuário logado
   useEffect(() => {
@@ -226,7 +229,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [user?.id, user?.email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
 
@@ -338,7 +342,7 @@ const ProfissionalPage = () => {
         // Helper: parse 'YYYY-MM-DD' into a local Date to avoid UTC parsing which can shift day
         const parseYMDToLocal = (ymd?: string) => {
           if (!ymd || typeof ymd !== 'string') return new Date();
-          const parts = ymd.split('-').map((p) => Number(p));
+          const parts = ymd.split('-').map(Number);
           if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return new Date(ymd);
           const [y, m, d] = parts;
           return new Date(y, (m || 1) - 1, d || 1);
@@ -369,7 +373,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [doctorId, user?.id, user?.email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
@@ -690,7 +695,7 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 hover:!bg-primary hover:!text-white cursor-pointer transition-colors"
+              className="p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -701,7 +706,7 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 hover:!bg-primary hover:!text-white cursor-pointer transition-colors"
+              className="p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -900,7 +905,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'todos' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('todos')}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Todos
           </Button>
@@ -908,7 +913,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'semana' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('semana')}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Semana
           </Button>
@@ -916,7 +921,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'mes' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('mes')}
-            className="hover:!bg-primary hover:!text-white transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors"
           >
             Mês
           </Button>
@@ -1077,7 +1082,7 @@ const ProfissionalPage = () => {
             <Button size="sm" onClick={doSearch} disabled={searching}>
               Buscar
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleClear} className="hover:!bg-primary hover:!text-white transition-colors">
+            <Button size="sm" variant="ghost" onClick={handleClear} className="hover:bg-primary! hover:text-white! transition-colors">
               Limpar
             </Button>
           </div>
@@ -1200,12 +1205,14 @@ const ProfissionalPage = () => {
         await loadAssignedLaudos();
       })();
       return () => { mounted = false; };
-    }, [user?.id]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // sincroniza quando reports mudarem no hook (fallback)
     useEffect(() => {
       if (!laudos || laudos.length === 0) setLaudos(reports || []);
-    }, [reports]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
       // Sort reports newest-first (more recent dates at the top)
       const sortedLaudos = React.useMemo(() => {
@@ -1383,7 +1390,7 @@ const ProfissionalPage = () => {
                                 setIsViewing(true);
                               }
                             }}
-                            className="flex items-center gap-1 hover:!bg-primary hover:!text-white transition-colors"
+                            className="flex items-center gap-1 hover:bg-primary! hover:text-white! transition-colors"
                           >
                             <Eye className="w-4 h-4" />
                             Ver Laudo
@@ -1668,8 +1675,7 @@ const ProfissionalPage = () => {
 
   // Editor de Laudo Avançado (para novos laudos)
   function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient, createNewReport, updateExistingReport, reloadReports, onSaved }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any; createNewReport?: (data: any) => Promise<any>; updateExistingReport?: (id: string, data: any) => Promise<any>; reloadReports?: () => Promise<void>; onSaved?: (r:any) => void }) {
-  // Import useToast at the top level of the component
-  const { toast } = require('@/hooks/use-toast').useToast();
+  const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("editor");
     const [content, setContent] = useState(laudo?.conteudo || "");
     const [showPreview, setShowPreview] = useState(false);
@@ -1818,7 +1824,7 @@ const ProfissionalPage = () => {
         const sig = laudo.assinaturaImg ?? laudo.signature_image ?? laudo.signature ?? laudo.sign_image ?? null;
         if (sig) setAssinaturaImg(sig);
       }
-    }, [laudo, isNewLaudo, pacienteSelecionado, listaPacientes, user]);
+    }, [laudo, isNewLaudo, pacienteSelecionado, listaPacientes]);
 
     // Histórico para desfazer/refazer
     const [history, setHistory] = useState<string[]>([]);
@@ -2250,6 +2256,7 @@ const ProfissionalPage = () => {
                     {imagens.map((img) => (
                       <div key={img.id} className="border border-border rounded-lg p-2">
                         {img.type.startsWith('image/') ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img 
                             src={img.url} 
                             alt={img.name}
@@ -2417,6 +2424,7 @@ const ProfissionalPage = () => {
                         <h3 className="font-semibold mb-2">Imagens:</h3>
                         <div className="grid grid-cols-2 gap-2">
                           {imagens.map((img) => (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img 
                               key={img.id}
                               src={img.url} 
@@ -2432,6 +2440,7 @@ const ProfissionalPage = () => {
                     {campos.mostrarAssinatura && (
                       <div className="mt-8 text-center">
                           {assinaturaImg && assinaturaImg.length > 30 ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-16 object-contain mb-2" />
                           ) : (
                             <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
@@ -2457,7 +2466,7 @@ const ProfissionalPage = () => {
                 Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} className="hover:!bg-primary hover:!text-white transition-colors">
+                <Button variant="outline" onClick={onClose} className="hover:bg-primary! hover:text-white! transition-colors">
                   Cancelar
                 </Button>
                 {/* botão 'Salvar Rascunho' removido por não ser utilizado */}
@@ -2528,7 +2537,11 @@ const ProfissionalPage = () => {
                             } else if (typeof val === 'boolean') {
                               if (origVal !== val) diff[k] = val;
                             } else if (val !== undefined && val !== null) {
-                              if (JSON.stringify(origVal) !== JSON.stringify(val)) diff[k] = val;
+                              if (JSON.stringify(origVal) !== JSON.stringify(val)) {
+                                diff[k] = val;
+                              } else {
+                                // no change
+                              }
                             }
                           }
 
@@ -2656,7 +2669,7 @@ const ProfissionalPage = () => {
             <Button onClick={handleSaveProfile} className="flex items-center gap-2">
               Salvar
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit} className="hover:!bg-primary hover:!text-white transition-colors">
+            <Button variant="outline" onClick={handleCancelEdit} className="hover:bg-primary! hover:text-white! transition-colors">
               Cancelar
             </Button>
           </div>
@@ -2779,7 +2792,7 @@ const ProfissionalPage = () => {
           </Avatar>
           {isEditingProfile && (
             <div className="space-y-2">
-              <Button variant="outline" size="sm" className="hover:!bg-primary hover:!text-white transition-colors">
+              <Button variant="outline" size="sm" className="hover:bg-primary! hover:text-white! transition-colors">
                 Alterar Foto
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -2875,7 +2888,7 @@ const ProfissionalPage = () => {
           <nav className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('calendario')}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -2883,7 +2896,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'pacientes' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('pacientes')}
             >
               <Users className="mr-2 h-4 w-4" />
@@ -2891,7 +2904,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('laudos')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -2899,7 +2912,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
@@ -2907,7 +2920,7 @@ const ProfissionalPage = () => {
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:!bg-primary hover:!text-white cursor-pointer"
+              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('perfil')}
             >
               <Settings className="mr-2 h-4 w-4" />
@@ -2957,7 +2970,7 @@ const ProfissionalPage = () => {
                   <Button
                     onClick={() => setShowPopup(false)}
                     variant="outline"
-                    className="flex-1 hover:!bg-primary hover:!text-white transition-colors"
+                    className="flex-1 hover:bg-primary! hover:text-white! transition-colors"
                   >
                     Cancelar
                   </Button>
@@ -3072,7 +3085,7 @@ const ProfissionalPage = () => {
             <Button
               onClick={() => setShowActionModal(false)}
               variant="outline"
-              className="w-full mt-2 hover:!bg-primary hover:!text-white transition-colors"
+              className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors"
             >
               Cancelar
             </Button>

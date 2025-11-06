@@ -238,7 +238,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
 
   // Normalize weekday to integer expected by the OpenAPI (0=Sunday .. 6=Saturday)
   const mapWeekdayToInt = (w?: string | number): number | null => {
-    if (w === null || typeof w === 'undefined') return null;
+    if (w === null || w === undefined) return null;
     if (typeof w === 'number') return Number(w);
     const s = String(w).toLowerCase().trim();
     const map: Record<string, number> = {
@@ -270,7 +270,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
     end_time: input.end_time,
     slot_minutes: input.slot_minutes ?? 30,
     appointment_type: input.appointment_type ?? 'presencial',
-    active: typeof input.active === 'undefined' ? true : input.active,
+    active: input.active === undefined ? true : input.active,
     created_by: createdBy,
   };
 
@@ -307,7 +307,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
       end_time: end,
       slot_minutes: input.slot_minutes ?? 30,
       appointment_type: input.appointment_type ?? 'presencial',
-      active: typeof input.active === 'undefined' ? true : input.active,
+      active: input.active === undefined ? true : input.active,
       created_by: createdBy,
     };
 
@@ -349,7 +349,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
       end_time: end,
       slot_minutes: input.slot_minutes ?? 30,
       appointment_type: input.appointment_type ?? 'presencial',
-      active: typeof input.active === 'undefined' ? true : input.active,
+      active: input.active === undefined ? true : input.active,
       created_by: createdBy,
     };
     try {
@@ -381,7 +381,7 @@ export async function criarDisponibilidade(input: DoctorAvailabilityCreate): Pro
 export async function listarDisponibilidades(params?: { doctorId?: string; active?: boolean }): Promise<DoctorAvailability[]> {
   const qs = new URLSearchParams();
   if (params?.doctorId) qs.set('doctor_id', `eq.${encodeURIComponent(String(params.doctorId))}`);
-  if (typeof params?.active !== 'undefined') qs.set('active', `eq.${params.active ? 'true' : 'false'}`);
+  if (params?.active !== undefined) qs.set('active', `eq.${params.active ? 'true' : 'false'}`);
 
   const url = `${REST}/doctor_availability${qs.toString() ? `?${qs.toString()}` : ''}`;
   const res = await fetch(url, { method: 'GET', headers: baseHeaders() });
@@ -616,9 +616,19 @@ function buildRedirectUrl(target?: 'paciente' | 'medico' | 'admin' | 'default', 
 
   const base = DEFAULT_REDIRECT_BASE.replace(/\/$/, '');
   let path = '/';
-  if (target === 'paciente') path = '/paciente';
-  else if (target === 'medico') path = '/profissional';
-  else if (target === 'admin') path = '/dashboard';
+  switch (target) {
+    case 'paciente':
+      path = '/paciente';
+      break;
+    case 'medico':
+      path = '/profissional';
+      break;
+    case 'admin':
+      path = '/dashboard';
+      break;
+    default:
+      path = '/';
+  }
   return `${base}${path}`;
 }
 
@@ -732,7 +742,8 @@ async function parse<T>(res: Response): Promise<T> {
     }
 
     // For other errors, log a concise error and try to produce a friendly message
-    console.error('[API ERROR] Status:', res.status, json ? 'JSON response' : 'no-json', rawText ? 'raw body present' : 'no raw body');
+    const endpoint = res.url ? new URL(res.url).pathname : 'unknown';
+    console.error('[API ERROR] Status:', res.status, 'Endpoint:', endpoint, json ? 'JSON response' : 'no-json', rawText ? 'raw body present' : 'no raw body', 'Message:', msg || 'N/A');
 
     // Mensagens amigáveis para erros comuns
     let friendlyMessage = msg;
@@ -837,7 +848,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   
   // Busca por ID se parece com UUID
   if (searchTerm.includes('-') && searchTerm.length > 10) {
-    queries.push(`id=eq.${searchTerm}`);
+    queries.push(`id=eq.${encodeURIComponent(searchTerm)}`);
   }
   
   // Busca por CPF (com e sem formatação)
@@ -848,14 +859,14 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   }
   
   // Busca por nome (usando ilike para busca case-insensitive)
+  // NOTA: apenas full_name existe, social_name foi removido
   if (searchTerm.length >= 2) {
-    queries.push(`full_name=ilike.*${searchTerm}*`);
-    queries.push(`social_name=ilike.*${searchTerm}*`);
+    queries.push(`full_name=ilike.*${q}*`);
   }
   
   // Busca por email se contém @
   if (searchTerm.includes('@')) {
-    queries.push(`email=ilike.*${searchTerm}*`);
+    queries.push(`email=ilike.*${q}*`);
   }
   
   const results: Paciente[] = [];
@@ -864,13 +875,8 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-            const [key, val] = String(query).split('=');
-            const params = new URLSearchParams();
-            if (key && typeof val !== 'undefined') params.set(key, val);
-            params.set('limit', '10');
-            const url = `${REST}/patients?${params.toString()}`;
+      const url = `${REST}/patients?${query}&limit=10`;
       const headers = baseHeaders();
-      // Logs removidos por segurança
       const res = await fetch(url, { method: "GET", headers });
       const arr = await parse<Paciente[]>(res);
       
@@ -883,7 +889,7 @@ export async function buscarPacientes(termo: string): Promise<Paciente[]> {
         }
       }
     } catch (error) {
-      console.warn(`Erro na busca com query: ${query}`, error);
+      console.warn(`[API] Erro na busca de pacientes com query: ${query}`, error);
     }
   }
   
@@ -1115,23 +1121,21 @@ export async function criarAgendamento(input: AppointmentCreate): Promise<Appoin
           }
           // Otherwise check overlap with scheduled time
           // Parse exception times and scheduled time to minutes
-          const parseToMinutes = (t?: string | null) => {
-            if (!t) return null;
-            const parts = String(t).split(':').map((p) => Number(p));
-            if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1];
-            return null;
-          };
-          const exStart = parseToMinutes(ex.start_time ?? undefined);
-          const exEnd = parseToMinutes(ex.end_time ?? undefined);
+                  const parseToMinutes = (t?: string | null) => {
+                    if (!t) return null;
+                    const parts = String(t).split(':').map(Number);
+                    if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1];
+                    return null;
+                  };
+                  const exStart = parseToMinutes(ex.start_time ?? undefined);
+                  const exEnd = parseToMinutes(ex.end_time ?? undefined);
           const sched = new Date(input.scheduled_at);
           const schedMinutes = sched.getHours() * 60 + sched.getMinutes();
           const schedDuration = input.duration_minutes ?? 30;
           const schedEndMinutes = schedMinutes + Number(schedDuration);
-          if (exStart != null && exEnd != null) {
-            if (schedMinutes < exEnd && exStart < schedEndMinutes) {
-              const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
-              throw new Error(`Não é possível agendar neste horário por uma exceção que bloqueia parte do dia.${reason}`);
-            }
+          if (exStart != null && exEnd != null && schedMinutes < exEnd && exStart < schedEndMinutes) {
+            const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
+            throw new Error(`Não é possível agendar neste horário por uma exceção que bloqueia parte do dia.${reason}`);
           }
         } catch (inner) {
           // Propagate the exception as user-facing error
@@ -1721,8 +1725,7 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   
   const searchTerm = termo.toLowerCase().trim();
   const digitsOnly = searchTerm.replace(/\D/g, '');
-  // Do not pre-encode the searchTerm here; we'll let URLSearchParams handle encoding
-  const q = searchTerm;
+  const q = encodeURIComponent(searchTerm);
   
   // Monta queries para buscar em múltiplos campos
   const queries = [];
@@ -1734,21 +1737,19 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   
   // Busca por CRM (com e sem formatação)
   if (digitsOnly.length >= 3) {
-    queries.push(`crm=ilike.*${digitsOnly}*`);
+    queries.push(`crm=ilike.*${encodeURIComponent(digitsOnly)}*`);
   }
   
   // Busca por nome (usando ilike para busca case-insensitive)
+  // NOTA: apenas full_name existe na tabela, nome_social foi removido
   if (searchTerm.length >= 2) {
     queries.push(`full_name=ilike.*${q}*`);
-    queries.push(`nome_social=ilike.*${q}*`);
   }
   
   // Busca por email se contém @
   if (searchTerm.includes('@')) {
     // Quando o usuário pesquisa por email (contendo '@'), limitar as queries apenas ao campo email.
-    // Em alguns esquemas de banco / views, buscar por outros campos com um email pode provocar
-    // erros de requisição (400) dependendo das colunas e políticas. Reduzimos o escopo para evitar 400s.
-    queries.length = 0; // limpar queries anteriores
+    queries.length = 0;
     queries.push(`email=ilike.*${q}*`);
   }
   
@@ -1756,8 +1757,6 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   if (searchTerm.length >= 2) {
     queries.push(`specialty=ilike.*${q}*`);
   }
-
-  // Debug removido por segurança
   
   const results: Medico[] = [];
   const seenIds = new Set<string>();
@@ -1765,15 +1764,8 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      // Build the URL safely using URLSearchParams so special characters (like @) are encoded correctly
-      // query is like 'nome_social=ilike.*something*' -> split into key/value
-      const [key, val] = String(query).split('=');
-      const params = new URLSearchParams();
-      if (key && typeof val !== 'undefined') params.set(key, val);
-      params.set('limit', '10');
-      const url = `${REST}/doctors?${params.toString()}`;
+      const url = `${REST}/doctors?${query}&limit=10`;
       const headers = baseHeaders();
-      // Logs removidos por segurança
       const res = await fetch(url, { method: 'GET', headers });
       const arr = await parse<Medico[]>(res);
       
@@ -1786,7 +1778,7 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
         }
       }
     } catch (error) {
-      console.warn(`Erro na busca com query: ${query}`, error);
+      console.warn(`[API] Erro na busca de médicos com query: ${query}`, error);
     }
   }
   
@@ -1800,7 +1792,7 @@ export async function buscarMedicoPorId(id: string | number): Promise<Medico | n
   const sId = String(id);
 
   // Helper para escape de aspas
-  const escapeQuotes = (v: string) => v.replace(/"/g, '\\"');
+  const escapeQuotes = (v: string) => JSON.stringify(v).slice(1, -1);
 
   try {
     // 1) Se parece UUID, busca por id direto
@@ -2085,9 +2077,9 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
       crm_uf: crmUf,
       create_user: false,
     };
-    if (input.specialty) fallbackPayload.specialty = input.specialty;
-    if (input.phone_mobile) fallbackPayload.phone_mobile = input.phone_mobile;
-    if (typeof input.phone2 !== 'undefined') fallbackPayload.phone2 = input.phone2;
+  if (input.specialty) fallbackPayload.specialty = input.specialty;
+  if (input.phone_mobile) fallbackPayload.phone_mobile = input.phone_mobile;
+  if (input.phone2 !== undefined) fallbackPayload.phone2 = input.phone2;
 
     const url = `${API_BASE}/functions/v1/create-doctor`;
     const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string, string>;
@@ -2685,7 +2677,8 @@ export async function criarUsuarioPaciente(paciente: { email: string; full_name:
 
   const parsed = await parse<any>(res as Response);
   // Attach the generated password so callers (UI) can display it if necessary
-  return { ...(parsed || {}), password };
+  if (parsed && typeof parsed === 'object') return { ...(parsed as any), password };
+  return { password };
 }
 
 
@@ -2797,7 +2790,7 @@ export async function uploadFotoPaciente(_id: string | number, _file: File): Pro
   form.append('file', _file, `avatar.${ext}`);
 
   const headers: Record<string, string> = {
-    // Supabase requires the anon key in 'apikey' header for client-side uploads
+    // Supabase requires the anon  key in 'apikey' header for client-side uploads
     apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
     // Accept json
     Accept: 'application/json',

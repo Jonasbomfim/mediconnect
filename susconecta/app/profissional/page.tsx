@@ -177,8 +177,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Re-run when user id becomes available so patients assigned to the logged-in doctor are loaded
+  }, [user?.id]);
 
   // Carregar perfil do médico correspondente ao usuário logado
   useEffect(() => {

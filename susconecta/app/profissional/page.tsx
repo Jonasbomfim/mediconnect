@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
@@ -174,7 +176,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [user?.id, doctorId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Carregar perfil do médico correspondente ao usuário logado
   useEffect(() => {
@@ -226,7 +229,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [user?.id, user?.email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
 
@@ -338,7 +342,7 @@ const ProfissionalPage = () => {
         // Helper: parse 'YYYY-MM-DD' into a local Date to avoid UTC parsing which can shift day
         const parseYMDToLocal = (ymd?: string) => {
           if (!ymd || typeof ymd !== 'string') return new Date();
-          const parts = ymd.split('-').map((p) => Number(p));
+          const parts = ymd.split('-').map(Number);
           if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return new Date(ymd);
           const [y, m, d] = parts;
           return new Date(y, (m || 1) - 1, d || 1);
@@ -369,7 +373,8 @@ const ProfissionalPage = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [doctorId, user?.id, user?.email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
@@ -1200,12 +1205,14 @@ const ProfissionalPage = () => {
         await loadAssignedLaudos();
       })();
       return () => { mounted = false; };
-    }, [user?.id]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // sincroniza quando reports mudarem no hook (fallback)
     useEffect(() => {
       if (!laudos || laudos.length === 0) setLaudos(reports || []);
-    }, [reports]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
       // Sort reports newest-first (more recent dates at the top)
       const sortedLaudos = React.useMemo(() => {
@@ -1668,8 +1675,7 @@ const ProfissionalPage = () => {
 
   // Editor de Laudo Avançado (para novos laudos)
   function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient, createNewReport, updateExistingReport, reloadReports, onSaved }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any; createNewReport?: (data: any) => Promise<any>; updateExistingReport?: (id: string, data: any) => Promise<any>; reloadReports?: () => Promise<void>; onSaved?: (r:any) => void }) {
-  // Import useToast at the top level of the component
-  const { toast } = require('@/hooks/use-toast').useToast();
+  const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("editor");
     const [content, setContent] = useState(laudo?.conteudo || "");
     const [showPreview, setShowPreview] = useState(false);
@@ -1818,7 +1824,7 @@ const ProfissionalPage = () => {
         const sig = laudo.assinaturaImg ?? laudo.signature_image ?? laudo.signature ?? laudo.sign_image ?? null;
         if (sig) setAssinaturaImg(sig);
       }
-    }, [laudo, isNewLaudo, pacienteSelecionado, listaPacientes, user]);
+    }, [laudo, isNewLaudo, pacienteSelecionado, listaPacientes]);
 
     // Histórico para desfazer/refazer
     const [history, setHistory] = useState<string[]>([]);
@@ -2250,6 +2256,7 @@ const ProfissionalPage = () => {
                     {imagens.map((img) => (
                       <div key={img.id} className="border border-border rounded-lg p-2">
                         {img.type.startsWith('image/') ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img 
                             src={img.url} 
                             alt={img.name}
@@ -2417,6 +2424,7 @@ const ProfissionalPage = () => {
                         <h3 className="font-semibold mb-2">Imagens:</h3>
                         <div className="grid grid-cols-2 gap-2">
                           {imagens.map((img) => (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img 
                               key={img.id}
                               src={img.url} 
@@ -2432,6 +2440,7 @@ const ProfissionalPage = () => {
                     {campos.mostrarAssinatura && (
                       <div className="mt-8 text-center">
                           {assinaturaImg && assinaturaImg.length > 30 ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-16 object-contain mb-2" />
                           ) : (
                             <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
@@ -2528,7 +2537,11 @@ const ProfissionalPage = () => {
                             } else if (typeof val === 'boolean') {
                               if (origVal !== val) diff[k] = val;
                             } else if (val !== undefined && val !== null) {
-                              if (JSON.stringify(origVal) !== JSON.stringify(val)) diff[k] = val;
+                              if (JSON.stringify(origVal) !== JSON.stringify(val)) {
+                                diff[k] = val;
+                              } else {
+                                // no change
+                              }
                             }
                           }
 

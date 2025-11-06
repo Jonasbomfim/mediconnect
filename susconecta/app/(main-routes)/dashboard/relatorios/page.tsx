@@ -303,8 +303,8 @@ export default function RelatoriosPage() {
           { label: "Atendimentos", value: appointmentsToday ?? 0, icon: <CalendarCheck className="w-6 h-6 text-blue-500" /> },
           { label: "Absenteísmo", value: '—', icon: <UserCheck className="w-6 h-6 text-red-500" /> },
           { label: "Satisfação", value: 'Dados não foram disponibilizados', icon: <ThumbsUp className="w-6 h-6 text-green-500" /> },
-          { label: "Faturamento (Mês)", value: `R$ ${faturamentoArr[faturamentoArr.length - 1]?.valor ?? 0}`, icon: <DollarSign className="w-6 h-6 text-emerald-500" /> },
-          { label: "No-show", value: `${taxaArr[taxaArr.length - 1]?.noShow ?? 0}%`, icon: <User className="w-6 h-6 text-yellow-500" /> },
+          { label: "Faturamento (Mês)", value: `R$ ${faturamentoArr.at(-1)?.valor ?? 0}`, icon: <DollarSign className="w-6 h-6 text-emerald-500" /> },
+          { label: "No-show", value: `${taxaArr.at(-1)?.noShow ?? 0}%`, icon: <User className="w-6 h-6 text-yellow-500" /> },
         ] as any);
 
       } catch (err: any) {

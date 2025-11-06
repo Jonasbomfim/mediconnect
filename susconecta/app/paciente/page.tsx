@@ -172,7 +172,6 @@ export default function PacientePage() {
 
     loadProfile()
     return () => { mounted = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.email])
 
   // Load authoritative patient row for the logged-in user (prefer user_id lookup)
@@ -414,7 +413,7 @@ export default function PacientePage() {
       }
       load()
       return () => { mounted = false }
-    }, [patientId])
+    }, [])
 
     return (
       <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
@@ -622,7 +621,7 @@ export default function PacientePage() {
 
       loadAppointments()
       return () => { mounted = false }
-    }, [patientId])
+    }, [])
 
     // Monta a URL de resultados com os filtros atuais
     const buildResultadosHref = () => {
@@ -642,14 +641,14 @@ export default function PacientePage() {
     return (
       <div className="space-y-6">
         {/* Hero Section */}
-        <section className="bg-gradient-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
+        <section className="bg-linear-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
           <div className="max-w-3xl mx-auto space-y-8">
             <header className="text-center space-y-4">
               <h2 className="text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
               <p className="text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
             </header>
 
-            <div className="space-y-6 rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
+            <div className="space-y-6 rounded-2xl border border-primary/15 bg-linear-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
               <div className="flex justify-center">
                 <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:bg-primary/90! hover:text-white! transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
                   <Link href={buildResultadosHref()} prefetch={false}>
@@ -670,7 +669,7 @@ export default function PacientePage() {
             </header>
 
             {/* Date Navigation */}
-            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
+            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   type="button"
@@ -740,16 +739,16 @@ export default function PacientePage() {
                         {/* Doctor Info */}
                         <div className="flex items-start gap-4 min-w-0">
                           <span
-                            className="mt-2 h-4 w-4 flex-shrink-0 rounded-full shadow-sm"
+                            className="mt-2 h-4 w-4 shrink-0 rounded-full shadow-sm"
                             style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
                             aria-hidden
                           />
                           <div className="space-y-3 min-w-0">
                             <div className="font-bold flex items-center gap-2.5 text-foreground text-lg leading-tight">
-                              <Stethoscope className="h-5 w-5 text-primary flex-shrink-0" />
+                              <Stethoscope className="h-5 w-5 text-primary shrink-0" />
                               <span className="truncate">{consulta.medico}</span>
                             </div>
-                            <p className="text-sm text-muted-foreground break-words leading-relaxed">
+                            <p className="text-sm text-muted-foreground wrap-break-word leading-relaxed">
                               <span className="font-medium text-foreground/70">{consulta.especialidade}</span>
                               <span className="mx-1.5">•</span>
                               <span>{consulta.local}</span>
@@ -759,7 +758,7 @@ export default function PacientePage() {
 
                         {/* Time */}
                         <div className="flex items-center justify-start gap-2.5 text-foreground">
-                          <Clock className="h-5 w-5 text-primary flex-shrink-0" />
+                          <Clock className="h-5 w-5 text-primary shrink-0" />
                           <span className="font-bold text-lg">{consulta.hora}</span>
                         </div>
 
@@ -767,10 +766,10 @@ export default function PacientePage() {
                         <div className="flex items-center justify-start">
                           <span className={`px-4 py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
                             consulta.status === 'Confirmada' 
-                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
+                              ? 'bg-linear-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
                               : consulta.status === 'Pendente' 
-                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
-                              : 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/20'
+                              ? 'bg-linear-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
+                              : 'bg-linear-to-r from-red-500 to-red-600 shadow-red-500/20'
                           }`}>
                             {consulta.status}
                           </span>
@@ -884,6 +883,7 @@ export default function PacientePage() {
         return false
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, searchTerm, doctorsMap, remoteMatch])
 
   // When the search term looks like an id, attempt a direct fetch using the reports API
@@ -1198,7 +1198,7 @@ export default function PacientePage() {
       })()
 
       return () => { mounted = false }
-    }, [patientId])
+    }, [])
 
     // When a report is selected, try to fetch doctor name if we have an id
     useEffect(() => {
@@ -1255,7 +1255,7 @@ export default function PacientePage() {
         }
       })()
       return () => { mounted = false }
-    }, [selectedReport])
+    }, [])
 
     // reset pagination when reports change
     useEffect(() => {

@@ -243,7 +243,7 @@ export default function ResultadosClient() {
         days.push({ label, data: fmtDay(d), dateKey, horarios: [] })
       }
 
-      const onlyAvail = (res?.slots || []).filter(s => s.available)
+      const onlyAvail = (res?.slots || []).filter((s: any) => s.available)
       for (const s of onlyAvail) {
         const dt = new Date(s.datetime)
         const key = dt.toISOString().split('T')[0]
@@ -639,7 +639,7 @@ export default function ResultadosClient() {
         )}
 
         {/* Confirmation dialog shown when a user selects a slot */}
-        <Dialog open={confirmOpen} onOpenChange={(open) => { if (!open) { setConfirmOpen(false); setPendingAppointment(null); } }}>
+        <Dialog open={confirmOpen} onOpenChange={(open: boolean) => { if (!open) { setConfirmOpen(false); setPendingAppointment(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirmar agendamento</DialogTitle>
@@ -672,7 +672,7 @@ export default function ResultadosClient() {
         </Dialog>
 
           {/* Booking success modal shown when origin=paciente */}
-          <Dialog open={bookingSuccessOpen} onOpenChange={(open) => setBookingSuccessOpen(open)}>
+          <Dialog open={bookingSuccessOpen} onOpenChange={(open: boolean) => setBookingSuccessOpen(open)}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Consulta agendada</DialogTitle>
@@ -769,7 +769,7 @@ export default function ResultadosClient() {
             <Input
               placeholder="Buscar médico por nome"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="min-w-[220px] rounded-full"
             />
             {searchQuery ? (
@@ -818,11 +818,6 @@ export default function ResultadosClient() {
 
         {/* Lista de profissionais */}
         <section className="space-y-4">
-          {/* Debug card */}
-          <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded">
-            Status: loading={loadingMedicos} | medicos={medicos.length} | profissionais={profissionais.length} | especialidade={especialidadeHero} | paramsSync={paramsSync}
-          </div>
-
           {loadingMedicos && (
             <Card className="flex items-center justify-center border border-dashed border-border bg-card/60 p-12 text-muted-foreground">
               Buscando profissionais...
@@ -1003,7 +998,7 @@ export default function ResultadosClient() {
         </section>
 
         {/* Dialog de perfil completo (mantido e adaptado) */}
-        <Dialog open={!!medicoSelecionado} onOpenChange={open => !open && setMedicoSelecionado(null)}>
+        <Dialog open={!!medicoSelecionado} onOpenChange={(open: boolean) => !open && setMedicoSelecionado(null)}>
           <DialogContent className="max-h[90vh] max-h-[90vh] w-full max-w-5xl overflow-y-auto border border-border bg-card p-0">
             {medicoSelecionado && (
               <>
@@ -1119,7 +1114,7 @@ export default function ResultadosClient() {
           </DialogContent>
         </Dialog>
         {/* Dialog: Mostrar mais horários (escolher data arbitrária) */}
-        <Dialog open={!!moreTimesForDoctor} onOpenChange={(open) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
+        <Dialog open={!!moreTimesForDoctor} onOpenChange={(open: boolean) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
           <DialogContent className="w-full max-w-2xl border border-border bg-card p-6">
             <DialogHeader className="mb-4">
               <DialogTitle>Mais horários</DialogTitle>

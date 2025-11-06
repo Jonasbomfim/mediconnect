@@ -388,7 +388,7 @@ export default function DashboardPage() {
       )}
 
       {/* 11. LINK PARA RELATÓRIOS */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-lg border border-blue-500/20">
+      <div className="bg-linear-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-lg border border-blue-500/20">
         <h2 className="text-lg font-semibold text-foreground mb-2">Seção de Relatórios</h2>
         <p className="text-muted-foreground text-sm mb-4">
           Acesse a seção de relatórios médicos para gerenciar, visualizar e exportar documentos.

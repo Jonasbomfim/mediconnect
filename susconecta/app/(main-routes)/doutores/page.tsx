@@ -20,7 +20,7 @@ import { listAssignmentsForUser } from '@/lib/assignment';
 
 function normalizeMedico(m: any): Medico {
   const normalizeSex = (v: any) => {
-    if (v === null || typeof v === 'undefined') return null;
+    if (v === undefined) return null;
     const s = String(v || '').trim().toLowerCase();
     if (!s) return null;
     const male = new Set(['m','masc','male','masculino','homem','h','1','mas']);

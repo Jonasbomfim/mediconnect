@@ -72,11 +72,6 @@ export function EventManager({
   availableTags = ["Important", "Urgent", "Work", "Personal", "Team", "Client"],
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents)
-  // controla dias expandidos no MonthView (key = YYYY-MM-DD)
-  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({})
-  const toggleExpandedDay = useCallback((dayKey: string) => {
-    setExpandedDays((prev) => ({ ...prev, [dayKey]: !prev[dayKey] }))
-  }, [])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<"month" | "week" | "day" | "list">(defaultView)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -95,6 +90,16 @@ export function EventManager({
   const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+
+  // Dialog: lista completa de pacientes do dia
+  const [dayDialogEvents, setDayDialogEvents] = useState<Event[] | null>(null)
+  const [isDayDialogOpen, setIsDayDialogOpen] = useState(false)
+  const openDayDialog = useCallback((eventsForDay: Event[]) => {
+    // ordena por horário antes de abrir
+    const ordered = [...eventsForDay].sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+    setDayDialogEvents(ordered)
+    setIsDayDialogOpen(true)
+  }, [])
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -707,10 +712,48 @@ export function EventManager({
           onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
-          expandedDays={expandedDays}
-          toggleExpandedDay={toggleExpandedDay}
+          openDayDialog={openDayDialog}
         />
       )}
+
+      {/* Dialog com todos os pacientes do dia */}
+      <Dialog open={isDayDialogOpen} onOpenChange={setIsDayDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pacientes do dia</DialogTitle>
+            <DialogDescription>Todos os agendamentos do dia selecionado.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {dayDialogEvents?.map((ev) => (
+              <div key={ev.id} className="flex items-start gap-3 p-2 border-b last:border-b-0">
+                <div className={cn("mt-1 h-3 w-3 rounded-full", getColorClasses(ev.color).bg)} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold truncate">{ev.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {ev.startTime.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                      {" - "}
+                      {ev.endTime.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                    </div>
+                  </div>
+                  {ev.description && (
+                    <div className="text-xs text-muted-foreground line-clamp-2">{ev.description}</div>
+                  )}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {ev.category && <Badge variant="secondary" className="text-[11px] h-5">{ev.category}</Badge>}
+                    {ev.tags?.map((t) => (
+                      <Badge key={t} variant="outline" className="text-[11px] h-5">{t}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!dayDialogEvents?.length && (
+              <div className="py-6 text-center text-sm text-muted-foreground">Nenhum evento</div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {view === "week" && (
         <WeekView
@@ -1151,8 +1194,7 @@ function MonthView({
   onDragEnd,
   onDrop,
   getColorClasses,
-  expandedDays,
-  toggleExpandedDay,
+  openDayDialog,
 }: {
   currentDate: Date
   events: Event[]
@@ -1161,8 +1203,7 @@ function MonthView({
   onDragEnd: () => void
   onDrop: (date: Date) => void
   getColorClasses: (color: string) => { bg: string; text: string }
-  expandedDays: Record<string, boolean>
-  toggleExpandedDay: (dayKey: string) => void
+  openDayDialog: (eventsForDay: Event[]) => void
 }) {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
   const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -1188,9 +1229,6 @@ function MonthView({
     })
   }
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-
   return (
     <Card className="overflow-hidden">
       <div className="grid grid-cols-7 border-b">
@@ -1204,6 +1242,15 @@ function MonthView({
       <div className="grid grid-cols-7">
         {days.map((day, index) => {
           const dayEvents = getEventsForDay(day)
+          // dedup por título para evitar repetidos
+          const uniqueMap = new Map<string, Event>()
+          dayEvents.forEach((ev) => {
+            const k = (ev.title || "").trim().toLowerCase()
+            if (!uniqueMap.has(k)) uniqueMap.set(k, ev)
+          })
+          const uniqueEvents = Array.from(uniqueMap.values())
+          const eventsToShow = uniqueEvents.slice(0, 3)
+          const moreCount = Math.max(0, uniqueEvents.length - 3)
           const isCurrentMonth = day.getMonth() === currentDate.getMonth()
           const isToday = day.toDateString() === new Date().toDateString()
 
@@ -1218,16 +1265,11 @@ function MonthView({
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(day)}
             >
-              <div
-                className={cn(
-                  "mb-1 flex h-5 w-5 items-center justify-center rounded-full text-xs sm:h-6 sm:w-6 sm:text-sm",
-                  isToday && "bg-primary text-primary-foreground font-semibold",
-                )}
-              >
-                {day.getDate()}
-              </div>
+              {/* Número do dia padronizado (sem destaque azul no 'hoje') */}
+              <div className="mb-1 text-xs sm:text-sm">{day.getDate()}</div>
+
               <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event) => (
+                {eventsToShow.map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
@@ -1238,48 +1280,24 @@ function MonthView({
                     variant="compact"
                   />
                 ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-muted-foreground sm:text-xs">+{dayEvents.length - 3} mais</div>
+                {moreCount > 0 && (
+                  <div className="text-[10px] sm:text-xs">
+                    <button
+                      type="button"
+                      onClick={() => openDayDialog(uniqueEvents)}
+                      className="text-primary underline"
+                    >
+                      +{moreCount} mais
+                    </button>
+                  </div>
                 )}
-                {(() => {
-                  const dayKey = day.toISOString().slice(0, 10)
-                  const isExpanded = !!expandedDays?.[dayKey]
-                  const eventsToShow = isExpanded ? dayEvents : dayEvents.slice(0, 3)
-                  return (
-                    <>
-                      {eventsToShow.map((event) => (
-                        <EventCard
-                          key={event.id}
-                          event={event}
-                          onEventClick={onEventClick}
-                          onDragStart={onDragStart}
-                          onDragEnd={onDragEnd}
-                          getColorClasses={getColorClasses}
-                          variant="compact"
-                        />
-                      ))}
-
-                      {dayEvents.length > 3 && (
-                        <div className="text-[10px] text-muted-foreground sm:text-xs">
-                          <button
-                            type="button"
-                            onClick={() => toggleExpandedDay(dayKey)}
-                            className="text-primary underline hover:text-primary/80"
-                          >
-                            {isExpanded ? "Mostrar menos" : `+${dayEvents.length - 3} mais`}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )
-                })()}
-               </div>
-             </div>
-           )
-         })}
-       </div>
-     </Card>
-   )
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
 }
 
 // Week View Component
@@ -1343,7 +1361,7 @@ function WeekView({
       </div>
       <div className="grid grid-cols-8">
         {hours.map((hour) => (
-          <>
+          <React.Fragment key={`hour-${hour}`}>
             <div
               key={`time-${hour}`}
               className="border-b border-r p-1 text-[10px] text-muted-foreground sm:p-2 sm:text-xs"
@@ -1375,7 +1393,7 @@ function WeekView({
                 </div>
               )
             })}
-          </>
+          </React.Fragment>
         ))}
       </div>
     </Card>

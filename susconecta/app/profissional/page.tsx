@@ -354,9 +354,9 @@ const ProfissionalPage = () => {
             }
           }
 
-          const pid = a.patient_id || a.patient || a.patient_id_raw || a.patientId || null;
+          const pid = a.patient_id || (a as any).patient || a.patient_id_raw || a.patientId || null;
           const patientObj = pid ? patientMap.get(String(pid)) : null;
-          const patientName = patientObj?.full_name || a.patient || a.patient_name || String(pid) || 'Paciente';
+          const patientName = patientObj?.full_name || (a as any).patient || a.patient_name || String(pid) || 'Paciente';
           const patientIdVal = pid || null;
 
           return {
@@ -720,7 +720,7 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
+      <section className="bg-card shadow-md rounded-lg border border-border p-6 overflow-x-hidden">{/* adicionada overflow-x-hidden */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
         </div>
@@ -755,7 +755,7 @@ const ProfissionalPage = () => {
         </div>
 
         {/* Lista de Pacientes do Dia */}
-        <div className="space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto pr-2">
+        <div className="space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto overflow-x-hidden pr-2">{/* adicionada overflow-x-hidden */}
           {todayEvents.length === 0 ? (
             <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
               <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
@@ -1594,7 +1594,7 @@ const ProfissionalPage = () => {
   function LaudoViewer({ laudo, onClose }: { laudo: any; onClose: () => void }) {
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-background rounded-lg shadow-xl w-full h-full md:h-auto md:rounded-lg md:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-background rounded-lg shadow-xl w-full h-full md:rounded-lg md:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div>

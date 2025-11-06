@@ -786,14 +786,14 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
+      <section className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6 w-full">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Agenda do Dia</h2>
+          <h2 className="text-xl sm:text-2xl font-bold">Agenda do Dia</h2>
         </div>
         
-        {/* Navegação de Data */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-blue-50 rounded-lg dark:bg-muted">
-          <div className="flex items-center space-x-4">
+        {/* Navegação de Data - Responsiva */}
+        <div className="flex items-center justify-between mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg dark:bg-muted flex-wrap gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button 
               variant="outline"
               size="sm"
@@ -802,7 +802,7 @@ const ProfissionalPage = () => {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-lg font-medium text-foreground">
+            <h3 className="text-base sm:text-lg font-medium text-foreground whitespace-nowrap line-clamp-2">
               {formatDate(currentCalendarDate)}
             </h3>
             <Button 
@@ -813,20 +813,19 @@ const ProfissionalPage = () => {
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-            
           </div>
-          <div className="text-sm text-gray-600 dark:text-muted-foreground">
-            {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''} agendada{todayEvents.length !== 1 ? 's' : ''}
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground whitespace-nowrap">
+            {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''}
           </div>
         </div>
 
-        {/* Lista de Pacientes do Dia */}
-        <div className="space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto pr-2">
+        {/* Lista de Pacientes do Dia - Responsiva */}
+        <div className="space-y-3 sm:space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto pr-2">
           {todayEvents.length === 0 ? (
-            <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
-              <p className="text-lg mb-2">Nenhuma consulta agendada para este dia</p>
-              <p className="text-sm">Agenda livre para este dia</p>
+            <div className="text-center py-6 sm:py-8 text-gray-600 dark:text-muted-foreground">
+              <CalendarIcon className="h-10 sm:h-12 w-10 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400 dark:text-muted-foreground/50" />
+              <p className="text-base sm:text-lg mb-2">Nenhuma consulta agendada para este dia</p>
+              <p className="text-xs sm:text-sm">Agenda livre para este dia</p>
             </div>
           ) : (
             todayEvents.map((appointment) => {
@@ -834,47 +833,46 @@ const ProfissionalPage = () => {
               return (
                 <div
                   key={appointment.id}
-                  className="border-l-4 border-t border-r border-b p-4 rounded-lg shadow-sm bg-card border-border"
+                  className="border-l-4 border-t border-r border-b p-3 sm:p-4 rounded-lg shadow-sm bg-card border-border"
                   style={{ borderLeftColor: getStatusColor(appointment.type) }}
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                    <div className="flex items-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 items-center">
+                    <div className="flex items-center gap-2">
                       <div 
-                        className="w-3 h-3 rounded-full mr-3"
+                        className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getStatusColor(appointment.type) }}
                       ></div>
-                      <div>
-                        <div className="font-medium flex items-center">
-                          <User className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
-                          {appointment.title}
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm sm:text-base flex items-center gap-2">
+                          <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 dark:text-muted-foreground flex-shrink-0" />
+                          <span className="truncate">{appointment.title}</span>
                         </div>
                         {paciente && (
-                          <div className="text-sm text-gray-600 dark:text-muted-foreground">
+                          <div className="text-xs text-gray-600 dark:text-muted-foreground truncate">
                             CPF: {getPatientCpf(paciente)} • {getPatientAge(paciente)} anos
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-gray-500 dark:text-muted-foreground" />
-                      <span className="font-medium">{appointment.time}</span>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 dark:text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium text-sm sm:text-base">{appointment.time}</span>
                     </div>
                     <div className="flex items-center">
                       <div 
-                        className="px-3 py-1 rounded-full text-sm font-medium text-white"
+                        className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium text-white whitespace-nowrap"
                         style={{ backgroundColor: getStatusColor(appointment.type) }}
                       >
                         {appointment.type}
                       </div>
                     </div>
-                    <div className="flex items-center justify-end space-x-2">
+                    <div className="flex items-center justify-end">
                       <div className="relative group">
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
@@ -2691,20 +2689,17 @@ const ProfissionalPage = () => {
 
   
   const renderComunicacaoSection = () => (
-    <div className="bg-card shadow-md rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-4 text-foreground">Comunicação com o Paciente</h2>
+    <div className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6 w-full">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4">Comunicação com o Paciente</h2>
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="patientSelect">Paciente *</Label>
+            <Label htmlFor="patientSelect" className="text-xs sm:text-sm">Paciente *</Label>
             <Select
               value={commPatientId ?? ''}
               onValueChange={(val: string) => {
-                // Radix Select does not allow an Item with empty string as value.
-                // Use a sentinel value "__none" for the "-- nenhum --" choice and map it to null here.
                 const v = val === "__none" ? null : (val || null);
                 setCommPatientId(v);
-                // clear previous responses when changing selection
                 setCommResponses([]);
                 setCommResponsesError(null);
                 if (!v) {
@@ -2724,11 +2719,10 @@ const ProfissionalPage = () => {
                   console.warn('[ProfissionalPage] erro ao preencher telefone do paciente selecionado', e);
                   setCommPhoneNumber('');
                 }
-                // carregar respostas do paciente selecionado
                 void loadCommResponses(String(v));
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full text-xs sm:text-sm">
                 <SelectValue placeholder="-- nenhum --" />
               </SelectTrigger>
               <SelectContent>
@@ -2743,47 +2737,47 @@ const ProfissionalPage = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Número (phone_number)</Label>
-            <Input id="phoneNumber" placeholder="+5511999999999" value={commPhoneNumber} readOnly disabled className="bg-muted/50" />
+            <Label htmlFor="phoneNumber" className="text-xs sm:text-sm">Número (phone_number)</Label>
+            <Input id="phoneNumber" placeholder="+5511999999999" value={commPhoneNumber} readOnly disabled className="bg-muted/50 text-xs sm:text-sm" />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="message">Mensagem (message)</Label>
-            <textarea id="message" className="w-full p-2 border rounded" rows={5} value={commMessage} onChange={(e) => setCommMessage(e.target.value)} />
+            <Label htmlFor="message" className="text-xs sm:text-sm">Mensagem (message)</Label>
+            <textarea id="message" className="w-full p-2 sm:p-3 border rounded text-xs sm:text-sm" rows={5} value={commMessage} onChange={(e) => setCommMessage(e.target.value)} />
           </div>
 
           <div className="flex justify-end mt-6">
-            <Button onClick={handleSave} disabled={smsSending}>
+            <Button onClick={handleSave} disabled={smsSending} size="sm" className="text-xs sm:text-sm">
               {smsSending ? 'Enviando...' : 'Enviar SMS'}
             </Button>
           </div>
 
           {/* Respostas do paciente */}
           <div className="mt-6 border-t border-border pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Últimas respostas do paciente</h3>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 className="text-base sm:text-lg font-semibold">Últimas respostas do paciente</h3>
               <div>
-                <Button size="sm" variant="outline" onClick={() => void loadCommResponses()} disabled={!commPatientId || commResponsesLoading}>
+                <Button size="sm" variant="outline" onClick={() => void loadCommResponses()} disabled={!commPatientId || commResponsesLoading} className="text-xs sm:text-sm">
                   {commResponsesLoading ? 'Atualizando...' : 'Atualizar respostas'}
                 </Button>
               </div>
             </div>
 
             {commResponsesLoading ? (
-              <div className="text-sm text-muted-foreground">Carregando respostas...</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Carregando respostas...</div>
             ) : commResponsesError ? (
-              <div className="text-sm text-red-500">{commResponsesError}</div>
+              <div className="text-xs sm:text-sm text-red-500">{commResponsesError}</div>
             ) : (commResponses && commResponses.length) ? (
               <div className="space-y-2">
                 {commResponses.map((m:any) => (
                   <div key={m.id} className="p-3 rounded border border-border bg-muted/10">
                     <div className="text-xs text-muted-foreground">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
-                    <div className="mt-1 whitespace-pre-wrap">{m.body ?? m.content ?? m.message ?? '-'}</div>
+                    <div className="mt-1 whitespace-pre-wrap text-xs sm:text-sm">{m.body ?? m.content ?? m.message ?? '-'}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">Nenhuma resposta encontrada para o paciente selecionado.</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Nenhuma resposta encontrada para o paciente selecionado.</div>
             )}
           </div>
         </div>
@@ -2793,24 +2787,24 @@ const ProfissionalPage = () => {
 
   
   const renderPerfilSection = () => (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 md:px-8">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6 px-0 py-4 sm:py-8 md:px-4">
       {/* Header com Título e Botão */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold">Meu Perfil</h2>
-          <p className="text-muted-foreground mt-1">Bem-vindo à sua área exclusiva.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold">Meu Perfil</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Bem-vindo à sua área exclusiva.</p>
         </div>
         {!isEditingProfile ? (
           <Button 
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm w-full sm:w-auto"
             onClick={() => setIsEditingProfile(true)}
           >
             ✏️ Editar Perfil
           </Button>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button 
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-initial text-xs sm:text-sm"
               onClick={handleSaveProfile}
             >
               ✓ Salvar
@@ -2818,6 +2812,7 @@ const ProfissionalPage = () => {
             <Button 
               variant="outline"
               onClick={handleCancelEdit}
+              className="flex-1 sm:flex-initial text-xs sm:text-sm"
             >
               ✕ Cancelar
             </Button>
@@ -2825,21 +2820,21 @@ const ProfissionalPage = () => {
         )}
       </div>
 
-      {/* Grid de 3 colunas (2 + 1) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Grid de 3 colunas (2 + 1) - Responsivo */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Coluna Esquerda - Informações Pessoais */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Informações Pessoais */}
-          <div className="border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Informações Pessoais</h3>
+          <div className="border border-border rounded-lg p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Informações Pessoais</h3>
 
             <div className="space-y-4">
               {/* Nome Completo */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Nome Completo
                 </Label>
-                <div className="mt-2 p-3 bg-muted rounded text-foreground font-medium">
+                <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground font-medium">
                   {profileData.nome || "Não preenchido"}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -2849,18 +2844,18 @@ const ProfissionalPage = () => {
 
               {/* Email */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Email
                 </Label>
                 {isEditingProfile ? (
                   <Input
                     value={profileData.email || ""}
                     onChange={(e) => handleProfileChange('email', e.target.value)}
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     type="email"
                   />
                 ) : (
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground">
                     {profileData.email || "Não preenchido"}
                   </div>
                 )}
@@ -2868,18 +2863,18 @@ const ProfissionalPage = () => {
 
               {/* Telefone */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Telefone
                 </Label>
                 {isEditingProfile ? (
                   <Input
                     value={profileData.telefone || ""}
                     onChange={(e) => handleProfileChange('telefone', e.target.value)}
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     placeholder="(00) 00000-0000"
                   />
                 ) : (
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground">
                     {profileData.telefone || "Não preenchido"}
                   </div>
                 )}
@@ -2887,10 +2882,10 @@ const ProfissionalPage = () => {
 
               {/* CRM */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   CRM
                 </Label>
-                <div className="mt-2 p-3 bg-muted rounded text-foreground font-medium">
+                <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground font-medium">
                   {profileData.crm || "Não preenchido"}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -2900,18 +2895,18 @@ const ProfissionalPage = () => {
 
               {/* Especialidade */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Especialidade
                 </Label>
                 {isEditingProfile ? (
                   <Input
                     value={profileData.especialidade || ""}
                     onChange={(e) => handleProfileChange('especialidade', e.target.value)}
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     placeholder="Ex: Cardiologia"
                   />
                 ) : (
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground">
                     {profileData.especialidade || "Não preenchido"}
                   </div>
                 )}
@@ -2920,24 +2915,24 @@ const ProfissionalPage = () => {
           </div>
 
           {/* Endereço e Contato */}
-          <div className="border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Endereço e Contato</h3>
+          <div className="border border-border rounded-lg p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Endereço e Contato</h3>
 
             <div className="space-y-4">
               {/* Logradouro */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Logradouro
                 </Label>
                 {isEditingProfile ? (
                   <Input
                     value={profileData.endereco || ""}
                     onChange={(e) => handleProfileChange('endereco', e.target.value)}
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     placeholder="Rua, avenida, etc."
                   />
                 ) : (
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground">
                     {profileData.endereco || "Não preenchido"}
                   </div>
                 )}
@@ -2945,18 +2940,18 @@ const ProfissionalPage = () => {
 
               {/* Cidade */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Cidade
                 </Label>
                 {isEditingProfile ? (
                   <Input
                     value={profileData.cidade || ""}
                     onChange={(e) => handleProfileChange('cidade', e.target.value)}
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     placeholder="São Paulo"
                   />
                 ) : (
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground">
                     {profileData.cidade || "Não preenchido"}
                   </div>
                 )}
@@ -2964,18 +2959,18 @@ const ProfissionalPage = () => {
 
               {/* CEP */}
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">
+                <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
                   CEP
                 </Label>
                 {isEditingProfile ? (
                   <Input
                     value={profileData.cep || ""}
                     onChange={(e) => handleProfileChange('cep', e.target.value)}
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     placeholder="00000-000"
                   />
                 ) : (
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-3 bg-muted rounded text-xs sm:text-sm text-foreground">
                     {profileData.cep || "Não preenchido"}
                   </div>
                 )}
@@ -2986,18 +2981,18 @@ const ProfissionalPage = () => {
 
         {/* Coluna Direita - Foto do Perfil */}
         <div>
-          <div className="border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+          <div className="border border-border rounded-lg p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Foto do Perfil</h3>
 
             <div className="flex flex-col items-center gap-4">
-              <Avatar className="h-24 w-24">
-                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
+                <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
                   {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
                 </AvatarFallback>
               </Avatar>
 
               <div className="text-center space-y-2">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
                 </p>
               </div>
@@ -3015,23 +3010,23 @@ const ProfissionalPage = () => {
         return renderCalendarioSection();
   case 'pacientes':
     return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-bold mb-4">Pacientes</h2>
-        <div className="overflow-x-auto">
+      <section className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6 w-full">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">Pacientes</h2>
+        <div className="overflow-x-auto w-full">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>CPF</TableHead>
-                <TableHead>Idade</TableHead>
+                <TableHead className="text-xs sm:text-sm">Nome</TableHead>
+                <TableHead className="text-xs sm:text-sm">CPF</TableHead>
+                <TableHead className="text-xs sm:text-sm">Idade</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pacientes.map((paciente) => (
                 <TableRow key={paciente.id ?? paciente.cpf}>
-                  <TableCell>{paciente.nome}</TableCell>
-                  <TableCell>{paciente.cpf}</TableCell>
-                  <TableCell>{getPatientAge(paciente) ? `${getPatientAge(paciente)} anos` : '-'}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{paciente.nome}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{paciente.cpf}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{getPatientAge(paciente) ? `${getPatientAge(paciente)} anos` : '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -3050,81 +3045,139 @@ const ProfissionalPage = () => {
     }
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <ProtectedRoute requiredUserType={["profissional"]}>
-      <div className="container mx-auto px-4 py-8">
-        <header className="bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={(profileData as any).fotoUrl || undefined} alt={profileData.nome} />
-              <AvatarFallback className="bg-muted">
-                <User className="h-5 w-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground truncate">Conta do profissional</p>
-              <h2 className="text-lg font-semibold leading-none truncate">{profileData.nome}</h2>
-              <p className="text-sm text-muted-foreground truncate">{(profileData.crm ? `CRM: ${profileData.crm}` : '') + (profileData.especialidade ? ` • ${profileData.especialidade}` : '')}</p>
-              {user?.email && (
-                <p className="text-xs text-muted-foreground truncate">Logado como: {user.email}</p>
-              )}
+      <div className="flex flex-col min-h-screen">
+        {/* Header - Responsivo */}
+        <header className="bg-card shadow-md border-b border-border sticky top-0 z-40">
+          <div className="px-4 py-3 md:px-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
+              {/* Logo/Avatar Section */}
+              <div className="flex items-center gap-3 min-w-0 flex-1 md:flex-none">
+                <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
+                  <AvatarImage src={(profileData as any).fotoUrl || undefined} alt={profileData.nome} />
+                  <AvatarFallback className="bg-muted text-xs md:text-sm">
+                    <User className="h-4 w-4 md:h-5 md:w-5" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm text-muted-foreground truncate">Profissional de Saúde</p>
+                  <h2 className="text-sm md:text-base font-semibold leading-none truncate">{profileData.nome}</h2>
+                  <p className="text-xs text-muted-foreground truncate line-clamp-1">{(profileData.crm ? `CRM: ${profileData.crm}` : '') + (profileData.especialidade ? ` • ${profileData.especialidade}` : '')}</p>
+                </div>
+              </div>
+
+              {/* Actions - Mobile hidden on small screens */}
+              <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                <SimpleThemeToggle />
+                
+                {/* Desktop Buttons - Hidden on mobile */}
+                <div className="hidden sm:flex items-center gap-1 md:gap-2">
+                  <Button asChild variant="default" size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground rounded shadow-sm shadow-blue-500/10 border border-primary text-xs md:text-sm px-2 md:px-4 h-8 md:h-9">
+                    <Link href="/" aria-label="Início">Início</Link>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={logout}
+                    size="sm"
+                    className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white text-xs md:text-sm px-2 md:px-4 h-8 md:h-9"
+                  >
+                    Sair
+                  </Button>
+                </div>
+                
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="md:hidden p-2 hover:bg-muted rounded transition-colors flex-shrink-0"
+                  aria-label="Menu"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <SimpleThemeToggle />
-            <Button asChild variant="default" className="mr-2 bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1 rounded shadow-sm shadow-blue-500/10 border border-primary">
-              <Link href="/" aria-label="Início">Início</Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={logout}
-              className="text-red-600 border-red-600 hover:bg-red-50 cursor-pointer dark:hover:bg-red-600 dark:hover:text-white"
-            >
-              Sair
-            </Button>
+
+            {/* Mobile menu items - visible when sidebarOpen */}
+            {sidebarOpen && (
+              <div className="md:hidden flex flex-col gap-2 mt-3 pt-3 border-t border-border">
+                <Button asChild variant="default" size="sm" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Link href="/">Início</Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={logout}
+                  size="sm"
+                  className="w-full text-red-600 border-red-600 hover:bg-red-50 dark:hover:bg-red-600 dark:hover:text-white"
+                >
+                  Sair
+                </Button>
+              </div>
+            )}
           </div>
         </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
-        {}
-        <aside className="md:sticky md:top-8 h-fit">
-          <nav className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1">
+      <div className="flex-1 flex flex-col md:flex-row gap-0 md:gap-6 px-3 sm:px-4 md:px-8 py-4 md:py-8">
+        {/* Sidebar - Mobile Drawer or Desktop */}
+        <aside className={`${
+          sidebarOpen ? 'block' : 'hidden md:block'
+        } md:sticky md:top-24 md:h-fit w-full md:w-[220px] mb-4 md:mb-0`}>
+          <nav className="bg-card shadow-md rounded-lg border border-border p-2 md:p-3 space-y-1">
             <Button 
               variant={activeSection === 'calendario' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
-              onClick={() => setActiveSection('calendario')}
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('calendario');
+                setSidebarOpen(false);
+              }}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              Calendário
+              <span className="hidden sm:inline">Calendário</span>
+              <span className="sm:hidden">Calendário</span>
             </Button>
             <Button 
               variant={activeSection === 'pacientes' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
-              onClick={() => setActiveSection('pacientes')}
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('pacientes');
+                setSidebarOpen(false);
+              }}
             >
               <Users className="mr-2 h-4 w-4" />
               Pacientes
             </Button>
             <Button 
               variant={activeSection === 'laudos' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
-              onClick={() => setActiveSection('laudos')}
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('laudos');
+                setSidebarOpen(false);
+              }}
             >
               <FileText className="mr-2 h-4 w-4" />
               Laudos
             </Button>
             <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
-              onClick={() => setActiveSection('comunicacao')}
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('comunicacao');
+                setSidebarOpen(false);
+              }}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
               SMS
             </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
-              className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
-              onClick={() => setActiveSection('perfil')}
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('perfil');
+                setSidebarOpen(false);
+              }}
             >
               <Settings className="mr-2 h-4 w-4" />
               Meu Perfil
@@ -3132,11 +3185,12 @@ const ProfissionalPage = () => {
           </nav>
         </aside>
 
-        <main>
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-0 w-full">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold">Área do Profissional de Saúde</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">Área do Profissional</h1>
           </div>
-          <p className="mb-8">Bem-vindo à sua área exclusiva.</p>
+          <p className="mb-6 md:mb-8 text-sm md:text-base">Bem-vindo à sua área exclusiva.</p>
 
           {renderActiveSection()}
         </main>
@@ -3256,21 +3310,21 @@ const ProfissionalPage = () => {
         </div>
       )}
 
-      {}
+      {/* Modal de ação para editar evento */}
       {showActionModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-card border border-border p-6 rounded-lg w-96">
-            <h3 className="text-lg font-semibold mb-2">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-card border border-border p-4 sm:p-6 rounded-lg w-full max-w-md">
+            <h3 className="text-base sm:text-lg font-semibold mb-2">
               Consulta de {selectedEvent.title}
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-4">
               {selectedEvent.extendedProps.type} às {selectedEvent.extendedProps.time}
             </p>
 
             <div className="flex gap-2">
               <Button
                 onClick={handleStartEdit}
-                className="flex-1 flex items-center gap-2"
+                className="flex-1 flex items-center justify-center gap-2 text-xs sm:text-sm"
               >
                 <Edit className="h-4 w-4" />
                 Editar
@@ -3280,7 +3334,7 @@ const ProfissionalPage = () => {
             <Button
               onClick={() => setShowActionModal(false)}
               variant="outline"
-              className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors"
+              className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm"
             >
               Cancelar
             </Button>
@@ -3293,25 +3347,24 @@ const ProfissionalPage = () => {
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             {/* Header com navegação */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-border gap-2">
               <button 
                 onClick={() => {
                   const prev = new Date(selectedDayDate);
                   prev.setDate(prev.getDate() - 1);
                   setSelectedDayDate(prev);
                 }}
-                className="p-2 hover:bg-muted rounded transition-colors"
+                className="p-2 hover:bg-muted rounded transition-colors flex-shrink-0"
                 aria-label="Dia anterior"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               
-              <h2 className="text-lg font-semibold flex-1 text-center">
+              <h2 className="text-base sm:text-lg font-semibold flex-1 text-center line-clamp-2">
                 {selectedDayDate.toLocaleDateString('pt-BR', { 
-                  weekday: 'long', 
+                  weekday: 'short', 
                   day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
+                  month: 'short'
                 })}
               </h2>
               
@@ -3321,41 +3374,39 @@ const ProfissionalPage = () => {
                   next.setDate(next.getDate() + 1);
                   setSelectedDayDate(next);
                 }}
-                className="p-2 hover:bg-muted rounded transition-colors"
+                className="p-2 hover:bg-muted rounded transition-colors flex-shrink-0"
                 aria-label="Próximo dia"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
-
-              <div className="w-12" />
               
               <button 
                 onClick={() => setShowDayModal(false)}
-                className="p-2 hover:bg-muted rounded transition-colors ml-2"
+                className="p-2 hover:bg-muted rounded transition-colors flex-shrink-0"
                 aria-label="Fechar"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
-              {(() => {
+                {(() => {
                 const dayStr = selectedDayDate.toISOString().split('T')[0];
                 const dayEvents = events.filter(e => e.date === dayStr).sort((a, b) => a.time.localeCompare(b.time));
                 
                 if (dayEvents.length === 0) {
                   return (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                      <p className="text-lg">Nenhuma consulta agendada para este dia</p>
+                    <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                      <CalendarIcon className="h-10 sm:h-12 w-10 sm:w-12 mx-auto mb-3 sm:mb-4 text-muted-foreground/50" />
+                      <p className="text-base sm:text-lg">Nenhuma consulta agendada para este dia</p>
                     </div>
                   );
                 }
 
                 return (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground mb-4">
+                          <div className="space-y-3">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-4">
                       {dayEvents.length} consulta{dayEvents.length !== 1 ? 's' : ''} agendada{dayEvents.length !== 1 ? 's' : ''}
                     </p>
                     {dayEvents.map((appointment) => {
@@ -3363,20 +3414,20 @@ const ProfissionalPage = () => {
                       return (
                         <div
                           key={appointment.id}
-                          className="border-l-4 p-4 rounded-lg bg-muted/20"
+                          className="border-l-4 p-3 sm:p-4 rounded-lg bg-muted/20"
                           style={{ borderLeftColor: getStatusColor(appointment.type) }}
                         >
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <h3 className="font-semibold flex items-center gap-2">
+                              <h3 className="font-semibold text-xs sm:text-sm flex items-center gap-2">
                                 <User className="h-4 w-4" />
                                 {appointment.title}
                               </h3>
-                              <span className="px-2 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: getStatusColor(appointment.type) }}>
+                              <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: getStatusColor(appointment.type) }}>
                                 {appointment.type}
                               </span>
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground flex-wrap">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-4 w-4" />
                                 {appointment.time}
@@ -3424,3 +3475,4 @@ const getShortId = (id?: string) => {
 };
 
 export default ProfissionalPage;
+

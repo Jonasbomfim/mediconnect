@@ -157,7 +157,40 @@ const ProfissionalPage = () => {
         }
 
         const assignments = await assignmentsMod.listAssignmentsForUser(user.id || '');
-        const patientIds = Array.isArray(assignments) ? assignments.map((a:any) => String(a.patient_id)).filter(Boolean) : [];
+        const assignedIds = Array.isArray(assignments) ? assignments.map((a:any) => String(a.patient_id)).filter(Boolean) : [];
+
+        // Collect patient ids from both assignments and any appointments for this doctor
+        const patientIdSet = new Set<string>(assignedIds);
+
+        // Try to resolve the doctor's id so we can fetch appointments
+        let resolvedDoctorId = doctorId || null;
+        if (!resolvedDoctorId && user?.email) {
+          try {
+            const docs = await buscarMedicos(user.email).catch(() => []);
+            if (Array.isArray(docs) && docs.length > 0) {
+              const chosen = docs.find(d => String((d as any).user_id) === String(user.id)) || docs[0];
+              resolvedDoctorId = (chosen as any)?.id ?? null;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (resolvedDoctorId) {
+          try {
+            // listarAgendamentos expects a query string like 'doctor_id=eq.<id>&limit=200'
+            const q = `doctor_id=eq.${encodeURIComponent(String(resolvedDoctorId))}&select=patient_id&limit=200`;
+            const appts = await listarAgendamentos(q).catch(() => []);
+            for (const a of (appts || [])) {
+              const pid = a.patient_id ?? a.patient ?? a.patient_id_raw ?? null;
+              if (pid) patientIdSet.add(String(pid));
+            }
+          } catch (e) {
+            console.warn('[ProfissionalPage] falha ao buscar agendamentos para resolver pacientes:', e);
+          }
+        }
+
+        const patientIds = Array.from(patientIdSet.values());
         if (!patientIds.length) {
           if (mounted) setPacientes([]);
           return;

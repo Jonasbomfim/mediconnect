@@ -2474,7 +2474,7 @@ export type CreateUserInput = {
   full_name: string;
   phone?: string | null;
   role: UserRoleEnum;
-  // Optional: when provided, backend can use this to send magic links that redirect
+  // Optional: when provided, backend can use this to perform a redirect
   // to the given URL or interpret `target` to build a role-specific redirect.
   emailRedirectTo?: string;
   // Compatibility: some integrations expect `redirect_url` as the parameter name
@@ -2616,11 +2616,11 @@ export async function criarUsuarioDirectAuth(input: {
     // Try several common locations for the returned user id depending on Supabase configuration
     const userId = responseData?.user?.id || responseData?.id || responseData?.data?.user?.id || responseData?.data?.id;
 
-    // If no user id was returned, treat this as a failure. Some Supabase setups (e.g. magic link / invite)
-    // may not return the user id immediately. In that case we cannot safely link the profile to a user.
+  // If no user id was returned, treat this as a failure. Some Supabase setups (for example invite-only flows)
+  // may not return the user id immediately. In that case we cannot safely link the profile to a user.
     if (!userId) {
       console.warn('[DIRECT AUTH] signup response did not include a user id; response:', responseData);
-      throw new Error('Signup did not return a user id (provider may be configured for magic links or pending confirmation). Fallback cannot determine created user id.');
+      throw new Error('Signup did not return a user id (provider may be configured for invite or pending-confirmation flows). Fallback cannot determine created user id.');
     }
 
     console.log('[DIRECT AUTH] Usuário criado:', userId);
@@ -2657,8 +2657,8 @@ export async function criarUsuarioDirectAuth(input: {
 export async function criarUsuarioMedico(medico: { email: string; full_name: string; phone_mobile: string; }): Promise<any> {
   const redirectBase = DEFAULT_LANDING;
   const emailRedirectTo = `${redirectBase.replace(/\/$/, '')}/profissional`;
-  // Use the role-specific landing as the redirect_url so the magic link
-  // redirects users directly to the app path (e.g. /profissional).
+  // Use the role-specific landing as the redirect_url so the server-side
+  // flow redirects users directly to the app path (e.g. /profissional).
   const redirect_url = emailRedirectTo;
   // generate a secure-ish random password on the client so the caller can receive it
   const password = gerarSenhaAleatoria();
@@ -2711,46 +2711,7 @@ export async function criarUsuarioPaciente(paciente: { email: string; full_name:
 }
 
 
-export async function sendMagicLink(
-  email: string,
-  options?: { emailRedirectTo?: string; target?: 'paciente' | 'medico' | 'admin' | 'default'; redirectBase?: string }
-): Promise<{ success: boolean; message?: string }> {
-  if (!email) throw new Error('Email obrigatório para enviar magic link');
-  const url = `${API_BASE}/auth/v1/otp`;
-  const payload: any = { email };
 
-  const redirectUrl = buildRedirectUrl(options?.target, options?.emailRedirectTo, options?.redirectBase);
-  if (redirectUrl) {
-    // include both keys for broader compatibility across different Supabase setups
-    payload.options = { emailRedirectTo: redirectUrl, redirect_to: redirectUrl, redirect_url: redirectUrl };
-  }
-
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        apikey: ENV_CONFIG.SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const text = await res.text();
-    let json: any = null;
-    try { json = text ? JSON.parse(text) : null; } catch { json = null; }
-
-    if (!res.ok) {
-      const msg = (json && (json.error || json.msg || json.message)) ?? text ?? res.statusText;
-      throw new Error(String(msg));
-    }
-
-    return { success: true, message: (json && (json.message || json.msg)) ?? 'Magic link enviado. Verifique seu email.' };
-  } catch (err: any) {
-    console.error('[sendMagicLink] erro ao enviar magic link', err);
-    throw new Error(err?.message ?? 'Falha ao enviar magic link');
-  }
-}
 
 // ===== CEP (usado nos formulários) =====
 export async function buscarCepAPI(cep: string): Promise<{

@@ -264,7 +264,17 @@ export function PatientRegistrationForm({
   }
 
   async function handleSubmit(ev: React.FormEvent) {
-    ev.preventDefault(); if (!validateLocal()) return;
+    ev.preventDefault(); 
+    if (!validateLocal()) return;
+    
+    // Debug: verificar se token está disponível
+    const tokenCheck = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')) : null;
+    console.debug('[PatientForm] Token disponível?', !!tokenCheck ? 'SIM' : 'NÃO - Possível causa do erro!');
+    if (!tokenCheck) {
+      setErrors({ submit: 'Sessão expirada. Por favor, faça login novamente.' }); 
+      return;
+    }
+    
     try {
       if (!validarCPFLocal(form.cpf)) { setErrors((e) => ({ ...e, cpf: "CPF inválido" })); return; }
       if (mode === "create") { const existe = await verificarCpfDuplicado(form.cpf); if (existe) { setErrors((e) => ({ ...e, cpf: "CPF já cadastrado no sistema" })); return; } }

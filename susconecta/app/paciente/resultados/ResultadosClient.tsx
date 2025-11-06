@@ -148,7 +148,7 @@ export default function ResultadosClient() {
       try {
         setLoadingMedicos(true)
         console.log('[ResultadosClient] Initial doctors fetch starting')
-        const list = await buscarMedicos('medico').catch((err) => {
+        const list = await buscarMedicos('').catch((err) => {
           console.error('[ResultadosClient] Initial fetch error:', err)
           return []
         })
@@ -175,7 +175,7 @@ export default function ResultadosClient() {
         setAgendaByDoctor({})
         setAgendasExpandida({})
         // termo de busca: usar a especialidade escolhida
-        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : 'medico'
+        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : ''
         console.log('[ResultadosClient] Fetching doctors with term:', termo)
         const list = await buscarMedicos(termo).catch((err) => {
           console.error('[ResultadosClient] buscarMedicos error:', err)
@@ -219,9 +219,9 @@ export default function ResultadosClient() {
   }, [searchQuery])
 
   // 3) Carregar horários disponíveis para um médico (próximos 7 dias) e agrupar por dia
-  async function loadAgenda(doctorId: string) {
-    if (!doctorId) return
-    if (agendaLoading[doctorId]) return
+  async function loadAgenda(doctorId: string): Promise<{ iso: string; label: string } | null> {
+  if (!doctorId) return null
+  if (agendaLoading[doctorId]) return null
     setAgendaLoading((s) => ({ ...s, [doctorId]: true }))
     try {
       // janela de 7 dias
@@ -271,10 +271,12 @@ export default function ResultadosClient() {
         nearest = { iso: s.iso, label: s.label }
       }
 
-      setAgendaByDoctor((prev) => ({ ...prev, [doctorId]: days }))
-      setNearestSlotByDoctor((prev) => ({ ...prev, [doctorId]: nearest }))
+  setAgendaByDoctor((prev) => ({ ...prev, [doctorId]: days }))
+  setNearestSlotByDoctor((prev) => ({ ...prev, [doctorId]: nearest }))
+  return nearest
     } catch (e: any) {
       showToast('error', e?.message || 'Falha ao buscar horários')
+      return null
     } finally {
       setAgendaLoading((s) => ({ ...s, [doctorId]: false }))
     }
@@ -752,19 +754,7 @@ export default function ResultadosClient() {
             </SelectContent>
           </Select>
 
-          <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-40 rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
-              <SelectValue placeholder="Bairro" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos os bairros</SelectItem>
-              <SelectItem value="Centro">Centro</SelectItem>
-              <SelectItem value="Jardins">Jardins</SelectItem>
-              <SelectItem value="Farolândia">Farolândia</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Search input para buscar médico por nome */}
+          {/* Search input para buscar médico por nome (movido antes do Select de bairro para ficar ao lado visualmente) */}
           <div className="flex items-center gap-2">
             <Input
               placeholder="Buscar médico por nome"
@@ -805,6 +795,18 @@ export default function ResultadosClient() {
               </Button>
             )}
           </div>
+
+          <Select value={bairro} onValueChange={setBairro}>
+            <SelectTrigger className="h-10 min-w-40 rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
+              <SelectValue placeholder="Bairro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os bairros</SelectItem>
+              <SelectItem value="Centro">Centro</SelectItem>
+              <SelectItem value="Jardins">Jardins</SelectItem>
+              <SelectItem value="Farolândia">Farolândia</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Button
             variant="ghost"
@@ -934,7 +936,29 @@ export default function ResultadosClient() {
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button
                     className="h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={() => { if (!agendaByDoctor[id]) loadAgenda(id) }}
+                    onClick={async () => {
+                      // If we don't have the agenda loaded, load it and try to open the nearest slot.
+                      if (!agendaByDoctor[id]) {
+                        const nearest = await loadAgenda(id)
+                        if (nearest) {
+                          openConfirmDialog(id, nearest.iso)
+                          return
+                        }
+                        // fallback: open the "more times" modal to let the user pick a date/time
+                        setMoreTimesForDoctor(id)
+                        void fetchSlotsForDate(id, moreTimesDate)
+                        return
+                      }
+
+                      // If agenda already loaded, try nearest known slot
+                      const nearest = nearestSlotByDoctor[id]
+                      if (nearest) {
+                        openConfirmDialog(id, nearest.iso)
+                      } else {
+                        setMoreTimesForDoctor(id)
+                        void fetchSlotsForDate(id, moreTimesDate)
+                      }
+                    }}
                   >
                     Agendar consulta
                   </Button>

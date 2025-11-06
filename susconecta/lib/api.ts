@@ -1554,6 +1554,15 @@ export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
   ];
 
   let lastErr: any = null;
+  
+  // Debug: verificar token antes de tentar
+  const debugToken = getAuthToken();
+  if (!debugToken) {
+    console.warn('[criarPaciente] ⚠️ AVISO: Nenhum token de autenticação encontrado no localStorage/sessionStorage! Tentando mesmo assim, mas possível causa do erro.');
+  } else {
+    console.debug('[criarPaciente] ✓ Token encontrado, comprimento:', debugToken.length);
+  }
+  
   for (const u of fnUrls) {
     try {
       const headers = { ...baseHeaders(), 'Content-Type': 'application/json' } as Record<string,string>;
@@ -1562,7 +1571,7 @@ export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
         const a = maskedHeaders.Authorization as string;
         maskedHeaders.Authorization = `${a.slice(0,6)}...${a.slice(-6)}`;
       }
-      // Log removido por segurança
+      console.debug('[criarPaciente] Tentando criar paciente em:', u.replace(/^https:\/\/[^\/]+/, 'https://[...host...]'));
       const res = await fetch(u, {
         method: 'POST',
         headers,
@@ -1601,17 +1610,37 @@ export async function criarPaciente(input: PacienteInput): Promise<Paciente> {
     } catch (err: any) {
       lastErr = err;
       const emsg = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);
-      console.warn('[criarPaciente] tentativa em', u, 'falhou:', emsg);
-      // If the underlying error is a network/CORS issue, add a helpful hint in the log
-      if (emsg && emsg.toLowerCase().includes('failed to fetch')) {
-        console.error('[criarPaciente] Falha de fetch (network/CORS). Verifique se você está autenticado no navegador (token presente em localStorage/sessionStorage) e se o endpoint permite requisições CORS do seu domínio. Também confirme que a função /create-user-with-password existe e está acessível.');
+      console.warn('[criarPaciente] ❌ Tentativa em', u, 'falhou:', emsg);
+      
+      // Se o erro é uma falha de fetch (network/CORS)
+      if (emsg && (emsg.toLowerCase().includes('failed to fetch') || emsg.toLowerCase().includes('networkerror'))) {
+        console.error('[criarPaciente] ⚠️ FALHA DE REDE/CORS detectada. Possíveis causas:\n' +
+          '1. Função Supabase /create-user-with-password não existe ou está desativada\n' +
+          '2. CORS configurado incorretamente no Supabase\n' +
+          '3. Endpoint indisponível ou a rede está offline\n' +
+          '4. Token expirado ou inválido\n' +
+          'URL que falhou:', u);
       }
       // try next
     }
   }
 
   const emsg = lastErr && typeof lastErr === 'object' && 'message' in lastErr ? (lastErr as any).message : String(lastErr ?? 'sem detalhes');
-  throw new Error(`Falha ao criar paciente via create-user-with-password: ${emsg}. Verifique autenticação (token no localStorage/sessionStorage), CORS e se o endpoint /functions/v1/create-user-with-password está implementado e aceitando requisições do navegador.`);
+  
+  // Mensagem de erro mais detalhada e útil
+  let friendlyMsg = `Falha ao criar paciente.`;
+  if (emsg.toLowerCase().includes('networkerror') || emsg.toLowerCase().includes('failed to fetch')) {
+    friendlyMsg += ` Erro de rede/CORS detectado. `;
+    friendlyMsg += `Verifique se:\n`;
+    friendlyMsg += `• A função /create-user-with-password existe no Supabase\n`;
+    friendlyMsg += `• Você está autenticado (token no localStorage)\n`;
+    friendlyMsg += `• CORS está configurado corretamente\n`;
+    friendlyMsg += `• A rede está disponível`;
+  } else {
+    friendlyMsg += ` ${emsg}`;
+  }
+  
+  throw new Error(friendlyMsg);
 }
 
 export async function atualizarPaciente(id: string | number, input: PacienteInput): Promise<Paciente> {

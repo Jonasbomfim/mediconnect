@@ -3,25 +3,18 @@
 // Imports mantidos
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 
 // --- Imports do EventManager (NOVO) - MANTIDOS ---
 import { EventManager, type Event } from "@/components/features/general/event-manager";
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos
-import { Sidebar } from "@/components/layout/sidebar";
-import { PagesHeader } from "@/components/features/dashboard/header";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
+import { PatientRegistrationForm } from "@/components/features/forms/patient-registration-form";
 
 const ListaEspera = dynamic(
   () => import("@/components/features/agendamento/ListaEspera"),
@@ -29,28 +22,38 @@ const ListaEspera = dynamic(
 );
 
 export default function AgendamentoPage() {
+  const { user, token } = useAuth();
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [waitingList, setWaitingList] = useState(mockWaitingList);
-  const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
-
+  const [activeTab, setActiveTab] = useState<"calendar" | "3d">("calendar");
   const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
+
+  // Padroniza idioma da página para pt-BR (afeta componentes que usam o lang do documento)
+  useEffect(() => {
+    try {
+      // Atributos no <html>
+      document.documentElement.lang = "pt-BR";
+      document.documentElement.setAttribute("xml:lang", "pt-BR");
+      document.documentElement.setAttribute("data-lang", "pt-BR");
+      // Cookie de locale (usado por apps com i18n)
+      const oneYear = 60 * 60 * 24 * 365;
+      document.cookie = `NEXT_LOCALE=pt-BR; Path=/; Max-Age=${oneYear}; SameSite=Lax`;
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // --- NOVO ESTADO ---
   // Estado para alimentar o NOVO EventManager com dados da API
   const [managerEvents, setManagerEvents] = useState<Event[]>([]);
   const [managerLoading, setManagerLoading] = useState<boolean>(true);
+  
+  // Estado para o formulário de registro de paciente
+  const [showPatientForm, setShowPatientForm] = useState(false);
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
-      if (event.key === "c") {
-        setActiveTab("calendar");
-      }
-      if (event.key === "f") {
-        setActiveTab("espera");
-      }
-      if (event.key === "3") {
-        setActiveTab("3d");
-      }
+      if (event.key === "c") setActiveTab("calendar");
+      if (event.key === "3") setActiveTab("3d");
     });
   }, []);
 
@@ -86,18 +89,23 @@ export default function AgendamentoPage() {
           
           const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
           const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
-          
-          let color = "gray"; // Cor padrão
-          if (obj.status === 'confirmed') color = 'green';
-          if (obj.status === 'pending') color = 'orange';
+
+          // Mapeamento de cores padronizado:
+          // azul = solicitado; verde = confirmado; laranja = pendente; vermelho = cancelado; azul como fallback
+          const status = String(obj.status || "").toLowerCase();
+          let color: Event["color"] = "blue";
+          if (status === "confirmed" || status === "confirmado") color = "green";
+          else if (status === "pending" || status === "pendente") color = "orange";
+          else if (status === "canceled" || status === "cancelado" || status === "cancelled") color = "red";
+          else if (status === "requested" || status === "solicitado") color = "blue";
 
           return {
-            id: obj.id || uuidv4(), // Usa ID da API ou gera um
-            title: title,
-            description: `Agendamento para ${patient}. Status: ${obj.status || 'N/A'}.`, 
+            id: obj.id || uuidv4(),
+            title,
+            description: `Agendamento para ${patient}. Status: ${obj.status || 'N/A'}.`,
             startTime: start,
             endTime: end,
-            color: color,
+            color,
           };
         });
         setManagerEvents(newManagerEvents);
@@ -146,10 +154,6 @@ export default function AgendamentoPage() {
     }
   };
 
-  const handleNotifyPatient = (patientId: string) => {
-    console.log(`Notificando paciente ${patientId}`);
-  };
-
   const handleAddEvent = (event: CalendarEvent) => {
     setThreeDEvents((prev) => [...prev, event]);
   };
@@ -172,26 +176,10 @@ export default function AgendamentoPage() {
                 Navegue através dos atalhos: Calendário (C), Fila de espera (F) ou 3D (3).
               </p>
             </div>
-            <div className="flex space-x-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger className="bg-primary hover:bg-primary/90 px-5 py-1 text-primary-foreground rounded-sm">
-                  Opções &#187;
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <Link href={"/agenda"}>
-                    <DropdownMenuItem>Agendamento</DropdownMenuItem>
-                  </Link>
-                  <Link href={"/procedimento"}>
-                    <DropdownMenuItem>Procedimento</DropdownMenuItem>
-                  </Link>
-                  <Link href={"/financeiro"}>
-                    <DropdownMenuItem>Financeiro</DropdownMenuItem>
-                  </Link>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
+            <div className="flex space-x-2 items-center">
               <div className="flex flex-row">
                 <Button
+                  type="button"
                   variant={"outline"}
                   className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-l-[100px] rounded-r-none"
                   onClick={() => setActiveTab("calendar")}
@@ -200,20 +188,27 @@ export default function AgendamentoPage() {
                 </Button>
 
                 <Button
+                  type="button"
                   variant={"outline"}
-                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-none"
+                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-r-[100px] rounded-l-none"
                   onClick={() => setActiveTab("3d")}
                 >
                   3D
                 </Button>
+              </div>
+            </div>
+          </div>
 
-                <Button
-                  variant={"outline"}
-                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-r-[100px] rounded-l-none"
-                  onClick={() => setActiveTab("espera")}
-                >
-                  Lista de espera
-                </Button>
+          {/* Legenda de status (estilo Google Calendar) */}
+          <div className="rounded-md border bg-card/60 p-2 sm:p-3 -mt-4">
+            <div className="flex flex-wrap items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="h-3 w-3 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                <span className="text-foreground">Solicitado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="h-3 w-3 rounded-full bg-green-500 ring-2 ring-green-500/30" />
+                <span className="text-foreground">Confirmado</span>
               </div>
             </div>
           </div>
@@ -242,17 +237,22 @@ export default function AgendamentoPage() {
                 events={threeDEvents}
                 onAddEvent={handleAddEvent}
                 onRemoveEvent={handleRemoveEvent}
+                onOpenAddPatientForm={() => setShowPatientForm(true)}
               />
             </div>
-          ) : (
-            // A Lista de Espera foi MANTIDA
-            <ListaEspera
-              patients={waitingList}
-              onNotify={handleNotifyPatient}
-              onAddToWaitlist={() => {}}
-            />
-          )}
+          ) : null}
         </div>
+        
+        {/* Formulário de Registro de Paciente */}
+        <PatientRegistrationForm
+          open={showPatientForm}
+          onOpenChange={setShowPatientForm}
+          mode="create"
+          onSaved={(newPaciente) => {
+            console.log('[Calendar] Novo paciente registrado:', newPaciente);
+            setShowPatientForm(false);
+          }}
+        />
       </div>
     </div>
   );

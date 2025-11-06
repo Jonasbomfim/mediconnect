@@ -2,30 +2,27 @@
 
 // Imports mantidos
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 
 // --- Imports do EventManager (NOVO) - MANTIDOS ---
 import { EventManager, type Event } from "@/components/features/general/event-manager";
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
-import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
-import { PatientRegistrationForm } from "@/components/features/forms/patient-registration-form";
-
-const ListaEspera = dynamic(
-  () => import("@/components/features/agendamento/ListaEspera"),
-  { ssr: false }
-);
 
 export default function AgendamentoPage() {
-  const { user, token } = useAuth();
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"calendar" | "3d">("calendar");
-  const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
+  // REMOVIDO: abas e 3D → não há mais alternância de abas
+  // const [activeTab, setActiveTab] = useState<"calendar" | "3d">("calendar");
+
+  // REMOVIDO: estados do 3D e formulário do paciente (eram usados pelo 3D)
+  // const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
+  // const [showPatientForm, setShowPatientForm] = useState(false);
+
+  // --- NOVO ESTADO ---
+  // Estado para alimentar o NOVO EventManager com dados da API
+  const [managerEvents, setManagerEvents] = useState<Event[]>([]);
+  const [managerLoading, setManagerLoading] = useState<boolean>(true);
 
   // Padroniza idioma da página para pt-BR (afeta componentes que usam o lang do documento)
   useEffect(() => {
@@ -42,21 +39,6 @@ export default function AgendamentoPage() {
     }
   }, []);
 
-  // --- NOVO ESTADO ---
-  // Estado para alimentar o NOVO EventManager com dados da API
-  const [managerEvents, setManagerEvents] = useState<Event[]>([]);
-  const [managerLoading, setManagerLoading] = useState<boolean>(true);
-  
-  // Estado para o formulário de registro de paciente
-  const [showPatientForm, setShowPatientForm] = useState(false);
-
-  useEffect(() => {
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "c") setActiveTab("calendar");
-      if (event.key === "3") setActiveTab("3d");
-    });
-  }, []);
-
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -67,8 +49,8 @@ export default function AgendamentoPage() {
         if (!mounted) return;
         if (!arr || !arr.length) {
           setAppointments([]);
-          setThreeDEvents([]);
-          setManagerEvents([]); // Limpa o novo calendário
+          // REMOVIDO: setThreeDEvents([])
+          setManagerEvents([]);
           setManagerLoading(false);
           return;
         }
@@ -86,12 +68,11 @@ export default function AgendamentoPage() {
           const start = scheduled ? new Date(scheduled) : new Date();
           const duration = Number(obj.duration_minutes ?? obj.duration ?? 30) || 30;
           const end = new Date(start.getTime() + duration * 60 * 1000);
-          
+
           const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
           const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
 
-          // Mapeamento de cores padronizado:
-          // azul = solicitado; verde = confirmado; laranja = pendente; vermelho = cancelado; azul como fallback
+          // Mapeamento de cores padronizado
           const status = String(obj.status || "").toLowerCase();
           let color: Event["color"] = "blue";
           if (status === "confirmed" || status === "confirmado") color = "green";
@@ -112,27 +93,12 @@ export default function AgendamentoPage() {
         setManagerLoading(false);
         // --- FIM DA LÓGICA ---
 
-        // Convert to 3D calendar events (MANTIDO 100%)
-        const threeDEvents: CalendarEvent[] = (arr || []).map((obj: any) => {
-          const scheduled = obj.scheduled_at || obj.scheduledAt || obj.time || null;
-          const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
-          const appointmentType = obj.appointment_type ?? obj.type ?? 'Consulta';
-          const title = `${patient}: ${appointmentType}`.trim();
-          return {
-            id: obj.id || String(Date.now()),
-            title,
-            date: scheduled ? new Date(scheduled).toISOString() : new Date().toISOString(),
-            status: obj.status || 'pending',
-            patient,
-            type: appointmentType,
-          };
-        });
-        setThreeDEvents(threeDEvents);
+        // REMOVIDO: conversão para 3D e setThreeDEvents
       } catch (err) {
         console.warn('[AgendamentoPage] falha ao carregar agendamentos', err);
         setAppointments([]);
-        setThreeDEvents([]);
-        setManagerEvents([]); // Limpa o novo calendário
+        // REMOVIDO: setThreeDEvents([])
+        setManagerEvents([]);
         setManagerLoading(false);
       }
     })();
@@ -154,12 +120,38 @@ export default function AgendamentoPage() {
     }
   };
 
-  const handleAddEvent = (event: CalendarEvent) => {
-    setThreeDEvents((prev) => [...prev, event]);
+  // Mapeia cor do calendário -> status da API
+  const statusFromColor = (color?: string) => {
+    switch ((color || "").toLowerCase()) {
+      case "green": return "confirmed";
+      case "orange": return "pending";
+      case "red": return "canceled";
+      default: return "requested";
+    }
   };
 
-  const handleRemoveEvent = (id: string) => {
-    setThreeDEvents((prev) => prev.filter((e) => e.id !== id));
+  // Envia atualização para a API e atualiza UI
+  const handleEventUpdate = async (id: string, partial: Partial<Event>) => {
+    try {
+      const payload: any = {};
+      if (partial.startTime) payload.scheduled_at = partial.startTime.toISOString();
+      if (partial.startTime && partial.endTime) {
+        const minutes = Math.max(1, Math.round((partial.endTime.getTime() - partial.startTime.getTime()) / 60000));
+        payload.duration_minutes = minutes;
+      }
+      if (partial.color) payload.status = statusFromColor(partial.color);
+      if (typeof partial.description === "string") payload.notes = partial.description;
+
+      if (Object.keys(payload).length) {
+        const api = await import('@/lib/api');
+        await api.atualizarAgendamento(id, payload);
+      }
+
+      // Otimista: reflete mudanças locais
+      setManagerEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...partial } : e)));
+    } catch (e) {
+      console.warn("[Calendário] Falha ao atualizar agendamento na API:", e);
+    }
   };
 
   return (
@@ -167,39 +159,17 @@ export default function AgendamentoPage() {
       <div className="flex w-full flex-col">
         <div className="flex w-full flex-col gap-10 p-6">
           <div className="flex flex-row justify-between items-center">
-            {/* Todo o cabeçalho foi mantido */}
+            {/* Cabeçalho simplificado (sem 3D) */}
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                {activeTab === "calendar" ? "Calendário" : activeTab === "3d" ? "Calendário 3D" : "Lista de Espera"}
-              </h1>
+              <h1 className="text-2xl font-bold text-foreground">Calendário</h1>
               <p className="text-muted-foreground">
-                Navegue através dos atalhos: Calendário (C), Fila de espera (F) ou 3D (3).
+                Navegue através do atalho: Calendário (C).
               </p>
             </div>
-            <div className="flex space-x-2 items-center">
-              <div className="flex flex-row">
-                <Button
-                  type="button"
-                  variant={"outline"}
-                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-l-[100px] rounded-r-none"
-                  onClick={() => setActiveTab("calendar")}
-                >
-                  Calendário
-                </Button>
-
-                <Button
-                  type="button"
-                  variant={"outline"}
-                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-r-[100px] rounded-l-none"
-                  onClick={() => setActiveTab("3d")}
-                >
-                  3D
-                </Button>
-              </div>
-            </div>
+            {/* REMOVIDO: botões de abas Calendário/3D */}
           </div>
 
-          {/* Legenda de status (estilo Google Calendar) */}
+          {/* Legenda de status (aplica-se ao EventManager) */}
           <div className="rounded-md border bg-card/60 p-2 sm:p-3 -mt-4">
             <div className="flex flex-wrap items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
@@ -210,49 +180,35 @@ export default function AgendamentoPage() {
                 <span aria-hidden className="h-3 w-3 rounded-full bg-green-500 ring-2 ring-green-500/30" />
                 <span className="text-foreground">Confirmado</span>
               </div>
+              {/* Novo: Cancelado (vermelho) */}
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="h-3 w-3 rounded-full bg-red-500 ring-2 ring-red-500/30" />
+                <span className="text-foreground">Cancelado</span>
+              </div>
             </div>
           </div>
 
-          {/* --- AQUI ESTÁ A SUBSTITUIÇÃO --- */}
-          {activeTab === "calendar" ? (
-            <div className="flex w-full">
-              {/* mostra loading até managerEvents ser preenchido (API integrada desde a entrada) */}
-              <div className="w-full">
-                {managerLoading ? (
-                  <div className="flex items-center justify-center w-full min-h-[70vh]">
-                    <div className="text-sm text-muted-foreground">Conectando ao calendário — carregando agendamentos...</div>
-                  </div>
-                ) : (
-                  // EventManager ocupa a área principal e já recebe events da API
-                  <div className="w-full min-h-[70vh]">
-                    <EventManager events={managerEvents} className="compact-event-manager" />
-                  </div>
-                )}
-              </div>
+          {/* Apenas o EventManager */}
+          <div className="flex w-full">
+            <div className="w-full">
+              {managerLoading ? (
+                <div className="flex items-center justify-center w-full min-h-[70vh]">
+                  <div className="text-sm text-muted-foreground">Conectando ao calendário — carregando agendamentos...</div>
+                </div>
+              ) : (
+                <div className="w-full min-h-[70vh]">
+                  <EventManager
+                    events={managerEvents}
+                    className="compact-event-manager"
+                    onEventUpdate={handleEventUpdate}
+                  />
+                </div>
+              )}
             </div>
-          ) : activeTab === "3d" ? (
-            // O calendário 3D (ThreeDWallCalendar) foi MANTIDO 100%
-            <div className="flex w-full justify-center">
-              <ThreeDWallCalendar
-                events={threeDEvents}
-                onAddEvent={handleAddEvent}
-                onRemoveEvent={handleRemoveEvent}
-                onOpenAddPatientForm={() => setShowPatientForm(true)}
-              />
-            </div>
-          ) : null}
+          </div>
         </div>
-        
-        {/* Formulário de Registro de Paciente */}
-        <PatientRegistrationForm
-          open={showPatientForm}
-          onOpenChange={setShowPatientForm}
-          mode="create"
-          onSaved={(newPaciente) => {
-            console.log('[Calendar] Novo paciente registrado:', newPaciente);
-            setShowPatientForm(false);
-          }}
-        />
+
+        {/* REMOVIDO: PatientRegistrationForm (era acionado pelo 3D) */}
       </div>
     </div>
   );

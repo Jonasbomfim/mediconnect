@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo, useEffect } from "react"
+import React, { useState, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,8 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, Filter, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export interface Event {
   id: string
@@ -52,10 +60,6 @@ const defaultColors = [
   { name: "Red", value: "red", bg: "bg-red-500", text: "text-red-700" },
 ]
 
-// Locale/timezone padrão BR
-const LOCALE = "pt-BR"
-const TIMEZONE = "America/Sao_Paulo"
-
 export function EventManager({
   events: initialEvents = [],
   onEventCreate,
@@ -83,19 +87,13 @@ export function EventManager({
   })
 
   const [searchQuery, setSearchQuery] = useState("")
-
-  // Dialog: lista completa de pacientes do dia
-  const [dayDialogEvents, setDayDialogEvents] = useState<Event[] | null>(null)
-  const [isDayDialogOpen, setIsDayDialogOpen] = useState(false)
-  const openDayDialog = useCallback((eventsForDay: Event[]) => {
-    // ordena por horário antes de abrir
-    const ordered = [...eventsForDay].sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
-    setDayDialogEvents(ordered)
-    setIsDayDialogOpen(true)
-  }, [])
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
+      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const matchesSearch =
@@ -103,15 +101,36 @@ export function EventManager({
           event.description?.toLowerCase().includes(query) ||
           event.category?.toLowerCase().includes(query) ||
           event.tags?.some((tag) => tag.toLowerCase().includes(query))
+
         if (!matchesSearch) return false
       }
+
+      // Color filter
+      if (selectedColors.length > 0 && !selectedColors.includes(event.color)) {
+        return false
+      }
+
+      // Tag filter
+      if (selectedTags.length > 0) {
+        const hasMatchingTag = event.tags?.some((tag) => selectedTags.includes(tag))
+        if (!hasMatchingTag) return false
+      }
+
+      // Category filter
+      if (selectedCategories.length > 0 && event.category && !selectedCategories.includes(event.category)) {
+        return false
+      }
+
       return true
     })
-  }, [events, searchQuery])
+  }, [events, searchQuery, selectedColors, selectedTags, selectedCategories])
 
-  const hasActiveFilters = false
+  const hasActiveFilters = selectedColors.length > 0 || selectedTags.length > 0 || selectedCategories.length > 0
 
   const clearFilters = () => {
+    setSelectedColors([])
+    setSelectedTags([])
+    setSelectedCategories([])
     setSearchQuery("")
   }
 
@@ -219,16 +238,23 @@ export function EventManager({
     [colors],
   )
 
-  // Força lang/cookie pt-BR no documento (reforço local)
-  useEffect(() => {
-    try {
-      document.documentElement.lang = "pt-BR"
-      document.documentElement.setAttribute("xml:lang", "pt-BR")
-      document.documentElement.setAttribute("data-lang", "pt-BR")
-      const oneYear = 60 * 60 * 24 * 365
-      document.cookie = `NEXT_LOCALE=pt-BR; Path=/; Max-Age=${oneYear}; SameSite=Lax`
-    } catch {}
-  }, [])
+  const toggleTag = (tag: string, isCreating: boolean) => {
+    if (isCreating) {
+      setNewEvent((prev) => ({
+        ...prev,
+        tags: prev.tags?.includes(tag) ? prev.tags.filter((t) => t !== tag) : [...(prev.tags || []), tag],
+      }))
+    } else {
+      setSelectedEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              tags: prev.tags?.includes(tag) ? prev.tags.filter((t) => t !== tag) : [...(prev.tags || []), tag],
+            }
+          : null,
+      )
+    }
+  }
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
@@ -237,30 +263,30 @@ export function EventManager({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <h2 className="text-xl font-semibold sm:text-2xl">
             {view === "month" &&
-              currentDate.toLocaleDateString(LOCALE, {
+              currentDate.toLocaleDateString("pt-BR", {
                 month: "long",
                 year: "numeric",
-                timeZone: TIMEZONE,
               })}
             {view === "week" &&
-              `Semana de ${currentDate.toLocaleDateString(LOCALE, {
+              `Semana de ${currentDate.toLocaleDateString("pt-BR", {
                 month: "short",
                 day: "numeric",
-                timeZone: TIMEZONE,
               })}`}
             {view === "day" &&
-              currentDate.toLocaleDateString(LOCALE, {
+              currentDate.toLocaleDateString("pt-BR", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
                 year: "numeric",
-                timeZone: TIMEZONE,
               })}
             {view === "list" && "Todos os eventos"}
           </h2>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={() => navigateDate("prev")} className="h-8 w-8">
               <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+              Hoje
             </Button>
             <Button variant="outline" size="icon" onClick={() => navigateDate("next")} className="h-8 w-8">
               <ChevronRight className="h-4 w-4" />
@@ -359,45 +385,289 @@ export function EventManager({
 
       <div className="flex flex-col gap-2">
         <div className="relative flex-1">
-          <div className="flex items-center">
-            {/* Lupa minimalista à esquerda (somente ícone) */}
-            <button
-              type="button"
-              aria-label="Buscar"
-              className="flex items-center justify-center h-10 w-10 p-0 text-muted-foreground bg-transparent border-0"
-              onClick={() => {
-                const el = document.querySelector<HTMLInputElement>('input[placeholder="Buscar eventos..."]')
-                el?.focus()
-              }}
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar eventos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+              onClick={() => setSearchQuery("")}
             >
-              <Search className="h-5 w-5" />
-            </button>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
 
-            {/* Input central com altura consistente e foco visível */}
-            <Input
-              placeholder="Buscar eventos..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={cn(
-                "flex-1 h-10 px-3 border border-border focus:ring-2 focus:ring-primary/20 outline-none",
-                searchQuery ? "rounded-l-md rounded-r-none" : "rounded-md"
-              )}
-            />
+        {/* Mobile: Horizontal scroll with full-length buttons */}
+        <div className="sm:hidden -mx-4 px-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {/* Color Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent">
+                  <Filter className="h-4 w-4" />
+                  Cores
+                  {selectedColors.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {selectedColors.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel>Filtrar por Cor</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {colors.map((color) => (
+                  <DropdownMenuCheckboxItem
+                    key={color.value}
+                    checked={selectedColors.includes(color.value)}
+                    onCheckedChange={(checked) => {
+                      setSelectedColors((prev) =>
+                        checked ? [...prev, color.value] : prev.filter((c) => c !== color.value),
+                      )
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={cn("h-3 w-3 rounded", color.bg)} />
+                      {color.name}
+                    </div>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            {/* Botão limpar discreto à direita (aparece somente com query) */}
-            {searchQuery ? (
-              <button
-                type="button"
-                aria-label="Limpar busca"
-                className="flex items-center justify-center h-10 w-10 p-0 text-muted-foreground bg-transparent border-0"
-                onClick={() => setSearchQuery("")}
+            {/* Tag Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent">
+                  <Filter className="h-4 w-4" />
+                  Tags
+                  {selectedTags.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {selectedTags.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel>Filtrar por Tag</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {availableTags.map((tag) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag}
+                    checked={selectedTags.includes(tag)}
+                    onCheckedChange={(checked) => {
+                      setSelectedTags((prev) => (checked ? [...prev, tag] : prev.filter((t) => t !== tag)))
+                    }}
+                  >
+                    {tag}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Category Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap flex-shrink-0 bg-transparent">
+                  <Filter className="h-4 w-4" />
+                  Categorias
+                  {selectedCategories.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {selectedCategories.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel>Filtrar por Categoria</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {categories.map((category) => (
+                  <DropdownMenuCheckboxItem
+                    key={category}
+                    checked={selectedCategories.includes(category)}
+                    onCheckedChange={(checked) => {
+                      setSelectedCategories((prev) =>
+                        checked ? [...prev, category] : prev.filter((c) => c !== category),
+                      )
+                    }}
+                  >
+                    {category}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-2 whitespace-nowrap flex-shrink-0"
               >
-                <X className="h-5 w-5" />
-              </button>
-            ) : null}
+                <X className="h-4 w-4" />
+                Limpar Filtros
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Desktop: Original layout */}
+        <div className="hidden sm:flex items-center gap-2">
+          {/* Color Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                <Filter className="h-4 w-4" />
+                Cores
+                {selectedColors.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1">
+                    {selectedColors.length}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Filtrar por Cor</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {colors.map((color) => (
+                <DropdownMenuCheckboxItem
+                  key={color.value}
+                  checked={selectedColors.includes(color.value)}
+                  onCheckedChange={(checked) => {
+                    setSelectedColors((prev) =>
+                      checked ? [...prev, color.value] : prev.filter((c) => c !== color.value),
+                    )
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={cn("h-3 w-3 rounded", color.bg)} />
+                    {color.name}
+                  </div>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Tag Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                <Filter className="h-4 w-4" />
+                Tags
+                {selectedTags.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1">
+                    {selectedTags.length}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Filtrar por Tag</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {availableTags.map((tag) => (
+                <DropdownMenuCheckboxItem
+                  key={tag}
+                  checked={selectedTags.includes(tag)}
+                  onCheckedChange={(checked) => {
+                    setSelectedTags((prev) => (checked ? [...prev, tag] : prev.filter((t) => t !== tag)))
+                  }}
+                >
+                  {tag}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Category Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                <Filter className="h-4 w-4" />
+                Categorias
+                {selectedCategories.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1">
+                    {selectedCategories.length}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Filtrar por Categoria</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {categories.map((category) => (
+                <DropdownMenuCheckboxItem
+                  key={category}
+                  checked={selectedCategories.includes(category)}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories((prev) =>
+                      checked ? [...prev, category] : prev.filter((c) => c !== category),
+                    )
+                  }}
+                >
+                  {category}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
+              <X className="h-4 w-4" />
+              Limpar
+            </Button>
+          )}
+        </div>
       </div>
+
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Filtros ativos:</span>
+          {selectedColors.map((colorValue) => {
+            const color = getColorClasses(colorValue)
+            return (
+              <Badge key={colorValue} variant="secondary" className="gap-1">
+                <div className={cn("h-2 w-2 rounded-full", color.bg)} />
+                {color.name}
+                <button
+                  onClick={() => setSelectedColors((prev) => prev.filter((c) => c !== colorValue))}
+                  className="ml-1 hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )
+          })}
+          {selectedTags.map((tag) => (
+            <Badge key={tag} variant="secondary" className="gap-1">
+              {tag}
+              <button
+                onClick={() => setSelectedTags((prev) => prev.filter((t) => t !== tag))}
+                className="ml-1 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedCategories.map((category) => (
+            <Badge key={category} variant="secondary" className="gap-1">
+              {category}
+              <button
+                onClick={() => setSelectedCategories((prev) => prev.filter((c) => c !== category))}
+                className="ml-1 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* Calendar Views - Pass filteredEvents instead of events */}
       {view === "month" && (
@@ -412,65 +682,8 @@ export function EventManager({
           onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
-          openDayDialog={openDayDialog}
         />
       )}
-
-      {/* Dialog com todos os pacientes do dia */}
-      <Dialog open={isDayDialogOpen} onOpenChange={setIsDayDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Pacientes do dia</DialogTitle>
-            <DialogDescription>Todos os agendamentos do dia selecionado.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {dayDialogEvents?.map((ev) => (
-              <div
-                key={ev.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  setSelectedEvent(ev)
-                  setIsDialogOpen(true)
-                  setIsDayDialogOpen(false)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    setSelectedEvent(ev)
-                    setIsDialogOpen(true)
-                    setIsDayDialogOpen(false)
-                  }
-                }}
-                className="flex items-start gap-3 p-2 border-b last:border-b-0 rounded-md cursor-pointer hover:bg-accent/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <div className={cn("mt-1 h-3 w-3 rounded-full", getColorClasses(ev.color).bg)} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold truncate">{ev.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {ev.startTime.toLocaleTimeString(LOCALE,{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:TIMEZONE})}
-                      {" - "}
-                      {ev.endTime.toLocaleTimeString(LOCALE,{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:TIMEZONE})}
-                    </div>
-                  </div>
-                  {ev.description && (
-                    <div className="text-xs text-muted-foreground line-clamp-2">{ev.description}</div>
-                  )}
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {ev.category && <Badge variant="secondary" className="text-[11px] h-5">{ev.category}</Badge>}
-                    {ev.tags?.map((t) => (
-                      <Badge key={t} variant="outline" className="text-[11px] h-5">{t}</Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {!dayDialogEvents?.length && (
-              <div className="py-6 text-center text-sm text-muted-foreground">Nenhum evento</div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {view === "week" && (
         <WeekView
@@ -515,7 +728,7 @@ export function EventManager({
 
       {/* Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md max-h[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Evento"}</DialogTitle>
             <DialogDescription>
@@ -614,9 +827,75 @@ export function EventManager({
               </div>
             </div>
 
-            {/* Campos de Categoria/Cor removidos */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Select
+                  value={isCreating ? newEvent.category : selectedEvent?.category}
+                  onValueChange={(value) =>
+                    isCreating
+                      ? setNewEvent((prev) => ({ ...prev, category: value }))
+                      : setSelectedEvent((prev) => (prev ? { ...prev, category: value } : null))
+                  }
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Campo de Tags removido */}
+              <div className="space-y-2">
+                <Label htmlFor="color">Cor</Label>
+                <Select
+                  value={isCreating ? newEvent.color : selectedEvent?.color}
+                  onValueChange={(value) =>
+                    isCreating
+                      ? setNewEvent((prev) => ({ ...prev, color: value }))
+                      : setSelectedEvent((prev) => (prev ? { ...prev, color: value } : null))
+                  }
+                >
+                  <SelectTrigger id="color">
+                    <SelectValue placeholder="Selecione a cor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colors.map((color) => (
+                      <SelectItem key={color.value} value={color.value}>
+                        <div className="flex items-center gap-2">
+                          <div className={cn("h-4 w-4 rounded", color.bg)} />
+                          {color.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map((tag) => {
+                  const isSelected = isCreating ? newEvent.tags?.includes(tag) : selectedEvent?.tags?.includes(tag)
+                  return (
+                    <Badge
+                      key={tag}
+                      variant={isSelected ? "default" : "outline"}
+                      className="cursor-pointer transition-all hover:scale-105"
+                      onClick={() => toggleTag(tag, isCreating)}
+                    >
+                      {tag}
+                    </Badge>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -665,11 +944,9 @@ function EventCard({
   const colorClasses = getColorClasses(event.color)
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString(LOCALE, {
+    return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
-      timeZone: TIMEZONE,
     })
   }
 
@@ -847,7 +1124,6 @@ function MonthView({
   onDragEnd,
   onDrop,
   getColorClasses,
-  openDayDialog,
 }: {
   currentDate: Date
   events: Event[]
@@ -856,7 +1132,6 @@ function MonthView({
   onDragEnd: () => void
   onDrop: (date: Date) => void
   getColorClasses: (color: string) => { bg: string; text: string }
-  openDayDialog: (eventsForDay: Event[]) => void
 }) {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
   const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -895,15 +1170,6 @@ function MonthView({
       <div className="grid grid-cols-7">
         {days.map((day, index) => {
           const dayEvents = getEventsForDay(day)
-          // dedup por título para evitar repetidos
-          const uniqueMap = new Map<string, Event>()
-          dayEvents.forEach((ev) => {
-            const k = (ev.title || "").trim().toLowerCase()
-            if (!uniqueMap.has(k)) uniqueMap.set(k, ev)
-          })
-          const uniqueEvents = Array.from(uniqueMap.values())
-          const eventsToShow = uniqueEvents.slice(0, 3)
-          const moreCount = Math.max(0, uniqueEvents.length - 3)
           const isCurrentMonth = day.getMonth() === currentDate.getMonth()
           const isToday = day.toDateString() === new Date().toDateString()
 
@@ -918,11 +1184,16 @@ function MonthView({
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(day)}
             >
-              {/* Número do dia padronizado (sem destaque azul no 'hoje') */}
-              <div className="mb-1 text-xs sm:text-sm">{day.getDate()}</div>
-
+              <div
+                className={cn(
+                  "mb-1 flex h-5 w-5 items-center justify-center rounded-full text-xs sm:h-6 sm:w-6 sm:text-sm",
+                  isToday && "bg-primary text-primary-foreground font-semibold",
+                )}
+              >
+                {day.getDate()}
+              </div>
               <div className="space-y-1">
-                {eventsToShow.map((event) => (
+                {dayEvents.slice(0, 3).map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
@@ -933,16 +1204,8 @@ function MonthView({
                     variant="compact"
                   />
                 ))}
-                {moreCount > 0 && (
-                  <div className="text-[10px] sm:text-xs">
-                    <button
-                      type="button"
-                      onClick={() => openDayDialog(uniqueEvents)}
-                      className="text-primary underline"
-                    >
-                      +{moreCount} mais
-                    </button>
-                  </div>
+                  {dayEvents.length > 3 && (
+                  <div className="text-[10px] text-muted-foreground sm:text-xs">+{dayEvents.length - 3} mais</div>
                 )}
               </div>
             </div>
@@ -1004,17 +1267,17 @@ function WeekView({
             key={day.toISOString()}
             className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm"
           >
-            <div className="hidden sm:block">{day.toLocaleDateString(LOCALE, { weekday: "short", timeZone: TIMEZONE })}</div>
-            <div className="sm:hidden">{day.toLocaleDateString(LOCALE, { weekday: "narrow", timeZone: TIMEZONE })}</div>
+            <div className="hidden sm:block">{day.toLocaleDateString("pt-BR", { weekday: "short" })}</div>
+            <div className="sm:hidden">{day.toLocaleDateString("pt-BR", { weekday: "narrow" })}</div>
             <div className="text-[10px] text-muted-foreground sm:text-xs">
-              {day.toLocaleDateString(LOCALE, { month: "short", day: "numeric", timeZone: TIMEZONE })}
+              {day.toLocaleDateString("pt-BR", { month: "short", day: "numeric" })}
             </div>
           </div>
         ))}
       </div>
       <div className="grid grid-cols-8">
         {hours.map((hour) => (
-          <React.Fragment key={`hour-${hour}`}>
+          <>
             <div
               key={`time-${hour}`}
               className="border-b border-r p-1 text-[10px] text-muted-foreground sm:p-2 sm:text-xs"
@@ -1046,7 +1309,7 @@ function WeekView({
                 </div>
               )
             })}
-          </React.Fragment>
+          </>
         ))}
       </div>
     </Card>
@@ -1138,14 +1401,15 @@ function ListView({
 
   const groupedEvents = sortedEvents.reduce(
     (acc, event) => {
-      const dateKey = event.startTime.toLocaleDateString(LOCALE, {
+      const dateKey = event.startTime.toLocaleDateString("pt-BR", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
-        timeZone: TIMEZONE,
       })
-      if (!acc[dateKey]) acc[dateKey] = []
+      if (!acc[dateKey]) {
+        acc[dateKey] = []
+      }
       acc[dateKey].push(event)
       return acc
     },
@@ -1162,7 +1426,11 @@ function ListView({
               {dateEvents.map((event) => {
                 const colorClasses = getColorClasses(event.color)
                 return (
-                  <div key={event.id} onClick={() => onEventClick(event)} className="group cursor-pointer rounded-lg border bg-card p-3 transition-all hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:p-4">
+                  <div
+                    key={event.id}
+                    onClick={() => onEventClick(event)}
+                    className="group cursor-pointer rounded-lg border bg-card p-3 transition-all hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:p-4"
+                  >
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div className={cn("mt-1 h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3", colorClasses.bg)} />
                       <div className="flex-1 min-w-0">
@@ -1188,9 +1456,7 @@ function ListView({
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground sm:gap-4 sm:text-xs">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {event.startTime.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })}
-                            {" - "}
-                            {event.endTime.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })}
+                            {event.startTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - {event.endTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                           </div>
                           {event.tags && event.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">

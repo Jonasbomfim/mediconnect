@@ -18,7 +18,8 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById } from '@/lib/api'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById, atualizarAgendamento, deletarAgendamento } from '@/lib/api'
+import { CalendarRegistrationForm } from '@/components/features/forms/calendar-registration-form'
 import { buscarRelatorioPorId, listarRelatoriosPorMedico } from '@/lib/reports'
 import { ENV_CONFIG } from '@/lib/env-config'
 import { listarRelatoriosPorPaciente } from '@/lib/reports'
@@ -35,7 +36,6 @@ const strings = {
   ultimosExames: 'Últimos Exames',
   mensagensNaoLidas: 'Mensagens Não Lidas',
   agendar: 'Agendar',
-  reagendar: 'Reagendar',
   cancelar: 'Cancelar',
   detalhes: 'Detalhes',
   adicionarCalendario: 'Adicionar ao calendário',
@@ -445,11 +445,10 @@ export default function PacientePage() {
             </span>
           </div>
         </Card>
-      </div>
+  </div>
     )
   }
 
-  // Consultas fictícias
   const [currentDate, setCurrentDate] = useState(new Date())
 
   // helper: produce a local YYYY-MM-DD key (uses local timezone, not toISOString UTC)
@@ -519,10 +518,15 @@ export default function PacientePage() {
     const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
     const isSelectedDateToday = selectedDate.getTime() === today.getTime()
 
-    // Appointments state (loaded when component mounts)
-    const [appointments, setAppointments] = useState<any[] | null>(null)
-    const [loadingAppointments, setLoadingAppointments] = useState(false)
-    const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
+  // Appointments state (loaded when component mounts)
+  const [appointments, setAppointments] = useState<any[] | null>(null)
+  const [doctorsMap, setDoctorsMap] = useState<Record<string, any>>({}) // Store doctor info by ID
+  const [loadingAppointments, setLoadingAppointments] = useState(false)
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
+    // expanded appointment id for inline details (kept for possible fallback)
+    const [expandedId, setExpandedId] = useState<number | null>(null)
+    // selected appointment for modal details
+    const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null)
 
     useEffect(() => {
       let mounted = true
@@ -608,6 +612,7 @@ export default function PacientePage() {
             }
           })
 
+          setDoctorsMap(doctorsMap)
           setAppointments(mapped)
         } catch (err: any) {
           console.warn('[Consultas] falha ao carregar agendamentos', err)
@@ -637,6 +642,60 @@ export default function PacientePage() {
     // derived lists for the page (computed after appointments state is declared)
     const _dialogSource = (appointments !== null ? appointments : consultasFicticias)
     const _todaysAppointments = (_dialogSource || []).filter((c: any) => c.data === todayStr)
+
+    // helper: present a localized label for appointment status
+    const statusLabel = (s: any) => {
+      const raw = (s === null || s === undefined) ? '' : String(s)
+      const key = raw.toLowerCase()
+      const map: Record<string,string> = {
+        'requested': 'Solicitado',
+        'request': 'Solicitado',
+        'confirmed': 'Confirmado',
+        'confirmada': 'Confirmada',
+        'confirmado': 'Confirmado',
+        'completed': 'Concluído',
+        'concluído': 'Concluído',
+        'cancelled': 'Cancelado',
+        'cancelada': 'Cancelada',
+        'cancelado': 'Cancelado',
+        'pending': 'Pendente',
+        'pendente': 'Pendente',
+        'checked_in': 'Registrado',
+        'in_progress': 'Em andamento',
+        'no_show': 'Não compareceu'
+      }
+      return map[key] || raw
+    }
+
+    // map an appointment (row) to the CalendarRegistrationForm's formData shape
+  const mapAppointmentToFormData = (appointment: any) => {
+      // Use the raw appointment with all fields: doctor_id, scheduled_at, appointment_type, etc.
+      const schedIso = appointment.scheduled_at || (appointment.data && appointment.hora ? `${appointment.data}T${appointment.hora}` : null) || null
+      const baseDate = schedIso ? new Date(schedIso) : new Date()
+      const appointmentDate = schedIso ? baseDate.toISOString().split('T')[0] : ''
+      const startTime = schedIso ? baseDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : (appointment.hora || '')
+      const duration = appointment.duration_minutes ?? appointment.duration ?? 30
+      
+      // Get doctor name from doctorsMap if available
+      const docName = appointment.medico || (appointment.doctor_id ? doctorsMap[String(appointment.doctor_id)]?.full_name : null) || appointment.doctor_name || appointment.professional_name || '---'
+      
+      return {
+        id: appointment.id,
+        patientName: docName,
+        patientId: null,
+        doctorId: appointment.doctor_id ?? null,
+        professionalName: docName,
+        appointmentDate,
+        startTime,
+        endTime: '',
+        status: appointment.status || undefined,
+        appointmentType: appointment.appointment_type || appointment.type || (appointment.local ? 'presencial' : 'teleconsulta'),
+        duration_minutes: duration,
+        notes: appointment.notes || '',
+      }
+    }
+
+    
 
     return (
       <div className="space-y-6">
@@ -771,7 +830,7 @@ export default function PacientePage() {
                               ? 'bg-linear-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
                               : 'bg-linear-to-r from-red-500 to-red-600 shadow-red-500/20'
                           }`}>
-                            {consulta.status}
+                            {statusLabel(consulta.status)}
                           </span>
                         </div>
 
@@ -781,28 +840,43 @@ export default function PacientePage() {
                             type="button"
                             size="sm"
                             className="border border-primary/30 text-primary bg-primary/5 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                            onClick={() => setSelectedAppointment(consulta)}
                           >
                             Detalhes
                           </Button>
-                          {consulta.status !== 'Cancelada' && (
-                            <Button 
-                              type="button" 
-                              size="sm" 
-                              className="bg-primary/10 text-primary border border-primary/30 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
-                            >
-                              Reagendar
-                            </Button>
-                          )}
+                          {/* Reagendar removed by request */}
                           {consulta.status !== 'Cancelada' && (
                             <Button
                               type="button"
                               size="sm"
                               className="border border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive! hover:text-white! hover:border-destructive! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
+                              onClick={async () => {
+                                try {
+                                  const ok = typeof window !== 'undefined' ? window.confirm('Deseja realmente cancelar esta consulta?') : true
+                                  if (!ok) return
+                                  // call API to delete
+                                  await deletarAgendamento(consulta.id)
+                                  // remove from local list
+                                  setAppointments((prev) => {
+                                    if (!prev) return prev
+                                    return prev.filter((a: any) => String(a.id) !== String(consulta.id))
+                                  })
+                                  // if modal open for this appointment, close it
+                                  if (selectedAppointment && String(selectedAppointment.id) === String(consulta.id)) setSelectedAppointment(null)
+                                  setToast({ type: 'success', msg: 'Consulta cancelada.' })
+                                } catch (err: any) {
+                                  console.error('[Consultas] falha ao cancelar agendamento', err)
+                                  try { setToast({ type: 'error', msg: err?.message || 'Falha ao cancelar a consulta.' }) } catch (e) {}
+                                }
+                              }}
                             >
                               Cancelar
                             </Button>
                           )}
                         </div>
+
+                        {/* Inline detalhes removed: modal will show details instead */}
+
                       </div>
                     </div>
                   ))
@@ -811,6 +885,45 @@ export default function PacientePage() {
             </div>
           </div>
         </section>
+
+        
+
+        <Dialog open={!!selectedAppointment} onOpenChange={open => !open && setSelectedAppointment(null)}>
+          <DialogContent className="w-full sm:mx-auto sm:my-8 max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-hidden sm:p-6 p-4">
+            <DialogHeader>
+              <DialogTitle>Detalhes da Consulta</DialogTitle>
+              <DialogDescription className="sr-only">Detalhes da consulta</DialogDescription>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 max-h-[70vh] overflow-y-auto text-sm text-foreground">
+                {selectedAppointment ? (
+                  <>
+                    <div className="space-y-3">
+                      <div><span className="font-medium">Profissional:</span> {selectedAppointment.medico || '-'}</div>
+                      <div><span className="font-medium">Especialidade:</span> {selectedAppointment.especialidade || '-'}</div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div><span className="font-medium">Data:</span> {(function(d:any,h:any){ try{ const dt = new Date(String(d) + 'T' + String(h||'00:00')); return formatDatePt(dt) }catch(e){ return String(d||'-') } })(selectedAppointment.data, selectedAppointment.hora)}</div>
+                      <div><span className="font-medium">Hora:</span> {selectedAppointment.hora || '-'}</div>
+                      <div><span className="font-medium">Status:</span> {statusLabel(selectedAppointment.status) || '-'}</div>
+                    </div>
+                  </>
+                ) : (
+                  <div>Carregando...</div>
+                )}
+              </div>
+            </DialogHeader>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end sm:items-center mt-4">
+              <div className="flex w-full sm:w-auto justify-between sm:justify-end gap-2">
+                <Button variant="outline" onClick={() => setSelectedAppointment(null)} className="transition duration-200 hover:bg-primary/10 hover:text-primary min-w-[110px]">
+                  Fechar
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reagendar feature removed */}
+
       </div>
     )
   }
@@ -1262,7 +1375,7 @@ export default function PacientePage() {
       setReportsPage(1)
     }, [reports])
 
-    return (
+    return (<>
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <h2 className="text-2xl font-bold mb-6">Laudos</h2>
 
@@ -1334,10 +1447,13 @@ export default function PacientePage() {
           )}
         </div>
  
+        </section>
+
+        
         <Dialog open={!!selectedReport} onOpenChange={open => !open && setSelectedReport(null)}>
           <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
+            <DialogHeader>
+              <DialogTitle>
                   {selectedReport && (
                     (() => {
                       const looksLikeIdStr = (s: any) => {
@@ -1422,7 +1538,7 @@ export default function PacientePage() {
               </DialogFooter>
             </DialogContent>
         </Dialog>
-      </section>
+    </>
     )
   }
 

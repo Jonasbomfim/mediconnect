@@ -72,6 +72,11 @@ export function EventManager({
   availableTags = ["Important", "Urgent", "Work", "Personal", "Team", "Client"],
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents)
+  // controla dias expandidos no MonthView (key = YYYY-MM-DD)
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({})
+  const toggleExpandedDay = useCallback((dayKey: string) => {
+    setExpandedDays((prev) => ({ ...prev, [dayKey]: !prev[dayKey] }))
+  }, [])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<"month" | "week" | "day" | "list">(defaultView)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -702,6 +707,8 @@ export function EventManager({
           onDragEnd={() => handleDragEnd()}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          expandedDays={expandedDays}
+          toggleExpandedDay={toggleExpandedDay}
         />
       )}
 
@@ -1144,6 +1151,8 @@ function MonthView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  expandedDays,
+  toggleExpandedDay,
 }: {
   currentDate: Date
   events: Event[]
@@ -1152,6 +1161,8 @@ function MonthView({
   onDragEnd: () => void
   onDrop: (date: Date) => void
   getColorClasses: (color: string) => { bg: string; text: string }
+  expandedDays: Record<string, boolean>
+  toggleExpandedDay: (dayKey: string) => void
 }) {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
   const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
@@ -1176,6 +1187,9 @@ function MonthView({
       )
     })
   }
+
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
   return (
     <Card className="overflow-hidden">
@@ -1224,16 +1238,48 @@ function MonthView({
                     variant="compact"
                   />
                 ))}
-                  {dayEvents.length > 3 && (
+                {dayEvents.length > 3 && (
                   <div className="text-[10px] text-muted-foreground sm:text-xs">+{dayEvents.length - 3} mais</div>
                 )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </Card>
-  )
+                {(() => {
+                  const dayKey = day.toISOString().slice(0, 10)
+                  const isExpanded = !!expandedDays?.[dayKey]
+                  const eventsToShow = isExpanded ? dayEvents : dayEvents.slice(0, 3)
+                  return (
+                    <>
+                      {eventsToShow.map((event) => (
+                        <EventCard
+                          key={event.id}
+                          event={event}
+                          onEventClick={onEventClick}
+                          onDragStart={onDragStart}
+                          onDragEnd={onDragEnd}
+                          getColorClasses={getColorClasses}
+                          variant="compact"
+                        />
+                      ))}
+
+                      {dayEvents.length > 3 && (
+                        <div className="text-[10px] text-muted-foreground sm:text-xs">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpandedDay(dayKey)}
+                            className="text-primary underline hover:text-primary/80"
+                          >
+                            {isExpanded ? "Mostrar menos" : `+${dayEvents.length - 3} mais`}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+               </div>
+             </div>
+           )
+         })}
+       </div>
+     </Card>
+   )
 }
 
 // Week View Component

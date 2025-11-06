@@ -2,37 +2,19 @@
 
 // Imports mantidos
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import Link from "next/link";
 
 // --- Imports do EventManager (NOVO) - MANTIDOS ---
 import { EventManager, type Event } from "@/components/features/general/event-manager";
 import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 
 // Imports mantidos
-import { Sidebar } from "@/components/layout/sidebar";
-import { PagesHeader } from "@/components/features/dashboard/header";
 import { Button } from "@/components/ui/button";
-import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
-
-const ListaEspera = dynamic(
-  () => import("@/components/features/agendamento/ListaEspera"),
-  { ssr: false }
-);
 
 export default function AgendamentoPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [waitingList, setWaitingList] = useState(mockWaitingList);
-  const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
-
+  const [activeTab, setActiveTab] = useState<"calendar" | "3d">("calendar");
   const [threeDEvents, setThreeDEvents] = useState<CalendarEvent[]>([]);
 
   // --- NOVO ESTADO ---
@@ -42,15 +24,8 @@ export default function AgendamentoPage() {
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
-      if (event.key === "c") {
-        setActiveTab("calendar");
-      }
-      if (event.key === "f") {
-        setActiveTab("espera");
-      }
-      if (event.key === "3") {
-        setActiveTab("3d");
-      }
+      if (event.key === "c") setActiveTab("calendar");
+      if (event.key === "3") setActiveTab("3d");
     });
   }, []);
 
@@ -146,10 +121,6 @@ export default function AgendamentoPage() {
     }
   };
 
-  const handleNotifyPatient = (patientId: string) => {
-    console.log(`Notificando paciente ${patientId}`);
-  };
-
   const handleAddEvent = (event: CalendarEvent) => {
     setThreeDEvents((prev) => [...prev, event]);
   };
@@ -173,23 +144,6 @@ export default function AgendamentoPage() {
               </p>
             </div>
             <div className="flex space-x-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger className="bg-primary hover:bg-primary/90 px-5 py-1 text-primary-foreground rounded-sm">
-                  Opções &#187;
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <Link href={"/agenda"}>
-                    <DropdownMenuItem>Agendamento</DropdownMenuItem>
-                  </Link>
-                  <Link href={"/procedimento"}>
-                    <DropdownMenuItem>Procedimento</DropdownMenuItem>
-                  </Link>
-                  <Link href={"/financeiro"}>
-                    <DropdownMenuItem>Financeiro</DropdownMenuItem>
-                  </Link>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
               <div className="flex flex-row">
                 <Button
                   variant={"outline"}
@@ -201,18 +155,10 @@ export default function AgendamentoPage() {
 
                 <Button
                   variant={"outline"}
-                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-none"
+                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-r-[100px] rounded-l-none"
                   onClick={() => setActiveTab("3d")}
                 >
                   3D
-                </Button>
-
-                <Button
-                  variant={"outline"}
-                  className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-r-[100px] rounded-l-none"
-                  onClick={() => setActiveTab("espera")}
-                >
-                  Lista de espera
                 </Button>
               </div>
             </div>
@@ -244,16 +190,9 @@ export default function AgendamentoPage() {
                 onRemoveEvent={handleRemoveEvent}
               />
             </div>
-          ) : (
-            // A Lista de Espera foi MANTIDA
-            <ListaEspera
-              patients={waitingList}
-              onNotify={handleNotifyPatient}
-              onAddToWaitlist={() => {}}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+          ) : null}
+         </div>
+       </div>
+     </div>
+   );
+ }

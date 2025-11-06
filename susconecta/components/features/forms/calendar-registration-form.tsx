@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Calendar, Search, ChevronDown, X } from "lucide-react";
 
 interface FormData {
@@ -91,6 +92,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
   const [lockedDurationFromSlot, setLockedDurationFromSlot] = useState(false);
   const [exceptionDialogOpen, setExceptionDialogOpen] = useState(false);
   const [exceptionDialogMessage, setExceptionDialogMessage] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Helpers to convert between ISO (server) and input[type=datetime-local] value
   const isoToDatetimeLocal = (iso?: string | null) => {
@@ -554,6 +556,42 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Filter available slots: if date is today, only show future times
+  const filteredAvailableSlots = (() => {
+    try {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const selectedDateStr = (formData as any).appointmentDate || null;
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+      const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+
+      if (selectedDateStr === todayStr) {
+        // Today: filter out past times (add 30-minute buffer for admin to schedule)
+        return (availableSlots || []).filter((s) => {
+          try {
+            const slotDate = new Date(s.datetime);
+            const slotHours = slotDate.getHours();
+            const slotMinutes = slotDate.getMinutes();
+            const slotTimeInMinutes = slotHours * 60 + slotMinutes;
+            // Keep slots that are at least 30 minutes in the future
+            return slotTimeInMinutes >= currentTimeInMinutes + 30;
+          } catch (e) {
+            return true;
+          }
+        });
+      } else if (selectedDateStr && selectedDateStr > todayStr) {
+        // Future date: show all slots
+        return availableSlots || [];
+      } else {
+        // Past date: no slots
+        return [];
+      }
+    } catch (e) {
+      return availableSlots || [];
+    }
+  })();
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
 
@@ -683,6 +721,9 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     }
   } catch (e) {}
 
+
+  // ref to the appointment date input
+  const appointmentDateRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <form className="space-y-8">
@@ -863,10 +904,50 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
             </div>
                   </div>
         <div className="space-y-2">
-          <Label className="text-[13px]">Data *</Label>
+          <div className="flex items-center gap-2">
+            <Label className="text-[13px]">Data *</Label>
+            <button
+              type="button"
+              aria-label="Abrir seletor de data"
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <Calendar className="h-4 w-4" />
+            </button>
+          </div>
           <div className="relative">
-            <Calendar className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input name="appointmentDate" type="date" className="h-11 w-full rounded-md pl-8 pr-3 text-[13px] transition-colors hover:bg-muted/30" value={formData.appointmentDate || ''} onChange={handleChange} />
+            <Input 
+              ref={appointmentDateRef as any} 
+              name="appointmentDate" 
+              type="text"
+              placeholder="DD/MM/AAAA"
+              className="h-11 w-full rounded-md pl-3 pr-3 text-[13px] transition-colors hover:bg-muted/30" 
+              value={formData.appointmentDate ? (() => {
+                try {
+                  const [y, m, d] = String(formData.appointmentDate).split('-');
+                  return `${d}/${m}/${y}`;
+                } catch (e) {
+                  return '';
+                }
+              })() : ''} 
+              readOnly
+            />
+            {showDatePicker && (
+              <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-md shadow-lg p-3">
+                <CalendarComponent
+                  mode="single"
+                  selected={formData.appointmentDate ? new Date(formData.appointmentDate + 'T00:00:00') : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const dateStr = date.toISOString().split('T')[0];
+                      onFormChange({ ...formData, appointmentDate: dateStr });
+                      setShowDatePicker(false);
+                    }
+                  }}
+                  disabled={(date) => date < new Date(new Date().toISOString().split('T')[0] + 'T00:00:00')}
+                />
+              </div>
+            )}
           </div>
         </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -1011,8 +1092,8 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       {loadingSlots ? (
                         <div className="col-span-3">Carregando horários...</div>
-                      ) : availableSlots && availableSlots.length ? (
-                        availableSlots.map((s) => {
+                      ) : filteredAvailableSlots && filteredAvailableSlots.length ? (
+                        filteredAvailableSlots.map((s) => {
                           const dt = new Date(s.datetime);
                           const hh = String(dt.getHours()).padStart(2, '0');
                           const mm = String(dt.getMinutes()).padStart(2, '0');

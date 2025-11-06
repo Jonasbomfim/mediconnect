@@ -121,6 +121,40 @@ export default function AgendamentoPage() {
     }
   };
 
+  // Mapeia cor do calendário -> status da API
+  const statusFromColor = (color?: string) => {
+    switch ((color || "").toLowerCase()) {
+      case "green": return "confirmed";
+      case "orange": return "pending";
+      case "red": return "canceled";
+      default: return "requested";
+    }
+  };
+
+  // Envia atualização para a API e atualiza UI
+  const handleEventUpdate = async (id: string, partial: Partial<Event>) => {
+    try {
+      const payload: any = {};
+      if (partial.startTime) payload.scheduled_at = partial.startTime.toISOString();
+      if (partial.startTime && partial.endTime) {
+        const minutes = Math.max(1, Math.round((partial.endTime.getTime() - partial.startTime.getTime()) / 60000));
+        payload.duration_minutes = minutes;
+      }
+      if (partial.color) payload.status = statusFromColor(partial.color);
+      if (typeof partial.description === "string") payload.notes = partial.description;
+
+      if (Object.keys(payload).length) {
+        const api = await import('@/lib/api');
+        await api.atualizarAgendamento(id, payload);
+      }
+
+      // Otimista: reflete mudanças locais
+      setManagerEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...partial } : e)));
+    } catch (e) {
+      console.warn("[Calendário] Falha ao atualizar agendamento na API:", e);
+    }
+  };
+
   return (
     <div className="flex flex-row bg-background">
       <div className="flex w-full flex-col">
@@ -164,7 +198,11 @@ export default function AgendamentoPage() {
                 </div>
               ) : (
                 <div className="w-full min-h-[70vh]">
-                  <EventManager events={managerEvents} className="compact-event-manager" />
+                  <EventManager
+                    events={managerEvents}
+                    className="compact-event-manager"
+                    onEventUpdate={handleEventUpdate}
+                  />
                 </div>
               )}
             </div>

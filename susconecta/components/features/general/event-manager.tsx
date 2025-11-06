@@ -16,16 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, Filter, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 export interface Event {
   id: string
@@ -60,20 +52,16 @@ const defaultColors = [
   { name: "Red", value: "red", bg: "bg-red-500", text: "text-red-700" },
 ]
 
-// Helper para padrão pt-BR (data e hora)
-const formatDateTimeBR = (date?: Date) =>
-  date ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date) : ""
-
 export function EventManager({
   events: initialEvents = [],
   onEventCreate,
   onEventUpdate,
   onEventDelete,
-  categories: _categories = ["Meeting", "Task", "Reminder", "Personal"],
+  categories = ["Meeting", "Task", "Reminder", "Personal"],
   colors = defaultColors,
   defaultView = "month",
   className,
-  availableTags: _availableTags = ["Important", "Urgent", "Work", "Personal", "Team", "Client"],
+  availableTags = ["Important", "Urgent", "Work", "Personal", "Team", "Client"],
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -86,13 +74,11 @@ export function EventManager({
     title: "",
     description: "",
     color: colors[0].value,
-    category: _categories[0],
+    category: categories[0],
     tags: [],
   })
+
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedColors, setSelectedColors] = useState<string[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
 
   // Dialog: lista completa de pacientes do dia
   const [dayDialogEvents, setDayDialogEvents] = useState<Event[] | null>(null)
@@ -106,42 +92,22 @@ export function EventManager({
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const matchesSearch =
           event.title.toLowerCase().includes(query) ||
-          event.description?.toLowerCase().includes(query)
-
+          event.description?.toLowerCase().includes(query) ||
+          event.category?.toLowerCase().includes(query) ||
+          event.tags?.some((tag) => tag.toLowerCase().includes(query))
         if (!matchesSearch) return false
       }
-
-      // Color filter
-      if (selectedColors.length > 0 && !selectedColors.includes(event.color)) {
-        return false
-      }
-
-      // Tag filter
-      if (selectedTags.length > 0) {
-        const hasMatchingTag = event.tags?.some((tag) => selectedTags.includes(tag))
-        if (!hasMatchingTag) return false
-      }
-
-      // Category filter
-      if (selectedCategories.length > 0 && event.category && !selectedCategories.includes(event.category)) {
-        return false
-      }
-
       return true
     })
-  }, [events, searchQuery, selectedColors, selectedTags, selectedCategories])
+  }, [events, searchQuery])
 
-  const hasActiveFilters = selectedColors.length > 0 || selectedTags.length > 0 || selectedCategories.length > 0
+  const hasActiveFilters = false
 
   const clearFilters = () => {
-    setSelectedColors([])
-    setSelectedTags([])
-    setSelectedCategories([])
     setSearchQuery("")
   }
 
@@ -157,6 +123,7 @@ export function EventManager({
       color: newEvent.color || colors[0].value,
       category: newEvent.category,
       attendees: newEvent.attendees,
+      tags: newEvent.tags || [],
     }
 
     setEvents((prev) => [...prev, event])
@@ -167,10 +134,10 @@ export function EventManager({
       title: "",
       description: "",
       color: colors[0].value,
-      category: _categories[0],
+      category: categories[0],
       tags: [],
     })
-  }, [newEvent, colors, _categories, onEventCreate])
+  }, [newEvent, colors, categories, onEventCreate])
 
   const handleUpdateEvent = useCallback(() => {
     if (!selectedEvent) return
@@ -412,95 +379,9 @@ export function EventManager({
             ) : null}
           </div>
         </div>
-
-        {/* Filtro de Cores (único), logo abaixo do input */}
-        <div className="flex items-center gap-2 pt-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <Filter className="h-4 w-4" />
-                Cores
-                {selectedColors.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1">
-                    {selectedColors.length}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuLabel>Filtrar por Cor</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {colors.map((color) => (
-                <DropdownMenuCheckboxItem
-                  key={color.value}
-                  checked={selectedColors.includes(color.value)}
-                  onCheckedChange={(checked) => {
-                    setSelectedColors((prev) =>
-                      checked ? [...prev, color.value] : prev.filter((c) => c !== color.value),
-                    )
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={cn("h-3 w-3 rounded", color.bg)} />
-                    {color.name}
-                  </div>
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
-              <X className="h-4 w-4" />
-              Limpar
-            </Button>
-          )}
-        </div>
       </div>
 
-      {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filtros ativos:</span>
-          {selectedColors.map((colorValue) => {
-            const color = getColorClasses(colorValue)
-            return (
-              <Badge key={colorValue} variant="secondary" className="gap-1">
-                <div className={cn("h-2 w-2 rounded-full", color.bg)} />
-                {color.name}
-                <button
-                  onClick={() => setSelectedColors((prev) => prev.filter((c) => c !== colorValue))}
-                  className="ml-1 hover:text-foreground"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            )
-          })}
-          {selectedTags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="gap-1">
-              {tag}
-              <button
-                onClick={() => setSelectedTags((prev) => prev.filter((t) => t !== tag))}
-                className="ml-1 hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-          {selectedCategories.map((category) => (
-            <Badge key={category} variant="secondary" className="gap-1">
-              {category}
-              <button
-                onClick={() => setSelectedCategories((prev) => prev.filter((c) => c !== category))}
-                className="ml-1 hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {/* Calendar Views - Month */}
+      {/* Calendar Views - Pass filteredEvents instead of events */}
       {view === "month" && (
         <MonthView
           currentDate={currentDate}
@@ -526,18 +407,43 @@ export function EventManager({
           </DialogHeader>
           <div className="space-y-3 py-2">
             {dayDialogEvents?.map((ev) => (
-              <div key={ev.id} className="flex items-start gap-3 p-2 border-b last:border-b-0">
+              <div
+                key={ev.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setSelectedEvent(ev)
+                  setIsDialogOpen(true)
+                  setIsDayDialogOpen(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setSelectedEvent(ev)
+                    setIsDialogOpen(true)
+                    setIsDayDialogOpen(false)
+                  }
+                }}
+                className="flex items-start gap-3 p-2 border-b last:border-b-0 rounded-md cursor-pointer hover:bg-accent/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
                 <div className={cn("mt-1 h-3 w-3 rounded-full", getColorClasses(ev.color).bg)} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold truncate">{ev.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {formatDateTimeBR(ev.startTime)} - {formatDateTimeBR(ev.endTime)}
+                      {ev.startTime.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                      {" - "}
+                      {ev.endTime.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
                     </div>
                   </div>
                   {ev.description && (
                     <div className="text-xs text-muted-foreground line-clamp-2">{ev.description}</div>
                   )}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {ev.category && <Badge variant="secondary" className="text-[11px] h-5">{ev.category}</Badge>}
+                    {ev.tags?.map((t) => (
+                      <Badge key={t} variant="outline" className="text-[11px] h-5">{t}</Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}
@@ -548,9 +454,50 @@ export function EventManager({
         </DialogContent>
       </Dialog>
 
+      {view === "week" && (
+        <WeekView
+          currentDate={currentDate}
+          events={filteredEvents}
+          onEventClick={(event) => {
+            setSelectedEvent(event)
+            setIsDialogOpen(true)
+          }}
+          onDragStart={(event) => handleDragStart(event)}
+          onDragEnd={() => handleDragEnd()}
+          onDrop={handleDrop}
+          getColorClasses={getColorClasses}
+        />
+      )}
+
+      {view === "day" && (
+        <DayView
+          currentDate={currentDate}
+          events={filteredEvents}
+          onEventClick={(event) => {
+            setSelectedEvent(event)
+            setIsDialogOpen(true)
+          }}
+          onDragStart={(event) => handleDragStart(event)}
+          onDragEnd={() => handleDragEnd()}
+          onDrop={handleDrop}
+          getColorClasses={getColorClasses}
+        />
+      )}
+
+      {view === "list" && (
+        <ListView
+          events={filteredEvents}
+          onEventClick={(event) => {
+            setSelectedEvent(event)
+            setIsDialogOpen(true)
+          }}
+          getColorClasses={getColorClasses}
+        />
+      )}
+
       {/* Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Evento"}</DialogTitle>
             <DialogDescription>
@@ -619,10 +566,6 @@ export function EventManager({
                       : setSelectedEvent((prev) => (prev ? { ...prev, startTime: date } : null))
                   }}
                 />
-                {/* Exibe também em pt-BR para usuários com SO/teclado em inglês */}
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTimeBR(isCreating ? newEvent.startTime : selectedEvent?.startTime)}
-                </p>
               </div>
 
               <div className="space-y-2">
@@ -650,38 +593,12 @@ export function EventManager({
                       : setSelectedEvent((prev) => (prev ? { ...prev, endTime: date } : null))
                   }}
                 />
-                {/* Exibe também em pt-BR para usuários com SO/teclado em inglês */}
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTimeBR(isCreating ? newEvent.endTime : selectedEvent?.endTime)}
-                </p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="color">Cor</Label>
-              <Select
-                value={isCreating ? newEvent.color : selectedEvent?.color}
-                onValueChange={(value) =>
-                  isCreating
-                    ? setNewEvent((prev) => ({ ...prev, color: value }))
-                    : setSelectedEvent((prev) => (prev ? { ...prev, color: value } : null))
-                }
-              >
-                <SelectTrigger id="color">
-                  <SelectValue placeholder="Selecione a cor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {colors.map((color) => (
-                    <SelectItem key={color.value} value={color.value}>
-                      <div className="flex items-center gap-2">
-                        <div className={cn("h-4 w-4 rounded", color.bg)} />
-                        {color.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Campos de Categoria/Cor removidos */}
+
+            {/* Campo de Tags removido */}
           </div>
 
           <DialogFooter>
@@ -729,8 +646,12 @@ function EventCard({
   const [isHovered, setIsHovered] = useState(false)
   const colorClasses = getColorClasses(event.color)
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
 
   const getDuration = () => {
     const diff = event.endTime.getTime() - event.startTime.getTime()
@@ -779,6 +700,18 @@ function EventCard({
                   </span>
                   <span className="text-[10px]">({getDuration()})</span>
                 </div>
+                <div className="flex flex-wrap gap-1">
+                  {event.category && (
+                    <Badge variant="secondary" className="text-[10px] h-5">
+                      {event.category}
+                    </Badge>
+                  )}
+                  {event.tags?.map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-[10px] h-5">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </Card>
           </div>
@@ -809,6 +742,20 @@ function EventCard({
           <Clock className="h-3 w-3" />
           {formatTime(event.startTime)} - {formatTime(event.endTime)}
         </div>
+        {isHovered && (
+          <div className="mt-2 flex flex-wrap gap-1 animate-in fade-in slide-in-from-bottom-1 duration-200">
+            {event.category && (
+              <Badge variant="secondary" className="text-xs">
+                {event.category}
+              </Badge>
+            )}
+            {event.tags?.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -849,6 +796,18 @@ function EventCard({
                     {formatTime(event.startTime)} - {formatTime(event.endTime)}
                   </span>
                   <span className="text-[10px]">({getDuration()})</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {event.category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {event.category}
+                    </Badge>
+                  )}
+                  {event.tags?.map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1165,11 +1124,13 @@ function ListView({
         month: "long",
         day: "numeric",
       })
-      if (!acc[dateKey]) acc[dateKey] = []
+      if (!acc[dateKey]) {
+        acc[dateKey] = []
+      }
       acc[dateKey].push(event)
       return acc
     },
-    {} as Record<string, Event[]>
+    {} as Record<string, Event[]>,
   )
 
   return (
@@ -1201,12 +1162,28 @@ function ListView({
                               </p>
                             )}
                           </div>
+                          <div className="flex flex-wrap gap-1">
+                            {event.category && (
+                              <Badge variant="secondary" className="text-xs">
+                                {event.category}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground sm:gap-4 sm:text-xs">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {event.startTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - {event.endTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                           </div>
+                          {event.tags && event.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {event.tags.map((tag) => (
+                                <Badge key={tag} variant="outline" className="text-[10px] h-4 sm:text-xs sm:h-5">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

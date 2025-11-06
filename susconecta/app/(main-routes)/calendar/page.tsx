@@ -144,6 +144,17 @@ export default function AgendamentoPage() {
     setThreeDEvents((prev) => prev.filter((e) => e.id !== id));
   };
 
+  // Tenta clicar no botão de filtro correspondente (procura por texto do botão)
+  const clickFilter = (label: string) => {
+    try {
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
+      const match = buttons.find((b) => b.textContent?.trim().toLowerCase().includes(label.toLowerCase()));
+      if (match) match.click();
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="flex flex-row bg-background">
       <div className="flex w-full flex-col">
@@ -158,9 +169,17 @@ export default function AgendamentoPage() {
                 Navegue através dos atalhos: Calendário (C), Fila de espera (F) ou 3D (3).
               </p>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 items-center">
+              {/* Botões rápidos de filtros (acionam os triggers se existirem no DOM) */}
+              <div className="hidden sm:flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => clickFilter("Cores")}>Cores</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => clickFilter("Tags")}>Tags</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => clickFilter("Categorias")}>Categorias</Button>
+              </div>
+
               <div className="flex flex-row">
                 <Button
+                  type="button"
                   variant={"outline"}
                   className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-l-[100px] rounded-r-none"
                   onClick={() => setActiveTab("calendar")}
@@ -169,6 +188,7 @@ export default function AgendamentoPage() {
                 </Button>
 
                 <Button
+                  type="button"
                   variant={"outline"}
                   className="bg-muted hover:bg-primary! hover:text-white! transition-colors rounded-r-[100px] rounded-l-none"
                   onClick={() => setActiveTab("3d")}
@@ -177,7 +197,7 @@ export default function AgendamentoPage() {
                 </Button>
               </div>
             </div>
-          </div>
+           </div>
 
           {/* --- AQUI ESTÁ A SUBSTITUIÇÃO --- */}
           {activeTab === "calendar" ? (

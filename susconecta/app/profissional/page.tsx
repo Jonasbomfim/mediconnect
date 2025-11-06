@@ -690,13 +690,6 @@ const ProfissionalPage = () => {
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
-          <Button 
-            onClick={() => setShowPatientForm(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Adicionar Paciente
-          </Button>
         </div>
         
         {/* Navegação de Data */}

@@ -520,28 +520,30 @@ export default function RelatoriosPage() {
 
         {/* Performance por médico */}
         <div className="bg-card border border-border rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0 mb-4">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><TrendingUp className="w-5 h-5" /> Performance por Médico</h2>
-            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Performance por Médico", "Resumo da performance por médico.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors w-full md:w-auto" onClick={() => exportPDF("Performance por Médico", "Resumo da performance por médico.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
-          <table className="w-full text-sm mt-4">
-            <thead>
-              <tr className="text-muted-foreground">
-                <th className="text-left font-medium">Médico</th>
-                <th className="text-left font-medium">Consultas</th>
-                <th className="text-left font-medium">Absenteísmo (%)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(loading ? performancePorMedico : medicosPerformance).map((m) => (
-                <tr key={m.nome}>
-                  <td className="py-1">{m.nome}</td>
-                  <td className="py-1">{m.consultas}</td>
-                  <td className="py-1">{m.absenteismo}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border">
+                  <th className="text-left font-medium py-3 px-2 md:px-0">Médico</th>
+                  <th className="text-center font-medium py-3 px-2 md:px-0">Consultas</th>
+                  <th className="text-center font-medium py-3 px-2 md:px-0">Absenteísmo (%)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(loading ? performancePorMedico : medicosPerformance).map((m) => (
+                  <tr key={m.nome} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="py-3 px-2 md:px-0">{m.nome}</td>
+                    <td className="py-3 px-2 md:px-0 text-center font-medium">{m.consultas}</td>
+                    <td className="py-3 px-2 md:px-0 text-center text-blue-500 font-medium">{m.absenteismo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

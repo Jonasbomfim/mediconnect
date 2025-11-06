@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Plus, Calendar, Clock, Grid3x3, List, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Clock, Grid3x3, List, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface Event {
@@ -343,17 +343,6 @@ export function EventManager({
               <span className="ml-1">Lista</span>
             </Button>
           </div>
-
-          <Button
-            onClick={() => {
-              setIsCreating(true)
-              setIsDialogOpen(true)
-            }}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Evento
-          </Button>
         </div>
       </div>
 
@@ -515,11 +504,11 @@ export function EventManager({
 
       {/* Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md max-h[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Evento"}</DialogTitle>
+            <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Agendamento"}</DialogTitle>
             <DialogDescription>
-              {isCreating ? "Adicione um novo evento ao seu calendário" : "Visualizar e editar detalhes do evento"}
+              {isCreating ? "Adicione um novo evento ao seu calendário" : "Visualizar e editar detalhes do agendamento"}
             </DialogDescription>
           </DialogHeader>
 
@@ -528,7 +517,7 @@ export function EventManager({
               <Label htmlFor="title">Título</Label>
               <Input
                 id="title"
-                value={isCreating ? newEvent.title : selectedEvent?.title}
+                value={isCreating ? (newEvent.title ?? "") : (selectedEvent?.title ?? "")}
                 onChange={(e) =>
                   isCreating
                     ? setNewEvent((prev) => ({ ...prev, title: e.target.value }))
@@ -542,7 +531,7 @@ export function EventManager({
               <Label htmlFor="description">Descrição</Label>
               <Textarea
                 id="description"
-                value={isCreating ? newEvent.description : selectedEvent?.description}
+                value={isCreating ? (newEvent.description ?? "") : (selectedEvent?.description ?? "")}
                 onChange={(e) =>
                   isCreating
                     ? setNewEvent((prev) => ({
@@ -972,7 +961,7 @@ function WeekView({
   getColorClasses: (color: string) => { bg: string; text: string }
 }) {
   const startOfWeek = new Date(currentDate)
-  startOfWeek.setDate(currentDate.getDay())
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek)
@@ -980,7 +969,30 @@ function WeekView({
     return day
   })
 
-  const hours = Array.from({ length: 24 }, (_, i) => i)
+  // NOVO: limita intervalo de horas ao 1º e último evento da semana
+  const [startHour, endHour] = React.useMemo(() => {
+    let minH = Infinity
+    let maxH = -Infinity
+    for (const ev of events) {
+      const d = ev.startTime
+      const sameWeekDay = weekDays.some(wd =>
+        d.getFullYear() === wd.getFullYear() &&
+        d.getMonth() === wd.getMonth() &&
+        d.getDate() === wd.getDate()
+      )
+      if (!sameWeekDay) continue
+      minH = Math.min(minH, d.getHours())
+      maxH = Math.max(maxH, ev.endTime.getHours())
+    }
+    if (!isFinite(minH) || !isFinite(maxH)) return [0, 23] as const
+    if (maxH < minH) maxH = minH
+    return [minH, maxH] as const
+  }, [events, weekDays])
+
+  const hours = React.useMemo(
+    () => Array.from({ length: (endHour - startHour + 1) }, (_, i) => startHour + i),
+    [startHour, endHour]
+  )
 
   const getEventsForDayAndHour = (date: Date, hour: number) => {
     return events.filter((event) => {
@@ -1071,7 +1083,26 @@ function DayView({
   onDrop: (date: Date, hour: number) => void
   getColorClasses: (color: string) => { bg: string; text: string }
 }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i)
+  // NOVO: calcula intervalo de horas do 1º ao último evento do dia
+  const [startHour, endHour] = React.useMemo(() => {
+    const sameDayEvents = events.filter((ev) => {
+      const d = ev.startTime
+      return (
+        d.getDate() === currentDate.getDate() &&
+        d.getMonth() === currentDate.getMonth() &&
+        d.getFullYear() === currentDate.getFullYear()
+      )
+    })
+    if (!sameDayEvents.length) return [0, 23] as const
+    const minH = Math.min(...sameDayEvents.map((e) => e.startTime.getHours()))
+    const maxH = Math.max(...sameDayEvents.map((e) => e.endTime.getHours()))
+    return [minH, Math.max(maxH, minH)] as const
+  }, [events, currentDate])
+
+  const hours = React.useMemo(
+    () => Array.from({ length: (endHour - startHour + 1) }, (_, i) => startHour + i),
+    [startHour, endHour]
+  )
 
   const getEventsForHour = (hour: number) => {
     return events.filter((event) => {

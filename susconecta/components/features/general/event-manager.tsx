@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -51,6 +51,10 @@ const defaultColors = [
   { name: "Pink", value: "pink", bg: "bg-pink-500", text: "text-pink-700" },
   { name: "Red", value: "red", bg: "bg-red-500", text: "text-red-700" },
 ]
+
+// Locale/timezone padrão BR
+const LOCALE = "pt-BR"
+const TIMEZONE = "America/Sao_Paulo"
 
 export function EventManager({
   events: initialEvents = [],
@@ -215,6 +219,17 @@ export function EventManager({
     [colors],
   )
 
+  // Força lang/cookie pt-BR no documento (reforço local)
+  useEffect(() => {
+    try {
+      document.documentElement.lang = "pt-BR"
+      document.documentElement.setAttribute("xml:lang", "pt-BR")
+      document.documentElement.setAttribute("data-lang", "pt-BR")
+      const oneYear = 60 * 60 * 24 * 365
+      document.cookie = `NEXT_LOCALE=pt-BR; Path=/; Max-Age=${oneYear}; SameSite=Lax`
+    } catch {}
+  }, [])
+
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Header */}
@@ -222,21 +237,24 @@ export function EventManager({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <h2 className="text-xl font-semibold sm:text-2xl">
             {view === "month" &&
-              currentDate.toLocaleDateString("pt-BR", {
+              currentDate.toLocaleDateString(LOCALE, {
                 month: "long",
                 year: "numeric",
+                timeZone: TIMEZONE,
               })}
             {view === "week" &&
-              `Semana de ${currentDate.toLocaleDateString("pt-BR", {
+              `Semana de ${currentDate.toLocaleDateString(LOCALE, {
                 month: "short",
                 day: "numeric",
+                timeZone: TIMEZONE,
               })}`}
             {view === "day" &&
-              currentDate.toLocaleDateString("pt-BR", {
+              currentDate.toLocaleDateString(LOCALE, {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
                 year: "numeric",
+                timeZone: TIMEZONE,
               })}
             {view === "list" && "Todos os eventos"}
           </h2>
@@ -430,9 +448,9 @@ export function EventManager({
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold truncate">{ev.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {ev.startTime.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                      {ev.startTime.toLocaleTimeString(LOCALE,{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:TIMEZONE})}
                       {" - "}
-                      {ev.endTime.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                      {ev.endTime.toLocaleTimeString(LOCALE,{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:TIMEZONE})}
                     </div>
                   </div>
                   {ev.description && (
@@ -647,9 +665,11 @@ function EventCard({
   const colorClasses = getColorClasses(event.color)
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString(LOCALE, {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
+      timeZone: TIMEZONE,
     })
   }
 
@@ -984,10 +1004,10 @@ function WeekView({
             key={day.toISOString()}
             className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm"
           >
-            <div className="hidden sm:block">{day.toLocaleDateString("pt-BR", { weekday: "short" })}</div>
-            <div className="sm:hidden">{day.toLocaleDateString("pt-BR", { weekday: "narrow" })}</div>
+            <div className="hidden sm:block">{day.toLocaleDateString(LOCALE, { weekday: "short", timeZone: TIMEZONE })}</div>
+            <div className="sm:hidden">{day.toLocaleDateString(LOCALE, { weekday: "narrow", timeZone: TIMEZONE })}</div>
             <div className="text-[10px] text-muted-foreground sm:text-xs">
-              {day.toLocaleDateString("pt-BR", { month: "short", day: "numeric" })}
+              {day.toLocaleDateString(LOCALE, { month: "short", day: "numeric", timeZone: TIMEZONE })}
             </div>
           </div>
         ))}
@@ -1118,15 +1138,14 @@ function ListView({
 
   const groupedEvents = sortedEvents.reduce(
     (acc, event) => {
-      const dateKey = event.startTime.toLocaleDateString("pt-BR", {
+      const dateKey = event.startTime.toLocaleDateString(LOCALE, {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
+        timeZone: TIMEZONE,
       })
-      if (!acc[dateKey]) {
-        acc[dateKey] = []
-      }
+      if (!acc[dateKey]) acc[dateKey] = []
       acc[dateKey].push(event)
       return acc
     },
@@ -1143,11 +1162,7 @@ function ListView({
               {dateEvents.map((event) => {
                 const colorClasses = getColorClasses(event.color)
                 return (
-                  <div
-                    key={event.id}
-                    onClick={() => onEventClick(event)}
-                    className="group cursor-pointer rounded-lg border bg-card p-3 transition-all hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:p-4"
-                  >
+                  <div key={event.id} onClick={() => onEventClick(event)} className="group cursor-pointer rounded-lg border bg-card p-3 transition-all hover:shadow-md hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-2 duration-300 sm:p-4">
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div className={cn("mt-1 h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3", colorClasses.bg)} />
                       <div className="flex-1 min-w-0">
@@ -1173,7 +1188,9 @@ function ListView({
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground sm:gap-4 sm:text-xs">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {event.startTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - {event.endTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            {event.startTime.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })}
+                            {" - "}
+                            {event.endTime.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })}
                           </div>
                           {event.tags && event.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">

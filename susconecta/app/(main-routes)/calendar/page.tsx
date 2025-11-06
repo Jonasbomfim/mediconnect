@@ -76,18 +76,23 @@ export default function AgendamentoPage() {
           
           const patient = (patientsById[String(obj.patient_id)]?.full_name) || obj.patient_name || obj.patient_full_name || obj.patient || 'Paciente';
           const title = `${patient}: ${obj.appointment_type ?? obj.type ?? ''}`.trim();
-          
-          let color = "gray"; // Cor padrão
-          if (obj.status === 'confirmed') color = 'green';
-          if (obj.status === 'pending') color = 'orange';
+
+          // Mapeamento de cores padronizado:
+          // azul = solicitado; verde = confirmado; laranja = pendente; vermelho = cancelado; azul como fallback
+          const status = String(obj.status || "").toLowerCase();
+          let color: Event["color"] = "blue";
+          if (status === "confirmed" || status === "confirmado") color = "green";
+          else if (status === "pending" || status === "pendente") color = "orange";
+          else if (status === "canceled" || status === "cancelado" || status === "cancelled") color = "red";
+          else if (status === "requested" || status === "solicitado") color = "blue";
 
           return {
-            id: obj.id || uuidv4(), // Usa ID da API ou gera um
-            title: title,
-            description: `Agendamento para ${patient}. Status: ${obj.status || 'N/A'}.`, 
+            id: obj.id || uuidv4(),
+            title,
+            description: `Agendamento para ${patient}. Status: ${obj.status || 'N/A'}.`,
             startTime: start,
             endTime: end,
-            color: color,
+            color,
           };
         });
         setManagerEvents(newManagerEvents);
@@ -144,17 +149,6 @@ export default function AgendamentoPage() {
     setThreeDEvents((prev) => prev.filter((e) => e.id !== id));
   };
 
-  // Tenta clicar no botão de filtro correspondente (procura por texto do botão)
-  const clickFilter = (label: string) => {
-    try {
-      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
-      const match = buttons.find((b) => b.textContent?.trim().toLowerCase().includes(label.toLowerCase()));
-      if (match) match.click();
-    } catch {
-      // ignore
-    }
-  };
-
   return (
     <div className="flex flex-row bg-background">
       <div className="flex w-full flex-col">
@@ -170,13 +164,6 @@ export default function AgendamentoPage() {
               </p>
             </div>
             <div className="flex space-x-2 items-center">
-              {/* Botões rápidos de filtros (acionam os triggers se existirem no DOM) */}
-              <div className="hidden sm:flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => clickFilter("Cores")}>Cores</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => clickFilter("Tags")}>Tags</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => clickFilter("Categorias")}>Categorias</Button>
-              </div>
-
               <div className="flex flex-row">
                 <Button
                   type="button"
@@ -197,7 +184,21 @@ export default function AgendamentoPage() {
                 </Button>
               </div>
             </div>
-           </div>
+          </div>
+
+          {/* Legenda de status (estilo Google Calendar) */}
+          <div className="rounded-md border bg-card/60 p-2 sm:p-3 -mt-4">
+            <div className="flex flex-wrap items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="h-3 w-3 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
+                <span className="text-foreground">Solicitado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="h-3 w-3 rounded-full bg-green-500 ring-2 ring-green-500/30" />
+                <span className="text-foreground">Confirmado</span>
+              </div>
+            </div>
+          </div>
 
           {/* --- AQUI ESTÁ A SUBSTITUIÇÃO --- */}
           {activeTab === "calendar" ? (
@@ -226,8 +227,8 @@ export default function AgendamentoPage() {
               />
             </div>
           ) : null}
-         </div>
-       </div>
-     </div>
-   );
- }
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -182,7 +182,7 @@ const ProfissionalPage = () => {
             const q = `doctor_id=eq.${encodeURIComponent(String(resolvedDoctorId))}&select=patient_id&limit=200`;
             const appts = await listarAgendamentos(q).catch(() => []);
             for (const a of (appts || [])) {
-              const pid = a.patient_id ?? a.patient ?? a.patient_id_raw ?? null;
+              const pid = a.patient_id ?? (a as any).patient ?? (a as any).patient_id_raw ?? null;
               if (pid) patientIdSet.add(String(pid));
             }
           } catch (e) {

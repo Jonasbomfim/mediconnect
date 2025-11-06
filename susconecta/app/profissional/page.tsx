@@ -2941,8 +2941,8 @@ const ProfissionalPage = () => {
     );
       case 'laudos':
         return renderLaudosSection();
-      // case 'comunicacao':
-      //   return renderComunicacaoSection();
+      case 'comunicacao':
+        return renderComunicacaoSection();
       case 'perfil':
         return renderPerfilSection();
       default:
@@ -3013,15 +3013,14 @@ const ProfissionalPage = () => {
               <FileText className="mr-2 h-4 w-4" />
               Laudos
             </Button>
-            {/* Comunicação removida - campos embaixo do calendário */}
-            {/* <Button 
+            <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              Comunicação
-            </Button> */}
+              SMS
+            </Button>
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"

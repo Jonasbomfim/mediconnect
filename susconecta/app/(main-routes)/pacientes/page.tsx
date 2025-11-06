@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -54,6 +53,11 @@ export default function PacientesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Ordenação e filtros adicionais
+  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "recent" | "oldest">("name_asc");
+  const [stateFilter, setStateFilter] = useState<string>("");
+  const [cityFilter, setCityFilter] = useState<string>("");
+
   async function loadAll() {
     try {
       setLoading(true);
@@ -77,27 +81,72 @@ export default function PacientesPage() {
     loadAll();
   }, []);
 
+  // Opções dinâmicas para Estado e Cidade
+  const stateOptions = useMemo(
+    () =>
+      Array.from(
+        new Set((patients || []).map((p) => (p.state || "").trim()).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })),
+    [patients],
+  );
+
+  const cityOptions = useMemo(() => {
+    const base = (patients || []).filter((p) => !stateFilter || String(p.state) === stateFilter);
+    return Array.from(
+      new Set(base.map((p) => (p.city || "").trim()).filter(Boolean)),
+    ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  }, [patients, stateFilter]);
+
+  // Índice para ordenar por "tempo" (ordem de carregamento)
+  const indexById = useMemo(() => {
+    const map = new Map<string, number>();
+    (patients || []).forEach((p, i) => map.set(String(p.id), i));
+    return map;
+  }, [patients]);
+
+  // Substitui o filtered anterior: aplica busca + filtros + ordenação
   const filtered = useMemo(() => {
-    if (!search.trim()) return patients;
-    const q = search.toLowerCase().trim();
-    const qDigits = q.replace(/\D/g, "");
-    
-    return patients.filter((p) => {
-      // Busca por nome
-      const byName = (p.full_name || "").toLowerCase().includes(q);
-      
-      // Busca por CPF (remove formatação)
-      const byCPF = qDigits.length >= 3 && (p.cpf || "").replace(/\D/g, "").includes(qDigits);
-      
-      // Busca por ID (UUID completo ou parcial)
-      const byId = (p.id || "").toLowerCase().includes(q);
-      
-      // Busca por email
-      const byEmail = (p.email || "").toLowerCase().includes(q);
-      
-      return byName || byCPF || byId || byEmail;
+    let base = patients;
+
+    // Busca
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      const qDigits = q.replace(/\D/g, "");
+      base = patients.filter((p) => {
+        const byName = (p.full_name || "").toLowerCase().includes(q);
+        const byCPF = qDigits.length >= 3 && (p.cpf || "").replace(/\D/g, "").includes(qDigits);
+        const byId = (p.id || "").toLowerCase().includes(q);
+        const byEmail = (p.email || "").toLowerCase().includes(q);
+        return byName || byCPF || byId || byEmail;
+      });
+    }
+
+    // Filtros por UF e cidade
+    const withLocation = base.filter((p) => {
+      if (stateFilter && String(p.state) !== stateFilter) return false;
+      if (cityFilter && String(p.city) !== cityFilter) return false;
+      return true;
     });
-  }, [patients, search]);
+
+    // Ordenação
+    const sorted = [...withLocation];
+    if (sortBy === "name_asc" || sortBy === "name_desc") {
+      sorted.sort((a, b) => {
+        const an = (a.full_name || "").trim();
+        const bn = (b.full_name || "").trim();
+        const cmp = an.localeCompare(bn, "pt-BR", { sensitivity: "base" });
+        return sortBy === "name_asc" ? cmp : -cmp;
+      });
+    } else if (sortBy === "recent" || sortBy === "oldest") {
+      sorted.sort((a, b) => {
+        const ia = indexById.get(String(a.id)) ?? 0;
+        const ib = indexById.get(String(b.id)) ?? 0;
+        return sortBy === "recent" ? ia - ib : ib - ia;
+      });
+    }
+
+    return sorted;
+  }, [patients, search, stateFilter, cityFilter, sortBy, indexById]);
 
   // Dados paginados
   const paginatedData = useMemo(() => {
@@ -108,10 +157,10 @@ export default function PacientesPage() {
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
-  // Reset para página 1 quando mudar a busca ou itens por página
+  // Reset página ao mudar filtros/ordenadores
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, itemsPerPage]);
+  }, [search, itemsPerPage, stateFilter, cityFilter, sortBy]);
 
   function handleAdd() {
     setEditingId(null);
@@ -214,7 +263,8 @@ export default function PacientesPage() {
           <p className="text-muted-foreground">Gerencie os pacientes</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Busca */}
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -225,7 +275,52 @@ export default function PacientesPage() {
               onKeyDown={(e) => e.key === "Enter" && handleBuscarServidor()}
             />
           </div>
-          <Button variant="secondary" onClick={() => void handleBuscarServidor()} className="hover:bg-primary hover:text-white">Buscar</Button>
+          <Button variant="secondary" onClick={() => void handleBuscarServidor()} className="hover:bg-primary hover:text-white">
+            Buscar
+          </Button>
+
+          {/* Ordenar por */}
+          <select
+            aria-label="Ordenar por"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="name_asc">Nome (A–Z)</option>
+            <option value="name_desc">Nome (Z–A)</option>
+            <option value="recent">Mais recentes (carregamento)</option>
+            <option value="oldest">Mais antigos (carregamento)</option>
+          </select>
+
+          {/* Estado (UF) */}
+          <select
+            aria-label="Filtrar por estado"
+            value={stateFilter}
+            onChange={(e) => {
+              setStateFilter(e.target.value);
+              setCityFilter("");
+            }}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="">Todos os estados</option>
+            {stateOptions.map((uf) => (
+              <option key={uf} value={uf}>{uf}</option>
+            ))}
+          </select>
+
+          {/* Cidade (dependente do estado) */}
+          <select
+            aria-label="Filtrar por cidade"
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="">Todas as cidades</option>
+            {cityOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
           <Button onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             Novo paciente

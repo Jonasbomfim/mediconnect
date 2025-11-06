@@ -145,7 +145,12 @@ export default function DoutoresPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
- 
+  // NOVO: Ordenação e filtros
+  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "recent" | "oldest">("name_asc");
+  const [stateFilter, setStateFilter] = useState<string>("");
+  const [cityFilter, setCityFilter] = useState<string>("");
+  const [specialtyFilter, setSpecialtyFilter] = useState<string>("");
+
   async function load() {
     setLoading(true);
     try {
@@ -272,47 +277,87 @@ export default function DoutoresPage() {
     };
   }, [searchTimeout]);
 
-  // Lista de médicos a exibir (busca ou filtro local)
+  // NOVO: Opções dinâmicas
+  const stateOptions = useMemo(
+    () =>
+      Array.from(
+        new Set((doctors || []).map((d) => (d.state || "").trim()).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })),
+    [doctors],
+  );
+
+  const cityOptions = useMemo(() => {
+    const base = (doctors || []).filter((d) => !stateFilter || String(d.state) === stateFilter);
+    return Array.from(
+      new Set(base.map((d) => (d.city || "").trim()).filter(Boolean)),
+    ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  }, [doctors, stateFilter]);
+
+  const specialtyOptions = useMemo(
+    () =>
+      Array.from(
+        new Set((doctors || []).map((d) => (d.especialidade || "").trim()).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })),
+    [doctors],
+  );
+
+  // NOVO: Índice para ordenação por "tempo" (ordem de carregamento)
+  const indexById = useMemo(() => {
+    const map = new Map<string, number>();
+    (doctors || []).forEach((d, i) => map.set(String(d.id), i));
+    return map;
+  }, [doctors]);
+
+  // Lista de médicos a exibir com busca + filtros + ordenação
   const displayedDoctors = useMemo(() => {
     console.log('🔍 Filtro - search:', search, 'searchMode:', searchMode, 'doctors:', doctors.length, 'searchResults:', searchResults.length);
-    
-    // Se não tem busca, mostra todos os médicos
-    if (!search.trim()) return doctors;
-    
+
     const q = search.toLowerCase().trim();
     const qDigits = q.replace(/\D/g, "");
-    
-    // Se estamos em modo de busca (servidor), filtra os resultados da busca
     const sourceList = searchMode ? searchResults : doctors;
-    console.log('🔍 Usando sourceList:', searchMode ? 'searchResults' : 'doctors', '- tamanho:', sourceList.length);
-    
-    const filtered = sourceList.filter((d) => {
-      // Busca por nome
-      const byName = (d.full_name || "").toLowerCase().includes(q);
-      
-      // Busca por CRM (remove formatação se necessário)
-      const byCrm = qDigits.length >= 3 && (d.crm || "").replace(/\D/g, "").includes(qDigits);
-      
-      // Busca por ID (UUID completo ou parcial)
-      const byId = (d.id || "").toLowerCase().includes(q);
-      
-      // Busca por email
-      const byEmail = (d.email || "").toLowerCase().includes(q);
-      
-      // Busca por especialidade
-      const byEspecialidade = (d.especialidade || "").toLowerCase().includes(q);
-      
-      const match = byName || byCrm || byId || byEmail || byEspecialidade;
-      if (match) {
-        console.log('✅ Match encontrado:', d.full_name, d.id, 'por:', { byName, byCrm, byId, byEmail, byEspecialidade });
-      }
-      
-      return match;
+
+    // 1) Busca
+    const afterSearch = !q
+      ? sourceList
+      : sourceList.filter((d) => {
+          const byName = (d.full_name || "").toLowerCase().includes(q);
+          const byCrm = qDigits.length >= 3 && (d.crm || "").replace(/\D/g, "").includes(qDigits);
+          const byId = (d.id || "").toLowerCase().includes(q);
+          const byEmail = (d.email || "").toLowerCase().includes(q);
+          const byEspecialidade = (d.especialidade || "").toLowerCase().includes(q);
+          const match = byName || byCrm || byId || byEmail || byEspecialidade;
+          if (match) console.log('✅ Match encontrado:', d.full_name, d.id);
+          return match;
+        });
+
+    // 2) Filtros de localização e especialidade
+    const afterFilters = afterSearch.filter((d) => {
+      if (stateFilter && String(d.state) !== stateFilter) return false;
+      if (cityFilter && String(d.city) !== cityFilter) return false;
+      if (specialtyFilter && String(d.especialidade) !== specialtyFilter) return false;
+      return true;
     });
-    
-    console.log('🔍 Resultados filtrados:', filtered.length);
-    return filtered;
-  }, [doctors, search, searchMode, searchResults]);
+
+    // 3) Ordenação
+    const sorted = [...afterFilters];
+    if (sortBy === "name_asc" || sortBy === "name_desc") {
+      sorted.sort((a, b) => {
+        const an = (a.full_name || "").trim();
+        const bn = (b.full_name || "").trim();
+        const cmp = an.localeCompare(bn, "pt-BR", { sensitivity: "base" });
+        return sortBy === "name_asc" ? cmp : -cmp;
+      });
+    } else if (sortBy === "recent" || sortBy === "oldest") {
+      sorted.sort((a, b) => {
+        const ia = indexById.get(String(a.id)) ?? 0;
+        const ib = indexById.get(String(b.id)) ?? 0;
+        return sortBy === "recent" ? ia - ib : ib - ia;
+      });
+    }
+
+    console.log('🔍 Resultados filtrados:', sorted.length);
+    return sorted;
+  }, [doctors, search, searchMode, searchResults, stateFilter, cityFilter, specialtyFilter, sortBy, indexById]);
 
   // Dados paginados
   const paginatedDoctors = useMemo(() => {
@@ -323,10 +368,10 @@ export default function DoutoresPage() {
 
   const totalPages = Math.ceil(displayedDoctors.length / itemsPerPage);
 
-  // Reset para página 1 quando mudar a busca ou itens por página
+  // Reset página ao mudar busca/filtros/ordenação
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, itemsPerPage, searchMode]);
+  }, [search, itemsPerPage, searchMode, stateFilter, cityFilter, specialtyFilter, sortBy]);
 
   function handleAdd() {
     setEditingId(null);
@@ -440,7 +485,7 @@ export default function DoutoresPage() {
           <p className="text-muted-foreground">Gerencie os médicos da sua clínica</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -473,6 +518,59 @@ export default function DoutoresPage() {
               </Button>
             )}
           </div>
+
+          {/* NOVO: Ordenar por */}
+          <select
+            aria-label="Ordenar por"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="name_asc">Nome (A–Z)</option>
+            <option value="name_desc">Nome (Z–A)</option>
+            <option value="recent">Mais recentes (carregamento)</option>
+            <option value="oldest">Mais antigos (carregamento)</option>
+          </select>
+
+          {/* NOVO: Especialidade */}
+          <select
+            aria-label="Filtrar por especialidade"
+            value={specialtyFilter}
+            onChange={(e) => setSpecialtyFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="">Todas as especialidades</option>
+            {specialtyOptions.map((sp) => (
+              <option key={sp} value={sp}>{sp}</option>
+            ))}
+          </select>
+
+          {/* NOVO: Estado (UF) */}
+          <select
+            aria-label="Filtrar por estado"
+            value={stateFilter}
+            onChange={(e) => { setStateFilter(e.target.value); setCityFilter(""); }}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="">Todos os estados</option>
+            {stateOptions.map((uf) => (
+              <option key={uf} value={uf}>{uf}</option>
+            ))}
+          </select>
+
+          {/* NOVO: Cidade (dependente do estado) */}
+          <select
+            aria-label="Filtrar por cidade"
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+          >
+            <option value="">Todas as cidades</option>
+            {cityOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
           <Button onClick={handleAdd} disabled={loading}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Médico

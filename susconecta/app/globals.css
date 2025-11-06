@@ -123,3 +123,47 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+/* Esconder botões com ícones de lixo */
+button:has(.lucide-trash2),
+button:has(.lucide-trash),
+button[class*="trash"] {
+  display: none !important;
+}
+
+/* Esconder campos de input embaixo do calendário 3D */
+input[placeholder="Nome do paciente"],
+input[placeholder^="dd/mm"],
+input[type="date"][value=""] {
+  display: none !important;
+}
+
+/* Esconder botão "Adicionar Paciente" */
+/* Removido seletor vazio - será tratado por outros seletores */
+
+/* Afastar X do popup (dialog-close) para longe das setas */
+[data-slot="dialog-close"],
+button[aria-label="Close"],
+.fc button[aria-label*="Close"] {
+  right: 16px !important;
+  top: 8px !important;
+  position: absolute !important;
+}
+
+/* Esconder footer/header extras do calendário que mostram os campos */
+.fc .fc-toolbar input,
+.fc .fc-toolbar [type="date"],
+.fc .fc-toolbar [placeholder*="paciente"] {
+  display: none !important;
+}
+
+/* Esconder row com campos de pesquisa - estrutura mantida pelo calendário */
+
+/* Esconder botões de trash/delete em todos os popups */
+[role="dialog"] button[class*="hover:text-destructive"],
+[role="dialog"] button[aria-label*="delete"],
+[role="dialog"] button[aria-label*="excluir"],
+[role="dialog"] button[aria-label*="remove"] {
+  display: none !important;
+}
+

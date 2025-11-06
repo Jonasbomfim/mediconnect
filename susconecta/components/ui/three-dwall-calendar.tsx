@@ -25,6 +25,7 @@ interface ThreeDWallCalendarProps {
   events: CalendarEvent[]
   onAddEvent?: (e: CalendarEvent) => void
   onRemoveEvent?: (id: string) => void
+  onOpenAddPatientForm?: () => void
   panelWidth?: number
   panelHeight?: number
   columns?: number
@@ -34,6 +35,7 @@ export function ThreeDWallCalendar({
   events,
   onAddEvent,
   onRemoveEvent,
+  onOpenAddPatientForm,
   panelWidth = 160,
   panelHeight = 120,
   columns = 7,
@@ -448,9 +450,17 @@ export function ThreeDWallCalendar({
 
       {/* Add event form */}
       <div className="flex gap-2 items-center">
-        <Input placeholder="Nome do paciente" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-        <Button onClick={handleAdd}>Adicionar Paciente</Button>
+        {onOpenAddPatientForm ? (
+          <Button onClick={onOpenAddPatientForm} className="w-full">
+            Adicionar Paciente
+          </Button>
+        ) : (
+          <>
+            <Input placeholder="Nome do paciente" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+            <Button onClick={handleAdd}>Adicionar Paciente</Button>
+          </>
+        )}
       </div>
     </div>
   )

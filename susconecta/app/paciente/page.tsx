@@ -1429,95 +1429,192 @@ export default function PacientePage() {
   
 
   function Perfil() {
-    const hasAddress = Boolean(profileData.endereco || profileData.cidade || profileData.cep)
     return (
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 md:px-8">
+        {/* Header com Título e Botão */}
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground">Meu Perfil</h2>
+          <div>
+            <h2 className="text-3xl font-bold">Meu Perfil</h2>
+            <p className="text-muted-foreground mt-1">Bem-vindo à sua área exclusiva.</p>
+          </div>
           {!isEditingProfile ? (
-            <Button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2">
-              Editar Perfil
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setIsEditingProfile(true)}
+            >
+              ✏️ Editar Perfil
             </Button>
           ) : (
-              <div className="flex gap-2">
-              <Button onClick={handleSaveProfile} className="flex items-center gap-2">Salvar</Button>
-              <Button
+            <div className="flex gap-2">
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={handleSaveProfile}
+              >
+                ✓ Salvar
+              </Button>
+              <Button 
                 variant="outline"
                 onClick={handleCancelEdit}
-                className="transition duration-200 hover:bg-primary/10 hover:text-primary dark:hover:bg-accent dark:hover:text-accent-foreground"
               >
-                Cancelar
+                ✕ Cancelar
               </Button>
             </div>
           )}
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Informações Pessoais */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Informações Pessoais</h3>
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome Completo</Label>
-              <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.nome}</p>
-              <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
+
+        {/* Grid de 3 colunas (2 + 1) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Coluna Esquerda - Informações Pessoais */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Informações Pessoais */}
+            <div className="border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Informações Pessoais</h3>
+
+              <div className="space-y-4">
+                {/* Nome Completo */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Nome Completo
+                  </Label>
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground font-medium">
+                    {profileData.nome || "Não preenchido"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Este campo não pode ser alterado
+                  </p>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Email
+                  </Label>
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.email || "Não preenchido"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Este campo não pode ser alterado
+                  </p>
+                </div>
+
+                {/* Telefone */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Telefone
+                  </Label>
+                  {isEditingProfile ? (
+                    <Input
+                      value={profileData.telefone || ""}
+                      onChange={(e) => handleProfileChange('telefone', e.target.value)}
+                      className="mt-2"
+                      placeholder="(00) 00000-0000"
+                      maxLength={15}
+                    />
+                  ) : (
+                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                      {profileData.telefone || "Não preenchido"}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              {isEditingProfile ? (
-                <Input id="email" type="email" value={profileData.email} onChange={e => handleProfileChange('email', e.target.value)} />
-              ) : (
-                <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.email}</p>
-              )}
+
+            {/* Endereço e Contato */}
+            <div className="border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Endereço e Contato</h3>
+
+              <div className="space-y-4">
+                {/* Logradouro */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Logradouro
+                  </Label>
+                  {isEditingProfile ? (
+                    <Input
+                      value={profileData.endereco || ""}
+                      onChange={(e) => handleProfileChange('endereco', e.target.value)}
+                      className="mt-2"
+                      placeholder="Rua, avenida, etc."
+                    />
+                  ) : (
+                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                      {profileData.endereco || "Não preenchido"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Cidade */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Cidade
+                  </Label>
+                  {isEditingProfile ? (
+                    <Input
+                      value={profileData.cidade || ""}
+                      onChange={(e) => handleProfileChange('cidade', e.target.value)}
+                      className="mt-2"
+                      placeholder="São Paulo"
+                    />
+                  ) : (
+                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                      {profileData.cidade || "Não preenchido"}
+                    </div>
+                  )}
+                </div>
+
+                {/* CEP */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    CEP
+                  </Label>
+                  {isEditingProfile ? (
+                    <Input
+                      value={profileData.cep || ""}
+                      onChange={(e) => handleProfileChange('cep', e.target.value)}
+                      className="mt-2"
+                      placeholder="00000-000"
+                    />
+                  ) : (
+                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                      {profileData.cep || "Não preenchido"}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
+          </div>
+
+          {/* Coluna Direita - Foto do Perfil */}
+          <div>
+            <div className="border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+
               {isEditingProfile ? (
-                <Input id="telefone" value={profileData.telefone} onChange={e => handleProfileChange('telefone', e.target.value)} />
+                <div className="space-y-4">
+                  <UploadAvatar
+                    userId={profileData.id}
+                    currentAvatarUrl={profileData.foto_url || "/avatars/01.png"}
+                    onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
+                    userName={profileData.nome}
+                  />
+                </div>
               ) : (
-                <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.telefone}</p>
+                <div className="flex flex-col items-center gap-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
-          {/* Endereço e Contato (render apenas se existir algum dado) */}
-          {hasAddress && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Endereço</h3>
-              <div className="space-y-2">
-                <Label htmlFor="endereco">Endereço</Label>
-                {isEditingProfile ? (
-                  <Input id="endereco" value={profileData.endereco} onChange={e => handleProfileChange('endereco', e.target.value)} />
-                ) : (
-                  <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.endereco}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cidade">Cidade</Label>
-                {isEditingProfile ? (
-                  <Input id="cidade" value={profileData.cidade} onChange={e => handleProfileChange('cidade', e.target.value)} />
-                ) : (
-                  <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cidade}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cep">CEP</Label>
-                {isEditingProfile ? (
-                  <Input id="cep" value={profileData.cep} onChange={e => handleProfileChange('cep', e.target.value)} />
-                ) : (
-                  <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
-                )}
-              </div>
-              {/* Biografia removed: not used */}
-            </div>
-          )}
-        </div>
-        {/* Foto do Perfil */}
-        <div className="border-t border-border pt-6">
-          <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
-          <UploadAvatar
-            userId={profileData.id}
-            currentAvatarUrl={profileData.foto_url}
-            onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
-            userName={profileData.nome}
-          />
         </div>
       </div>
     )

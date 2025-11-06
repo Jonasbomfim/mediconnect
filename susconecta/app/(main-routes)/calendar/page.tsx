@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid'; // Usado para IDs de fallback
 import { Sidebar } from "@/components/layout/sidebar";
 import { PagesHeader } from "@/components/features/dashboard/header";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { mockWaitingList } from "@/lib/mocks/appointment-mocks";
 import "./index.css";
 import {
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThreeDWallCalendar, CalendarEvent } from "@/components/ui/three-dwall-calendar"; // Calendário 3D mantido
+import { PatientRegistrationForm } from "@/components/features/forms/patient-registration-form";
 
 const ListaEspera = dynamic(
   () => import("@/components/features/agendamento/ListaEspera"),
@@ -29,6 +31,7 @@ const ListaEspera = dynamic(
 );
 
 export default function AgendamentoPage() {
+  const { user, token } = useAuth();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [waitingList, setWaitingList] = useState(mockWaitingList);
   const [activeTab, setActiveTab] = useState<"calendar" | "espera" | "3d">("calendar");
@@ -39,6 +42,9 @@ export default function AgendamentoPage() {
   // Estado para alimentar o NOVO EventManager com dados da API
   const [managerEvents, setManagerEvents] = useState<Event[]>([]);
   const [managerLoading, setManagerLoading] = useState<boolean>(true);
+  
+  // Estado para o formulário de registro de paciente
+  const [showPatientForm, setShowPatientForm] = useState(false);
 
   useEffect(() => {
     document.addEventListener("keydown", (event) => {
@@ -242,6 +248,7 @@ export default function AgendamentoPage() {
                 events={threeDEvents}
                 onAddEvent={handleAddEvent}
                 onRemoveEvent={handleRemoveEvent}
+                onOpenAddPatientForm={() => setShowPatientForm(true)}
               />
             </div>
           ) : (
@@ -253,6 +260,17 @@ export default function AgendamentoPage() {
             />
           )}
         </div>
+        
+        {/* Formulário de Registro de Paciente */}
+        <PatientRegistrationForm
+          open={showPatientForm}
+          onOpenChange={setShowPatientForm}
+          mode="create"
+          onSaved={(newPaciente) => {
+            console.log('[Calendar] Novo paciente registrado:', newPaciente);
+            setShowPatientForm(false);
+          }}
+        />
       </div>
     </div>
   );

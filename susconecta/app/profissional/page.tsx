@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity, Search } from "lucide-react"
+import { User, FolderOpen, X, Users, MessageSquare, ClipboardList, Plus, Edit, ChevronLeft, ChevronRight, Clock, FileCheck, Upload, Download, Eye, History, Stethoscope, Pill, Activity, Search } from "lucide-react"
 import { Calendar as CalendarIcon, FileText, Settings } from "lucide-react";
 import {
   Tooltip,
@@ -41,6 +41,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
+import { PatientRegistrationForm } from "@/components/features/forms/patient-registration-form";
 
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
@@ -230,7 +231,7 @@ const ProfissionalPage = () => {
     })();
     return () => { mounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.email, user?.id]);
 
 
 
@@ -378,6 +379,9 @@ const ProfissionalPage = () => {
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null);
+  const [showPatientForm, setShowPatientForm] = useState(false);
   const [step, setStep] = useState(1);
   const [newEvent, setNewEvent] = useState({ 
     title: "", 
@@ -686,6 +690,13 @@ const ProfissionalPage = () => {
       <section className="bg-card shadow-md rounded-lg border border-border p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Agenda do Dia</h2>
+          <Button 
+            onClick={() => setShowPatientForm(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar Paciente
+          </Button>
         </div>
         
         {/* Navegação de Data */}
@@ -718,7 +729,7 @@ const ProfissionalPage = () => {
         </div>
 
         {/* Lista de Pacientes do Dia */}
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto pr-2">
           {todayEvents.length === 0 ? (
             <div className="text-center py-8 text-gray-600 dark:text-muted-foreground">
               <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/50" />
@@ -2656,150 +2667,216 @@ const ProfissionalPage = () => {
 
   
   const renderPerfilSection = () => (
-    <div className="space-y-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 md:px-8">
+      {/* Header com Título e Botão */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Meu Perfil</h2>
+        <div>
+          <h2 className="text-3xl font-bold">Meu Perfil</h2>
+          <p className="text-muted-foreground mt-1">Bem-vindo à sua área exclusiva.</p>
+        </div>
         {!isEditingProfile ? (
-          <Button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2">
-            <Edit className="h-4 w-4" />
-            Editar Perfil
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => setIsEditingProfile(true)}
+          >
+            ✏️ Editar Perfil
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button onClick={handleSaveProfile} className="flex items-center gap-2">
-              Salvar
+            <Button 
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleSaveProfile}
+            >
+              ✓ Salvar
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit} className="hover:bg-primary! hover:text-white! transition-colors">
-              Cancelar
+            <Button 
+              variant="outline"
+              onClick={handleCancelEdit}
+            >
+              ✕ Cancelar
             </Button>
           </div>
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Informações Pessoais */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Informações Pessoais</h3>
-          
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome Completo</Label>
-            <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.nome}</p>
-            <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
-          </div>
+      {/* Grid de 3 colunas (2 + 1) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Coluna Esquerda - Informações Pessoais */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Informações Pessoais */}
+          <div className="border border-border rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">Informações Pessoais</h3>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            {isEditingProfile ? (
-              <Input
-                id="email"
-                type="email"
-                value={profileData.email}
-                onChange={(e) => handleProfileChange('email', e.target.value)}
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.email}</p>
-            )}
-          </div>
+            <div className="space-y-4">
+              {/* Nome Completo */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Nome Completo
+                </Label>
+                <div className="mt-2 p-3 bg-muted rounded text-foreground font-medium">
+                  {profileData.nome || "Não preenchido"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este campo não pode ser alterado
+                </p>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="telefone">Telefone</Label>
-            {isEditingProfile ? (
-              <Input
-                id="telefone"
-                value={profileData.telefone}
-                onChange={(e) => handleProfileChange('telefone', e.target.value)}
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.telefone}</p>
-            )}
-          </div>
+              {/* Email */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Email
+                </Label>
+                {isEditingProfile ? (
+                  <Input
+                    value={profileData.email || ""}
+                    onChange={(e) => handleProfileChange('email', e.target.value)}
+                    className="mt-2"
+                    type="email"
+                  />
+                ) : (
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.email || "Não preenchido"}
+                  </div>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="crm">CRM</Label>
-            <p className="p-2 bg-muted rounded text-muted-foreground">{profileData.crm}</p>
-            <span className="text-xs text-muted-foreground">Este campo não pode ser alterado</span>
-          </div>
+              {/* Telefone */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Telefone
+                </Label>
+                {isEditingProfile ? (
+                  <Input
+                    value={profileData.telefone || ""}
+                    onChange={(e) => handleProfileChange('telefone', e.target.value)}
+                    className="mt-2"
+                    placeholder="(00) 00000-0000"
+                  />
+                ) : (
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.telefone || "Não preenchido"}
+                  </div>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="especialidade">Especialidade</Label>
-            {isEditingProfile ? (
-              <Input
-                id="especialidade"
-                value={profileData.especialidade}
-                onChange={(e) => handleProfileChange('especialidade', e.target.value)}
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.especialidade}</p>
-            )}
-          </div>
-        </div>
+              {/* CRM */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  CRM
+                </Label>
+                <div className="mt-2 p-3 bg-muted rounded text-foreground font-medium">
+                  {profileData.crm || "Não preenchido"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este campo não pode ser alterado
+                </p>
+              </div>
 
-        {/* Endereço e Contato */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b border-border text-foreground pb-2">Endereço e Contato</h3>
-          
-          <div className="space-y-2">
-            <Label htmlFor="endereco">Endereço</Label>
-            {isEditingProfile ? (
-              <Input
-                id="endereco"
-                value={profileData.endereco}
-                onChange={(e) => handleProfileChange('endereco', e.target.value)}
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.endereco}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cidade">Cidade</Label>
-            {isEditingProfile ? (
-              <Input
-                id="cidade"
-                value={profileData.cidade}
-                onChange={(e) => handleProfileChange('cidade', e.target.value)}
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cidade}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cep">CEP</Label>
-            {isEditingProfile ? (
-              <Input
-                id="cep"
-                value={profileData.cep}
-                onChange={(e) => handleProfileChange('cep', e.target.value)}
-              />
-            ) : (
-              <p className="p-2 bg-muted/50 rounded text-foreground">{profileData.cep}</p>
-            )}
-          </div>
-
-          {/* Biografia removida: não é um campo no registro de médico */}
-        </div>
-      </div>
-
-      {/* Foto do Perfil */}
-      <div className="border-t border-border pt-6">
-        <h3 className="text-lg font-semibold mb-4 text-foreground">Foto do Perfil</h3>
-        <div className="flex items-center gap-4">
-          <Avatar className="h-20 w-20">
-            <AvatarFallback className="text-lg">
-              {profileData.nome.split(' ').map(n => n[0]).join('').toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          {isEditingProfile && (
-            <div className="space-y-2">
-              <Button variant="outline" size="sm" className="hover:bg-primary! hover:text-white! transition-colors">
-                Alterar Foto
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Formatos aceitos: JPG, PNG (máx. 2MB)
-              </p>
+              {/* Especialidade */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Especialidade
+                </Label>
+                {isEditingProfile ? (
+                  <Input
+                    value={profileData.especialidade || ""}
+                    onChange={(e) => handleProfileChange('especialidade', e.target.value)}
+                    className="mt-2"
+                    placeholder="Ex: Cardiologia"
+                  />
+                ) : (
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.especialidade || "Não preenchido"}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Endereço e Contato */}
+          <div className="border border-border rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">Endereço e Contato</h3>
+
+            <div className="space-y-4">
+              {/* Logradouro */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Logradouro
+                </Label>
+                {isEditingProfile ? (
+                  <Input
+                    value={profileData.endereco || ""}
+                    onChange={(e) => handleProfileChange('endereco', e.target.value)}
+                    className="mt-2"
+                    placeholder="Rua, avenida, etc."
+                  />
+                ) : (
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.endereco || "Não preenchido"}
+                  </div>
+                )}
+              </div>
+
+              {/* Cidade */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  Cidade
+                </Label>
+                {isEditingProfile ? (
+                  <Input
+                    value={profileData.cidade || ""}
+                    onChange={(e) => handleProfileChange('cidade', e.target.value)}
+                    className="mt-2"
+                    placeholder="São Paulo"
+                  />
+                ) : (
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.cidade || "Não preenchido"}
+                  </div>
+                )}
+              </div>
+
+              {/* CEP */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  CEP
+                </Label>
+                {isEditingProfile ? (
+                  <Input
+                    value={profileData.cep || ""}
+                    onChange={(e) => handleProfileChange('cep', e.target.value)}
+                    className="mt-2"
+                    placeholder="00000-000"
+                  />
+                ) : (
+                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    {profileData.cep || "Não preenchido"}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna Direita - Foto do Perfil */}
+        <div>
+          <div className="border border-border rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+
+            <div className="flex flex-col items-center gap-4">
+              <Avatar className="h-24 w-24">
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                  {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2838,8 +2915,8 @@ const ProfissionalPage = () => {
     );
       case 'laudos':
         return renderLaudosSection();
-      case 'comunicacao':
-        return renderComunicacaoSection();
+      // case 'comunicacao':
+      //   return renderComunicacaoSection();
       case 'perfil':
         return renderPerfilSection();
       default:
@@ -2910,14 +2987,15 @@ const ProfissionalPage = () => {
               <FileText className="mr-2 h-4 w-4" />
               Laudos
             </Button>
-            <Button 
+            {/* Comunicação removida - campos embaixo do calendário */}
+            {/* <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => setActiveSection('comunicacao')}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
               Comunicação
-            </Button>
+            </Button> */}
             <Button 
               variant={activeSection === 'perfil' ? 'default' : 'ghost'} 
               className="w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
@@ -3072,14 +3150,6 @@ const ProfissionalPage = () => {
                 <Edit className="h-4 w-4" />
                 Editar
               </Button>
-              <Button
-                onClick={handleDeleteEvent}
-                variant="destructive"
-                className="flex-1 flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Excluir
-              </Button>
             </div>
 
             <Button
@@ -3092,6 +3162,128 @@ const ProfissionalPage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal para visualizar pacientes de um dia específico */}
+      {showDayModal && selectedDayDate && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Header com navegação */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <button 
+                onClick={() => {
+                  const prev = new Date(selectedDayDate);
+                  prev.setDate(prev.getDate() - 1);
+                  setSelectedDayDate(prev);
+                }}
+                className="p-2 hover:bg-muted rounded transition-colors"
+                aria-label="Dia anterior"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              
+              <h2 className="text-lg font-semibold flex-1 text-center">
+                {selectedDayDate.toLocaleDateString('pt-BR', { 
+                  weekday: 'long', 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </h2>
+              
+              <button 
+                onClick={() => {
+                  const next = new Date(selectedDayDate);
+                  next.setDate(next.getDate() + 1);
+                  setSelectedDayDate(next);
+                }}
+                className="p-2 hover:bg-muted rounded transition-colors"
+                aria-label="Próximo dia"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              <div className="w-12" />
+              
+              <button 
+                onClick={() => setShowDayModal(false)}
+                className="p-2 hover:bg-muted rounded transition-colors ml-2"
+                aria-label="Fechar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {(() => {
+                const dayStr = selectedDayDate.toISOString().split('T')[0];
+                const dayEvents = events.filter(e => e.date === dayStr).sort((a, b) => a.time.localeCompare(b.time));
+                
+                if (dayEvents.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                      <p className="text-lg">Nenhuma consulta agendada para este dia</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {dayEvents.length} consulta{dayEvents.length !== 1 ? 's' : ''} agendada{dayEvents.length !== 1 ? 's' : ''}
+                    </p>
+                    {dayEvents.map((appointment) => {
+                      const paciente = pacientes.find(p => p.nome === appointment.title);
+                      return (
+                        <div
+                          key={appointment.id}
+                          className="border-l-4 p-4 rounded-lg bg-muted/20"
+                          style={{ borderLeftColor: getStatusColor(appointment.type) }}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                {appointment.title}
+                              </h3>
+                              <span className="px-2 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: getStatusColor(appointment.type) }}>
+                                {appointment.type}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {appointment.time}
+                              </span>
+                              {paciente && (
+                                <span>
+                                  CPF: {getPatientCpf(paciente)} • {getPatientAge(paciente)} anos
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Formulário para cadastro de paciente */}
+      <PatientRegistrationForm 
+        open={showPatientForm}
+        onOpenChange={setShowPatientForm}
+        mode="create"
+        onSaved={(newPaciente) => {
+          // Adicionar o novo paciente à lista e recarregar
+          setPacientes((prev) => [...prev, newPaciente]);
+        }}
+      />
       </div>
     </ProtectedRoute>
   );

@@ -11,7 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertCircle, ChevronDown, ChevronUp, FileImage, Loader2, Save, Upload, User, X, XCircle, Trash2 } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { AlertCircle, ChevronDown, ChevronUp, FileImage, Loader2, Save, Upload, User, X, XCircle, Trash2, CalendarIcon } from "lucide-react";
 
 import {
   Paciente,
@@ -51,7 +54,7 @@ type FormData = {
   cpf: string;
   rg: string;
   sexo: string;
-  birth_date: string;
+  birth_date: Date | null;
   email: string;
   telefone: string;
   cep: string;
@@ -72,7 +75,7 @@ const initial: FormData = {
   cpf: "",
   rg: "",
   sexo: "",
-  birth_date: "",
+  birth_date: null,
   email: "",
   telefone: "",
   cep: "",
@@ -150,7 +153,7 @@ export function PatientRegistrationForm({
           cpf: p.cpf || "",
           rg: p.rg || "",
           sexo: p.sex || "",
-          birth_date: p.birth_date ? (() => { try { return format(parseISO(String(p.birth_date)), 'dd/MM/yyyy'); } catch { return String(p.birth_date); } })() : "",
+          birth_date: p.birth_date ? parseISO(String(p.birth_date)) : null,
           telefone: p.phone_mobile || "",
           email: p.email || "",
           cep: p.cep || "",
@@ -212,44 +215,13 @@ export function PatientRegistrationForm({
   }
 
   function toPayload(): PacienteInput {
-    let isoDate: string | null = null;
-    try {
-      const raw = String(form.birth_date || '').trim();
-      if (raw) {
-        // Try common formats first
-        const formats = ['dd/MM/yyyy', 'dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
-        for (const f of formats) {
-          try {
-            const d = parse(raw, f, new Date());
-            if (!isNaN(d.getTime())) {
-              isoDate = d.toISOString().slice(0, 10);
-              break;
-            }
-          } catch (e) {
-            // ignore and try next format
-          }
-        }
-
-        // Fallback: split numeric parts (handles 'dd mm yyyy' or 'ddmmyyyy' with separators)
-        if (!isoDate) {
-          const parts = raw.split(/\D+/).filter(Boolean);
-          if (parts.length === 3) {
-            const [d, m, y] = parts;
-            const date = new Date(Number(y), Number(m) - 1, Number(d));
-            if (!isNaN(date.getTime())) isoDate = date.toISOString().slice(0, 10);
-          }
-        }
-      }
-    } catch (err) {
-      console.debug('[PatientForm] parse birth_date failed:', form.birth_date, err);
-    }
     return {
       full_name: form.nome,
       social_name: form.nome_social || null,
       cpf: form.cpf,
       rg: form.rg || null,
       sex: form.sexo || null,
-      birth_date: isoDate,
+      birth_date: form.birth_date ? form.birth_date.toISOString().slice(0, 10) : null,
       phone_mobile: form.telefone || null,
       email: form.email || null,
       cep: form.cep || null,
@@ -376,7 +348,7 @@ export function PatientRegistrationForm({
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 border-2 border-dashed border-muted-foreground rounded-lg flex items-center justify-center overflow-hidden">
-                    {photoPreview ? <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" /> : <FileImage className="h-8 w-8 text-muted-foreground" />}
+                    {photoPreview ? <img src={photoPreview || ""} alt="Preview" className="w-full h-full object-cover" /> : <FileImage className="h-8 w-8 text-muted-foreground" />}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="photo" className="cursor-pointer rounded-md transition-colors">
@@ -399,14 +371,43 @@ export function PatientRegistrationForm({
                   <div className="space-y-2"><Label>RG</Label><Input value={form.rg} onChange={(e) => setField("rg", formatRG(e.target.value))} placeholder="00.000.000-0" maxLength={12} /></div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Sexo</Label>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Sexo</Label>
                     <Select value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
                       <SelectTrigger><SelectValue placeholder="Selecione o sexo" /></SelectTrigger>
-                      <SelectContent><SelectItem value="masculino">Masculino</SelectItem><SelectItem value="feminino">Feminino</SelectItem><SelectItem value="outro">Outro</SelectItem></SelectContent>
+                      <SelectContent>
+                        <SelectItem value="masculino">Masculino</SelectItem>
+                        <SelectItem value="feminino">Feminino</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2"><Label>Data de Nascimento</Label><Input placeholder="dd/mm/aaaa" value={form.birth_date} onChange={(e) => setField("birth_date", formatDataNascimento(e.target.value))} maxLength={10} /></div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birth_date_input">Data de Nascimento</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !form.birth_date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.birth_date ? format(form.birth_date as Date, "dd/MM/yyyy") : <span>Selecione uma data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={form.birth_date ?? undefined}
+                          onSelect={(date) => setField("birth_date", date || null)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </CardContent>
             </CollapsibleContent>

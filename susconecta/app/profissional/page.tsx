@@ -2252,9 +2252,9 @@ const ProfissionalPage = () => {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden flex">
-            {/* Left Panel */}
-            <div className="flex-1 flex flex-col">
+          <div className="flex-1 overflow-hidden flex flex-row">
+            {/* Left Panel - Editor */}
+            <div className={`flex flex-col overflow-hidden transition-all ${showPreview ? 'w-1/2 sm:w-3/5' : 'w-full'}`}>
               {/* 'Informações' section removed to keep editor-only experience */}
 
               {activeTab === "editor" && (
@@ -2456,54 +2456,52 @@ const ProfissionalPage = () => {
 
             {/* Preview Panel */}
             {showPreview && (
-              <div className="hidden md:flex md:w-1/2 border-l border-border bg-muted/20 flex-col">
-                <div className="p-2 md:p-2.5 border-b border-border flex-shrink-0">
-                  <h3 className="font-semibold text-xs md:text-sm text-foreground">Pré-visualização do Laudo</h3>
+              <div className="w-1/2 sm:w-2/5 border-l border-border bg-muted/20 flex flex-col overflow-hidden">
+                <div className="p-1 sm:p-1.5 border-b border-border flex-shrink-0">
+                  <h3 className="font-semibold text-xs sm:text-sm text-foreground line-clamp-1">Pré-visualização</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto p-1.5 md:p-2">
-                  <div className="bg-background border border-border rounded p-2 md:p-2.5 text-xs">
+                <div className="flex-1 overflow-y-auto p-1 sm:p-1.5">
+                  <div className="bg-background border border-border rounded p-1 sm:p-1.5 text-xs space-y-1">
                     {/* Header do Laudo */}
-                    <div className="text-center mb-2 pb-2 border-b border-border/40">
-                      <h2 className="text-sm font-bold leading-tight">
-                        LAUDO MÉDICO {campos.especialidade ? `- ${campos.especialidade.toUpperCase()}` : ''}
+                    <div className="text-center mb-1 pb-1 border-b border-border/40">
+                      <h2 className="text-xs sm:text-sm font-bold leading-tight line-clamp-2">
+                        LAUDO {campos.especialidade ? `- ${campos.especialidade.toUpperCase().substring(0, 15)}` : ''}
                       </h2>
                       {campos.exame && (
-                        <p className="text-xs font-semibold mt-1">{campos.exame}</p>
+                        <p className="text-xs font-semibold mt-0.5 line-clamp-1">{campos.exame.substring(0, 30)}</p>
                       )}
                       {campos.mostrarData && (
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Data: {new Date().toLocaleDateString('pt-BR')}
+                          {new Date().toLocaleDateString('pt-BR')}
                         </p>
                       )}
                     </div>
 
-                    {/* Dados do Paciente - Compacto */}
+                    {/* Dados do Paciente - Ultra Compacto */}
                     {(isNewLaudo ? pacienteSelecionado : laudo?.paciente) && (
-                      <div className="mb-2 pb-2 border-b border-border/40 space-y-0.5">
-                        <div><span className="font-semibold">Paciente:</span> {isNewLaudo ? getPatientName(pacienteSelecionado) : getPatientName(laudo?.paciente)}</div>
-                        <div><span className="font-semibold">CPF:</span> {isNewLaudo ? getPatientCpf(pacienteSelecionado) : getPatientCpf(laudo?.paciente)}</div>
-                        <div><span className="font-semibold">Idade:</span> {isNewLaudo ? getPatientAge(pacienteSelecionado) : getPatientAge(laudo?.paciente)} anos</div>
-                        <div><span className="font-semibold">Sexo:</span> {isNewLaudo ? getPatientSex(pacienteSelecionado) : getPatientSex(laudo?.paciente)}</div>
+                      <div className="mb-1 pb-1 border-b border-border/40 space-y-0">
+                        <div className="text-xs"><span className="font-semibold">Pac:</span> {(isNewLaudo ? getPatientName(pacienteSelecionado) : getPatientName(laudo?.paciente)).substring(0, 15)}</div>
+                        <div className="text-xs"><span className="font-semibold">CPF:</span> {(isNewLaudo ? getPatientCpf(pacienteSelecionado) : getPatientCpf(laudo?.paciente)).substring(0, 10)}</div>
                       </div>
                     )}
 
                     {/* Informações Clínicas */}
-                    <div className="mb-2 pb-2 border-b border-border/40 space-y-0.5">
+                    <div className="mb-1 pb-1 border-b border-border/40 space-y-0">
                       {campos.cid && (
-                        <div><span className="font-semibold">CID:</span> <span className="text-blue-600 dark:text-blue-400 font-semibold">{campos.cid}</span></div>
+                        <div className="text-xs"><span className="font-semibold">CID:</span> <span className="text-blue-600 dark:text-blue-400 font-semibold">{campos.cid}</span></div>
                       )}
                       {campos.diagnostico && (
-                        <div><span className="font-semibold">Diagnóstico:</span> {campos.diagnostico}</div>
+                        <div className="text-xs line-clamp-2"><span className="font-semibold">Diag:</span> {campos.diagnostico.substring(0, 40)}</div>
                       )}
                     </div>
 
                     {/* Conteúdo Principal */}
                     {content && (
-                      <div className="mb-2 pb-2 border-b border-border/40">
+                      <div className="mb-1 pb-1 border-b border-border/40">
                         <div 
-                          className="text-xs leading-normal [&_p]:my-0.5 [&_br]:mb-0.5 whitespace-pre-wrap"
+                          className="text-xs leading-tight [&_p]:my-0 [&_br]:mb-0 whitespace-pre-wrap line-clamp-4"
                           dangerouslySetInnerHTML={{ 
-                            __html: processContent(content) 
+                            __html: processContent(content).substring(0, 150) 
                           }}
                         />
                       </div>
@@ -2511,28 +2509,8 @@ const ProfissionalPage = () => {
 
                     {/* Conclusão */}
                     {campos.conclusao && (
-                      <div className="mb-2 pb-2 border-b border-border/40">
-                        <div><span className="font-semibold">Conclusão:</span></div>
-                        <div className="text-xs leading-normal mt-0.5">{campos.conclusao}</div>
-                      </div>
-                    )}
-
-                    {/* Imagens Compactas */}
-                    {imagens.length > 0 && (
-                      <div className="mb-2 pb-2 border-b border-border/40">
-                        <div className="font-semibold mb-1">Imagens:</div>
-                        <div className="grid grid-cols-2 gap-1">
-                          {imagens.map((img) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img 
-                              key={img.id}
-                              src={img.url} 
-                              alt={img.name}
-                              className="w-full h-14 object-cover rounded border border-border/40"
-                              title={img.name}
-                            />
-                          ))}
-                        </div>
+                      <div className="mb-1 pb-1 border-b border-border/40">
+                        <div className="text-xs line-clamp-2"><span className="font-semibold">Conc:</span> {campos.conclusao.substring(0, 40)}</div>
                       </div>
                     )}
 
@@ -2541,14 +2519,14 @@ const ProfissionalPage = () => {
                       <div className="pt-1 mt-1 border-t border-border/40 text-center">
                           {assinaturaImg && assinaturaImg.length > 30 ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-8 object-contain mb-0.5" />
+                            <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-6 object-contain mb-0.5" />
                           ) : (
-                            <div className="text-xs text-muted-foreground italic">Assinatura pendente</div>
+                            <div className="text-xs text-muted-foreground italic">Sem assinatura</div>
                           )}
                           <div className="border-t border-border/40 my-0.5"></div>
-                          <p className="text-xs font-semibold">{((profileData as any)?.nome || (profileData as any)?.nome_social) || user?.name || 'Squad-20'}</p>
+                          <p className="text-xs font-semibold leading-tight">{((profileData as any)?.nome || (profileData as any)?.nome_social || user?.name || 'Squad-20').substring(0, 20)}</p>
                           {(((profileData as any)?.crm) || ((user?.profile as any)?.crm)) ? (
-                            <p className="text-xs text-muted-foreground">CRM {(((profileData as any)?.crm) || (user?.profile as any)?.crm).toString().replace(/^(?:CRM\s*)+/i, '').trim()}</p>
+                            <p className="text-xs text-muted-foreground">CRM {(((profileData as any)?.crm) || (user?.profile as any)?.crm).toString().replace(/^(?:CRM\s*)+/i, '').trim().substring(0, 10)}</p>
                           ) : null}
                         </div>
                     )}

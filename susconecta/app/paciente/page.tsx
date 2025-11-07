@@ -741,28 +741,28 @@ export default function PacientePage() {
             </header>
 
             {/* Date Navigation */}
-            <div className="flex flex-col gap-3 sm:gap-4 rounded-2xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 p-3 sm:p-4 md:p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
-              <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex flex-col gap-2 sm:gap-3 rounded-2xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 p-3 sm:p-4 md:p-6 shadow-sm">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('prev') }}
                   aria-label="Dia anterior"
-                  className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
+                  className={`shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all p-1.5 sm:p-2`}
                 >
-                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 transition group-hover:text-white" />
+                  <ChevronLeft className="h-4 w-4 sm:h-4 sm:w-4" />
                 </Button>
-                <span className="text-sm sm:text-base md:text-lg font-semibold text-foreground min-w-fit">{formatDatePt(currentDate)}</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-foreground flex-1 sm:flex-none line-clamp-1">{formatDatePt(currentDate)}</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={(e: any) => { e.stopPropagation(); e.preventDefault(); navigateDate('next') }}
                   aria-label="Próximo dia"
-                  className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
+                  className={`shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all p-1.5 sm:p-2`}
                 >
-                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 transition group-hover:text-white" />
+                  <ChevronRight className="h-4 w-4 sm:h-4 sm:w-4" />
                 </Button>
                 {isSelectedDateToday && (
                   <Button
@@ -771,14 +771,13 @@ export default function PacientePage() {
                     size="sm"
                     onClick={goToToday}
                     disabled
-                    className="border border-border/50 text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.97] hover:bg-primary/5 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground text-xs sm:text-sm"
+                    className="border border-border/50 text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.97] hover:bg-primary/5 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground text-xs px-2 py-1 h-auto"
                   >
                     Hoje
                   </Button>
                 )}
               </div>
-              <div className="text-xs sm:text-sm font-medium text-muted-foreground bg-background/50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg">
-
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground bg-background/50 px-3 py-1.5 rounded-lg w-fit">
                 <span className="text-primary font-semibold">{_todaysAppointments.length}</span> consulta{_todaysAppointments.length !== 1 ? 's' : ''} agendada{_todaysAppointments.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -1781,40 +1780,45 @@ export default function PacientePage() {
         <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[220px_1fr] gap-4 sm:gap-5 md:gap-6">
           {/* Sidebar vertical - sticky */}
           <aside className="sticky top-24 h-fit md:top-24">
-            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-2 sm:p-3 md:p-3 space-y-1 z-30 flex md:flex-col flex-row md:overflow-auto overflow-x-auto">
-              <Button
-                variant={tab==='dashboard'?'default':'ghost'}
-                aria-current={tab==='dashboard'}
-                onClick={()=>setTab('dashboard')}
-                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
-              >
-                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.dashboard}</span>
-              </Button>
-              <Button
-                variant={tab==='consultas'?'default':'ghost'}
-                aria-current={tab==='consultas'}
-                onClick={()=>setTab('consultas')}
-                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
-              >
-                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.consultas}</span>
-              </Button>
-              <Button
-                variant={tab==='exames'?'default':'ghost'}
-                aria-current={tab==='exames'}
-                onClick={()=>setTab('exames')}
-                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
-              >
-                <FileText className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.exames}</span>
-              </Button>
-              
-              <Button
-                variant={tab==='perfil'?'default':'ghost'}
-                aria-current={tab==='perfil'}
-                onClick={()=>setTab('perfil')}
-                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
-              >
-                <UserCog className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.perfil}</span>
-              </Button>
+            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-1.5 sm:p-2 md:p-3 z-30">
+              <div className="grid grid-cols-2 md:grid-cols-1 gap-1 sm:gap-1.5">
+                <Button
+                  variant={tab==='dashboard'?'default':'ghost'}
+                  aria-current={tab==='dashboard'}
+                  onClick={()=>setTab('dashboard')}
+                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-0.5 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs px-1.5 sm:px-3 py-1.5 sm:py-2 h-auto`}
+                  title="Dashboard"
+                >
+                  <Calendar className="h-4 w-4 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span className="text-xs sm:text-sm">{strings.dashboard}</span>
+                </Button>
+                <Button
+                  variant={tab==='consultas'?'default':'ghost'}
+                  aria-current={tab==='consultas'}
+                  onClick={()=>setTab('consultas')}
+                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-0.5 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs px-1.5 sm:px-3 py-1.5 sm:py-2 h-auto`}
+                  title="Consultas"
+                >
+                  <Calendar className="h-4 w-4 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span className="text-xs sm:text-sm">{strings.consultas}</span>
+                </Button>
+                <Button
+                  variant={tab==='exames'?'default':'ghost'}
+                  aria-current={tab==='exames'}
+                  onClick={()=>setTab('exames')}
+                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-0.5 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs px-1.5 sm:px-3 py-1.5 sm:py-2 h-auto`}
+                  title="Exames"
+                >
+                  <FileText className="h-4 w-4 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span className="text-xs sm:text-sm">{strings.exames}</span>
+                </Button>
+                <Button
+                  variant={tab==='perfil'?'default':'ghost'}
+                  aria-current={tab==='perfil'}
+                  onClick={()=>setTab('perfil')}
+                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-0.5 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs px-1.5 sm:px-3 py-1.5 sm:py-2 h-auto`}
+                  title="Perfil"
+                >
+                  <UserCog className="h-4 w-4 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span className="text-xs sm:text-sm">{strings.perfil}</span>
+                </Button>
+              </div>
             </nav>
           </aside>
           

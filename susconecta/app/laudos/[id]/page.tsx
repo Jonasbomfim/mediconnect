@@ -351,22 +351,22 @@ export default function LaudoPage() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex justify-center py-12 px-4 print:py-0 print:px-0 min-h-[calc(100vh-80px)] print:min-h-screen">
+        <div className="flex justify-center py-6 sm:py-8 md:py-12 px-2 sm:px-4 print:py-0 print:px-0 min-h-[calc(100vh-80px)] print:min-h-screen">
           {/* Document Container */}
-          <div className={`w-full max-w-4xl transition-colors duration-300 shadow-2xl rounded-xl overflow-hidden print:shadow-none print:rounded-none print:max-w-full ${
+          <div className={`w-full max-w-2xl sm:max-w-3xl md:max-w-4xl transition-colors duration-300 shadow-lg sm:shadow-xl rounded-lg sm:rounded-xl overflow-hidden print:shadow-none print:rounded-none print:max-w-full ${
             isDark ? 'bg-slate-800' : 'bg-white'
           }`}>
             {/* Document Content */}
-            <div className="p-16 space-y-8 print:p-12 print:space-y-6">
+            <div className="p-4 sm:p-8 md:p-12 lg:p-16 space-y-4 sm:space-y-6 md:space-y-8 print:p-12 print:space-y-6">
               
               {/* Title */}
-              <div className={`text-center mb-12 pb-8 border-b-2 ${
+              <div className={`text-center mb-6 sm:mb-8 md:mb-12 pb-4 sm:pb-6 md:pb-8 border-b-2 ${
                 isDark ? 'border-blue-900' : 'border-blue-200'
               }`}>
-                <h1 className={`text-4xl font-bold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <h1 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   RELATÓRIO MÉDICO
                 </h1>
-                <div className={`text-sm space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <div className={`text-xs sm:text-sm space-y-0.5 sm:space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   <p className="font-medium">
                     <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Data:</span> {reportDate}
                   </p>
@@ -380,28 +380,28 @@ export default function LaudoPage() {
               </div>
 
               {/* Patient/Header Info */}
-              <div className={`rounded-lg p-6 border transition-colors duration-300 ${
+              <div className={`rounded-lg p-3 sm:p-4 md:p-6 border transition-colors duration-300 ${
                 isDark 
                   ? 'bg-slate-900 border-slate-700' 
                   : 'bg-slate-50 border-slate-200'
               }`}>
-                <div className="grid grid-cols-2 gap-6 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6 text-xs sm:text-sm">
                   {cid && (
                     <div>
-                      <label className={`text-xs uppercase font-semibold tracking-wide block mb-2 ${
+                      <label className={`text-xs uppercase font-semibold tracking-wide block mb-1.5 sm:mb-2 ${
                         isDark ? 'text-slate-400' : 'text-slate-600'
                       }`}>CID</label>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <p className={`text-base sm:text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {cid}
                       </p>
                     </div>
                   )}
                   {exam && (
                     <div>
-                      <label className={`text-xs uppercase font-semibold tracking-wide block mb-2 ${
+                      <label className={`text-xs uppercase font-semibold tracking-wide block mb-1.5 sm:mb-2 ${
                         isDark ? 'text-slate-400' : 'text-slate-600'
                       }`}>Exame / Tipo</label>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <p className={`text-base sm:text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {exam}
                       </p>
                     </div>
@@ -411,11 +411,11 @@ export default function LaudoPage() {
 
               {/* Diagnosis Section */}
               {diagnosis && (
-                <div className="space-y-3">
-                  <h2 className={`text-xl font-bold uppercase tracking-wide ${
+                <div className="space-y-2 sm:space-y-3">
+                  <h2 className={`text-lg sm:text-xl font-bold uppercase tracking-wide ${
                     isDark ? 'text-blue-400' : 'text-blue-700'
                   }`}>Diagnóstico</h2>
-                  <div className={`whitespace-pre-wrap text-base leading-relaxed rounded-lg p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
+                  <div className={`whitespace-pre-wrap text-sm sm:text-base leading-relaxed rounded-lg p-3 sm:p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
                     isDark 
                       ? 'bg-slate-900 text-slate-200' 
                       : 'bg-blue-50 text-slate-800'
@@ -427,11 +427,11 @@ export default function LaudoPage() {
 
               {/* Conclusion Section */}
               {conclusion && (
-                <div className="space-y-3">
-                  <h2 className={`text-xl font-bold uppercase tracking-wide ${
+                <div className="space-y-2 sm:space-y-3">
+                  <h2 className={`text-lg sm:text-xl font-bold uppercase tracking-wide ${
                     isDark ? 'text-blue-400' : 'text-blue-700'
                   }`}>Conclusão</h2>
-                  <div className={`whitespace-pre-wrap text-base leading-relaxed rounded-lg p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
+                  <div className={`whitespace-pre-wrap text-sm sm:text-base leading-relaxed rounded-lg p-3 sm:p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
                     isDark 
                       ? 'bg-slate-900 text-slate-200' 
                       : 'bg-blue-50 text-slate-800'
@@ -443,13 +443,13 @@ export default function LaudoPage() {
 
               {/* Notes/Content Section */}
               {(notesHtml || notesText) && (
-                <div className="space-y-3">
-                  <h2 className={`text-xl font-bold uppercase tracking-wide ${
+                <div className="space-y-2 sm:space-y-3">
+                  <h2 className={`text-lg sm:text-xl font-bold uppercase tracking-wide ${
                     isDark ? 'text-blue-400' : 'text-blue-700'
                   }`}>Notas do Profissional</h2>
                   {notesHtml ? (
                     <div 
-                      className={`prose prose-sm max-w-none rounded-lg p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
+                      className={`prose prose-sm max-w-none rounded-lg p-3 sm:p-4 border-l-4 border-blue-500 transition-colors duration-300 text-xs sm:text-sm ${
                         isDark 
                           ? 'prose-invert bg-slate-900 text-slate-200' 
                           : 'bg-blue-50 text-slate-800'
@@ -457,7 +457,7 @@ export default function LaudoPage() {
                       dangerouslySetInnerHTML={{ __html: String(notesHtml) }}
                     />
                   ) : (
-                    <div className={`whitespace-pre-wrap text-base leading-relaxed rounded-lg p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
+                    <div className={`whitespace-pre-wrap text-sm sm:text-base leading-relaxed rounded-lg p-3 sm:p-4 border-l-4 border-blue-500 transition-colors duration-300 ${
                       isDark 
                         ? 'bg-slate-900 text-slate-200' 
                         : 'bg-blue-50 text-slate-800'
@@ -470,9 +470,9 @@ export default function LaudoPage() {
 
               {/* Signature Section */}
               {report.doctor_signature && (
-                <div className={`pt-8 border-t-2 ${isDark ? 'border-slate-600' : 'border-slate-300'}`}>
-                  <div className="flex flex-col items-center gap-4">
-                    <div className={`rounded-lg p-4 border transition-colors duration-300 ${
+                <div className={`pt-6 sm:pt-8 border-t-2 ${isDark ? 'border-slate-600' : 'border-slate-300'}`}>
+                  <div className="flex flex-col items-center gap-3 sm:gap-4">
+                    <div className={`rounded-lg p-2 sm:p-4 border transition-colors duration-300 ${
                       isDark 
                         ? 'bg-slate-900 border-slate-600' 
                         : 'bg-slate-100 border-slate-300'
@@ -482,16 +482,16 @@ export default function LaudoPage() {
                         alt="Assinatura do profissional"
                         width={150}
                         height={100}
-                        className="h-20 w-auto"
+                        className="h-16 sm:h-20 w-auto"
                       />
                     </div>
                     {doctorName && (
                       <div className="text-center">
-                        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                           {doctorName}
                         </p>
                         {doctor?.crm && (
-                          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          <p className={`text-xs mt-0.5 sm:mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             CRM: {doctor.crm}
                           </p>
                         )}

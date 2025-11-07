@@ -478,121 +478,124 @@ export default function DoutoresPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Médicos</h1>
-          <p className="text-muted-foreground">Gerencie os médicos da sua clínica</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Médicos</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Gerencie os médicos da sua clínica</p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-8 w-80"
-                placeholder="Digite para buscar por ID, nome, CRM ou especialidade…"
-                value={search}
-                onChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
-              />
-            </div>
-            <Button 
-              variant="secondary"
-              onClick={() => void handleBuscarServidor()}
-              disabled={loading}
-              className="hover:bg-primary hover:text-white"
-            >
-              Buscar
-            </Button>
-            {searchMode && (
-              <Button 
-                variant="ghost" 
-                onClick={() => {
-                  setSearch("");
-                  setSearchMode(false);
-                  setSearchResults([]);
-                }}
-              >
-                Limpar
-              </Button>
-            )}
-          </div>
+        <Button onClick={handleAdd} disabled={loading} className="w-full sm:w-auto gap-2 text-sm sm:text-base">
+          <Plus className="h-4 w-4" />
+          Novo Médico
+        </Button>
+      </div>
 
-          {/* NOVO: Ordenar por */}
+      {/* Filtros e busca - Responsivos */}
+      <div className="flex flex-col gap-2 sm:gap-3">
+        {/* Linha 1: Busca + Botão buscar */}
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8 w-full text-xs sm:text-sm"
+              placeholder="ID, nome, CRM…"
+              value={search}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown}
+            />
+          </div>
+          <Button 
+            variant="secondary"
+            onClick={() => void handleBuscarServidor()}
+            disabled={loading}
+            className="hover:bg-primary hover:text-white text-xs sm:text-sm px-2 sm:px-4"
+          >
+            Buscar
+          </Button>
+          {searchMode && (
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setSearch("");
+                setSearchMode(false);
+                setSearchResults([]);
+              }}
+              className="text-xs sm:text-sm"
+            >
+              Limpar
+            </Button>
+          )}
+        </div>
+
+        {/* Linha 2: Filtros */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           <select
             aria-label="Ordenar por"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="name_asc">Nome (A–Z)</option>
-            <option value="name_desc">Nome (Z–A)</option>
-            <option value="recent">Mais recentes (carregamento)</option>
-            <option value="oldest">Mais antigos (carregamento)</option>
+            <option value="name_asc">Nome A–Z</option>
+            <option value="name_desc">Nome Z–A</option>
+            <option value="recent">Recentes</option>
+            <option value="oldest">Antigos</option>
           </select>
 
-          {/* NOVO: Especialidade */}
           <select
             aria-label="Filtrar por especialidade"
             value={specialtyFilter}
             onChange={(e) => setSpecialtyFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="">Todas as especialidades</option>
+            <option value="">Todas espec.</option>
             {specialtyOptions.map((sp) => (
               <option key={sp} value={sp}>{sp}</option>
             ))}
           </select>
 
-          {/* NOVO: Estado (UF) */}
           <select
             aria-label="Filtrar por estado"
             value={stateFilter}
             onChange={(e) => { setStateFilter(e.target.value); setCityFilter(""); }}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="">Todos os estados</option>
+            <option value="">Todos UF</option>
             {stateOptions.map((uf) => (
               <option key={uf} value={uf}>{uf}</option>
             ))}
           </select>
 
-          {/* NOVO: Cidade (dependente do estado) */}
           <select
             aria-label="Filtrar por cidade"
             value={cityFilter}
             onChange={(e) => setCityFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="">Todas as cidades</option>
+            <option value="">Todas cidades</option>
             {cityOptions.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-
-          <Button onClick={handleAdd} disabled={loading}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Médico
-          </Button>
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      {/* Tabela para desktop (md+) */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-primary hover:bg-primary">
-              <TableHead className="text-primary-foreground">Nome</TableHead>
-              <TableHead className="text-primary-foreground">Especialidade</TableHead>
-              <TableHead className="text-primary-foreground">CRM</TableHead>
-              <TableHead className="text-primary-foreground">Contato</TableHead>
-              <TableHead className="w-[100px] text-primary-foreground">Ações</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Nome</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Especialidade</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">CRM</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Contato</TableHead>
+              <TableHead className="w-[100px] text-primary-foreground text-xs sm:text-sm">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={5} className="text-center text-muted-foreground text-xs sm:text-sm">
                   Carregando…
                 </TableCell>
               </TableRow>
@@ -687,7 +690,7 @@ export default function DoutoresPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={5} className="text-center text-muted-foreground text-xs sm:text-sm">
                   Nenhum médico encontrado
                 </TableCell>
               </TableRow>
@@ -696,64 +699,126 @@ export default function DoutoresPage() {
         </Table>
       </div>
 
-      {/* Controles de paginação */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Itens por página:</span>
+      {/* Cards para mobile (md: hidden) */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          <div className="text-center text-xs sm:text-sm text-muted-foreground">Carregando…</div>
+        ) : paginatedDoctors.length > 0 ? (
+          paginatedDoctors.map((doctor) => (
+            <div key={doctor.id} className="bg-card p-3 sm:p-4 rounded-lg border border-border shadow-sm space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base truncate">{doctor.full_name}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{doctor.crm || "Sem CRM"}</p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="h-6 w-6 p-0 flex items-center justify-center rounded-md hover:bg-primary hover:text-white transition-colors flex-shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="text-xs sm:text-sm">
+                    <DropdownMenuItem onClick={() => handleView(doctor)}>
+                      <Eye className="mr-2 h-3 w-3" />
+                      Ver
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleViewAssignedPatients(doctor)}>
+                      <Users className="mr-2 h-3 w-3" />
+                      Pacientes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEdit(String(doctor.id))}>
+                      <Edit className="mr-2 h-3 w-3" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDelete(String(doctor.id))} className="text-destructive">
+                      <Trash2 className="mr-2 h-3 w-3" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
+                <div>
+                  <span className="text-muted-foreground">Espec.:</span> <span className="font-medium">{doctor.especialidade || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Email:</span> <span className="font-medium truncate">{doctor.email}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Tel.:</span> <span className="font-medium">{doctor.telefone || "—"}</span>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center text-xs sm:text-sm text-muted-foreground py-4">
+            Nenhum médico encontrado
+          </div>
+        )}
+      </div>
+
+      {/* Controles de paginação - Responsivos */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 text-xs sm:text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-muted-foreground">Itens por página:</span>
           <select
             value={itemsPerPage}
             onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={15}>15</option>
             <option value={20}>20</option>
           </select>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-xs sm:text-sm">
             Mostrando {paginatedDoctors.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
             {Math.min(currentPage * itemsPerPage, displayedDoctors.length)} de {displayedDoctors.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Primeira
+            <span className="hidden sm:inline">Primeira</span>
+            <span className="sm:hidden">1ª</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
+            <span className="sm:hidden">«</span>
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Página {currentPage} de {totalPages || 1}
+          <span className="text-muted-foreground text-xs sm:text-sm">
+            Pág {currentPage} de {totalPages || 1}
           </span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Próxima
+            <span className="hidden sm:inline">Próxima</span>
+            <span className="sm:hidden">»</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Última
+            <span className="hidden sm:inline">Última</span>
+            <span className="sm:hidden">Últ</span>
           </Button>
         </div>
       </div>

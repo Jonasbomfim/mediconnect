@@ -866,11 +866,15 @@ const ProfissionalPage = () => {
                         {appointment.type}
                       </div>
                     </div>
-                    <div className="hidden md:flex items-center justify-end">
-                      <div className="relative group">
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                          Ver informações do paciente
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
+                    <div className="flex items-center justify-end">
+                      {/* Tornar o trigger focusable/touchable para mobile: tabIndex + classes responsivas */}
+                      <div className="relative group" tabIndex={0} role="button" aria-label={`Informações da consulta ${appointment.title}`}>
+                        {/* Tooltip: em telas pequenas com scrollbar horizontal permanente (overflow-x-scroll); desktop sem scroll (hover) */}
+                        <div className="absolute sm:bottom-full bottom-auto sm:left-1/2 left-0 sm:transform sm:-translate-x-1/2 right-0 sm:mb-2 top-full sm:top-auto sm:mt-0 mt-2 px-3 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs sm:text-xs rounded-md opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 pointer-events-auto sm:pointer-events-none whitespace-normal sm:whitespace-nowrap z-50 max-w-[92vw] sm:max-w-xs overflow-y-hidden overflow-x-scroll sm:overflow-x-hidden">
+                          <div className="font-medium">{appointment.title} • {appointment.type}</div>
+                          <div className="text-[11px] text-muted-foreground mt-1">Agendamento para {appointment.title}. Status: {appointment.type === 'Rotina' ? 'requested' : appointment.type}.</div>
+                          <div className="text-[11px] text-muted-foreground mt-1">{appointment.time} • {appointment.date}</div>
+                          <div className="absolute sm:top-full top-auto sm:left-1/2 left-1/2 transform sm:-translate-x-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent sm:border-t-gray-900 dark:sm:border-t-gray-100 sm:mt-0 mt-0"></div>
                         </div>
                       </div>
                     </div>

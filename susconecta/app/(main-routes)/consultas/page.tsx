@@ -469,76 +469,78 @@ export default function ConsultasPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background">
+      {/* Header responsivo */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Gerenciamento de Consultas</h1>
-          <p className="text-muted-foreground">Visualize, filtre e gerencie todas as consultas da clínica.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Consultas</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Gerencie todas as consultas da clínica</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Pass origin so the Agenda page can return to Consultas when cancelling */}
-          <Link href="/agenda?origin=consultas">
-            <Button size="sm" className="h-8 gap-1 bg-blue-600">
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Agendar Nova Consulta</span>
-            </Button>
-          </Link>
+        <Link href="/agenda?origin=consultas">
+          <Button className="w-full sm:w-auto h-8 sm:h-9 gap-1 bg-blue-600 text-xs sm:text-sm">
+            <PlusCircle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Agendar</span>
+            <span className="sm:hidden">Nova</span>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Filtros e busca responsivos */}
+      <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 border rounded-lg bg-card">
+        {/* Linha 1: Busca */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar…"
+              className="pl-8 w-full text-xs sm:text-sm h-8 sm:h-9 shadow-sm border"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+            />
+          </div>
+        </div>
+
+        {/* Linha 2: Selects responsivos */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <Select onValueChange={(v) => { setSelectedStatus(String(v)); }}>
+            <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="confirmed">Confirmada</SelectItem>
+              <SelectItem value="requested">Pendente</SelectItem>
+              <SelectItem value="cancelled">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input type="date" className="h-8 sm:h-9 text-xs sm:text-sm" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Consultas Agendadas</CardTitle>
-          <CardDescription>Visualize, filtre e gerencie todas as consultas da clínica.</CardDescription>
-          <div className="pt-4 flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[250px] flex gap-2 items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Buscar por..."
-                  className="pl-8 pr-4 w-full shadow-sm border border-border bg-transparent"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                />
-              </div>
-            </div>
-            <Select onValueChange={(v) => { setSelectedStatus(String(v)); }}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="confirmed">Confirmada</SelectItem>
-                {/* backend uses 'requested' for pending requests, map UI label to that value */}
-                <SelectItem value="requested">Pendente</SelectItem>
-                <SelectItem value="cancelled">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input type="date" className="w-[180px]" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="w-full py-12 flex justify-center items-center">
-              <Loader2 className="animate-spin mr-2" />
-              <span>Carregando agendamentos...</span>
-            </div>
-          ) : (
+      {/* Loading state */}
+      {isLoading ? (
+        <div className="w-full py-12 flex justify-center items-center border rounded-lg">
+          <Loader2 className="animate-spin mr-2" />
+          <span className="text-xs sm:text-sm">Carregando agendamentos...</span>
+        </div>
+      ) : (
+        <>
+          {/* Desktop Table - Hidden on mobile */}
+          <div className="hidden md:block border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="text-primary-foreground">Paciente</TableHead>
-                  <TableHead className="text-primary-foreground">Médico</TableHead>
-                  <TableHead className="text-primary-foreground">Status</TableHead>
-                  <TableHead className="text-primary-foreground">Data e Hora</TableHead>
-                  <TableHead className="text-primary-foreground">Ações</TableHead>
+                  <TableHead className="text-primary-foreground text-xs sm:text-sm">Paciente</TableHead>
+                  <TableHead className="text-primary-foreground text-xs sm:text-sm">Médico</TableHead>
+                  <TableHead className="text-primary-foreground text-xs sm:text-sm">Status</TableHead>
+                  <TableHead className="text-primary-foreground text-xs sm:text-sm">Data e Hora</TableHead>
+                  <TableHead className="text-primary-foreground text-xs sm:text-sm">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedAppointments.map((appointment) => {
-                  // appointment.professional may now contain the doctor's name (resolved)
                   const professionalLookup = mockProfessionals.find((p) => p.id === appointment.professional);
                   const professionalName = typeof appointment.professional === "string" && appointment.professional && !professionalLookup
                     ? appointment.professional
@@ -546,8 +548,8 @@ export default function ConsultasPage() {
 
                   return (
                     <TableRow key={appointment.id}>
-                      <TableCell className="font-medium">{appointment.patient}</TableCell>
-                      <TableCell>{professionalName}</TableCell>
+                      <TableCell className="font-medium text-xs sm:text-sm">{appointment.patient}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{professionalName}</TableCell>
                       <TableCell>
                         <Badge
                           variant={
@@ -562,12 +564,12 @@ export default function ConsultasPage() {
                           {capitalize(appointment.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(appointment.scheduled_at ?? appointment.time)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{formatDate(appointment.scheduled_at ?? appointment.time)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-primary hover:text-white transition-colors">
-                              <span className="sr-only">Abrir menu</span>
+                              <span className="sr-only">Menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
@@ -592,68 +594,146 @@ export default function ConsultasPage() {
                 })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </div>
 
-      {/* Controles de paginação */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Itens por página:</span>
+          {/* Mobile Cards - Hidden on desktop */}
+          <div className="md:hidden space-y-2">
+            {paginatedAppointments.length > 0 ? (
+              paginatedAppointments.map((appointment) => {
+                const professionalLookup = mockProfessionals.find((p) => p.id === appointment.professional);
+                const professionalName = typeof appointment.professional === "string" && appointment.professional && !professionalLookup
+                  ? appointment.professional
+                  : (professionalLookup ? professionalLookup.name : (appointment.professional || "Não encontrado"));
+
+                return (
+                  <div key={appointment.id} className="bg-card p-3 sm:p-4 rounded-lg border border-border hover:border-primary transition-colors">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="col-span-2 flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="text-[10px] sm:text-xs font-semibold text-primary">Paciente</div>
+                          <div className="text-xs sm:text-sm font-medium truncate">{appointment.patient}</div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="h-7 w-7 p-0 flex items-center justify-center rounded-md hover:bg-primary hover:text-white transition-colors flex-shrink-0">
+                              <span className="sr-only">Menu</span>
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleView(appointment)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(appointment)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(appointment.id)} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground">Médico</div>
+                        <div className="text-[10px] sm:text-xs font-medium truncate">{professionalName}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground">Status</div>
+                        <Badge
+                          variant={
+                            appointment.status === "confirmed"
+                              ? "default"
+                              : appointment.status === "pending"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                          className={`text-[10px] sm:text-xs ${appointment.status === "confirmed" ? "bg-green-600" : ""}`}
+                        >
+                          {capitalize(appointment.status)}
+                        </Badge>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="text-[10px] sm:text-xs text-muted-foreground">Data e Hora</div>
+                        <div className="text-[10px] sm:text-xs font-medium">{formatDate(appointment.scheduled_at ?? appointment.time)}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center text-xs sm:text-sm text-muted-foreground py-4">
+                Nenhuma consulta encontrada
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Controles de paginação - Responsivos */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 text-xs sm:text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-muted-foreground text-xs sm:text-sm">Itens por página:</span>
           <select
             value={itemsPerPage}
             onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={15}>15</option>
             <option value={20}>20</option>
           </select>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-xs sm:text-sm">
             Mostrando {paginatedAppointments.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
             {Math.min(currentPage * itemsPerPage, appointments.length)} de {appointments.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Primeira
+            <span className="hidden sm:inline">Primeira</span>
+            <span className="sm:hidden">1ª</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
+            <span className="sm:hidden">«</span>
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Página {currentPage} de {totalPages || 1}
+          <span className="text-muted-foreground text-xs sm:text-sm">
+            Pág {currentPage} de {totalPages || 1}
           </span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Próxima
+            <span className="hidden sm:inline">Próxima</span>
+            <span className="sm:hidden">»</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Última
+            <span className="hidden sm:inline">Última</span>
+            <span className="sm:hidden">Últ</span>
           </Button>
         </div>
       </div>

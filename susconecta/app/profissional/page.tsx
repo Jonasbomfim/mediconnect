@@ -786,45 +786,45 @@ const ProfissionalPage = () => {
     const todayEvents = getTodayEvents();
     
     return (
-      <section className="bg-card shadow-md rounded-lg border border-border p-6 overflow-x-hidden">{/* adicionada overflow-x-hidden */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold">Agenda do Dia</h2>
+      <section className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6 overflow-x-hidden">
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold">Agenda do Dia</h2>
         </div>
         
         {/* Navegação de Data - Responsiva */}
-        <div className="flex items-center justify-between mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg dark:bg-muted flex-wrap gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex flex-col gap-2 sm:gap-3 mb-4 sm:mb-6 p-2 sm:p-3 md:p-4 bg-blue-50 rounded-lg dark:bg-muted">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 flex-wrap">
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors h-auto"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-base sm:text-lg font-medium text-foreground whitespace-nowrap line-clamp-2">
+            <h3 className="text-sm sm:text-base md:text-lg font-medium text-foreground flex-1 line-clamp-1">
               {formatDate(currentCalendarDate)}
             </h3>
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors h-auto"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground whitespace-nowrap">
-            {todayEvents.length} consulta{todayEvents.length !== 1 ? 's' : ''}
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground">
+            <span className="font-semibold">{todayEvents.length}</span> consulta{todayEvents.length !== 1 ? 's' : ''}
           </div>
         </div>
 
         {/* Lista de Pacientes do Dia */}
-        <div className="space-y-4 max-h-[calc(100vh-450px)] overflow-y-auto overflow-x-hidden pr-2">{/* adicionada overflow-x-hidden */}
+        <div className="space-y-2 sm:space-y-3 max-h-[calc(100vh-450px)] overflow-y-auto overflow-x-hidden pr-2">
           {todayEvents.length === 0 ? (
             <div className="text-center py-6 sm:py-8 text-gray-600 dark:text-muted-foreground">
-              <CalendarIcon className="h-10 sm:h-12 w-10 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400 dark:text-muted-foreground/50" />
-              <p className="text-base sm:text-lg mb-2">Nenhuma consulta agendada para este dia</p>
+              <CalendarIcon className="h-8 sm:h-10 md:h-12 w-8 sm:w-10 md:w-12 mx-auto mb-2 sm:mb-3 text-gray-400 dark:text-muted-foreground/50" />
+              <p className="text-sm sm:text-base font-medium mb-1">Nenhuma consulta agendada para este dia</p>
               <p className="text-xs sm:text-sm">Agenda livre para este dia</p>
             </div>
           ) : (
@@ -833,42 +833,42 @@ const ProfissionalPage = () => {
               return (
                 <div
                   key={appointment.id}
-                  className="border-l-4 border-t border-r border-b p-3 sm:p-4 rounded-lg shadow-sm bg-card border-border"
+                  className="border-l-4 border-t border-r border-b p-2.5 sm:p-3 md:p-4 rounded-lg shadow-sm bg-card border-border hover:shadow-md transition-shadow"
                   style={{ borderLeftColor: getStatusColor(appointment.type) }}
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 items-center">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 items-start sm:items-center">
+                    <div className="flex items-start sm:items-center gap-2 min-w-0">
                       <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 sm:mt-0"
                         style={{ backgroundColor: getStatusColor(appointment.type) }}
                       ></div>
                       <div className="min-w-0">
-                        <div className="font-medium text-sm sm:text-base flex items-center gap-2">
-                          <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 dark:text-muted-foreground flex-shrink-0" />
+                        <div className="font-medium text-xs sm:text-sm md:text-base flex items-center gap-1.5 flex-wrap">
+                          <User className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gray-500 dark:text-muted-foreground flex-shrink-0" />
                           <span className="truncate">{appointment.title}</span>
                         </div>
                         {paciente && (
-                          <div className="text-xs text-gray-600 dark:text-muted-foreground truncate">
+                          <div className="text-xs text-gray-600 dark:text-muted-foreground truncate mt-0.5">
                             CPF: {getPatientCpf(paciente)} • {getPatientAge(paciente)} anos
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 dark:text-muted-foreground flex-shrink-0" />
-                      <span className="font-medium text-sm sm:text-base">{appointment.time}</span>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm md:text-base">
+                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gray-500 dark:text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium">{appointment.time}</span>
                     </div>
                     <div className="flex items-center">
                       <div 
-                        className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium text-white whitespace-nowrap"
+                        className="px-2 sm:px-2.5 md:px-3 py-1 rounded-full text-xs font-medium text-white whitespace-nowrap"
                         style={{ backgroundColor: getStatusColor(appointment.type) }}
                       >
                         {appointment.type}
                       </div>
                     </div>
-                    <div className="flex items-center justify-end">
+                    <div className="hidden md:flex items-center justify-end">
                       <div className="relative group">
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                           Ver informações do paciente
                           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
                         </div>
@@ -2051,43 +2051,43 @@ const ProfissionalPage = () => {
     };
 
     return (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-background rounded-none md:rounded-lg shadow-xl w-full h-full md:h-auto md:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2 sm:p-4">
+        <div className="bg-background rounded-none md:rounded-lg shadow-xl w-full h-full md:h-auto md:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="border-b border-border">
-            <div className="flex items-center justify-between p-4">
+            <div className="flex items-center justify-between p-2 sm:p-4">
               <div>
-                <h2 className="text-xl font-bold text-foreground">
+                <h2 className="text-base sm:text-xl font-bold text-foreground">
                   {isNewLaudo ? "Novo Laudo Médico" : "Editar Laudo Existente"}
                 </h2>
                 {isNewLaudo ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Crie um novo laudo selecionando um paciente
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Paciente: {getPatientName(pacienteSelecionado) || getPatientName(laudo?.paciente) || getPatientName(laudo) || '-'} | CPF: {getReportPatientCpf(laudo) ?? laudo?.patient_cpf ?? '-'} | {laudo?.especialidade}
                   </p>
                 )}
               </div>
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 flex-shrink-0">
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
             {/* Seleção de Paciente (apenas para novos laudos) */}
             {isNewLaudo && (
-              <div className="px-4 pb-4">
+              <div className="px-2 sm:px-4 pb-2 sm:pb-4">
                 {!pacienteSelecionado ? (
-                  <div className="bg-muted border border-border rounded-lg p-4">
-                    <Label htmlFor="select-paciente" className="text-sm font-medium mb-2 block">
+                  <div className="bg-muted border border-border rounded-lg p-2 sm:p-4">
+                    <Label htmlFor="select-paciente" className="text-xs sm:text-sm font-medium mb-2 block">
                       Selecionar Paciente *
                     </Label>
                     <Select onValueChange={(value) => {
                       const paciente = listaPacientes.find(p => p.id === value);
                       if (paciente) setPacienteSelecionado(paciente);
                     }}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full text-xs sm:text-sm">
                         <SelectValue placeholder="Escolha um paciente para criar o laudo" />
                       </SelectTrigger>
                       <SelectContent>
@@ -2100,9 +2100,9 @@ const ProfissionalPage = () => {
                     </Select>
                   </div>
                 ) : (
-                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between">
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 sm:p-3 flex items-center justify-between gap-2">
                     <div>
-                      <div className="font-semibold text-primary">{getPatientName(pacienteSelecionado)}</div>
+                      <div className="font-semibold text-primary text-sm sm:text-base">{getPatientName(pacienteSelecionado)}</div>
                         <div className="text-xs text-muted-foreground">
                           {getPatientCpf(pacienteSelecionado) ? `CPF: ${getPatientCpf(pacienteSelecionado)} | ` : ''}
                           {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date}` : (getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : '')}
@@ -2114,25 +2114,26 @@ const ProfissionalPage = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setPacienteSelecionado(null)}
+                        className="text-xs flex-shrink-0"
                       >
-                        Trocar Paciente
+                        Trocar
                       </Button>
                     )}
                   </div>
                 )}
                 {/* Novos campos: Solicitante e Prazo */}
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="mt-2 sm:mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
                   <div>
-                    <Label htmlFor="solicitante">Solicitante</Label>
+                    <Label htmlFor="solicitante" className="text-xs sm:text-sm">Solicitante</Label>
                     {/* Mostrar o nome do usuário logado de forma estática (não editável) */}
-                    <Input id="solicitante" value={displaySolicitante} readOnly disabled />
+                    <Input id="solicitante" value={displaySolicitante} readOnly disabled className="text-xs sm:text-sm h-8 sm:h-10" />
                     
                   </div>
                   <div>
-                    <Label htmlFor="prazoDate">Prazo do Laudo</Label>
-                    <div className="flex gap-2">
-                      <Input id="prazoDate" type="date" value={prazoDate} onChange={(e) => setPrazoDate(e.target.value)} />
-                      <Input id="prazoTime" type="time" value={prazoTime} onChange={(e) => setPrazoTime(e.target.value)} />
+                    <Label htmlFor="prazoDate" className="text-xs sm:text-sm">Prazo do Laudo</Label>
+                    <div className="flex gap-1 sm:gap-2">
+                      <Input id="prazoDate" type="date" value={prazoDate} onChange={(e) => setPrazoDate(e.target.value)} className="text-xs sm:text-sm h-8 sm:h-10" />
+                      <Input id="prazoTime" type="time" value={prazoTime} onChange={(e) => setPrazoTime(e.target.value)} className="text-xs sm:text-sm h-8 sm:h-10" />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Defina a data e hora do prazo (opcional).</p>
                   </div>
@@ -2142,11 +2143,11 @@ const ProfissionalPage = () => {
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-border">
+          <div className="flex border-b border-border overflow-x-auto">
             {/* Informações tab removed - only Editor/Imagens/Campos/Pré-visualização remain */}
             <button
               onClick={() => setActiveTab("editor")}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "editor"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
@@ -2172,7 +2173,7 @@ const ProfissionalPage = () => {
             </button>
             <button
               onClick={() => setActiveTab("imagens")}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "imagens"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
@@ -2198,7 +2199,7 @@ const ProfissionalPage = () => {
             </button>
             <button
               onClick={() => setActiveTab("campos")}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "campos"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
@@ -2224,7 +2225,7 @@ const ProfissionalPage = () => {
             </button>
             <button
               onClick={() => setShowPreview(!showPreview)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 showPreview
                   ? "border-green-500 text-green-600"
                   : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
@@ -2259,26 +2260,26 @@ const ProfissionalPage = () => {
               {activeTab === "editor" && (
                 <div className="flex-1 flex flex-col">
                   {/* Toolbar */}
-                  <div className="p-3 border-b border-border">
-                    <div className="flex flex-wrap gap-2 items-center">
+                  <div className="p-1.5 sm:p-3 border-b border-border overflow-x-auto">
+                    <div className="flex flex-wrap gap-1 sm:gap-2 items-center">
                       {/* Tamanho da fonte */}
-                      <label className="text-xs mr-1">Tamanho</label>
+                      <label className="text-xs mr-0.5 sm:mr-1 whitespace-nowrap">Tamanho</label>
                       <input
                         type="number"
                         min={8}
                         max={32}
                         defaultValue={14}
                         onBlur={e => formatText('font-size', e.target.value)}
-                        className="w-14 border rounded px-1 py-0.5 text-xs mr-2"
+                        className="w-12 border rounded px-1 py-0.5 text-xs mr-1 sm:mr-2"
                         title="Tamanho da fonte"
                       />
                       {/* Família da fonte */}
-                      <label className="text-xs mr-1">Fonte</label>
+                      <label className="text-xs mr-0.5 sm:mr-1 whitespace-nowrap">Fonte</label>
                       <select
                         defaultValue={'Arial'}
                         onBlur={e => formatText('font-family', e.target.value)}
-                        className="border rounded px-1 py-0.5 text-xs mr-2 bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
-                        style={{ minWidth: 140, fontWeight: 500 }}
+                        className="border rounded px-1 py-0.5 text-xs mr-1 sm:mr-2 bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+                        style={{ minWidth: 100, fontWeight: 500 }}
                         title="Família da fonte"
                       >
                         <option value="Arial" style={{ color: '#222', background: '#fff', fontWeight: 600 }}>Arial</option>
@@ -2327,52 +2328,51 @@ const ProfissionalPage = () => {
                   </div>
 
                   {/* Editor */}
-                  <div className="flex-1 p-4 overflow-auto max-h-[500px]">
+                  <div className="flex-1 p-2 sm:p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-blue-100 dark:scrollbar-thumb-blue-400 dark:scrollbar-track-blue-950 max-h-[calc(100vh-500px)] sm:max-h-[calc(100vh-400px)]">
                     <Textarea
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       placeholder="Digite o conteúdo do laudo aqui. Use ** para negrito, * para itálico, <u></u> para sublinhado."
-                      className="h-full min-h-[400px] resize-none scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-blue-100"
-                      style={{ maxHeight: 400, overflow: 'auto' }}
+                      className="w-full min-h-[200px] sm:min-h-[300px] resize-none text-xs sm:text-sm"
                     />
                   </div>
                 </div>
               )}
 
               {activeTab === "imagens" && (
-                <div className="flex-1 p-4">
-                  <div className="mb-4">
-                    <Label htmlFor="upload-images">Upload de Imagens</Label>
+                <div className="flex-1 p-2 sm:p-4 overflow-y-auto">
+                  <div className="mb-3 sm:mb-4">
+                    <Label htmlFor="upload-images" className="text-xs sm:text-sm">Upload de Imagens</Label>
                     <Input
                       id="upload-images"
                       type="file"
                       multiple
                       accept="image/*,.pdf"
                       onChange={handleImageUpload}
-                      className="mt-1"
+                      className="mt-1 text-xs"
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
                     {imagens.map((img) => (
-                      <div key={img.id} className="border border-border rounded-lg p-2">
+                      <div key={img.id} className="border border-border rounded-lg p-1.5 sm:p-2">
                         {img.type.startsWith('image/') ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img 
                             src={img.url} 
                             alt={img.name}
-                            className="w-full h-32 object-cover rounded"
+                            className="w-full h-24 sm:h-32 object-cover rounded"
                           />
                         ) : (
-                          <div className="w-full h-32 bg-muted rounded flex items-center justify-center">
-                            <FileText className="w-8 h-8 text-muted-foreground" />
+                          <div className="w-full h-24 sm:h-32 bg-muted rounded flex items-center justify-center">
+                            <FileText className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
                           </div>
                         )}
                         <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="w-full mt-1"
+                          className="w-full mt-1 text-xs"
                           onClick={() => setImagens(prev => prev.filter(i => i.id !== img.id))}
                         >
                           Remover
@@ -2384,54 +2384,59 @@ const ProfissionalPage = () => {
               )}
 
               {activeTab === "campos" && (
-                <div className="flex-1 p-4 space-y-4 max-h-[500px] overflow-y-auto">
+                <div className="flex-1 p-2 sm:p-4 space-y-2 sm:space-y-4 overflow-y-auto">
                   <div>
-                    <Label htmlFor="cid">CID</Label>
+                    <Label htmlFor="cid" className="text-xs sm:text-sm">CID</Label>
                     <Input
                       id="cid"
                       value={campos.cid}
                       onChange={(e) => setCampos(prev => ({ ...prev, cid: e.target.value }))}
                       placeholder="Ex: M25.5, I10, etc."
+                      className="text-xs sm:text-sm h-8 sm:h-10"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="exame">Exame</Label>
+                    <Label htmlFor="exame" className="text-xs sm:text-sm">Exame</Label>
                     <Input
                       id="exame"
                       value={campos.exame}
                       onChange={(e) => setCampos(prev => ({ ...prev, exame: e.target.value }))}
                       placeholder="Exame realizado"
+                      className="text-xs sm:text-sm h-8 sm:h-10"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="diagnostico">Diagnóstico</Label>
+                    <Label htmlFor="diagnostico" className="text-xs sm:text-sm">Diagnóstico</Label>
                     <Textarea
                       id="diagnostico"
                       value={campos.diagnostico}
                       onChange={(e) => setCampos(prev => ({ ...prev, diagnostico: e.target.value }))}
                       placeholder="Diagnóstico principal"
-                      rows={3}
+                      rows={2}
+                      className="text-xs sm:text-sm"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="conclusao">Conclusão</Label>
+                    <Label htmlFor="conclusao" className="text-xs sm:text-sm">Conclusão</Label>
                     <Textarea
                       id="conclusao"
                       value={campos.conclusao}
                       onChange={(e) => setCampos(prev => ({ ...prev, conclusao: e.target.value }))}
                       placeholder="Conclusão do laudo"
-                      rows={3}
+                      rows={2}
+                      className="text-xs sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 sm:space-y-2">
                     <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         id="mostrar-data"
                         checked={campos.mostrarData}
                         onChange={(e) => setCampos(prev => ({ ...prev, mostrarData: e.target.checked }))}
+                        className="w-4 h-4"
                       />
-                      <Label htmlFor="mostrar-data">Mostrar data no laudo</Label>
+                      <Label htmlFor="mostrar-data" className="text-xs sm:text-sm">Mostrar data no laudo</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <input
@@ -2439,8 +2444,9 @@ const ProfissionalPage = () => {
                         id="mostrar-assinatura"
                         checked={campos.mostrarAssinatura}
                         onChange={(e) => setCampos(prev => ({ ...prev, mostrarAssinatura: e.target.checked }))}
+                        className="w-4 h-4"
                       />
-                      <Label htmlFor="mostrar-assinatura">Mostrar assinatura no laudo</Label>
+                      <Label htmlFor="mostrar-assinatura" className="text-xs sm:text-sm">Mostrar assinatura no laudo</Label>
                     </div>
                   </div>
                   {/* Assinatura Digital removida dos campos */}
@@ -2450,106 +2456,98 @@ const ProfissionalPage = () => {
 
             {/* Preview Panel */}
             {showPreview && (
-              <div className="w-1/2 border-l border-border bg-muted/20">
-                <div className="p-4 border-b border-border">
-                  <h3 className="font-semibold text-foreground">Pré-visualização do Laudo</h3>
+              <div className="hidden md:flex md:w-1/2 border-l border-border bg-muted/20 flex-col">
+                <div className="p-2 md:p-2.5 border-b border-border flex-shrink-0">
+                  <h3 className="font-semibold text-xs md:text-sm text-foreground">Pré-visualização do Laudo</h3>
                 </div>
-                <div className="p-4 max-h-[600px] overflow-y-auto">
-                  <div className="bg-background border border-border rounded-lg p-6 shadow-sm">
+                <div className="flex-1 overflow-y-auto p-1.5 md:p-2">
+                  <div className="bg-background border border-border rounded p-2 md:p-2.5 text-xs">
                     {/* Header do Laudo */}
-                    <div className="text-center mb-6">
-                      <h2 className="text-lg font-bold">
+                    <div className="text-center mb-2 pb-2 border-b border-border/40">
+                      <h2 className="text-sm font-bold leading-tight">
                         LAUDO MÉDICO {campos.especialidade ? `- ${campos.especialidade.toUpperCase()}` : ''}
                       </h2>
                       {campos.exame && (
-                        <h3 className="text-md font-semibold mt-2">{campos.exame}</h3>
-                      )}
-                      {campos.cid && (
-                        <h3 className="text-md font-semibold mt-2">CID: {campos.cid}</h3>
-                      )}
-                      {campos.diagnostico && (
-                        <h3 className="text-md font-semibold mt-2">Diagnóstico: {campos.diagnostico}</h3>
-                      )}
-                      {campos.conclusao && (
-                        <h3 className="text-md font-semibold mt-2">Conclusão: {campos.conclusao}</h3>
+                        <p className="text-xs font-semibold mt-1">{campos.exame}</p>
                       )}
                       {campos.mostrarData && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           Data: {new Date().toLocaleDateString('pt-BR')}
                         </p>
                       )}
                     </div>
 
-                    {/* Dados do Paciente */}
+                    {/* Dados do Paciente - Compacto */}
                     {(isNewLaudo ? pacienteSelecionado : laudo?.paciente) && (
-                      <div className="mb-4 p-3 bg-muted rounded">
-                        <h3 className="font-semibold mb-2">Dados do Paciente:</h3>
-                        {isNewLaudo && pacienteSelecionado ? (
-                          <>
-                            <p><strong>Nome:</strong> {getPatientName(pacienteSelecionado)}</p>
-                            <p><strong>ID:</strong> {getPatientId(pacienteSelecionado)}</p>
-                            <p><strong>CPF:</strong> {getPatientCpf(pacienteSelecionado)}</p>
-                            <p><strong>Idade:</strong> {getPatientAge(pacienteSelecionado)} anos</p>
-                            <p><strong>Sexo:</strong> {getPatientSex(pacienteSelecionado)}</p>
-                            <p><strong>CID:</strong> {campos.cid || '---'}</p>
-                            <p><strong>Diagnóstico:</strong> {campos.diagnostico || '---'}</p>
-                            <p><strong>Conclusão:</strong> {campos.conclusao || '---'}</p>
-                          </>
-                        ) : (
-                          <>
-                            <p><strong>Nome:</strong> {getPatientName(laudo?.paciente)}</p>
-                            <p><strong>ID:</strong> {getPatientId(laudo?.paciente)}</p>
-                            <p><strong>CPF:</strong> {getPatientCpf(laudo?.paciente)}</p>
-                            <p><strong>Idade:</strong> {getPatientAge(laudo?.paciente)} anos</p>
-                            <p><strong>Sexo:</strong> {getPatientSex(laudo?.paciente)}</p>
-                            <p><strong>CID:</strong> {campos.cid || laudo?.cid || '---'}</p>
-                            <p><strong>Diagnóstico:</strong> {campos.diagnostico || laudo?.diagnostico || '---'}</p>
-                            <p><strong>Conclusão:</strong> {campos.conclusao || laudo?.conclusao || '---'}</p>
-                          </>
-                        )}
+                      <div className="mb-2 pb-2 border-b border-border/40 space-y-0.5">
+                        <div><span className="font-semibold">Paciente:</span> {isNewLaudo ? getPatientName(pacienteSelecionado) : getPatientName(laudo?.paciente)}</div>
+                        <div><span className="font-semibold">CPF:</span> {isNewLaudo ? getPatientCpf(pacienteSelecionado) : getPatientCpf(laudo?.paciente)}</div>
+                        <div><span className="font-semibold">Idade:</span> {isNewLaudo ? getPatientAge(pacienteSelecionado) : getPatientAge(laudo?.paciente)} anos</div>
+                        <div><span className="font-semibold">Sexo:</span> {isNewLaudo ? getPatientSex(pacienteSelecionado) : getPatientSex(laudo?.paciente)}</div>
                       </div>
                     )}
 
-                    {/* Conteúdo */}
-                    <div className="mb-4">
-                      <div 
-                        dangerouslySetInnerHTML={{ 
-                          __html: processContent(content) 
-                        }}
-                      />
+                    {/* Informações Clínicas */}
+                    <div className="mb-2 pb-2 border-b border-border/40 space-y-0.5">
+                      {campos.cid && (
+                        <div><span className="font-semibold">CID:</span> <span className="text-blue-600 dark:text-blue-400 font-semibold">{campos.cid}</span></div>
+                      )}
+                      {campos.diagnostico && (
+                        <div><span className="font-semibold">Diagnóstico:</span> {campos.diagnostico}</div>
+                      )}
                     </div>
 
-                    {/* Imagens */}
+                    {/* Conteúdo Principal */}
+                    {content && (
+                      <div className="mb-2 pb-2 border-b border-border/40">
+                        <div 
+                          className="text-xs leading-normal [&_p]:my-0.5 [&_br]:mb-0.5 whitespace-pre-wrap"
+                          dangerouslySetInnerHTML={{ 
+                            __html: processContent(content) 
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Conclusão */}
+                    {campos.conclusao && (
+                      <div className="mb-2 pb-2 border-b border-border/40">
+                        <div><span className="font-semibold">Conclusão:</span></div>
+                        <div className="text-xs leading-normal mt-0.5">{campos.conclusao}</div>
+                      </div>
+                    )}
+
+                    {/* Imagens Compactas */}
                     {imagens.length > 0 && (
-                      <div className="mb-4">
-                        <h3 className="font-semibold mb-2">Imagens:</h3>
-                        <div className="grid grid-cols-2 gap-2">
+                      <div className="mb-2 pb-2 border-b border-border/40">
+                        <div className="font-semibold mb-1">Imagens:</div>
+                        <div className="grid grid-cols-2 gap-1">
                           {imagens.map((img) => (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img 
                               key={img.id}
                               src={img.url} 
                               alt={img.name}
-                              className="w-full h-32 object-cover rounded border"
+                              className="w-full h-14 object-cover rounded border border-border/40"
+                              title={img.name}
                             />
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Assinatura Digital em tempo real */}
+                    {/* Assinatura Digital - Compacta */}
                     {campos.mostrarAssinatura && (
-                      <div className="mt-8 text-center">
+                      <div className="pt-1 mt-1 border-t border-border/40 text-center">
                           {assinaturaImg && assinaturaImg.length > 30 ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-16 object-contain mb-2" />
+                            <img src={assinaturaImg} alt="Assinatura Digital" className="mx-auto h-8 object-contain mb-0.5" />
                           ) : (
-                            <div className="h-16 mb-2 text-xs text-muted-foreground">Assine no campo ao lado para visualizar aqui.</div>
+                            <div className="text-xs text-muted-foreground italic">Assinatura pendente</div>
                           )}
-                          <div className="border-b border-border mb-2"></div>
-                          <p className="text-sm">{((profileData as any)?.nome || (profileData as any)?.nome_social) || user?.name || 'Squad-20'}</p>
+                          <div className="border-t border-border/40 my-0.5"></div>
+                          <p className="text-xs font-semibold">{((profileData as any)?.nome || (profileData as any)?.nome_social) || user?.name || 'Squad-20'}</p>
                           {(((profileData as any)?.crm) || ((user?.profile as any)?.crm)) ? (
-                            // Ensure we render a single 'CRM ' prefix followed by the raw number
                             <p className="text-xs text-muted-foreground">CRM {(((profileData as any)?.crm) || (user?.profile as any)?.crm).toString().replace(/^(?:CRM\s*)+/i, '').trim()}</p>
                           ) : null}
                         </div>
@@ -2561,13 +2559,13 @@ const ProfissionalPage = () => {
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-border bg-muted/20">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground">
+          <div className="p-2 sm:p-4 border-t border-border bg-muted/20">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground hidden sm:block">
                 Este editor permite escrever relatórios de forma livre, com formatação de texto rica.
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} className="hover:bg-primary! hover:text-white! transition-colors">
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm">
                   Cancelar
                 </Button>
                 {/* botão 'Salvar Rascunho' removido por não ser utilizado */}
@@ -2676,6 +2674,7 @@ const ProfissionalPage = () => {
                       });
                     }
                   }}
+                  className="flex-1 sm:flex-none text-xs sm:text-sm"
                 >
                   {isNewLaudo ? "Liberar Laudo" : "Atualizar Laudo"}
                 </Button>

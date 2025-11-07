@@ -730,15 +730,15 @@ export default function ResultadosClient() {
         </section>
 
         {/* Barra de filtros secundários (agora fluída, sem sticky) */}
-        <section className="rounded-2xl border border-border bg-card/90 p-3 sm:p-4 shadow-lg backdrop-blur">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+        <section className="rounded-2xl border border-border bg-card/80 p-4 sm:p-5 shadow-md backdrop-blur">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
             {/* Segmented control: tipo da consulta */}
-            <div className="col-span-1 sm:col-span-2 lg:col-span-3">
-              <div className="flex w-full overflow-hidden rounded-full border border-primary/40 bg-primary/5">
+            <div className="sm:col-span-12">
+              <div className="flex w-full overflow-hidden rounded-full border border-primary/25 bg-primary/5 shadow-sm ring-1 ring-primary/10">
                 <Toggle
                   pressed={tipoConsulta === 'teleconsulta'}
                   onPressedChange={() => setTipoConsulta('teleconsulta')}
-                  className="flex-1 rounded-none first:rounded-l-full px-4 py-2.5 text-sm font-medium transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                  className="flex-1 rounded-none first:rounded-l-full px-4 py-2.5 text-sm font-medium transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground hover:bg-primary/10"
                 >
                   <Globe className="mr-2 h-4 w-4" />
                   Teleconsulta
@@ -746,7 +746,7 @@ export default function ResultadosClient() {
                 <Toggle
                   pressed={tipoConsulta === 'local'}
                   onPressedChange={() => setTipoConsulta('local')}
-                  className="flex-1 rounded-none last:rounded-r-full px-4 py-2.5 text-sm font-medium transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                  className="flex-1 rounded-none last:rounded-r-full px-4 py-2.5 text-sm font-medium transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground hover:bg-primary/10"
                 >
                   <Building2 className="mr-2 h-4 w-4" />
                   Consulta no local
@@ -754,10 +754,13 @@ export default function ResultadosClient() {
               </div>
             </div>
 
+            {/* divider visual */}
+            <div className="sm:col-span-12 h-px bg-border/60 my-1" />
+
             {/* Convênio */}
-            <div className="col-span-1">
+            <div className="sm:col-span-6 lg:col-span-4">
               <Select value={convenio} onValueChange={setConvenio}>
-                <SelectTrigger className="h-10 w-full rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
+                <SelectTrigger className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:border-primary focus:ring-2 focus:ring-primary">
                   <SelectValue placeholder="Convênio" />
                 </SelectTrigger>
                 <SelectContent>
@@ -772,18 +775,18 @@ export default function ResultadosClient() {
             </div>
 
             {/* Busca por nome + Mais filtros/Limpar */}
-            <div className="col-span-1">
-              <div className="flex items-center gap-2">
+            <div className="sm:col-span-6 lg:col-span-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <Input
                   placeholder="Buscar médico por nome"
                   value={searchQuery}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-full"
+                  className="w-full sm:min-w-[220px] rounded-full"
                 />
                 {searchQuery ? (
                   <Button
                     variant="ghost"
-                    className="h-10 w-full sm:w-auto"
+                    className="h-10 w-full sm:w-auto rounded-full"
                     onClick={async () => {
                       setSearchQuery('')
                       setCurrentPage(1)
@@ -807,7 +810,7 @@ export default function ResultadosClient() {
                 ) : (
                   <Button
                     variant="outline"
-                    className="h-10 w-full sm:w-auto rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors"
+                    className="h-10 w-full sm:w-auto rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
                   >
                     <Filter className="mr-2 h-4 w-4" />
                     Mais filtros
@@ -817,9 +820,9 @@ export default function ResultadosClient() {
             </div>
 
             {/* Bairro */}
-            <div className="col-span-1">
+            <div className="sm:col-span-6 lg:col-span-4">
               <Select value={bairro} onValueChange={setBairro}>
-                <SelectTrigger className="h-10 w-full rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
+                <SelectTrigger className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:border-primary focus:ring-2 focus:ring-primary">
                   <SelectValue placeholder="Bairro" />
                 </SelectTrigger>
                 <SelectContent>
@@ -832,10 +835,10 @@ export default function ResultadosClient() {
             </div>
 
             {/* Voltar */}
-            <div className="col-span-1 sm:col-span-2 lg:col-span-3">
+            <div className="sm:col-span-12">
               <Button
                 variant="ghost"
-                className="w-full rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
+                className="w-full rounded-full text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
                 onClick={() => router.back()}
               >
                 Voltar

@@ -1293,7 +1293,23 @@ export async function listarAgendamentos(query?: string): Promise<Appointment[]>
   if (!res.ok && res.status === 401) {
     throw new Error('Não autenticado. Token ausente ou expirado. Faça login novamente.');
   }
-  return await parse<Appointment[]>(res);
+  const appointments = await parse<Appointment[]>(res);
+  // Filter out soft-deleted appointments (those with cancelled_at set OR status='cancelled' OR in deleted cache)
+  return appointments.filter((a) => {
+    const id = String(a.id);
+    
+    // Check if in deleted cache
+    if (deletedAppointmentIds.has(id)) return false;
+    
+    // Check cancelled_at field
+    const cancelled = a.cancelled_at;
+    if (cancelled && cancelled !== '' && cancelled !== 'null') return false;
+    
+    // Check status field
+    if (a.status && String(a.status).toLowerCase() === 'cancelled') return false;
+    
+    return true;
+  });
 }
 
 /**
@@ -1309,13 +1325,68 @@ export async function buscarAgendamentoPorId(id: string | number, select: string
   const url = `${REST}/appointments?id=eq.${encodeURIComponent(sId)}&${params.toString()}`;
   const headers = baseHeaders();
   const arr = await fetchWithFallback<Appointment[]>(url, headers);
-  if (arr && arr.length) return arr[0];
+  // Filter out soft-deleted appointments (those with cancelled_at set OR status='cancelled' OR in deleted cache)
+  const active = arr?.filter((a) => {
+    const id = String(a.id);
+    
+    // Check if in deleted cache
+    if (deletedAppointmentIds.has(id)) return false;
+    
+    // Check cancelled_at field
+    const cancelled = a.cancelled_at;
+    if (cancelled && cancelled !== '' && cancelled !== 'null') return false;
+    
+    // Check status field
+    if (a.status && String(a.status).toLowerCase() === 'cancelled') return false;
+    
+    return true;
+  });
+  if (active && active.length) return active[0];
   throw new Error('404: Agendamento não encontrado');
 }
 
 /**
  * Deleta um agendamento por ID (DELETE /rest/v1/appointments?id=eq.<id>)
  */
+// Track deleted appointment IDs in localStorage to persist across page reloads
+const DELETED_APPOINTMENTS_KEY = 'deleted_appointment_ids';
+
+function getDeletedAppointmentIds(): Set<string> {
+  try {
+    if (typeof window === 'undefined') return new Set();
+    const stored = localStorage.getItem(DELETED_APPOINTMENTS_KEY);
+    if (stored) {
+      const ids = JSON.parse(stored);
+      return new Set(Array.isArray(ids) ? ids : []);
+    }
+  } catch (e) {
+    console.warn('[API] Erro ao ler deleted appointments do localStorage', e);
+  }
+  return new Set();
+}
+
+function saveDeletedAppointmentIds(ids: Set<string>) {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(DELETED_APPOINTMENTS_KEY, JSON.stringify(Array.from(ids)));
+  } catch (e) {
+    console.warn('[API] Erro ao salvar deleted appointments no localStorage', e);
+  }
+}
+
+const deletedAppointmentIds = getDeletedAppointmentIds();
+
+export function addDeletedAppointmentId(id: string | number) {
+  const idStr = String(id);
+  deletedAppointmentIds.add(idStr);
+  saveDeletedAppointmentIds(deletedAppointmentIds);
+}
+
+export function clearDeletedAppointments() {
+  deletedAppointmentIds.clear();
+  saveDeletedAppointmentIds(deletedAppointmentIds);
+}
+
 export async function deletarAgendamento(id: string | number): Promise<void> {
   if (!id) throw new Error('ID do agendamento é obrigatório');
   const url = `${REST}/appointments?id=eq.${encodeURIComponent(String(id))}`;
@@ -1325,9 +1396,11 @@ export async function deletarAgendamento(id: string | number): Promise<void> {
     headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
   });
 
-  if (res.status === 204) return;
-  // Some deployments may return 200 with a representation — accept that too
-  if (res.status === 200) return;
+  if (res.status === 204 || res.status === 200) {
+    // Mark as deleted locally AND persist in localStorage
+    addDeletedAppointmentId(id);
+    return;
+  }
   // Otherwise surface a friendly error using parse()
   await parse(res as Response);
 }
@@ -3018,7 +3091,8 @@ export async function countAppointmentsToday(): Promise<number> {
     const today = new Date().toISOString().split('T')[0];
     const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     
-    const url = `${REST}/appointments?scheduled_at=gte.${today}T00:00:00&scheduled_at=lt.${tomorrow}T00:00:00&select=id&limit=1`;
+    // Filter out soft-deleted appointments: cancelled_at is null
+    const url = `${REST}/appointments?scheduled_at=gte.${today}T00:00:00&scheduled_at=lt.${tomorrow}T00:00:00&cancelled_at=is.null&select=id&limit=1`;
     const res = await fetch(url, {
       headers: {
         ...baseHeaders(),
@@ -3045,9 +3119,25 @@ export async function getUpcomingAppointments(limit: number = 10): Promise<any[]
     const today = new Date().toISOString();
     const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString();
     
-    const url = `${REST}/appointments?scheduled_at=gte.${today}&scheduled_at=lt.${nextWeek}&order=scheduled_at.asc&limit=${limit}&select=id,scheduled_at,status,doctor_id,patient_id`;
+    const url = `${REST}/appointments?scheduled_at=gte.${today}&scheduled_at=lt.${nextWeek}&order=scheduled_at.asc&limit=${limit}&select=id,scheduled_at,status,doctor_id,patient_id,cancelled_at`;
     const res = await fetch(url, { headers: baseHeaders() });
-    return await parse<any[]>(res);
+    const appointments = await parse<any[]>(res);
+    // Filter out soft-deleted appointments (those with cancelled_at set OR status='cancelled' OR in deleted cache)
+    return appointments.filter((a) => {
+      const id = String(a.id);
+      
+      // Check if in deleted cache
+      if (deletedAppointmentIds.has(id)) return false;
+      
+      // Check cancelled_at field
+      const cancelled = a.cancelled_at;
+      if (cancelled && cancelled !== '' && cancelled !== 'null') return false;
+      
+      // Check status field
+      if (a.status && String(a.status).toLowerCase() === 'cancelled') return false;
+      
+      return true;
+    });
   } catch (err) {
     console.error('[getUpcomingAppointments] Erro:', err);
     return [];
@@ -3063,9 +3153,25 @@ export async function getAppointmentsByDateRange(days: number = 14): Promise<any
     startDate.setDate(startDate.getDate() - days);
     const endDate = new Date().toISOString();
     
-    const url = `${REST}/appointments?scheduled_at=gte.${startDate.toISOString()}&scheduled_at=lt.${endDate}&select=scheduled_at,status&order=scheduled_at.asc`;
+    const url = `${REST}/appointments?scheduled_at=gte.${startDate.toISOString()}&scheduled_at=lt.${endDate}&select=scheduled_at,status,cancelled_at,id&order=scheduled_at.asc`;
     const res = await fetch(url, { headers: baseHeaders() });
-    return await parse<any[]>(res);
+    const appointments = await parse<any[]>(res);
+    // Filter out soft-deleted appointments (those with cancelled_at set OR status='cancelled' OR in deleted cache)
+    return appointments.filter((a) => {
+      const id = String(a.id);
+      
+      // Check if in deleted cache
+      if (deletedAppointmentIds.has(id)) return false;
+      
+      // Check cancelled_at field
+      const cancelled = a.cancelled_at;
+      if (cancelled && cancelled !== '' && cancelled !== 'null') return false;
+      
+      // Check status field
+      if (a.status && String(a.status).toLowerCase() === 'cancelled') return false;
+      
+      return true;
+    });
   } catch (err) {
     console.error('[getAppointmentsByDateRange] Erro:', err);
     return [];

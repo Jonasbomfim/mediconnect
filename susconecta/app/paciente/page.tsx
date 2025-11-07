@@ -18,7 +18,7 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById, atualizarAgendamento, deletarAgendamento } from '@/lib/api'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById, atualizarAgendamento, deletarAgendamento, addDeletedAppointmentId } from '@/lib/api'
 import { CalendarRegistrationForm } from '@/components/features/forms/calendar-registration-form'
 import { buscarRelatorioPorId, listarRelatoriosPorMedico } from '@/lib/reports'
 import { ENV_CONFIG } from '@/lib/env-config'
@@ -610,6 +610,19 @@ export default function PacientePage() {
               hora: sched ? sched.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
               status: a.status ? String(a.status) : 'Pendente',
             }
+          }).filter((consulta: any) => {
+            // Filter out cancelled appointments (those with cancelled_at set OR status='cancelled')
+            const raw = rows.find((r: any) => String(r.id) === String(consulta.id));
+            if (!raw) return false;
+            
+            // Check cancelled_at field
+            const cancelled = raw.cancelled_at;
+            if (cancelled && cancelled !== '' && cancelled !== 'null') return false;
+            
+            // Check status field
+            if (raw.status && String(raw.status).toLowerCase() === 'cancelled') return false;
+            
+            return true;
           })
 
           setDoctorsMap(doctorsMap)
@@ -856,6 +869,8 @@ export default function PacientePage() {
                                   if (!ok) return
                                   // call API to delete
                                   await deletarAgendamento(consulta.id)
+                                  // Mark as deleted in cache so it won't appear again
+                                  addDeletedAppointmentId(consulta.id)
                                   // remove from local list
                                   setAppointments((prev) => {
                                     if (!prev) return prev

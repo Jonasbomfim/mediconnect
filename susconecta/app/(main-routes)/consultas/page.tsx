@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/select";
 
 import { mockProfessionals } from "@/lib/mocks/appointment-mocks";
-import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento, buscarAgendamentoPorId, deletarAgendamento } from "@/lib/api";
+import { listarAgendamentos, buscarPacientesPorIds, buscarMedicosPorIds, atualizarAgendamento, buscarAgendamentoPorId, deletarAgendamento, addDeletedAppointmentId } from "@/lib/api";
 import { CalendarRegistrationForm } from "@/components/features/forms/calendar-registration-form";
 
 const formatDate = (date: string | Date) => {
@@ -140,6 +140,8 @@ export default function ConsultasPage() {
     try {
       // call server DELETE
       await deletarAgendamento(appointmentId);
+      // Mark as deleted in cache so it won't appear again
+      addDeletedAppointmentId(appointmentId);
       // remove from UI
       setAppointments((prev) => prev.filter((a) => a.id !== appointmentId));
       // also update originalAppointments cache

@@ -256,40 +256,53 @@ export default function PacientesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background">
+      {/* Header responsivo */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Pacientes</h1>
-          <p className="text-muted-foreground">Gerencie os pacientes</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Pacientes</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Gerencie os pacientes</p>
         </div>
+        <Button onClick={handleAdd} className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">Novo paciente</span>
+          <span className="sm:hidden">Novo</span>
+        </Button>
+      </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Busca */}
-          <div className="relative">
+      {/* Filtros e busca responsivos */}
+      <div className="space-y-2 sm:space-y-3">
+        {/* Linha 1: Busca */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-8 w-80"
-              placeholder="Buscar por nome, CPF ou ID…"
+              className="pl-8 w-full text-xs sm:text-sm h-8 sm:h-9"
+              placeholder="Nome, CPF ou ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleBuscarServidor()}
             />
           </div>
-          <Button variant="secondary" onClick={() => void handleBuscarServidor()} className="hover:bg-primary hover:text-white">
-            Buscar
+          <Button variant="secondary" size="sm" onClick={() => void handleBuscarServidor()} className="hover:bg-primary hover:text-white text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-4">
+            <span className="hidden sm:inline">Buscar</span>
+            <span className="sm:hidden">Ir</span>
           </Button>
+        </div>
 
+        {/* Linha 2: Selects responsivos em grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {/* Ordenar por */}
           <select
             aria-label="Ordenar por"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="name_asc">Nome (A–Z)</option>
-            <option value="name_desc">Nome (Z–A)</option>
-            <option value="recent">Mais recentes (carregamento)</option>
-            <option value="oldest">Mais antigos (carregamento)</option>
+            <option value="name_asc">A–Z</option>
+            <option value="name_desc">Z–A</option>
+            <option value="recent">Recentes</option>
+            <option value="oldest">Antigos</option>
           </select>
 
           {/* Estado (UF) */}
@@ -300,9 +313,9 @@ export default function PacientesPage() {
               setStateFilter(e.target.value);
               setCityFilter("");
             }}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="">Todos os estados</option>
+            <option value="">Estado</option>
             {stateOptions.map((uf) => (
               <option key={uf} value={uf}>{uf}</option>
             ))}
@@ -313,42 +326,38 @@ export default function PacientesPage() {
             aria-label="Filtrar por cidade"
             value={cityFilter}
             onChange={(e) => setCityFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
-            <option value="">Todas as cidades</option>
+            <option value="">Cidade</option>
             {cityOptions.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-
-          <Button onClick={handleAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo paciente
-          </Button>
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      {/* Desktop Table - Hidden on mobile */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-primary hover:bg-primary">
-              <TableHead className="text-primary-foreground">Nome</TableHead>
-              <TableHead className="text-primary-foreground">CPF</TableHead>
-              <TableHead className="text-primary-foreground">Telefone</TableHead>
-              <TableHead className="text-primary-foreground">Cidade</TableHead>
-              <TableHead className="text-primary-foreground">Estado</TableHead>
-              <TableHead className="w-[100px] text-primary-foreground">Ações</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Nome</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">CPF</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Telefone</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Cidade</TableHead>
+              <TableHead className="text-primary-foreground text-xs sm:text-sm">Estado</TableHead>
+              <TableHead className="w-[100px] text-primary-foreground text-xs sm:text-sm">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length > 0 ? (
               paginatedData.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.full_name || "(sem nome)"}</TableCell>
-                  <TableCell>{p.cpf || "-"}</TableCell>
-                  <TableCell>{p.phone_mobile || "-"}</TableCell>
-                  <TableCell>{p.city || "-"}</TableCell>
-                  <TableCell>{p.state || "-"}</TableCell>
+                  <TableCell className="font-medium text-xs sm:text-sm">{p.full_name || "(sem nome)"}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{p.cpf || "-"}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{p.phone_mobile || "-"}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{p.city || "-"}</TableCell>
+                  <TableCell className="text-xs sm:text-sm">{p.state || "-"}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -381,7 +390,7 @@ export default function PacientesPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-xs sm:text-sm text-muted-foreground py-4">
                   Nenhum paciente encontrado
                 </TableCell>
               </TableRow>
@@ -390,64 +399,132 @@ export default function PacientesPage() {
         </Table>
       </div>
 
-      {/* Controles de paginação */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Itens por página:</span>
+      {/* Mobile Cards - Hidden on desktop */}
+      <div className="md:hidden space-y-2">
+        {paginatedData.length > 0 ? (
+          paginatedData.map((p) => (
+            <div key={p.id} className="bg-card p-3 sm:p-4 rounded-lg border border-border hover:border-primary transition-colors">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2 flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="text-[10px] sm:text-xs font-semibold text-primary">Nome</div>
+                    <div className="text-xs sm:text-sm font-medium truncate">{p.full_name || "(sem nome)"}</div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="h-7 w-7 p-0 flex items-center justify-center rounded-md hover:bg-primary hover:text-white transition-colors flex-shrink-0">
+                        <span className="sr-only">Menu</span>
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleView(p)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEdit(String(p.id))}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDelete(String(p.id))} className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setAssignPatientId(String(p.id)); setAssignDialogOpen(true); }}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Atribuir prof.
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">CPF</div>
+                  <div className="text-[10px] sm:text-xs font-medium">{p.cpf || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">Telefone</div>
+                  <div className="text-[10px] sm:text-xs font-medium">{p.phone_mobile || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">Cidade</div>
+                  <div className="text-[10px] sm:text-xs font-medium truncate">{p.city || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">Estado</div>
+                  <div className="text-[10px] sm:text-xs font-medium">{p.state || "-"}</div>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center text-xs sm:text-sm text-muted-foreground py-4">
+            Nenhum paciente encontrado
+          </div>
+        )}
+      </div>
+
+      {/* Controles de paginação - Responsivos */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 text-xs sm:text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-muted-foreground text-xs sm:text-sm">Itens por página:</span>
           <select
             value={itemsPerPage}
             onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={15}>15</option>
             <option value={20}>20</option>
           </select>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-xs sm:text-sm">
             Mostrando {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
             {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Primeira
+            <span className="hidden sm:inline">Primeira</span>
+            <span className="sm:hidden">1ª</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
+            <span className="sm:hidden">«</span>
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Página {currentPage} de {totalPages || 1}
+          <span className="text-muted-foreground text-xs sm:text-sm">
+            Pág {currentPage} de {totalPages || 1}
           </span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Próxima
+            <span className="hidden sm:inline">Próxima</span>
+            <span className="sm:hidden">»</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm h-7 sm:h-9 px-1 sm:px-3"
           >
-            Última
+            <span className="hidden sm:inline">Última</span>
+            <span className="sm:hidden">Últ</span>
           </Button>
         </div>
       </div>

@@ -155,12 +155,12 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-6 bg-background">
+      <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="h-6 sm:h-8 bg-muted rounded w-1/4"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-muted rounded"></div>
+              <div key={i} className="h-24 sm:h-32 bg-muted rounded"></div>
             ))}
           </div>
         </div>
@@ -171,15 +171,15 @@ export default function DashboardPage() {
   // Se está exibindo formulário de paciente
   if (showPatientForm) {
     return (
-      <div className="space-y-6 p-6 bg-background">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => {
+      <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background min-h-screen">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => {
             setShowPatientForm(false);
             setEditingPatientId(null);
-          }}>
-            <ArrowLeft className="h-4 w-4" />
+          }} className="h-8 w-8 sm:h-10 sm:w-10">
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
-          <h1 className="text-2xl font-bold">{editingPatientId ? "Editar paciente" : "Novo paciente"}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{editingPatientId ? "Editar paciente" : "Novo paciente"}</h1>
         </div>
 
         <PatientRegistrationForm
@@ -199,15 +199,15 @@ export default function DashboardPage() {
   // Se está exibindo formulário de médico
   if (showDoctorForm) {
     return (
-      <div className="space-y-6 p-6 bg-background">
-        <div className="flex items-center gap-4">
+      <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background min-h-screen">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" size="icon" onClick={() => {
             setShowDoctorForm(false);
             setEditingDoctorId(null);
-          }}>
-            <ArrowLeft className="h-4 w-4" />
+          }} className="h-8 w-8 sm:h-10 sm:w-10">
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
-          <h1 className="text-2xl font-bold">{editingDoctorId ? "Editar Médico" : "Novo Médico"}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{editingDoctorId ? "Editar Médico" : "Novo Médico"}</h1>
         </div>
 
         <DoctorRegistrationForm
@@ -225,95 +225,99 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background">
-      {/* Header */}
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 bg-background min-h-screen">
+      {/* Header - Responsivo */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Bem-vindo ao painel de controle</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Bem-vindo ao painel de controle</p>
       </div>
 
-      {/* 1. CARDS RESUMO */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Total de Pacientes</h3>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats.totalPatients}</p>
+      {/* 1. CARDS RESUMO - Responsivo com 1/2/4 colunas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border hover:shadow-md transition">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Total de Pacientes</h3>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 sm:mt-2">{stats.totalPatients}</p>
             </div>
-            <Users className="h-8 w-8 text-blue-500 opacity-20" />
+            <Users className="h-6 sm:h-8 w-6 sm:w-8 text-blue-500 opacity-20 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Total de Médicos</h3>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats.totalDoctors}</p>
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border hover:shadow-md transition">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Total de Médicos</h3>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 sm:mt-2">{stats.totalDoctors}</p>
             </div>
-            <Stethoscope className="h-8 w-8 text-green-500 opacity-20" />
+            <Stethoscope className="h-6 sm:h-8 w-6 sm:w-8 text-green-500 opacity-20 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Consultas Hoje</h3>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats.appointmentsToday}</p>
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border hover:shadow-md transition">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Consultas Hoje</h3>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 sm:mt-2">{stats.appointmentsToday}</p>
             </div>
-            <Calendar className="h-8 w-8 text-purple-500 opacity-20" />
+            <Calendar className="h-6 sm:h-8 w-6 sm:w-8 text-purple-500 opacity-20 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Relatórios Pendentes</h3>
-              <p className="text-3xl font-bold text-foreground mt-2">{pendingReports.length}</p>
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border hover:shadow-md transition">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Relatórios Pendentes</h3>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 sm:mt-2">{pendingReports.length}</p>
             </div>
-            <FileText className="h-8 w-8 text-orange-500 opacity-20" />
+            <FileText className="h-6 sm:h-8 w-6 sm:w-8 text-orange-500 opacity-20 flex-shrink-0" />
           </div>
         </div>
       </div>
 
-      {/* 6. AÇÕES RÁPIDAS */}
-      <div className="bg-card p-6 rounded-lg border border-border">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Ações Rápidas</h2>
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={() => setShowPatientForm(true)} className="gap-2">
+      {/* 6. AÇÕES RÁPIDAS - Responsivo: stack em mobile, wrap em desktop */}
+      <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
+        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Ações Rápidas</h2>
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
+          <Button onClick={() => setShowPatientForm(true)} className="gap-2 text-sm sm:text-base w-full sm:w-auto">
             <Plus className="h-4 w-4" />
-            Novo Paciente
+            <span className="hidden sm:inline">Novo Paciente</span>
+            <span className="sm:hidden">Paciente</span>
           </Button>
-          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 hover:bg-primary! hover:text-white! transition-colors">
+          <Button onClick={() => router.push('/agenda')} variant="outline" className="gap-2 text-sm sm:text-base w-full sm:w-auto hover:bg-primary! hover:text-white! transition-colors">
             <Calendar className="h-4 w-4" />
-            Novo Agendamento
+            <span className="hidden sm:inline">Novo Agendamento</span>
+            <span className="sm:hidden">Agendamento</span>
           </Button>
-          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 hover:bg-primary! hover:text-white! transition-colors">
+          <Button onClick={() => setShowDoctorForm(true)} variant="outline" className="gap-2 text-sm sm:text-base w-full sm:w-auto hover:bg-primary! hover:text-white! transition-colors">
             <Stethoscope className="h-4 w-4" />
-            Novo Médico
+            <span className="hidden sm:inline">Novo Médico</span>
+            <span className="sm:hidden">Médico</span>
           </Button>
-          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 hover:bg-primary! hover:text-white! transition-colors">
+          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 text-sm sm:text-base w-full sm:w-auto hover:bg-primary! hover:text-white! transition-colors">
             <FileText className="h-4 w-4" />
-            Ver Relatórios
+            <span className="hidden sm:inline">Ver Relatórios</span>
+            <span className="sm:hidden">Relatórios</span>
           </Button>
         </div>
       </div>
 
       {/* 2. PRÓXIMAS CONSULTAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Próximas Consultas (7 dias)</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="lg:col-span-2 bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Próximas Consultas (7 dias)</h2>
           {appointments.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {appointments.map(appt => (
-                <div key={appt.id} className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition">
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">
+                <div key={appt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 sm:p-4 bg-muted rounded-lg hover:bg-muted/80 transition">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm sm:text-base truncate">
                       {patients.get(appt.patient_id)?.full_name || 'Paciente desconhecido'}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
                       Médico: {doctors.get(appt.doctor_id)?.full_name || 'Médico desconhecido'}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">{formatDate(appt.scheduled_at)}</p>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{formatDate(appt.scheduled_at)}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(appt.status)}
@@ -322,64 +326,64 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground">Nenhuma consulta agendada para os próximos 7 dias</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Nenhuma consulta agendada para os próximos 7 dias</p>
           )}
         </div>
 
         {/* 5. RELATÓRIOS PENDENTES */}
-        <div className="bg-card p-6 rounded-lg border border-border">
-          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Relatórios Pendentes
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
+            <FileText className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="truncate">Pendentes</span>
           </h2>
           {pendingReports.length > 0 ? (
             <div className="space-y-2">
               {pendingReports.map(report => (
-                <div key={report.id} className="p-3 bg-muted rounded-lg hover:bg-muted/80 transition cursor-pointer text-sm">
+                <div key={report.id} className="p-2 sm:p-3 bg-muted rounded-lg hover:bg-muted/80 transition cursor-pointer text-xs sm:text-sm">
                   <p className="font-medium text-foreground truncate">{report.order_number}</p>
-                  <p className="text-xs text-muted-foreground">{report.exam || 'Sem descrição'}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{report.exam || 'Sem descrição'}</p>
                 </div>
               ))}
-              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors" size="sm">
+              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm" size="sm">
                 Ver Todos
               </Button>
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">Sem relatórios pendentes</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Sem relatórios pendentes</p>
           )}
         </div>
       </div>
 
       {/* 4. NOVOS USUÁRIOS */}
-      <div className="bg-card p-6 rounded-lg border border-border">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Novos Usuários (últimos 7 dias)</h2>
+      <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
+        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Novos Usuários (últimos 7 dias)</h2>
         {newUsers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
             {newUsers.map(user => (
-              <div key={user.id} className="p-3 bg-muted rounded-lg">
-                <p className="font-medium text-foreground truncate">{user.full_name || 'Sem nome'}</p>
-                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+              <div key={user.id} className="p-2 sm:p-3 bg-muted rounded-lg">
+                <p className="font-medium text-foreground text-xs sm:text-sm truncate">{user.full_name || 'Sem nome'}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground">Nenhum novo usuário nos últimos 7 dias</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Nenhum novo usuário nos últimos 7 dias</p>
         )}
       </div>
 
       {/* 8. ALERTAS */}
       {disabledUsers.length > 0 && (
-        <div className="bg-card p-6 rounded-lg border border-destructive/50">
-          <h2 className="text-lg font-semibold text-destructive mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            Alertas - Usuários Desabilitados
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-destructive/50">
+          <h2 className="text-base sm:text-lg font-semibold text-destructive mb-3 sm:mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="truncate">Usuários Desabilitados</span>
           </h2>
           <div className="space-y-2">
             {disabledUsers.map(user => (
-              <Alert key={user.id} variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>{user.full_name}</strong> ({user.email}) está desabilitado
+              <Alert key={user.id} variant="destructive" className="text-xs sm:text-sm">
+                <AlertCircle className="h-3 sm:h-4 w-3 sm:w-4" />
+                <AlertDescription className="ml-2">
+                  <strong className="truncate">{user.full_name}</strong> ({user.email}) está desabilitado
                 </AlertDescription>
               </Alert>
             ))}
@@ -388,12 +392,12 @@ export default function DashboardPage() {
       )}
 
       {/* 11. LINK PARA RELATÓRIOS */}
-      <div className="bg-linear-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-lg border border-blue-500/20">
-        <h2 className="text-lg font-semibold text-foreground mb-2">Seção de Relatórios</h2>
-        <p className="text-muted-foreground text-sm mb-4">
+      <div className="bg-linear-to-r from-blue-500/10 to-purple-500/10 p-4 sm:p-5 md:p-6 rounded-lg border border-blue-500/20">
+        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-2">Seção de Relatórios</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
           Acesse a seção de relatórios médicos para gerenciar, visualizar e exportar documentos.
         </p>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto text-sm sm:text-base">
           <Link href="/dashboard/relatorios">Ir para Relatórios</Link>
         </Button>
       </div>

@@ -936,15 +936,29 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
               <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-md shadow-lg p-3">
                 <CalendarComponent
                   mode="single"
-                  selected={formData.appointmentDate ? new Date(formData.appointmentDate + 'T00:00:00') : undefined}
+                  selected={formData.appointmentDate ? (() => {
+                    try {
+                      const [y, m, d] = String(formData.appointmentDate).split('-').map(Number);
+                      return new Date(y, m - 1, d);
+                    } catch (e) {
+                      return undefined;
+                    }
+                  })() : undefined}
                   onSelect={(date) => {
                     if (date) {
-                      const dateStr = date.toISOString().split('T')[0];
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, '0');
+                      const d = String(date.getDate()).padStart(2, '0');
+                      const dateStr = `${y}-${m}-${d}`;
                       onFormChange({ ...formData, appointmentDate: dateStr });
                       setShowDatePicker(false);
                     }
                   }}
-                  disabled={(date) => date < new Date(new Date().toISOString().split('T')[0] + 'T00:00:00')}
+                  disabled={(date) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return date < today;
+                  }}
                 />
               </div>
             )}

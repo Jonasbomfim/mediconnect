@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { parse } from 'date-fns';
+import { parse, parseISO, format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertCircle, ChevronDown, ChevronUp, FileImage, Loader2, Save, Upload, User, X, XCircle, Trash2 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { AlertCircle, ChevronDown, ChevronUp, FileImage, Loader2, Save, Upload, User, X, XCircle, Trash2, CalendarIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   criarMedico,
   atualizarMedico,
@@ -76,7 +78,7 @@ type FormData = {
   cpf: string;
   rg: string;
   sexo: string;
-  data_nascimento: string;
+  data_nascimento: Date | null;
   email: string;
   telefone: string;
   celular: string;
@@ -109,7 +111,7 @@ const initial: FormData = {
   cpf: "",
   rg: "",
   sexo: "",
-  data_nascimento: "",
+  data_nascimento: null,
   email: "",
   telefone: "",
   celular: "",  // Aqui, 'celular' pode ser 'phone_mobile'
@@ -150,7 +152,7 @@ export function DoctorRegistrationForm({
 }: DoctorRegistrationFormProps) {
   const [form, setForm] = useState<FormData>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false, formacao: false, admin: false });
+  const [expanded, setExpanded] = useState({ dados: true, contato: false, endereco: false, obs: false, formacao: false });
   const [isSubmitting, setSubmitting] = useState(false);
   const [isUploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSearchingCEP, setSearchingCEP] = useState(false);
@@ -257,7 +259,7 @@ export function DoctorRegistrationForm({
           cpf: String(m.cpf || ""),
           rg: String(m.rg || m.document_number || ""),
           sexo: normalizeSex(m.sexo || m.sex || m.sexualidade || null) ?? "",
-          data_nascimento: String(formatBirth(m.data_nascimento || m.birth_date || m.birthDate || "")),
+          data_nascimento: m.data_nascimento ? parseISO(String(m.data_nascimento)) : m.birth_date ? parseISO(String(m.birth_date)) : null,
           email: String(m.email || ""),
           telefone: String(m.telefone || m.phone_mobile || m.phone || m.mobile || ""),
           celular: String(m.celular || m.phone2 || ""),
@@ -430,36 +432,6 @@ function setField<T extends keyof FormData>(k: T, v: FormData[T]) {
   }
 
 function toPayload(): MedicoInput {
-  // Converte data de nascimento para ISO (yyyy-MM-dd) tentando vários formatos
-  let isoDate: string | null = null;
-  try {
-    const raw = String(form.data_nascimento || '').trim();
-    if (raw) {
-      const formats = ['dd/MM/yyyy', 'dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
-      for (const f of formats) {
-        try {
-          const d = parse(raw, f, new Date());
-          if (!isNaN(d.getTime())) {
-            isoDate = d.toISOString().slice(0, 10);
-            break;
-          }
-        } catch (e) {
-          // ignore and try next
-        }
-      }
-      if (!isoDate) {
-        const parts = raw.split(/\D+/).filter(Boolean);
-        if (parts.length === 3) {
-          const [d, m, y] = parts;
-          const date = new Date(Number(y), Number(m) - 1, Number(d));
-          if (!isNaN(date.getTime())) isoDate = date.toISOString().slice(0, 10);
-        }
-      }
-    }
-  } catch (err) {
-    console.debug('[DoctorForm] parse data_nascimento failed:', form.data_nascimento, err);
-  }
-
   return {
     user_id: null,
     crm: form.crm || "",
@@ -477,7 +449,7 @@ function toPayload(): MedicoInput {
     neighborhood: form.bairro || undefined,
     city: form.cidade || "",
     state: form.estado || "",
-    birth_date: isoDate,
+    birth_date: form.data_nascimento ? form.data_nascimento.toISOString().slice(0, 10) : null,
     rg: form.rg || null,
     active: true,
     created_by: null,
@@ -796,7 +768,7 @@ async function handleSubmit(ev: React.FormEvent) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Sexo</Label>
                     <Select value={form.sexo} onValueChange={(v) => setField("sexo", v)}>
@@ -811,23 +783,29 @@ async function handleSubmit(ev: React.FormEvent) {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de Nascimento</Label>
-                    <Input
-                      placeholder="dd/mm/aaaa"
-                      value={form.data_nascimento}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/[^0-9\/]/g, "").slice(0, 10);
-                        setField("data_nascimento", v);
-                      }}
-                      onBlur={() => {
-                        const raw = form.data_nascimento;
-                        const parts = raw.split(/\D+/).filter(Boolean);
-                        if (parts.length === 3) {
-                          const d = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}/${parts[2].padStart(4,'0')}`;
-                          setField("data_nascimento", d);
-                        }
-                      }}
-                    />
+                    <Label htmlFor="data_nascimento_input">Data de Nascimento</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !form.data_nascimento && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.data_nascimento ? format(form.data_nascimento, "dd/MM/yyyy") : <span>Selecione uma data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={form.data_nascimento}
+                          onSelect={(date) => setField("data_nascimento", date || null)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               </CardContent>
@@ -944,98 +922,6 @@ async function handleSubmit(ev: React.FormEvent) {
                     />
                   </div>
                 </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-
-        <Collapsible open={expanded.admin} onOpenChange={() => setExpanded((s) => ({ ...s, admin: !s.admin }))}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Dados Administrativos e Financeiros
-                  </span>
-                  {expanded.admin ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </CardTitle>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tipo de Vínculo</Label>
-                    <Select value={form.tipo_vinculo} onValueChange={(v) => setField("tipo_vinculo", v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o vínculo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="funcionario">Funcionário</SelectItem>
-                        <SelectItem value="autonomo">Autônomo</SelectItem>
-                        <SelectItem value="parceiro">Parceiro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Valor da Consulta</Label>
-                    <Input
-                      type="number"
-                      value={form.valor_consulta}
-                      onChange={(e) => setField("valor_consulta", e.target.value)}
-                      placeholder="R$ 0,00"
-                    />
-                  </div>
-                </div>
-
-                {/* Agenda/Horário removido conforme solicitado */}
-
-                <div className="space-y-4">
-                  <Label>Dados Bancários</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Banco</Label>
-                      <Input
-                        value={form.dados_bancarios.banco}
-                        onChange={(e) => setField("dados_bancarios", { ...form.dados_bancarios, banco: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Agência</Label>
-                      <Input
-                        value={form.dados_bancarios.agencia}
-                        onChange={(e) => setField("dados_bancarios", { ...form.dados_bancarios, agencia: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Conta</Label>
-                      <Input
-                        value={form.dados_bancarios.conta}
-                        onChange={(e) => setField("dados_bancarios", { ...form.dados_bancarios, conta: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tipo de Conta</Label>
-                      <Select
-                        value={form.dados_bancarios.tipo_conta}
-                        onValueChange={(v) => setField("dados_bancarios", { ...form.dados_bancarios, tipo_conta: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="corrente">Conta Corrente</SelectItem>
-                          <SelectItem value="poupanca">Conta Poupança</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                
               </CardContent>
             </CollapsibleContent>
           </Card>

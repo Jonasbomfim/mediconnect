@@ -872,7 +872,8 @@ function MonthView({
   }
 
   return (
-    <Card className="overflow-hidden">
+    // Permitir que popovers absolutos saiam do grid do mês sem serem cortados
+    <Card className="overflow-visible">
       <div className="grid grid-cols-7 border-b">
         {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
           <div key={day} className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm">

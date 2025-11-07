@@ -96,6 +96,136 @@ export default function LaudoPage() {
     window.print()
   }
 
+  const handleDownloadPDF = async () => {
+    if (!report) return
+    
+    try {
+      // Para simplificar, vamos usar jsPDF com html2canvas para capturar o conteúdo
+      const { jsPDF } = await import('jspdf')
+      const html2canvas = await import('html2canvas').then((m) => m.default)
+      
+      // Criar um elemento temporário com o conteúdo
+      const element = document.createElement('div')
+      element.style.position = 'absolute'
+      element.style.left = '-9999px'
+      element.style.width = '210mm' // A4 width
+      element.style.padding = '20mm'
+      element.style.backgroundColor = 'white'
+      element.style.fontFamily = 'Arial, sans-serif'
+      
+      // Extrair informações
+      const reportDate = new Date(report.report_date || report.created_at || Date.now()).toLocaleDateString('pt-BR')
+      const cid = report.cid ?? report.cid_code ?? report.cidCode ?? report.cie ?? ''
+      const exam = report.exam ?? report.exame ?? report.especialidade ?? report.report_type ?? ''
+      const diagnosis = report.diagnosis ?? report.diagnostico ?? report.diagnosis_text ?? report.diagnostico_text ?? ''
+      const conclusion = report.conclusion ?? report.conclusao ?? report.conclusion_text ?? report.conclusao_text ?? ''
+      const notesText = report.content ?? report.body ?? report.conteudo ?? report.notes ?? report.observacoes ?? ''
+      
+      // Extrair nome do médico
+      let doctorName = ''
+      if (doctor) {
+        doctorName = doctor.full_name || doctor.name || doctor.fullName || doctor.doctor_name || ''
+      }
+      if (!doctorName) {
+        const rd = report as any
+        const tryKeys = [
+          'doctor_name', 'doctor_full_name', 'doctorFullName', 'doctorName',
+          'requested_by_name', 'requested_by', 'requester_name', 'requester',
+          'created_by_name', 'created_by', 'executante', 'executante_name',
+        ]
+        for (const k of tryKeys) {
+          const v = rd[k]
+          if (v !== undefined && v !== null && String(v).trim() !== '') {
+            doctorName = String(v)
+            break
+          }
+        }
+      }
+
+      // Montar HTML do documento
+      element.innerHTML = `
+        <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;">
+          <h1 style="text-align: center; font-size: 24px; font-weight: bold; color: #1f2937; margin: 0;">RELATÓRIO MÉDICO</h1>
+          <p style="text-align: center; font-size: 10px; color: #6b7280; margin: 5px 0;">Data: ${reportDate}</p>
+          ${doctorName ? `<p style="text-align: center; font-size: 10px; color: #6b7280; margin: 5px 0;">Profissional: ${doctorName}</p>` : ''}
+        </div>
+
+        <div style="background-color: #f0f9ff; border: 1px solid #bfdbfe; padding: 10px; margin-bottom: 15px;">
+          <div style="display: flex; gap: 20px;">
+            ${cid ? `<div><p style="font-size: 9px; font-weight: bold; color: #475569; margin: 0 0 5px 0;">CID</p><p style="font-size: 11px; font-weight: bold; color: #1f2937; margin: 0;">${cid}</p></div>` : ''}
+            ${exam ? `<div><p style="font-size: 9px; font-weight: bold; color: #475569; margin: 0 0 5px 0;">EXAME / TIPO</p><p style="font-size: 11px; font-weight: bold; color: #1f2937; margin: 0;">${exam}</p></div>` : ''}
+          </div>
+        </div>
+
+        ${diagnosis ? `
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 14px; font-weight: bold; color: #1e40af; margin: 0 0 10px 0;">DIAGNÓSTICO</h2>
+            <p style="margin-left: 10px; padding-left: 10px; border-left: 2px solid #3b82f6; background-color: #f3f4f6; font-size: 10px; line-height: 1.5; margin: 0;">${diagnosis}</p>
+          </div>
+        ` : ''}
+
+        ${conclusion ? `
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 14px; font-weight: bold; color: #1e40af; margin: 0 0 10px 0;">CONCLUSÃO</h2>
+            <p style="margin-left: 10px; padding-left: 10px; border-left: 2px solid #3b82f6; background-color: #f3f4f6; font-size: 10px; line-height: 1.5; margin: 0;">${conclusion}</p>
+          </div>
+        ` : ''}
+
+        ${notesText ? `
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 14px; font-weight: bold; color: #1e40af; margin: 0 0 10px 0;">NOTAS DO PROFISSIONAL</h2>
+            <p style="margin-left: 10px; padding-left: 10px; border-left: 2px solid #3b82f6; background-color: #f3f4f6; font-size: 10px; line-height: 1.5; margin: 0;">${notesText}</p>
+          </div>
+        ` : ''}
+
+        <div style="margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 8px; text-align: center; color: #9ca3af;">
+          Documento gerado em ${new Date().toLocaleString('pt-BR')}
+        </div>
+      `
+
+      document.body.appendChild(element)
+
+      // Capturar como canvas
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+
+      document.body.removeChild(element)
+
+      // Converter para PDF
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      })
+
+      const imgWidth = 210 // A4 width in mm
+      const pageHeight = 297 // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+
+      let position = 0
+
+      while (heightLeft >= 0) {
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+        position -= pageHeight
+        if (heightLeft > 0) {
+          pdf.addPage()
+        }
+      }
+
+      // Download
+      pdf.save(`laudo-${reportDate}-${doctorName || 'profissional'}.pdf`)
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error)
+      alert('Erro ao gerar PDF. Tente novamente.')
+    }
+  }
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -158,7 +288,7 @@ export default function LaudoPage() {
           : 'bg-gradient-to-br from-slate-50 to-slate-100'
       }`}>
         {/* Header Toolbar */}
-        <div className={`sticky top-0 z-40 transition-colors duration-300 ${
+        <div className={`sticky top-0 z-40 transition-colors duration-300 print:hidden ${
           isDark 
             ? 'bg-slate-800 border-slate-700' 
             : 'bg-white border-slate-200'
@@ -221,13 +351,13 @@ export default function LaudoPage() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex justify-center py-12 px-4 min-h-[calc(100vh-80px)]">
+        <div className="flex justify-center py-12 px-4 print:py-0 print:px-0 min-h-[calc(100vh-80px)] print:min-h-screen">
           {/* Document Container */}
-          <div className={`w-full max-w-4xl transition-colors duration-300 shadow-2xl rounded-xl overflow-hidden ${
+          <div className={`w-full max-w-4xl transition-colors duration-300 shadow-2xl rounded-xl overflow-hidden print:shadow-none print:rounded-none print:max-w-full ${
             isDark ? 'bg-slate-800' : 'bg-white'
           }`}>
             {/* Document Content */}
-            <div className="p-16 space-y-8 print:p-0 print:shadow-none">
+            <div className="p-16 space-y-8 print:p-12 print:space-y-6">
               
               {/* Title */}
               <div className={`text-center mb-12 pb-8 border-b-2 ${

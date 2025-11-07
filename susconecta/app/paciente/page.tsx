@@ -960,8 +960,10 @@ export default function PacientePage() {
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [remoteMatch, setRemoteMatch] = useState<any | null>(null)
   const [searchingRemote, setSearchingRemote] = useState<boolean>(false)
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'custom'>('newest')
+  const [filterDate, setFilterDate] = useState<string>('')
 
-  // derived filtered list based on search term
+  // derived filtered list based on search term and date filters
   const filteredReports = useMemo(() => {
     if (!reports || !Array.isArray(reports)) return []
     const qRaw = String(searchTerm || '').trim()
@@ -980,8 +982,8 @@ export default function PacientePage() {
       return [remoteMatch]
     }
 
-    if (!q) return reports
-    return reports.filter((r: any) => {
+    // Start with all reports or filtered by search
+    let filtered = !q ? reports : reports.filter((r: any) => {
       try {
         const id = r.id ? String(r.id).toLowerCase() : ''
         const title = String(reportTitle(r) || '').toLowerCase()
@@ -1013,8 +1015,38 @@ export default function PacientePage() {
         return false
       }
     })
+
+    // Apply date filter if specified
+    if (filterDate) {
+      const filterDateObj = new Date(filterDate)
+      filterDateObj.setHours(0, 0, 0, 0)
+      
+      filtered = filtered.filter((r: any) => {
+        const reportDateObj = new Date(r.report_date || r.created_at || Date.now())
+        reportDateObj.setHours(0, 0, 0, 0)
+        return reportDateObj.getTime() === filterDateObj.getTime()
+      })
+    }
+
+    // Apply sorting
+    const sorted = [...filtered]
+    if (sortOrder === 'newest') {
+      sorted.sort((a: any, b: any) => {
+        const dateA = new Date(a.report_date || a.created_at || 0).getTime()
+        const dateB = new Date(b.report_date || b.created_at || 0).getTime()
+        return dateB - dateA // Newest first
+      })
+    } else if (sortOrder === 'oldest') {
+      sorted.sort((a: any, b: any) => {
+        const dateA = new Date(a.report_date || a.created_at || 0).getTime()
+        const dateB = new Date(b.report_date || b.created_at || 0).getTime()
+        return dateA - dateB // Oldest first
+      })
+    }
+
+    return sorted
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, searchTerm, doctorsMap, remoteMatch])
+  }, [reports, searchTerm, doctorsMap, remoteMatch, sortOrder, filterDate])
 
   // When the search term looks like an id, attempt a direct fetch using the reports API
   useEffect(() => {
@@ -1404,6 +1436,50 @@ export default function PacientePage() {
               <Button variant="ghost" onClick={() => { setSearchTerm(''); setReportsPage(1) }} className="text-xs sm:text-sm w-full sm:w-auto">Limpar</Button>
             )}
           </div>
+
+          {/* Date filter and sort controls */}
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center flex-wrap">
+            {/* Sort buttons */}
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                size="sm"
+                variant={sortOrder === 'newest' ? 'default' : 'outline'}
+                onClick={() => { setSortOrder('newest'); setReportsPage(1) }}
+                className="text-xs sm:text-sm"
+              >
+                Mais Recente
+              </Button>
+              <Button 
+                size="sm"
+                variant={sortOrder === 'oldest' ? 'default' : 'outline'}
+                onClick={() => { setSortOrder('oldest'); setReportsPage(1) }}
+                className="text-xs sm:text-sm"
+              >
+                Mais Antigo
+              </Button>
+            </div>
+
+            {/* Date picker */}
+            <div className="flex gap-2 items-center">
+              <input 
+                type="date"
+                value={filterDate}
+                onChange={(e) => { setFilterDate(e.target.value); setReportsPage(1) }}
+                className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 border border-border rounded bg-background"
+              />
+              {filterDate && (
+                <Button 
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => { setFilterDate(''); setReportsPage(1) }}
+                  className="text-xs sm:text-sm"
+                >
+                  ✕
+                </Button>
+              )}
+            </div>
+          </div>
+          
           {loadingReports ? (
             <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">{strings.carregando}</div>
           ) : reportsError ? (

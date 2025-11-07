@@ -155,13 +155,13 @@ export default function AgendamentoPage() {
   };
 
   return (
-    <div className="flex flex-row bg-background">
-      <div className="flex w-full flex-col">
-        <div className="flex w-full flex-col gap-10 p-6">
-          <div className="flex flex-row justify-between items-center">
+    <div className="bg-background">
+      <div className="w-full">
+        <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 sm:gap-10 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             {/* Cabeçalho simplificado (sem 3D) */}
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Calendário</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Calendário</h1>
               <p className="text-muted-foreground">
                 Navegue através do atalho: Calendário (C).
               </p>
@@ -170,8 +170,8 @@ export default function AgendamentoPage() {
           </div>
 
           {/* Legenda de status (aplica-se ao EventManager) */}
-          <div className="rounded-md border bg-card/60 p-2 sm:p-3 -mt-4">
-            <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div className="rounded-md border bg-card/60 p-2 sm:p-3 -mt-2 sm:-mt-4 overflow-x-auto">
+            <div className="flex flex-nowrap items-center gap-4 sm:gap-6 text-xs sm:text-sm whitespace-nowrap">
               <div className="flex items-center gap-2">
                 <span aria-hidden className="h-3 w-3 rounded-full bg-blue-500 ring-2 ring-blue-500/30" />
                 <span className="text-foreground">Solicitado</span>
@@ -192,11 +192,11 @@ export default function AgendamentoPage() {
           <div className="flex w-full">
             <div className="w-full">
               {managerLoading ? (
-                <div className="flex items-center justify-center w-full min-h-[70vh]">
+                <div className="flex items-center justify-center w-full min-h-[60vh] sm:min-h-[70vh]">
                   <div className="text-sm text-muted-foreground">Conectando ao calendário — carregando agendamentos...</div>
                 </div>
               ) : (
-                <div className="w-full min-h-[70vh]">
+                <div className="w-full min-h-[60vh] sm:min-h-[70vh]">
                   <EventManager
                     events={managerEvents}
                     className="compact-event-manager"

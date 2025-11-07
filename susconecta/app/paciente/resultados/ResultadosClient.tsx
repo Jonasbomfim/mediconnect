@@ -642,7 +642,7 @@ export default function ResultadosClient() {
   // Render
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 md:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:py-10 md:px-8">
         {/* Toast */}
         {toast && (
           <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded shadow-lg ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">
@@ -699,10 +699,10 @@ export default function ResultadosClient() {
           </Dialog>
 
         {/* Hero de filtros (mantido) */}
-        <section className="rounded-3xl bg-primary p-6 text-primary-foreground shadow-lg">
+        <section className="rounded-2xl sm:rounded-3xl bg-primary p-4 sm:p-6 text-primary-foreground shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold md:text-3xl">Resultados da procura</h1>
+              <h1 className="text-xl font-semibold sm:text-2xl md:text-3xl">Resultados da procura</h1>
               <p className="text-sm text-primary-foreground/80">Qual especialização você deseja?</p>
             </div>
             <Button
@@ -712,14 +712,14 @@ export default function ResultadosClient() {
               Ajustar filtros
             </Button>
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-4 sm:mt-6 flex flex-wrap gap-2 sm:gap-3">
             {especialidadesHero.map(item => (
               <button
                 key={item}
                 type="button"
                 onClick={() => setEspecialidadeHero(item)}
                 className={cn(
-                  'rounded-full px-5 py-2 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-primary-foreground/80',
+                  'rounded-full px-4 sm:px-5 py-2 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-primary-foreground/80',
                   especialidadeHero === item ? 'bg-primary-foreground text-primary' : 'bg-primary-foreground/10'
                 )}
               >
@@ -729,103 +729,123 @@ export default function ResultadosClient() {
           </div>
         </section>
 
-        {/* Barra de filtros secundários (mantida) */}
-        <section className="sticky top-0 z-30 flex flex-wrap gap-3 rounded-2xl border border-border bg-card/90 p-4 shadow-lg backdrop-blur">
-          <Toggle
-            pressed={tipoConsulta === 'teleconsulta'}
-            onPressedChange={() => setTipoConsulta('teleconsulta')}
-            className={cn('rounded-full px-4 py-2.5 text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
-              tipoConsulta === 'teleconsulta' ? 'bg-primary text-primary-foreground' : 'border border-primary/40 text-primary')}
-          >
-            <Globe className="mr-2 h-4 w-4" />
-            Teleconsulta
-          </Toggle>
-          <Toggle
-            pressed={tipoConsulta === 'local'}
-            onPressedChange={() => setTipoConsulta('local')}
-            className={cn('rounded-full px-4 py-2.5 text-sm font-medium transition hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.97]',
-              tipoConsulta === 'local' ? 'bg-primary text-primary-foreground' : 'border border-primary/40 text-primary')}
-          >
-            <Building2 className="mr-2 h-4 w-4" />
-            Consulta no local
-          </Toggle>
+        {/* Barra de filtros secundários (agora fluída, sem sticky) */}
+        <section className="rounded-2xl border border-border bg-card/80 p-4 sm:p-5 shadow-md backdrop-blur">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            {/* Segmented control: tipo da consulta */}
+            <div className="sm:col-span-12">
+              <div className="flex w-full overflow-hidden rounded-full border border-primary/25 bg-primary/5 shadow-sm ring-1 ring-primary/10">
+                <Toggle
+                  pressed={tipoConsulta === 'teleconsulta'}
+                  onPressedChange={() => setTipoConsulta('teleconsulta')}
+                  className="flex-1 rounded-none first:rounded-l-full px-4 py-2.5 text-sm font-medium transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground hover:bg-primary/10"
+                >
+                  <Globe className="mr-2 h-4 w-4" />
+                  Teleconsulta
+                </Toggle>
+                <Toggle
+                  pressed={tipoConsulta === 'local'}
+                  onPressedChange={() => setTipoConsulta('local')}
+                  className="flex-1 rounded-none last:rounded-r-full px-4 py-2.5 text-sm font-medium transition data-[state=on]:bg-primary data-[state=on]:text-primary-foreground hover:bg-primary/10"
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Consulta no local
+                </Toggle>
+              </div>
+            </div>
 
-          <Select value={convenio} onValueChange={setConvenio}>
-            <SelectTrigger className="h-10 min-w-[180px] rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
-              <SelectValue placeholder="Convênio" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos os convênios</SelectItem>
-              <SelectItem value="Amil">Amil</SelectItem>
-              <SelectItem value="Unimed">Unimed</SelectItem>
-              <SelectItem value="SulAmérica">SulAmérica</SelectItem>
-              <SelectItem value="Bradesco Saúde">Bradesco Saúde</SelectItem>
-              <SelectItem value="Particular">Particular</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* divider visual */}
+            <div className="sm:col-span-12 h-px bg-border/60 my-1" />
 
-          {/* Search input para buscar médico por nome (movido antes do Select de bairro para ficar ao lado visualmente) */}
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Buscar médico por nome"
-              value={searchQuery}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-              className="min-w-[220px] rounded-full"
-            />
-            {searchQuery ? (
+            {/* Convênio */}
+            <div className="sm:col-span-6 lg:col-span-4">
+              <Select value={convenio} onValueChange={setConvenio}>
+                <SelectTrigger className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:border-primary focus:ring-2 focus:ring-primary">
+                  <SelectValue placeholder="Convênio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos os convênios</SelectItem>
+                  <SelectItem value="Amil">Amil</SelectItem>
+                  <SelectItem value="Unimed">Unimed</SelectItem>
+                  <SelectItem value="SulAmérica">SulAmérica</SelectItem>
+                  <SelectItem value="Bradesco Saúde">Bradesco Saúde</SelectItem>
+                  <SelectItem value="Particular">Particular</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Busca por nome + Mais filtros/Limpar */}
+            <div className="sm:col-span-6 lg:col-span-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <Input
+                  placeholder="Buscar médico por nome"
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                  className="w-full sm:min-w-[220px] rounded-full"
+                />
+                {searchQuery ? (
+                  <Button
+                    variant="ghost"
+                    className="h-10 w-full sm:w-auto rounded-full"
+                    onClick={async () => {
+                      setSearchQuery('')
+                      setCurrentPage(1)
+                      try {
+                        setLoadingMedicos(true)
+                        setMedicos([])
+                        setAgendaByDoctor({})
+                        setAgendasExpandida({})
+                        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
+                        const list = await buscarMedicos(termo).catch(() => [])
+                        setMedicos(Array.isArray(list) ? list : [])
+                      } catch (e: any) {
+                        showToast('error', e?.message || 'Falha ao buscar profissionais')
+                      } finally {
+                        setLoadingMedicos(false)
+                      }
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full sm:w-auto rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    Mais filtros
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Bairro */}
+            <div className="sm:col-span-6 lg:col-span-4">
+              <Select value={bairro} onValueChange={setBairro}>
+                <SelectTrigger className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:border-primary focus:ring-2 focus:ring-primary">
+                  <SelectValue placeholder="Bairro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos os bairros</SelectItem>
+                  <SelectItem value="Centro">Centro</SelectItem>
+                  <SelectItem value="Jardins">Jardins</SelectItem>
+                  <SelectItem value="Farolândia">Farolândia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Voltar */}
+            <div className="sm:col-span-12">
               <Button
                 variant="ghost"
-                className="h-10"
-                onClick={async () => {
-                  // limpar o termo de busca e restaurar a lista por especialidade
-                  setSearchQuery('')
-                  setCurrentPage(1)
-                  try {
-                    setLoadingMedicos(true)
-                    setMedicos([])
-                    setAgendaByDoctor({})
-                    setAgendasExpandida({})
-                    const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
-                    const list = await buscarMedicos(termo).catch(() => [])
-                    setMedicos(Array.isArray(list) ? list : [])
-                  } catch (e: any) {
-                    showToast('error', e?.message || 'Falha ao buscar profissionais')
-                  } finally {
-                    setLoadingMedicos(false)
-                  }
-                }}
-              >Limpar</Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors"
+                className="w-full rounded-full text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                onClick={() => router.back()}
               >
-                <Filter className="mr-2 h-4 w-4" />
-                Mais filtros
+                Voltar
+                <ChevronRight className="ml-1 h-4 w-4 rotate-180" />
               </Button>
-            )}
+            </div>
           </div>
-
-          <Select value={bairro} onValueChange={setBairro}>
-            <SelectTrigger className="h-10 min-w-40 rounded-full border border-primary/40 bg-primary/10 text-primary transition duration-200 hover:border-primary! focus:ring-2 focus:ring-primary cursor-pointer">
-              <SelectValue placeholder="Bairro" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos os bairros</SelectItem>
-              <SelectItem value="Centro">Centro</SelectItem>
-              <SelectItem value="Jardins">Jardins</SelectItem>
-              <SelectItem value="Farolândia">Farolândia</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="ghost"
-            className="ml-auto rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
-            onClick={() => router.back()}
-          >
-            Voltar
-            <ChevronRight className="ml-1 h-4 w-4 rotate-180" />
-          </Button>
         </section>
 
         {/* Lista de profissionais */}
@@ -879,7 +899,7 @@ export default function ResultadosClient() {
                   </div>
                   <Button
                     variant="ghost"
-                    className="ml-auto h-fit rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
+                    className="ml-0 sm:ml-auto w-full sm:w-auto h-fit rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
                     onClick={() => {
                       setMedicoSelecionado(medico)
                       setAbaDetalhe('experiencia')
@@ -945,7 +965,7 @@ export default function ResultadosClient() {
 
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button
-                    className="h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="h-11 w-full sm:w-auto rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={async () => {
                       // If we don't have the agenda loaded, load it and try to open the nearest slot.
                       if (!agendaByDoctor[id]) {
@@ -972,12 +992,12 @@ export default function ResultadosClient() {
                   >
                     Agendar consulta
                   </Button>
-                  <Button variant="outline" className="h-11 rounded-full border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors">
+                  <Button variant="outline" className="h-11 w-full sm:w-auto rounded-full border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors">
                     Enviar mensagem
                   </Button>
                   <Button
                     variant="ghost"
-                    className="h-11 rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
+                    className="h-11 w-full sm:w-auto rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
                     onClick={() => {
                       const willOpen = !agendasExpandida[id]
                       setAgendasExpandida(prev => ({ ...prev, [id]: !prev[id] }))
@@ -1009,18 +1029,23 @@ export default function ResultadosClient() {
 
           {/* Pagination controls */}
           {!loadingMedicos && profissionais.length > 0 && (
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm text-muted-foreground w-full sm:w-auto">
                 <span>Itens por página:</span>
-                <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer">
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                </select>
+                <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                  <SelectTrigger className="h-9 w-full sm:w-28 min-w-[110px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:ring-2 focus:ring-primary">
+                    <SelectValue placeholder="Itens" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                  </SelectContent>
+                </Select>
                 <span>Mostrando {startItem} a {endItem} de {profissionais.length}</span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Primeira</Button>
                 <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Anterior</Button>
                 <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
@@ -1033,7 +1058,7 @@ export default function ResultadosClient() {
 
         {/* Dialog de perfil completo (mantido e adaptado) */}
         <Dialog open={!!medicoSelecionado} onOpenChange={(open: boolean) => !open && setMedicoSelecionado(null)}>
-          <DialogContent className="max-h[90vh] max-h-[90vh] w-full max-w-5xl overflow-y-auto border border-border bg-card p-0">
+          <DialogContent className="w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-y-auto border border-border bg-card p-0 sm:rounded-lg">
             {medicoSelecionado && (
               <>
                 <DialogHeader className="border-b border-border px-6 py-4">
@@ -1147,9 +1172,10 @@ export default function ResultadosClient() {
             )}
           </DialogContent>
         </Dialog>
-        {/* Dialog: Mostrar mais horários (escolher data arbitrária) */}
+
+        {/* Dialog: Mostrar mais horários */}
         <Dialog open={!!moreTimesForDoctor} onOpenChange={(open: boolean) => { if (!open) { setMoreTimesForDoctor(null); setMoreTimesSlots([]); setMoreTimesException(null); } }}>
-          <DialogContent className="w-full max-w-2xl border border-border bg-card p-6">
+          <DialogContent className="w-full max-w-[95vw] sm:max-w-2xl border border-border bg-card p-4 sm:p-6">
             <DialogHeader className="mb-4">
               <DialogTitle>Mais horários</DialogTitle>
             </DialogHeader>

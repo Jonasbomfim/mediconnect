@@ -416,31 +416,31 @@ export default function PacientePage() {
     }, [])
 
     return (
-      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2">
-        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
-          <div className="flex h-40 w-full flex-col items-center justify-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Calendar className="h-6 w-6" aria-hidden />
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-4 mb-6 md:grid-cols-2">
+        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Calendar className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
             </div>
             {/* rótulo e número com mesma fonte e mesmo tamanho (harmônico) */}
-            <span className="text-lg md:text-xl font-semibold text-muted-foreground tracking-wide">
+            <span className="text-base sm:text-lg md:text-lg font-semibold text-muted-foreground tracking-wide">
               {strings.proximaConsulta}
             </span>
-            <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
+            <span className="text-base sm:text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
               {loading ? strings.carregando : (nextAppt ?? '-')}
             </span>
           </div>
         </Card>
 
-        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
-          <div className="flex h-40 w-full flex-col items-center justify-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <FileText className="h-6 w-6" aria-hidden />
+        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <FileText className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
             </div>
-            <span className="text-lg md:text-xl font-semibold text-muted-foreground tracking-wide">
+            <span className="text-base sm:text-lg md:text-lg font-semibold text-muted-foreground tracking-wide">
               {strings.ultimosExames}
             </span>
-            <span className="text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
+            <span className="text-base sm:text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
               {loading ? strings.carregando : (examsCount !== null ? String(examsCount) : '-')}
             </span>
           </div>
@@ -713,16 +713,16 @@ export default function PacientePage() {
     return (
       <div className="space-y-6">
         {/* Hero Section */}
-        <section className="bg-linear-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-8">
-          <div className="max-w-3xl mx-auto space-y-8">
-            <header className="text-center space-y-4">
-              <h2 className="text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
+        <section className="bg-linear-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-4 sm:p-6 md:p-8">
+          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
+            <header className="text-center space-y-2 sm:space-y-3 md:space-y-4">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
+              <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
             </header>
 
-            <div className="space-y-6 rounded-2xl border border-primary/15 bg-linear-to-r from-primary/5 to-primary/10 p-8 shadow-sm">
+            <div className="space-y-4 sm:space-y-6 rounded-2xl border border-primary/15 bg-linear-to-r from-primary/5 to-primary/10 p-4 sm:p-6 md:p-8 shadow-sm">
               <div className="flex justify-center">
-                <Button asChild className="w-full md:w-auto px-10 py-3 bg-primary text-white hover:bg-primary/90! hover:text-white! transition-all duration-200 font-semibold text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
+                <Button asChild className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-2 sm:py-2.5 md:py-3 bg-primary text-white hover:bg-primary/90! hover:text-white! transition-all duration-200 font-semibold text-sm sm:text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
                   <Link href={buildResultadosHref()} prefetch={false}>
                     Pesquisar Médicos
                   </Link>
@@ -733,15 +733,15 @@ export default function PacientePage() {
         </section>
 
         {/* Consultas Agendadas Section */}
-        <section className="bg-card shadow-md rounded-lg border border-border p-6">
-          <div className="space-y-6">
+        <section className="bg-card shadow-md rounded-lg border border-border p-4 sm:p-5 md:p-6">
+          <div className="space-y-4 sm:space-y-5 md:space-y-6">
             <header>
-              <h2 className="text-3xl font-bold text-foreground mb-2">Suas Consultas Agendadas</h2>
-              <p className="text-muted-foreground">Gerencie suas consultas confirmadas, pendentes ou canceladas.</p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1 sm:mb-2">Suas Consultas Agendadas</h2>
+              <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Gerencie suas consultas confirmadas, pendentes ou canceladas.</p>
             </header>
 
             {/* Date Navigation */}
-            <div className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
+            <div className="flex flex-col gap-3 sm:gap-4 rounded-2xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 p-3 sm:p-4 md:p-6 sm:flex-row sm:items-center sm:justify-between shadow-sm">
               <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   type="button"
@@ -751,9 +751,9 @@ export default function PacientePage() {
                   aria-label="Dia anterior"
                   className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
                 >
-                  <ChevronLeft className="h-5 w-5 transition group-hover:text-white" />
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 transition group-hover:text-white" />
                 </Button>
-                <span className="text-base sm:text-lg font-semibold text-foreground min-w-fit">{formatDatePt(currentDate)}</span>
+                <span className="text-sm sm:text-base md:text-lg font-semibold text-foreground min-w-fit">{formatDatePt(currentDate)}</span>
                 <Button
                   type="button"
                   variant="outline"
@@ -762,7 +762,7 @@ export default function PacientePage() {
                   aria-label="Próximo dia"
                   className={`group shadow-sm hover:bg-primary! hover:text-white! hover:border-primary! transition-all ${hoverPrimaryIconClass}`}
                 >
-                  <ChevronRight className="h-5 w-5 transition group-hover:text-white" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 transition group-hover:text-white" />
                 </Button>
                 {isSelectedDateToday && (
                   <Button
@@ -771,13 +771,14 @@ export default function PacientePage() {
                     size="sm"
                     onClick={goToToday}
                     disabled
-                    className="border border-border/50 text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.97] hover:bg-primary/5 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground"
+                    className="border border-border/50 text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.97] hover:bg-primary/5 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground text-xs sm:text-sm"
                   >
                     Hoje
                   </Button>
                 )}
               </div>
-              <div className="text-sm font-medium text-muted-foreground bg-background/50 px-4 py-2 rounded-lg">
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground bg-background/50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg">
+
                 <span className="text-primary font-semibold">{_todaysAppointments.length}</span> consulta{_todaysAppointments.length !== 1 ? 's' : ''} agendada{_todaysAppointments.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -793,50 +794,50 @@ export default function PacientePage() {
                   const todays = _todaysAppointments
                   if (!todays || todays.length === 0) {
                     return (
-                      <div className="flex flex-col items-center justify-center py-16 px-4">
-                        <div className="rounded-full bg-primary/10 p-4 mb-4">
-                          <Calendar className="h-10 w-10 text-primary" />
+                      <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-3 sm:px-4">
+                        <div className="rounded-full bg-primary/10 p-3 sm:p-4 mb-3 sm:mb-4">
+                          <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
                         </div>
-                        <p className="text-xl font-bold text-foreground mb-2">Nenhuma consulta agendada para este dia</p>
-                        <p className="text-base text-muted-foreground text-center max-w-sm">Use a busca acima para marcar uma nova consulta ou navegue entre os dias.</p>
+                        <p className="text-lg sm:text-xl font-bold text-foreground mb-1 sm:mb-2">Nenhuma consulta agendada para este dia</p>
+                        <p className="text-sm sm:text-base text-muted-foreground text-center max-w-sm">Use a busca acima para marcar uma nova consulta ou navegue entre os dias.</p>
                       </div>
                     )
                   }
                   return todays.map((consulta: any) => (
                     <div
                       key={consulta.id}
-                      className="rounded-2xl border border-primary/15 bg-card shadow-md hover:shadow-xl transition-all duration-300 p-6 hover:border-primary/30 hover:bg-card/95"
+                      className="rounded-2xl border border-primary/15 bg-card shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 md:p-6 hover:border-primary/30 hover:bg-card/95"
                     >
-                      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_0.8fr_1fr_1.2fr] items-start">
+                      <div className="grid gap-4 sm:gap-5 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_0.8fr_1fr_1.2fr] items-start">
                         {/* Doctor Info */}
-                        <div className="flex items-start gap-4 min-w-0">
+                        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                           <span
-                            className="mt-2 h-4 w-4 shrink-0 rounded-full shadow-sm"
+                            className="mt-1 sm:mt-2 h-3 w-3 sm:h-4 sm:w-4 shrink-0 rounded-full shadow-sm"
                             style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
                             aria-hidden
                           />
-                          <div className="space-y-3 min-w-0">
-                            <div className="font-bold flex items-center gap-2.5 text-foreground text-lg leading-tight">
-                              <Stethoscope className="h-5 w-5 text-primary shrink-0" />
+                          <div className="space-y-2 sm:space-y-3 min-w-0">
+                            <div className="font-bold flex items-center gap-1.5 sm:gap-2.5 text-foreground text-sm sm:text-base md:text-lg leading-tight">
+                              <Stethoscope className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
                               <span className="truncate">{consulta.medico}</span>
                             </div>
-                            <p className="text-sm text-muted-foreground wrap-break-word leading-relaxed">
+                            <p className="text-xs sm:text-sm text-muted-foreground wrap-break-word leading-relaxed">
                               <span className="font-medium text-foreground/70">{consulta.especialidade}</span>
-                              <span className="mx-1.5">•</span>
+                              <span className="mx-1 sm:mx-1.5">•</span>
                               <span>{consulta.local}</span>
                             </p>
                           </div>
                         </div>
 
                         {/* Time */}
-                        <div className="flex items-center justify-start gap-2.5 text-foreground">
-                          <Clock className="h-5 w-5 text-primary shrink-0" />
-                          <span className="font-bold text-lg">{consulta.hora}</span>
+                        <div className="flex items-center justify-start gap-2 sm:gap-2.5 text-foreground">
+                          <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                          <span className="font-bold text-sm sm:text-base md:text-lg">{consulta.hora}</span>
                         </div>
 
                         {/* Status Badge */}
                         <div className="flex items-center justify-start">
-                          <span className={`px-4 py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
+                          <span className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
                             consulta.status === 'Confirmada' 
                               ? 'bg-linear-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
                               : consulta.status === 'Pendente' 
@@ -852,7 +853,7 @@ export default function PacientePage() {
                           <Button
                             type="button"
                             size="sm"
-                            className="border border-primary/30 text-primary bg-primary/5 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs font-semibold flex-1"
+                            className="border border-primary/30 text-primary bg-primary/5 hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-95 text-xs sm:text-xs font-semibold flex-1"
                             onClick={() => setSelectedAppointment(consulta)}
                           >
                             Detalhes
@@ -862,7 +863,7 @@ export default function PacientePage() {
                             <Button
                               type="button"
                               size="sm"
-                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive! hover:text-white! hover:border-destructive! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs font-semibold flex-1"
+                              className="border border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive! hover:text-white! hover:border-destructive! transition-all duration-200 focus-visible:ring-2 focus-visible:ring-destructive/40 active:scale-95 text-xs sm:text-xs font-semibold flex-1"
                               onClick={async () => {
                                 try {
                                   const ok = typeof window !== 'undefined' ? window.confirm('Deseja realmente cancelar esta consulta?') : true
@@ -1392,28 +1393,28 @@ export default function PacientePage() {
     }, [reports])
 
     return (<>
-      <section className="bg-card shadow-md rounded-lg border border-border p-6">
-        <h2 className="text-2xl font-bold mb-6">Laudos</h2>
+      <section className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6">
+        <h2 className="text-xl sm:text-2xl md:text-2xl font-bold mb-4 sm:mb-5 md:mb-6">Laudos</h2>
 
         <div className="space-y-3">
           {/* Search box: allow searching by id, doctor, exam, date or text */}
-          <div className="mb-4 flex items-center gap-2">
-            <Input placeholder="Pesquisar laudo, médico, exame, data ou id" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setReportsPage(1) }} />
+          <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <Input placeholder="Pesquisar laudo, médico, exame, data ou id" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setReportsPage(1) }} className="text-xs sm:text-sm" />
             {searchTerm && (
-              <Button variant="ghost" onClick={() => { setSearchTerm(''); setReportsPage(1) }}>Limpar</Button>
+              <Button variant="ghost" onClick={() => { setSearchTerm(''); setReportsPage(1) }} className="text-xs sm:text-sm w-full sm:w-auto">Limpar</Button>
             )}
           </div>
           {loadingReports ? (
-            <div className="text-center py-8 text-muted-foreground">{strings.carregando}</div>
+            <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">{strings.carregando}</div>
           ) : reportsError ? (
-            <div className="text-center py-8 text-red-600">{reportsError}</div>
+            <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-red-600">{reportsError}</div>
           ) : (!reports || reports.length === 0) ? (
-            <div className="text-center py-8 text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
+            <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">Nenhum laudo encontrado para este paciente.</div>
             ) : (filteredReports.length === 0) ? (
               searchingRemote ? (
-                <div className="text-center py-8 text-muted-foreground">Buscando laudo...</div>
+                <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">Buscando laudo...</div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">Nenhum laudo corresponde à pesquisa.</div>
+                <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">Nenhum laudo corresponde à pesquisa.</div>
               )
             ) : (
             (() => {
@@ -1430,31 +1431,31 @@ export default function PacientePage() {
               return (
                 <>
                   {pageItems.map((r) => (
-              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-5">
-                <div>
+              <div key={r.id || JSON.stringify(r)} className="flex flex-col md:flex-row md:items-center md:justify-between bg-muted rounded p-3 sm:p-4 md:p-5 gap-3 md:gap-0">
+                <div className="min-w-0">
                   {(() => {
                     const maybeId = r?.doctor_id || r?.created_by || r?.doctor || null
                     if (resolvingDoctors && maybeId && !doctorsMap[String(maybeId)]) {
-                      return <div className="font-medium text-muted-foreground text-lg md:text-xl">{strings.carregando}</div>
+                      return <div className="font-medium text-xs sm:text-base md:text-lg text-muted-foreground">{strings.carregando}</div>
                     }
-                    return <div className="font-medium text-foreground text-lg md:text-xl">{reportTitle(r)}</div>
+                    return <div className="font-medium text-foreground text-sm sm:text-lg md:text-lg truncate">{reportTitle(r)}</div>
                   })()}
-                  <div className="text-base md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
+                  <div className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1">Data: {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString('pt-BR')}</div>
                 </div>
-                <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={async () => { router.push(`/laudos/${r.id}`); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" className="hover:bg-primary! hover:text-white! transition-colors" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
+                <div className="flex gap-2 w-full md:w-auto flex-col sm:flex-row">
+                  <Button variant="outline" className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm w-full md:w-auto" onClick={async () => { router.push(`/laudos/${r.id}`); }}>{strings.visualizarLaudo}</Button>
+                  <Button variant="secondary" className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm w-full md:w-auto" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
                   ))}
 
                   {/* Pagination controls */}
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="text-sm text-muted-foreground">Mostrando {Math.min(start+1, total)}–{Math.min(end, total)} de {total}</div>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.max(1, p-1))} disabled={page <= 1} className="px-3">Anterior</Button>
-                      <div className="text-sm text-muted-foreground">{page} / {totalPages}</div>
-                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="px-3">Próxima</Button>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mt-4">
+                    <div className="text-xs sm:text-sm text-muted-foreground">Mostrando {Math.min(start+1, total)}–{Math.min(end, total)} de {total}</div>
+                    <div className="flex items-center justify-between sm:justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.max(1, p-1))} disabled={page <= 1} className="px-2 sm:px-3 text-xs sm:text-sm">Anterior</Button>
+                      <div className="text-xs sm:text-sm text-muted-foreground">{page} / {totalPages}</div>
+                      <Button size="sm" variant="outline" onClick={() => setReportsPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="px-2 sm:px-3 text-xs sm:text-sm">Próxima</Button>
                     </div>
                   </div>
                 </>
@@ -1474,30 +1475,31 @@ export default function PacientePage() {
 
   function Perfil() {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 md:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-10">
         {/* Header com Título e Botão */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold">Meu Perfil</h2>
-            <p className="text-muted-foreground mt-1">Bem-vindo à sua área exclusiva.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h2 className="text-2xl sm:text-2xl md:text-3xl font-bold">Meu Perfil</h2>
+            <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1">Bem-vindo à sua área exclusiva.</p>
           </div>
           {!isEditingProfile ? (
             <Button 
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto whitespace-nowrap text-xs sm:text-sm"
               onClick={() => setIsEditingProfile(true)}
             >
               ✏️ Editar Perfil
             </Button>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button 
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
                 onClick={handleSaveProfile}
               >
                 ✓ Salvar
               </Button>
               <Button 
                 variant="outline"
+                className="text-xs sm:text-sm"
                 onClick={handleCancelEdit}
               >
                 ✕ Cancelar
@@ -1507,20 +1509,20 @@ export default function PacientePage() {
         </div>
 
         {/* Grid de 3 colunas (2 + 1) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
           {/* Coluna Esquerda - Informações Pessoais */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-5 md:space-y-6">
             {/* Informações Pessoais */}
-            <div className="border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Informações Pessoais</h3>
+            <div className="border border-border rounded-lg p-3 sm:p-4 md:p-6">
+              <h3 className="text-base sm:text-lg md:text-lg font-semibold mb-3 sm:mb-4">Informações Pessoais</h3>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Nome Completo */}
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
+                  <Label className="text-xs sm:text-sm md:text-sm font-medium text-muted-foreground">
                     Nome Completo
                   </Label>
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground font-medium">
+                  <div className="mt-2 p-2 sm:p-3 bg-muted rounded text-xs sm:text-sm md:text-base text-foreground font-medium">
                     {profileData.nome || "Não preenchido"}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -1530,10 +1532,10 @@ export default function PacientePage() {
 
                 {/* Email */}
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
+                  <Label className="text-xs sm:text-sm md:text-sm font-medium text-muted-foreground">
                     Email
                   </Label>
-                  <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                  <div className="mt-2 p-2 sm:p-3 bg-muted rounded text-xs sm:text-sm md:text-base text-foreground">
                     {profileData.email || "Não preenchido"}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -1543,19 +1545,19 @@ export default function PacientePage() {
 
                 {/* Telefone */}
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
+                  <Label className="text-xs sm:text-sm md:text-sm font-medium text-muted-foreground">
                     Telefone
                   </Label>
                   {isEditingProfile ? (
                     <Input
                       value={profileData.telefone || ""}
                       onChange={(e) => handleProfileChange('telefone', e.target.value)}
-                      className="mt-2"
+                      className="mt-2 text-xs sm:text-sm"
                       placeholder="(00) 00000-0000"
                       maxLength={15}
                     />
                   ) : (
-                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    <div className="mt-2 p-2 sm:p-3 bg-muted rounded text-xs sm:text-sm md:text-base text-foreground">
                       {profileData.telefone || "Não preenchido"}
                     </div>
                   )}
@@ -1564,24 +1566,24 @@ export default function PacientePage() {
             </div>
 
             {/* Endereço e Contato */}
-            <div className="border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Endereço e Contato</h3>
+            <div className="border border-border rounded-lg p-3 sm:p-4 md:p-6">
+              <h3 className="text-base sm:text-lg md:text-lg font-semibold mb-3 sm:mb-4">Endereço e Contato</h3>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Logradouro */}
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
+                  <Label className="text-xs sm:text-sm md:text-sm font-medium text-muted-foreground">
                     Logradouro
                   </Label>
                   {isEditingProfile ? (
                     <Input
                       value={profileData.endereco || ""}
                       onChange={(e) => handleProfileChange('endereco', e.target.value)}
-                      className="mt-2"
+                      className="mt-2 text-xs sm:text-sm"
                       placeholder="Rua, avenida, etc."
                     />
                   ) : (
-                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    <div className="mt-2 p-2 sm:p-3 bg-muted rounded text-xs sm:text-sm md:text-base text-foreground">
                       {profileData.endereco || "Não preenchido"}
                     </div>
                   )}
@@ -1589,18 +1591,18 @@ export default function PacientePage() {
 
                 {/* Cidade */}
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
+                  <Label className="text-xs sm:text-sm md:text-sm font-medium text-muted-foreground">
                     Cidade
                   </Label>
                   {isEditingProfile ? (
                     <Input
                       value={profileData.cidade || ""}
                       onChange={(e) => handleProfileChange('cidade', e.target.value)}
-                      className="mt-2"
+                      className="mt-2 text-xs sm:text-sm"
                       placeholder="São Paulo"
                     />
                   ) : (
-                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    <div className="mt-2 p-2 sm:p-3 bg-muted rounded text-xs sm:text-sm md:text-base text-foreground">
                       {profileData.cidade || "Não preenchido"}
                     </div>
                   )}
@@ -1608,18 +1610,18 @@ export default function PacientePage() {
 
                 {/* CEP */}
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
+                  <Label className="text-xs sm:text-sm md:text-sm font-medium text-muted-foreground">
                     CEP
                   </Label>
                   {isEditingProfile ? (
                     <Input
                       value={profileData.cep || ""}
                       onChange={(e) => handleProfileChange('cep', e.target.value)}
-                      className="mt-2"
+                      className="mt-2 text-xs sm:text-sm"
                       placeholder="00000-000"
                     />
                   ) : (
-                    <div className="mt-2 p-3 bg-muted rounded text-foreground">
+                    <div className="mt-2 p-2 sm:p-3 bg-muted rounded text-xs sm:text-sm md:text-base text-foreground">
                       {profileData.cep || "Não preenchido"}
                     </div>
                   )}
@@ -1630,11 +1632,11 @@ export default function PacientePage() {
 
           {/* Coluna Direita - Foto do Perfil */}
           <div>
-            <div className="border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Foto do Perfil</h3>
+            <div className="border border-border rounded-lg p-3 sm:p-4 md:p-6">
+              <h3 className="text-base sm:text-lg md:text-lg font-semibold mb-3 sm:mb-4">Foto do Perfil</h3>
 
               {isEditingProfile ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <UploadAvatar
                     userId={profileData.id}
                     currentAvatarUrl={profileData.foto_url || "/avatars/01.png"}
@@ -1643,15 +1645,15 @@ export default function PacientePage() {
                   />
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-4">
-                  <Avatar className="h-24 w-24">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                <div className="flex flex-col items-center gap-3 sm:gap-4">
+                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl md:text-2xl font-bold">
                       {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="text-center space-y-2">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
                       {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
                     </p>
                   </div>
@@ -1667,24 +1669,24 @@ export default function PacientePage() {
   // Renderização principal
   return (
     <ProtectedRoute requiredUserType={["paciente"]}>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
         {/* Header com informações do paciente */}
-        <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-4 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-12 w-12">
-              <AvatarFallback className="bg-primary text-white font-bold">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
+        <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 md:h-12 md:w-12">
+              <AvatarFallback className="bg-primary text-white font-bold text-sm sm:text-base">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm text-muted-foreground">Conta do paciente</span>
-              <span className="font-bold text-lg leading-none">{profileData.nome || 'Paciente'}</span>
-              <span className="text-sm text-muted-foreground truncate">{profileData.email || 'Email não disponível'}</span>
+              <span className="text-xs sm:text-sm md:text-sm text-muted-foreground">Conta do paciente</span>
+              <span className="font-bold text-sm sm:text-base md:text-lg leading-none">{profileData.nome || 'Paciente'}</span>
+              <span className="text-xs sm:text-sm md:text-sm text-muted-foreground truncate">{profileData.email || 'Email não disponível'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <SimpleThemeToggle />
-            <Button asChild variant="outline" className="hover:bg-primary! hover:text-white! hover:border-primary! transition-colors">
+            <Button asChild variant="outline" className="hover:bg-primary! hover:text-white! hover:border-primary! transition-colors flex-1 sm:flex-none text-xs sm:text-sm">
               <Link href="/">
-                <Home className="h-4 w-4 mr-1" /> Início
+                <Home className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> Início
               </Link>
             </Button>
             <Button 
@@ -1700,42 +1702,42 @@ export default function PacientePage() {
         </header>
 
         {/* Layout com sidebar e conteúdo */}
-        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[220px_1fr] gap-4 sm:gap-5 md:gap-6">
           {/* Sidebar vertical - sticky */}
-          <aside className="sticky top-24 h-fit">
-            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-3 space-y-1 z-30">
+          <aside className="sticky top-24 h-fit md:top-24">
+            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-2 sm:p-3 md:p-3 space-y-1 z-30 flex md:flex-col flex-row md:overflow-auto overflow-x-auto">
               <Button
                 variant={tab==='dashboard'?'default':'ghost'}
                 aria-current={tab==='dashboard'}
                 onClick={()=>setTab('dashboard')}
-                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
+                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
               >
-                <Calendar className="mr-2 h-4 w-4" />{strings.dashboard}
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.dashboard}</span>
               </Button>
               <Button
                 variant={tab==='consultas'?'default':'ghost'}
                 aria-current={tab==='consultas'}
                 onClick={()=>setTab('consultas')}
-                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
+                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
               >
-                <Calendar className="mr-2 h-4 w-4" />{strings.consultas}
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.consultas}</span>
               </Button>
               <Button
                 variant={tab==='exames'?'default':'ghost'}
                 aria-current={tab==='exames'}
                 onClick={()=>setTab('exames')}
-                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
+                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
               >
-                <FileText className="mr-2 h-4 w-4" />{strings.exames}
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.exames}</span>
               </Button>
               
               <Button
                 variant={tab==='perfil'?'default':'ghost'}
                 aria-current={tab==='perfil'}
                 onClick={()=>setTab('perfil')}
-                className={`w-full justify-start transition-colors hover:bg-primary! hover:text-white! cursor-pointer`}
+                className={`flex-1 md:flex-none md:w-full flex items-center justify-center md:justify-start gap-1 md:gap-2 transition-colors hover:bg-primary! hover:text-white! cursor-pointer text-xs sm:text-sm`}
               >
-                <UserCog className="mr-2 h-4 w-4" />{strings.perfil}
+                <UserCog className="h-3 w-3 sm:h-4 sm:w-4 md:h-4 md:w-4 flex-shrink-0" /><span>{strings.perfil}</span>
               </Button>
             </nav>
           </aside>
@@ -1744,12 +1746,12 @@ export default function PacientePage() {
           <main className="flex-1 w-full">
             {/* Toasts de feedback */}
             {toast && (
-              <div className={`fixed top-24 right-4 z-50 px-4 py-2 rounded shadow-lg ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">{toast.msg}</div>
+              <div className={`fixed top-24 right-2 sm:right-4 z-50 px-3 sm:px-4 py-2 rounded shadow-lg text-xs sm:text-sm ${toast.type==='success'?'bg-green-600 text-white':'bg-red-600 text-white'}`} role="alert">{toast.msg}</div>
             )}
 
             {/* Loader global */}
-            {loading && <div className="flex-1 flex items-center justify-center"><span>{strings.carregando}</span></div>}
-            {error && <div className="flex-1 flex items-center justify-center text-red-600"><span>{error}</span></div>}
+            {loading && <div className="flex-1 flex items-center justify-center"><span className="text-xs sm:text-sm">{strings.carregando}</span></div>}
+            {error && <div className="flex-1 flex items-center justify-center text-red-600"><span className="text-xs sm:text-sm">{error}</span></div>}
 
             {/* Conteúdo principal */}
             {!loading && !error && (

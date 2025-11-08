@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useCallback, useMemo, useEffect } from "react"
+import { buscarAgendamentoPorId, buscarPacientesPorIds, buscarMedicosPorIds } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,6 +30,15 @@ export interface Event {
   category?: string
   attendees?: string[]
   tags?: string[]
+  // Additional appointment fields (optional)
+  patientName?: string
+  professionalName?: string
+  appointmentType?: string
+  status?: string
+  insuranceProvider?: string | null
+  completedAt?: string | Date | null
+  cancelledAt?: string | Date | null
+  cancellationReason?: string | null
 }
 
 export interface EventManagerProps {
@@ -229,6 +239,73 @@ export function EventManager({
       document.cookie = `NEXT_LOCALE=pt-BR; Path=/; Max-Age=${oneYear}; SameSite=Lax`
     } catch {}
   }, [])
+
+  // Quando um evento é selecionado para visualização, buscar dados completos do agendamento
+  // para garantir que patient/professional/tags/attendees/status estejam preenchidos.
+  useEffect(() => {
+    if (!selectedEvent || isCreating) return
+    let cancelled = false
+
+    const enrich = async () => {
+      try {
+        const full = await buscarAgendamentoPorId(selectedEvent.id).catch(() => null)
+        if (cancelled || !full) return
+
+        // Tentar resolver nomes de paciente e profissional a partir de IDs quando possível
+        let patientName = selectedEvent.patientName
+        if ((!patientName || patientName === "—") && full.patient_id) {
+          const pList = await buscarPacientesPorIds([full.patient_id as any]).catch(() => [])
+          if (pList && pList.length) patientName = (pList[0] as any).full_name || (pList[0] as any).fullName || (pList[0] as any).name
+        }
+
+        let professionalName = selectedEvent.professionalName
+        if ((!professionalName || professionalName === "—") && full.doctor_id) {
+          const dList = await buscarMedicosPorIds([full.doctor_id as any]).catch(() => [])
+          if (dList && dList.length) professionalName = (dList[0] as any).full_name || (dList[0] as any).fullName || (dList[0] as any).name
+        }
+
+        const merged: Event = {
+          ...selectedEvent,
+          // priorizar valores vindos do backend quando existirem
+          title: ((full as any).title as any) || selectedEvent.title,
+          description: ((full as any).notes as any) || ((full as any).patient_notes as any) || selectedEvent.description,
+          patientName: patientName || selectedEvent.patientName,
+          professionalName: professionalName || selectedEvent.professionalName,
+          appointmentType: ((full as any).appointment_type as any) || selectedEvent.appointmentType,
+          status: ((full as any).status as any) || selectedEvent.status,
+          insuranceProvider: ((full as any).insurance_provider as any) ?? selectedEvent.insuranceProvider,
+          completedAt: ((full as any).completed_at as any) ?? selectedEvent.completedAt,
+          cancelledAt: ((full as any).cancelled_at as any) ?? selectedEvent.cancelledAt,
+          cancellationReason: ((full as any).cancellation_reason as any) ?? selectedEvent.cancellationReason,
+          attendees: ((full as any).attendees as any) || ((full as any).participants as any) || selectedEvent.attendees,
+          tags: ((full as any).tags as any) || selectedEvent.tags,
+        }
+
+        if (!cancelled) setSelectedEvent(merged)
+      } catch (err) {
+        // não bloquear UI em caso de falha
+        console.warn('[EventManager] Falha ao enriquecer agendamento:', err)
+      }
+    }
+
+    enrich()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedEvent, isCreating])
+
+  // Remove trechos redundantes como "Status: requested." que às vezes vêm concatenados na descrição
+  const sanitizeDescription = (d?: string | null) => {
+    if (!d) return null
+    try {
+      // Remove qualquer segmento "Status: ..." seguido opcionalmente de ponto
+      const cleaned = String(d).replace(/Status:\s*[^\.\n]+\.?/gi, "").trim()
+      return cleaned || null
+    } catch (e) {
+      return d
+    }
+  }
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
@@ -504,7 +581,7 @@ export function EventManager({
 
       {/* Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+  <DialogContent className="w-full max-w-full sm:max-w-2xl md:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{isCreating ? "Criar Evento" : "Detalhes do Agendamento"}</DialogTitle>
             <DialogDescription>
@@ -512,122 +589,179 @@ export function EventManager({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Título</Label>
-              <Input
-                id="title"
-                value={isCreating ? (newEvent.title ?? "") : (selectedEvent?.title ?? "")}
-                onChange={(e) =>
-                  isCreating
-                    ? setNewEvent((prev) => ({ ...prev, title: e.target.value }))
-                    : setSelectedEvent((prev) => (prev ? { ...prev, title: e.target.value } : null))
-                }
-                placeholder="Título do evento"
-              />
-            </div>
+          {/* Dialog content: form when creating; read-only view when viewing */}
+          {isCreating ? (
+            <>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Título</Label>
+                  <Input
+                    id="title"
+                    value={newEvent.title ?? ""}
+                    onChange={(e) => setNewEvent((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="Título do evento"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={isCreating ? (newEvent.description ?? "") : (selectedEvent?.description ?? "")}
-                onChange={(e) =>
-                  isCreating
-                    ? setNewEvent((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    : setSelectedEvent((prev) => (prev ? { ...prev, description: e.target.value } : null))
-                }
-                placeholder="Descrição do evento"
-                rows={3}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descrição</Label>
+                  <Textarea
+                    id="description"
+                    value={newEvent.description ?? ""}
+                    onChange={(e) => setNewEvent((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Descrição do evento"
+                    rows={3}
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Início</Label>
-                <Input
-                  id="startTime"
-                  type="datetime-local"
-                  value={
-                    isCreating
-                      ? newEvent.startTime
-                        ? new Date(newEvent.startTime.getTime() - newEvent.startTime.getTimezoneOffset() * 60000)
-                            .toISOString()
-                            .slice(0, 16)
-                        : ""
-                      : selectedEvent
-                        ? new Date(
-                            selectedEvent.startTime.getTime() - selectedEvent.startTime.getTimezoneOffset() * 60000,
-                          )
-                            .toISOString()
-                            .slice(0, 16)
-                        : ""
-                  }
-                  onChange={(e) => {
-                    const date = new Date(e.target.value)
-                    isCreating
-                      ? setNewEvent((prev) => ({ ...prev, startTime: date }))
-                      : setSelectedEvent((prev) => (prev ? { ...prev, startTime: date } : null))
-                  }}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startTime">Início</Label>
+                    <Input
+                      id="startTime"
+                      type="datetime-local"
+                      value={
+                        newEvent.startTime
+                          ? new Date(newEvent.startTime.getTime() - newEvent.startTime.getTimezoneOffset() * 60000)
+                              .toISOString()
+                              .slice(0, 16)
+                          : ""
+                      }
+                      onChange={(e) => setNewEvent((prev) => ({ ...prev, startTime: new Date(e.target.value) }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="endTime">Fim</Label>
+                    <Input
+                      id="endTime"
+                      type="datetime-local"
+                      value={
+                        newEvent.endTime
+                          ? new Date(newEvent.endTime.getTime() - newEvent.endTime.getTimezoneOffset() * 60000)
+                              .toISOString()
+                              .slice(0, 16)
+                          : ""
+                      }
+                      onChange={(e) => setNewEvent((prev) => ({ ...prev, endTime: new Date(e.target.value) }))}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="endTime">Fim</Label>
-                <Input
-                  id="endTime"
-                  type="datetime-local"
-                  value={
-                    isCreating
-                      ? newEvent.endTime
-                        ? new Date(newEvent.endTime.getTime() - newEvent.endTime.getTimezoneOffset() * 60000)
-                            .toISOString()
-                            .slice(0, 16)
-                        : ""
-                      : selectedEvent
-                        ? new Date(selectedEvent.endTime.getTime() - selectedEvent.endTime.getTimezoneOffset() * 60000)
-                            .toISOString()
-                            .slice(0, 16)
-                        : ""
-                  }
-                  onChange={(e) => {
-                    const date = new Date(e.target.value)
-                    isCreating
-                      ? setNewEvent((prev) => ({ ...prev, endTime: date }))
-                      : setSelectedEvent((prev) => (prev ? { ...prev, endTime: date } : null))
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsDialogOpen(false)
+                    setIsCreating(false)
+                    setSelectedEvent(null)
                   }}
-                />
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateEvent}>Criar</Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              {/* Read-only compact view: title + stacked details + descrição abaixo */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold">{selectedEvent?.title || "—"}</h3>
+                </div>
+
+                <div className="p-3 sm:p-4 rounded-md border bg-card/5 text-sm text-muted-foreground">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <div className="text-[12px] text-muted-foreground">Profissional</div>
+                      <div className="mt-1 text-sm font-medium break-words">{selectedEvent?.professionalName || "—"}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-[12px] text-muted-foreground">Paciente</div>
+                      <div className="mt-1 text-sm font-medium break-words">{selectedEvent?.patientName || "—"}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-[12px] text-muted-foreground">Tipo</div>
+                      <div className="mt-1 text-sm font-medium break-words">{selectedEvent?.appointmentType || "—"}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-[12px] text-muted-foreground">Status</div>
+                      <div className="mt-1 text-sm font-medium break-words">{selectedEvent?.status || "—"}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-[12px] text-muted-foreground">Data</div>
+                      <div className="mt-1 text-sm font-medium break-words">{(() => {
+                        const formatDate = (d?: string | Date) => {
+                          if (!d) return "—"
+                          try {
+                            const dt = d instanceof Date ? d : new Date(d)
+                            if (isNaN(dt.getTime())) return "—"
+                            return dt.toLocaleString(LOCALE, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })
+                          } catch (e) {
+                            return "—"
+                          }
+                        }
+                        return formatDate(selectedEvent?.startTime)
+                      })()}</div>
+                    </div>
+
+                    {selectedEvent?.completedAt && (
+                      <div>
+                        <div className="text-[12px] text-muted-foreground">Concluído em</div>
+                        <div className="mt-1 text-sm font-medium break-words">{(() => {
+                          const dt = selectedEvent.completedAt
+                          try {
+                            const d = dt instanceof Date ? dt : new Date(dt as any)
+                            return isNaN(d.getTime()) ? "—" : d.toLocaleString(LOCALE, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })
+                          } catch { return "—" }
+                        })()}</div>
+                      </div>
+                    )}
+
+                    {selectedEvent?.cancelledAt && (
+                      <div>
+                        <div className="text-[12px] text-muted-foreground">Cancelado em</div>
+                        <div className="mt-1 text-sm font-medium break-words">{(() => {
+                          const dt = selectedEvent.cancelledAt
+                          try {
+                            const d = dt instanceof Date ? dt : new Date(dt as any)
+                            return isNaN(d.getTime()) ? "—" : d.toLocaleString(LOCALE, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIMEZONE })
+                          } catch { return "—" }
+                        })()}</div>
+                        <div className="text-[12px] text-muted-foreground mt-2">Motivo do cancelamento</div>
+                        <div className="mt-1 text-sm font-medium break-words">{selectedEvent?.cancellationReason || "—"}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Observações</Label>
+                  <div className="min-h-[80px] sm:min-h-[120px] p-3 rounded-md border bg-muted/5 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {sanitizeDescription(selectedEvent?.description) ?? "—"}
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsDialogOpen(false)
+                      setIsCreating(false)
+                      setSelectedEvent(null)
+                    }}
+                  >
+                    Fechar
+                  </Button>
+                </DialogFooter>
               </div>
-            </div>
-
-            {/* Campos de Categoria/Cor removidos */}
-
-            {/* Campo de Tags removido */}
-          </div>
-
-          <DialogFooter>
-            {!isCreating && (
-              <Button variant="destructive" onClick={() => selectedEvent && handleDeleteEvent(selectedEvent.id)}>
-                Deletar
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDialogOpen(false)
-                setIsCreating(false)
-                setSelectedEvent(null)
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={isCreating ? handleCreateEvent : handleUpdateEvent}>
-              {isCreating ? "Criar" : "Salvar"}
-            </Button>
-          </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -943,7 +1077,7 @@ function MonthView({
   )
 }
 
-// Week View Component
+// Week View Component (simplified and stable)
 function WeekView({
   currentDate,
   events,
@@ -958,7 +1092,7 @@ function WeekView({
   onEventClick: (event: Event) => void
   onDragStart: (event: Event) => void
   onDragEnd: () => void
-  onDrop: (date: Date, hour: number) => void
+  onDrop: (date: Date, hour?: number) => void
   getColorClasses: (color: string) => { bg: string; text: string }
 }) {
   const startOfWeek = new Date(currentDate)
@@ -970,103 +1104,55 @@ function WeekView({
     return day
   })
 
-  // NOVO: limita intervalo de horas ao 1º e último evento da semana
-  const [startHour, endHour] = React.useMemo(() => {
-    let minH = Infinity
-    let maxH = -Infinity
-    for (const ev of events) {
-      const d = ev.startTime
-      const sameWeekDay = weekDays.some(wd =>
-        d.getFullYear() === wd.getFullYear() &&
-        d.getMonth() === wd.getMonth() &&
-        d.getDate() === wd.getDate()
-      )
-      if (!sameWeekDay) continue
-      minH = Math.min(minH, d.getHours())
-      maxH = Math.max(maxH, ev.endTime.getHours())
-    }
-    if (!isFinite(minH) || !isFinite(maxH)) return [0, 23] as const
-    if (maxH < minH) maxH = minH
-    return [minH, maxH] as const
-  }, [events, weekDays])
-
-  const hours = React.useMemo(
-    () => Array.from({ length: (endHour - startHour + 1) }, (_, i) => startHour + i),
-    [startHour, endHour]
-  )
-
-  const getEventsForDayAndHour = (date: Date, hour: number) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startTime)
-      const eventHour = eventDate.getHours()
+  const getEventsForDay = (date: Date) =>
+    events.filter((event) => {
+      const d = new Date(event.startTime)
       return (
-        eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear() &&
-        eventHour === hour
+        d.getFullYear() === date.getFullYear() &&
+        d.getMonth() === date.getMonth() &&
+        d.getDate() === date.getDate()
       )
     })
-  }
 
   return (
     <Card className="overflow-auto">
-      <div className="grid grid-cols-8 border-b">
-        <div className="border-r p-2 text-center text-xs font-medium sm:text-sm">Hora</div>
+      <div className="grid grid-cols-7 border-b">
         {weekDays.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm"
-          >
-            <div className="hidden sm:block">{day.toLocaleDateString(LOCALE, { weekday: "short", timeZone: TIMEZONE })}</div>
-            <div className="sm:hidden">{day.toLocaleDateString(LOCALE, { weekday: "narrow", timeZone: TIMEZONE })}</div>
-            <div className="text-[10px] text-muted-foreground sm:text-xs">
-              {day.toLocaleDateString(LOCALE, { month: "short", day: "numeric", timeZone: TIMEZONE })}
-            </div>
+          <div key={day.toISOString()} className="border-r p-2 text-center text-xs font-medium last:border-r-0 sm:text-sm">
+            <span className="hidden sm:inline">{day.toLocaleDateString(LOCALE, { weekday: "short", timeZone: TIMEZONE })}</span>
+            <span className="sm:hidden">{day.toLocaleDateString(LOCALE, { weekday: "narrow", timeZone: TIMEZONE })}</span>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-8">
-        {hours.map((hour) => (
-          <React.Fragment key={`hour-${hour}`}>
-            <div
-              key={`time-${hour}`}
-              className="border-b border-r p-1 text-[10px] text-muted-foreground sm:p-2 sm:text-xs"
-            >
-              {hour.toString().padStart(2, "0")}:00
-            </div>
-            {weekDays.map((day) => {
-              const dayEvents = getEventsForDayAndHour(day, hour)
-              return (
-                <div
-                  key={`${day.toISOString()}-${hour}`}
-                  className="min-h-12 border-b border-r p-0.5 transition-colors hover:bg-accent/50 last:border-r-0 sm:min-h-16 sm:p-1"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => onDrop(day, hour)}
-                >
-                  <div className="space-y-1">
-                    {dayEvents.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        onEventClick={onEventClick}
-                        onDragStart={onDragStart}
-                        onDragEnd={onDragEnd}
-                        getColorClasses={getColorClasses}
-                        variant="default"
-                      />
-                    ))}
+
+      <div className="grid grid-cols-7">
+        {weekDays.map((day, idx) => {
+          const dayEvents = getEventsForDay(day)
+          return (
+            <div key={idx} className="min-h-40 border-r p-2 last:border-r-0">
+              <div className="space-y-2">
+                {dayEvents.map((ev) => (
+                  <div key={ev.id} className="mb-2">
+                    <EventCard
+                      event={ev}
+                      onEventClick={onEventClick}
+                      onDragStart={onDragStart}
+                      onDragEnd={onDragEnd}
+                      getColorClasses={getColorClasses}
+                      variant="compact"
+                    />
                   </div>
-                </div>
-              )
-            })}
-          </React.Fragment>
-        ))}
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </Card>
   )
 }
 
-// Day View Component
+// Day View Component (simple hourly lanes)
 function DayView({
   currentDate,
   events,
@@ -1081,42 +1167,21 @@ function DayView({
   onEventClick: (event: Event) => void
   onDragStart: (event: Event) => void
   onDragEnd: () => void
-  onDrop: (date: Date, hour: number) => void
+  onDrop: (date: Date, hour?: number) => void
   getColorClasses: (color: string) => { bg: string; text: string }
 }) {
-  // NOVO: calcula intervalo de horas do 1º ao último evento do dia
-  const [startHour, endHour] = React.useMemo(() => {
-    const sameDayEvents = events.filter((ev) => {
-      const d = ev.startTime
+  const hours = Array.from({ length: 24 }, (_, i) => i)
+
+  const getEventsForHour = (hour: number) =>
+    events.filter((event) => {
+      const d = new Date(event.startTime)
       return (
-        d.getDate() === currentDate.getDate() &&
+        d.getFullYear() === currentDate.getFullYear() &&
         d.getMonth() === currentDate.getMonth() &&
-        d.getFullYear() === currentDate.getFullYear()
+        d.getDate() === currentDate.getDate() &&
+        d.getHours() === hour
       )
     })
-    if (!sameDayEvents.length) return [0, 23] as const
-    const minH = Math.min(...sameDayEvents.map((e) => e.startTime.getHours()))
-    const maxH = Math.max(...sameDayEvents.map((e) => e.endTime.getHours()))
-    return [minH, Math.max(maxH, minH)] as const
-  }, [events, currentDate])
-
-  const hours = React.useMemo(
-    () => Array.from({ length: (endHour - startHour + 1) }, (_, i) => startHour + i),
-    [startHour, endHour]
-  )
-
-  const getEventsForHour = (hour: number) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startTime)
-      const eventHour = eventDate.getHours()
-      return (
-        eventDate.getDate() === currentDate.getDate() &&
-        eventDate.getMonth() === currentDate.getMonth() &&
-        eventDate.getFullYear() === currentDate.getFullYear() &&
-        eventHour === hour
-      )
-    })
-  }
 
   return (
     <Card className="overflow-auto">
@@ -1124,27 +1189,14 @@ function DayView({
         {hours.map((hour) => {
           const hourEvents = getEventsForHour(hour)
           return (
-            <div
-              key={hour}
-              className="flex border-b last:border-b-0"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onDrop(currentDate, hour)}
-            >
+            <div key={hour} className="flex border-b last:border-b-0" onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(currentDate, hour)}>
               <div className="w-14 flex-shrink-0 border-r p-2 text-xs text-muted-foreground sm:w-20 sm:p-3 sm:text-sm">
                 {hour.toString().padStart(2, "0")}:00
               </div>
               <div className="min-h-16 flex-1 p-1 transition-colors hover:bg-accent/50 sm:min-h-20 sm:p-2">
                 <div className="space-y-2">
                   {hourEvents.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onEventClick={onEventClick}
-                      onDragStart={onDragStart}
-                      onDragEnd={onDragEnd}
-                      getColorClasses={getColorClasses}
-                      variant="detailed"
-                    />
+                    <EventCard key={event.id} event={event} onEventClick={onEventClick} onDragStart={onDragStart} onDragEnd={onDragEnd} getColorClasses={getColorClasses} variant="detailed" />
                   ))}
                 </div>
               </div>

@@ -296,7 +296,7 @@ export default function PerfilPage() {
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={handleEditClick}
               >
-                ✏️ Editar Perfil
+                 Editar Perfil
               </Button>
             ) : (
               <div className="flex gap-2">

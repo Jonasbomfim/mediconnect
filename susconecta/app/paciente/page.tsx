@@ -865,17 +865,33 @@ export default function PacientePage() {
                                 try {
                                   const ok = typeof window !== 'undefined' ? window.confirm('Deseja realmente cancelar esta consulta?') : true
                                   if (!ok) return
-                                  // call API to delete
-                                  await deletarAgendamento(consulta.id)
-                                  // Mark as deleted in cache so it won't appear again
-                                  addDeletedAppointmentId(consulta.id)
-                                  // remove from local list
+
+                                  // Prefer PATCH to mark appointment as cancelled (safer under RLS)
+                                  try {
+                                    await atualizarAgendamento(consulta.id, {
+                                      cancelled_at: new Date().toISOString(),
+                                      status: 'cancelled',
+                                      cancellation_reason: 'Cancelado pelo paciente'
+                                    })
+                                  } catch (patchErr) {
+                                    // Fallback: try hard delete if server allows it
+                                    try {
+                                      await deletarAgendamento(consulta.id)
+                                    } catch (delErr) {
+                                      // Re-throw original patch error if both fail
+                                      throw patchErr || delErr
+                                    }
+                                  }
+
+                                  // remove from local list so UI updates immediately
                                   setAppointments((prev) => {
                                     if (!prev) return prev
                                     return prev.filter((a: any) => String(a.id) !== String(consulta.id))
                                   })
                                   // if modal open for this appointment, close it
                                   if (selectedAppointment && String(selectedAppointment.id) === String(consulta.id)) setSelectedAppointment(null)
+                                  // Optionally persist to deleted cache to help client-side filtering
+                                  try { addDeletedAppointmentId(consulta.id) } catch(e) {}
                                   setToast({ type: 'success', msg: 'Consulta cancelada.' })
                                 } catch (err: any) {
                                   console.error('[Consultas] falha ao cancelar agendamento', err)
@@ -1560,7 +1576,7 @@ export default function PacientePage() {
               className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto whitespace-nowrap text-xs sm:text-sm"
               onClick={() => setIsEditingProfile(true)}
             >
-              ✏️ Editar Perfil
+               Editar Perfil
             </Button>
           ) : (
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">

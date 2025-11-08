@@ -2780,7 +2780,7 @@ const ProfissionalPage = () => {
             className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm w-full sm:w-auto"
             onClick={() => setIsEditingProfile(true)}
           >
-            ✏️ Editar Perfil
+             Editar Perfil
           </Button>
         ) : (
           <div className="flex gap-2 w-full sm:w-auto">

@@ -298,8 +298,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error
       }
       
+      const errorMessage = error instanceof Error ? error.message : String(error)
       throw new AuthenticationError(
-        'Erro inesperado durante o login',
+        errorMessage || 'Erro inesperado durante o login',
         'UNKNOWN_ERROR',
         error
       )

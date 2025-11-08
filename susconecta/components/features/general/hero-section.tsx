@@ -23,24 +23,7 @@ export function HeroSection() {
               </div>
             </div>
 
-            {}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                size="lg" 
-                className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent"
-                asChild
-              >
-                <Link href="/login-paciente">Portal do Paciente</Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-primary border-primary bg-transparent cursor-pointer shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
-                asChild
-              >
-                <Link href="/login">Sou Profissional de Saúde</Link>
-              </Button>
-            </div>
+
           </div>
 
           {}

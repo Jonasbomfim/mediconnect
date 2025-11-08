@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { format, parseISO, parse } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +138,9 @@ export function PatientRegistrationForm({
     userName: string;
     userType: 'médico' | 'paciente';
   } | null>(null);
+  
+  // Ref para guardar o paciente salvo para chamar onSaved quando o dialog fechar
+  const savedPatientRef = useRef<any>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Paciente" : "Editar Paciente"), [mode]);
 
@@ -276,7 +279,11 @@ export function PatientRegistrationForm({
           setErrors((e) => ({ ...e, telefone: 'Telefone é obrigatório quando email é informado (fluxo de criação único).' })); setSubmitting(false); return;
         }
         let savedPatientProfile: any = await criarPaciente(patientPayload);
-        console.log('Perfil do paciente criado (via Function):', savedPatientProfile);
+        console.log('🎯 Paciente criado! Resposta completa:', savedPatientProfile);
+        console.log('🔑 Senha no objeto:', savedPatientProfile?.password);
+        
+        // Guardar a senha ANTES de qualquer operação que possa sobrescrever o objeto
+        const senhaGerada = savedPatientProfile?.password;
 
         // Fallback: some backend create flows (create-user-with-password) do not
         // persist optional patient fields like sex/cep/birth_date. The edit flow
@@ -295,17 +302,56 @@ export function PatientRegistrationForm({
             const patched = await atualizarPaciente(String(pacienteId), patientPayload).catch((e) => { console.warn('[PatientForm] fallback PATCH falhou:', e); return null; });
             if (patched) {
               console.debug('[PatientForm] fallback PATCH result:', patched);
-              savedPatientProfile = patched;
+              // Preserva a senha ao fazer merge do patch
+              savedPatientProfile = { ...patched, password: senhaGerada };
             }
           }
         } catch (e) {
           console.warn('[PatientForm] erro ao tentar fallback PATCH:', e);
         }
 
-        const maybePassword = (savedPatientProfile as any)?.password || (savedPatientProfile as any)?.generated_password;
-        if (maybePassword) {
-          setCredentials({ email: (savedPatientProfile as any).email || form.email, password: String(maybePassword), userName: form.nome, userType: 'paciente' });
+        // Usar a senha que foi guardada ANTES do PATCH
+        const emailToDisplay = savedPatientProfile?.email || form.email;
+        console.log('📧 Email para exibir:', emailToDisplay);
+        console.log('🔐 Senha para exibir:', senhaGerada);
+        
+        if (senhaGerada && emailToDisplay) {
+          console.log('✅ Abrindo modal de credenciais...');
+          const credentialsToShow = { 
+            email: emailToDisplay, 
+            password: String(senhaGerada), 
+            userName: form.nome, 
+            userType: 'paciente' as const
+          };
+          console.log('📝 Credenciais a serem definidas:', credentialsToShow);
+          
+          // Guardar o paciente salvo no ref para usar quando o dialog fechar
+          savedPatientRef.current = savedPatientProfile;
+          
+          // Definir credenciais e abrir dialog
+          setCredentials(credentialsToShow);
           setShowCredentialsDialog(true);
+          
+          // NÃO limpar o formulário ou fechar ainda - aguardar o usuário fechar o dialog de credenciais
+          // O dialog de credenciais vai chamar onSaved e fechar quando o usuário clicar em "Fechar"
+          
+          // Verificar se foi setado
+          setTimeout(() => {
+            console.log('🔍 Verificando estados após 100ms:');
+            console.log('  - showCredentialsDialog:', showCredentialsDialog);
+            console.log('  - credentials:', credentials);
+          }, 100);
+        } else {
+          console.error('❌ Não foi possível exibir credenciais:', { senhaGerada, emailToDisplay });
+          alert(`Paciente criado!\n\nEmail: ${emailToDisplay}\n\nAVISO: A senha não pôde ser recuperada. Entre em contato com o suporte.`);
+          
+          // Se não há senha, limpar e fechar normalmente
+          onSaved?.(savedPatientProfile); 
+          setForm(initial); 
+          setPhotoPreview(null); 
+          setServerAnexos([]); 
+          if (inline) onClose?.(); 
+          else onOpenChange?.(false);
         }
 
         if (form.photo) {
@@ -313,8 +359,6 @@ export function PatientRegistrationForm({
           catch (upErr) { console.warn('[PatientForm] Falha ao enviar foto do paciente após criação:', upErr); alert('Paciente criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.'); }
           finally { setUploadingPhoto(false); }
         }
-
-        onSaved?.(savedPatientProfile); setForm(initial); setPhotoPreview(null); setServerAnexos([]); if (inline) onClose?.(); else onOpenChange?.(false);
       }
     } catch (err: any) { console.error("❌ Erro no handleSubmit:", err); const userMessage = err?.message?.includes("toPayload") || err?.message?.includes("is not defined") ? "Erro ao processar os dados do formulário. Por favor, verifique os campos e tente novamente." : err?.message || "Erro ao salvar paciente. Por favor, tente novamente."; setErrors({ submit: userMessage }); }
     finally { setSubmitting(false); }
@@ -519,8 +563,86 @@ export function PatientRegistrationForm({
   );
 
   if (inline) {
-    return (<><div className="space-y-6">{content}</div>{credentials && (<CredentialsDialog open={showCredentialsDialog} onOpenChange={(open) => { setShowCredentialsDialog(open); if (!open) { setCredentials(null); if (inline) onClose?.(); else onOpenChange?.(false); } }} email={credentials.email} password={credentials.password} userName={credentials.userName} userType={credentials.userType} />)}</>);
+    return (
+      <>
+        <div className="space-y-6">{content}</div>
+        <CredentialsDialog 
+          open={showCredentialsDialog} 
+          onOpenChange={(open) => { 
+            console.log('🔄 CredentialsDialog onOpenChange chamado com:', open);
+            setShowCredentialsDialog(open); 
+            if (!open) { 
+              // Dialog foi fechado - limpar estados e fechar formulário
+              console.log('✅ Dialog fechado - limpando formulário...');
+              setCredentials(null);
+              
+              // Chamar onSaved se houver paciente salvo
+              if (savedPatientRef.current) {
+                onSaved?.(savedPatientRef.current);
+                savedPatientRef.current = null;
+              }
+              
+              // Limpar formulário
+              setForm(initial); 
+              setPhotoPreview(null); 
+              setServerAnexos([]); 
+              
+              // Fechar formulário
+              if (inline) onClose?.(); 
+              else onOpenChange?.(false); 
+            } 
+          }} 
+          email={credentials?.email || ''} 
+          password={credentials?.password || ''} 
+          userName={credentials?.userName || ''} 
+          userType={credentials?.userType || 'paciente'} 
+        />
+      </>
+    );
   }
 
-  return (<><Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><User className="h-5 w-5" /> {title}</DialogTitle></DialogHeader>{content}</DialogContent></Dialog>{credentials && (<CredentialsDialog open={showCredentialsDialog} onOpenChange={(open) => { setShowCredentialsDialog(open); if (!open) { setCredentials(null); onOpenChange?.(false); } }} email={credentials.email} password={credentials.password} userName={credentials.userName} userType={credentials.userType} />)}</>);
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" /> {title}
+            </DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      <CredentialsDialog 
+        open={showCredentialsDialog} 
+        onOpenChange={(open) => { 
+          console.log('🔄 CredentialsDialog onOpenChange chamado com:', open);
+          setShowCredentialsDialog(open); 
+          if (!open) {
+            // Dialog foi fechado - limpar estados e fechar formulário
+            console.log('✅ Dialog fechado - limpando formulário...');
+            setCredentials(null);
+            
+            // Chamar onSaved se houver paciente salvo
+            if (savedPatientRef.current) {
+              onSaved?.(savedPatientRef.current);
+              savedPatientRef.current = null;
+            }
+            
+            // Limpar formulário
+            setForm(initial); 
+            setPhotoPreview(null); 
+            setServerAnexos([]); 
+            
+            // Fechar formulário principal
+            onOpenChange?.(false);
+          } 
+        }} 
+        email={credentials?.email || ''} 
+        password={credentials?.password || ''} 
+        userName={credentials?.userName || ''} 
+        userType={credentials?.userType || 'paciente'} 
+      />
+    </>
+  );
 }

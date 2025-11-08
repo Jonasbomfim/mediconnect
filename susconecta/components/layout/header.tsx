@@ -50,20 +50,8 @@ export function Header() {
               className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
               asChild
             >
-
-              <Link href="/login-paciente">Sou Paciente</Link>
+              <Link href="/login">Entrar</Link>
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent">
-              <Link href="/login">Sou Profissional de Saúde</Link>
-            </Button>
-            <Link href="/login-admin">
-             <Button
-                variant="outline"
-                className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground cursor-pointer"
-              >
-                Sou Administrador de uma Clínica
-              </Button>
-            </Link>
           </div>
 
           {}
@@ -101,19 +89,8 @@ export function Header() {
                   className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
                   asChild
                 >
-                  <Link href="/login-paciente">Sou Paciente</Link>
+                  <Link href="/login">Entrar</Link>
                 </Button>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground w-full shadow-sm shadow-blue-500/10 border border-blue-200 dark:shadow-none dark:border-transparent">
-                  <Link href="/login">Sou Profissional de Saúde</Link>
-                </Button>
-                <Link href="/login-admin">
-                  <Button
-                    variant="outline"
-                    className="text-primary border-primary bg-transparent w-full shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground cursor-pointer"
-                  >
-                    Sou Administrador de uma Clínica
-                  </Button>
-                </Link>
               </div>
             </nav>
           </div>

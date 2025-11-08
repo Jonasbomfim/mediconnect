@@ -12,10 +12,23 @@ import { AuthenticationError } from '@/lib/auth'
 export default function LoginPage() {
   const [credentials, setCredentials] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
-  
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user } = useAuth()
+
+  // Mapeamento de redirecionamento baseado em role
+  const getRoleRedirectPath = (userType: string): string => {
+    switch (userType) {
+      case 'paciente':
+        return '/paciente'
+      case 'profissional':
+        return '/profissional'
+      case 'administrador':
+        return '/dashboard'
+      default:
+        return '/'
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,32 +36,73 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // Tentar fazer login usando o contexto com tipo profissional
-      const success = await login(credentials.email, credentials.password, 'profissional')
+      // Tentar fazer login com cada tipo de usuário até conseguir
+      // Ordem de prioridade: profissional (inclui médico), paciente, administrador
+      const userTypes: Array<'paciente' | 'profissional' | 'administrador'> = [
+        'profissional',  // Tentar profissional PRIMEIRO pois inclui médicos
+        'paciente',
+        'administrador'
+      ]
+
+      let lastError: AuthenticationError | Error | null = null
+      let loginAttempted = false
+
+      for (const userType of userTypes) {
+        try {
+          console.log(`[LOGIN] Tentando login como ${userType}...`)
+          const loginSuccess = await login(credentials.email, credentials.password, userType)
+          
+          if (loginSuccess) {
+            loginAttempted = true
+            console.log('[LOGIN] Login bem-sucedido como', userType)
+            console.log('[LOGIN] User state:', user)
+            
+            // Aguardar um pouco para o state do usuário ser atualizado
+            await new Promise(resolve => setTimeout(resolve, 500))
+            
+            // Obter o userType atualizado do localStorage (que foi salvo pela função login)
+            const storedUser = localStorage.getItem('auth_user')
+            if (storedUser) {
+              try {
+                const userData = JSON.parse(storedUser)
+                const redirectPath = getRoleRedirectPath(userData.userType)
+                console.log('[LOGIN] Redirecionando para:', redirectPath)
+                router.push(redirectPath)
+              } catch (parseErr) {
+                console.error('[LOGIN] Erro ao parsear user do localStorage:', parseErr)
+                router.push('/')
+              }
+            } else {
+              console.warn('[LOGIN] Usuário não encontrado no localStorage')
+              router.push('/')
+            }
+            return
+          }
+        } catch (err) {
+          lastError = err as AuthenticationError | Error
+          const errorMsg = err instanceof Error ? err.message : String(err)
+          console.log(`[LOGIN] Falha ao tentar como ${userType}:`, errorMsg)
+          continue
+        }
+      }
+
+      // Se chegou aqui, nenhum tipo funcionou
+      console.error('[LOGIN] Nenhum tipo de usuário funcionou. Erro final:', lastError)
       
-      if (success) {
-        console.log('[LOGIN-PROFISSIONAL] Login bem-sucedido, redirecionando...')
-        
-        // Redirecionamento direto - solução que funcionou
-        window.location.href = '/profissional'
+      if (lastError instanceof AuthenticationError) {
+        const errorMsg = lastError.message || lastError.details?.error_code || ''
+        if (lastError.code === '400' || errorMsg.includes('invalid_credentials') || errorMsg.includes('Email or password')) {
+          setError('❌ Email ou senha incorretos. Verifique suas credenciais.')
+        } else {
+          setError(lastError.message || 'Erro ao fazer login. Tente novamente.')
+        }
+      } else if (lastError instanceof Error) {
+        setError(lastError.message || 'Erro desconhecido ao fazer login.')
+      } else {
+        setError('Falha ao fazer login. Credenciais inválidas ou conta não encontrada.')
       }
     } catch (err) {
-      console.error('[LOGIN-PROFISSIONAL] Erro no login:', err)
-      
-      if (err instanceof AuthenticationError) {
-        // Verificar se é erro de credenciais inválidas (pode ser email não confirmado)
-        if (err.code === '400' || err.details?.error_code === 'invalid_credentials') {
-          setError(
-            '⚠️ Email ou senha incorretos. Se você acabou de se cadastrar, ' +
-            'verifique sua caixa de entrada e clique no link de confirmação ' +
-            'que foi enviado para ' + credentials.email
-          )
-        } else {
-          setError(err.message)
-        }
-      } else {
-        setError('Erro inesperado. Tente novamente.')
-      }
+      console.error('[LOGIN] Erro no login:', err)
     } finally {
       setLoading(false)
     }
@@ -61,7 +115,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-foreground">
-            Login Profissional de Saúde
+            Entrar
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Entre com suas credenciais para acessar o sistema
@@ -70,7 +124,7 @@ export default function LoginPage() {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Acesso ao Sistema</CardTitle>
+            <CardTitle className="text-center">Login</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
@@ -121,9 +175,8 @@ export default function LoginPage() {
               </Button>
             </form>
             
-            
             <div className="mt-4 text-center">
-              <Button variant="outline" asChild className="w-full hover:bg-primary! hover:text-white! hover:border-primary! transition-all duration-200">
+              <Button variant="ghost" asChild className="w-full">
                 <Link href="/">
                   Voltar ao Início
                 </Link>

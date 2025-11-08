@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function LoginPacienteRedirect() {
+export default function LoginAdminRedirect() {
   const router = useRouter()
 
   useEffect(() => {
@@ -11,7 +11,7 @@ export default function LoginPacienteRedirect() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <p>Redirecionando...</p>
+      <p>Redirecionando para a página de login...</p>
     </div>
   )
 }

@@ -189,15 +189,7 @@ class HttpClient {
     
     // Redirecionar para login
     if (typeof window !== 'undefined') {
-      const userType = localStorage.getItem(AUTH_STORAGE_KEYS.USER_TYPE) || 'profissional'
-      const loginRoutes = {
-        profissional: '/login',
-        paciente: '/login-paciente',
-        administrador: '/login-admin'
-      }
-      
-      const loginRoute = loginRoutes[userType as keyof typeof loginRoutes] || '/login'
-      window.location.href = loginRoute
+      window.location.href = '/login'
     }
   }
 

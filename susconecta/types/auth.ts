@@ -85,6 +85,6 @@ export const USER_TYPE_ROUTES: UserTypeRoutes = {
 
 export const LOGIN_ROUTES: LoginRoutes = {
   profissional: '/login',
-  paciente: '/login-paciente',
-  administrador: '/login-admin',
+  paciente: '/login',
+  administrador: '/login',
 } as const

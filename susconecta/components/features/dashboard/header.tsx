@@ -94,11 +94,9 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
                   }}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer"
                 >
-                  👤 Perfil
+                   Perfil
                 </button>
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer">
-                  ⚙️ Configurações
-                </button>
+                
                 <div className="border-t border-border my-1"></div>
                 <button 
                   onClick={(e) => {
@@ -110,7 +108,7 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
                   }}
                   className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
-                  🚪 Sair
+                   Sair
                 </button>
               </div>
             </div>

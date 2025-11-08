@@ -1178,15 +1178,8 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                 <div className="grid grid-cols-3 gap-3">
                                   <div className="space-y-1">
                                     <Label className="text-[13px]">Status</Label>
-                                    <select name="status" className="h-11 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-3 text-[13px]" value={formData.status || ''} onChange={handleChange}>
-                                      <option value="">Selecione</option>
-                                      <option value="requested">Solicitado</option>
+                                    <select name="status" className="h-11 w-full rounded-md border border-gray-300 dark:border-input bg-background text-foreground pr-3 text-[13px]" value="confirmed" onChange={handleChange} disabled>
                                       <option value="confirmed">Confirmado</option>
-                                      <option value="checked_in">Check-in</option>
-                                      <option value="in_progress">Em andamento</option>
-                                      <option value="completed">Concluído</option>
-                                      <option value="cancelled">Cancelado</option>
-                                      <option value="no_show">Não compareceu</option>
                                     </select>
                                   </div>
                                   <div className="space-y-1">

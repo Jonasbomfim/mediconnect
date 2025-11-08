@@ -812,7 +812,7 @@ export default function PacientePage() {
                         <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                           <span
                             className="mt-1 sm:mt-2 h-3 w-3 sm:h-4 sm:w-4 shrink-0 rounded-full shadow-sm"
-                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
+                            style={{ backgroundColor: (consulta.status === 'Confirmada' || consulta.status === 'confirmed') ? '#10b981' : '#ef4444' }}
                             aria-hidden
                           />
                           <div className="space-y-2 sm:space-y-3 min-w-0">
@@ -837,10 +837,8 @@ export default function PacientePage() {
                         {/* Status Badge */}
                         <div className="flex items-center justify-start">
                           <span className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
-                            consulta.status === 'Confirmada' 
-                              ? 'bg-linear-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
-                              : consulta.status === 'Pendente' 
-                              ? 'bg-linear-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
+                            consulta.status === 'Confirmada' || consulta.status === 'confirmed'
+                              ? 'bg-linear-to-r from-green-500 to-green-600 shadow-green-500/20' 
                               : 'bg-linear-to-r from-red-500 to-red-600 shadow-red-500/20'
                           }`}>
                             {statusLabel(consulta.status)}
@@ -858,7 +856,7 @@ export default function PacientePage() {
                             Detalhes
                           </Button>
                           {/* Reagendar removed by request */}
-                          {consulta.status !== 'Cancelada' && (
+                          {consulta.status !== 'Cancelada' && consulta.status !== 'cancelled' && (
                             <Button
                               type="button"
                               size="sm"

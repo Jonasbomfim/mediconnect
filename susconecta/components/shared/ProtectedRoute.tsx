@@ -126,17 +126,6 @@ export default function ProtectedRoute({
           <p className="text-gray-600 mb-4">
             Você não tem permissão para acessar esta página.
           </p>
-          <p className="text-sm text-gray-500 mb-6">
-            Tipo de acesso necessário: {requiredUserType.join(' ou ')}
-            <br />
-            Seu tipo de acesso: {user.userType}
-          </p>
-          <button
-            onClick={() => router.push(USER_TYPE_ROUTES[user.userType])}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
-          >
-            Ir para minha área
-          </button>
         </div>
       </div>
     )

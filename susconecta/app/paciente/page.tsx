@@ -812,7 +812,7 @@ export default function PacientePage() {
                         <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                           <span
                             className="mt-1 sm:mt-2 h-3 w-3 sm:h-4 sm:w-4 shrink-0 rounded-full shadow-sm"
-                            style={{ backgroundColor: consulta.status === 'Confirmada' ? '#10b981' : consulta.status === 'Pendente' ? '#f59e0b' : '#ef4444' }}
+                            style={{ backgroundColor: (consulta.status === 'Confirmada' || consulta.status === 'confirmed') ? '#10b981' : '#ef4444' }}
                             aria-hidden
                           />
                           <div className="space-y-2 sm:space-y-3 min-w-0">
@@ -837,10 +837,8 @@ export default function PacientePage() {
                         {/* Status Badge */}
                         <div className="flex items-center justify-start">
                           <span className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-full text-xs font-bold text-white shadow-md transition-all ${
-                            consulta.status === 'Confirmada' 
-                              ? 'bg-linear-to-r from-emerald-500 to-emerald-600 shadow-emerald-500/20' 
-                              : consulta.status === 'Pendente' 
-                              ? 'bg-linear-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
+                            consulta.status === 'Confirmada' || consulta.status === 'confirmed'
+                              ? 'bg-linear-to-r from-green-500 to-green-600 shadow-green-500/20' 
                               : 'bg-linear-to-r from-red-500 to-red-600 shadow-red-500/20'
                           }`}>
                             {statusLabel(consulta.status)}
@@ -858,7 +856,7 @@ export default function PacientePage() {
                             Detalhes
                           </Button>
                           {/* Reagendar removed by request */}
-                          {consulta.status !== 'Cancelada' && (
+                          {consulta.status !== 'Cancelada' && consulta.status !== 'cancelled' && (
                             <Button
                               type="button"
                               size="sm"
@@ -867,17 +865,33 @@ export default function PacientePage() {
                                 try {
                                   const ok = typeof window !== 'undefined' ? window.confirm('Deseja realmente cancelar esta consulta?') : true
                                   if (!ok) return
-                                  // call API to delete
-                                  await deletarAgendamento(consulta.id)
-                                  // Mark as deleted in cache so it won't appear again
-                                  addDeletedAppointmentId(consulta.id)
-                                  // remove from local list
+
+                                  // Prefer PATCH to mark appointment as cancelled (safer under RLS)
+                                  try {
+                                    await atualizarAgendamento(consulta.id, {
+                                      cancelled_at: new Date().toISOString(),
+                                      status: 'cancelled',
+                                      cancellation_reason: 'Cancelado pelo paciente'
+                                    })
+                                  } catch (patchErr) {
+                                    // Fallback: try hard delete if server allows it
+                                    try {
+                                      await deletarAgendamento(consulta.id)
+                                    } catch (delErr) {
+                                      // Re-throw original patch error if both fail
+                                      throw patchErr || delErr
+                                    }
+                                  }
+
+                                  // remove from local list so UI updates immediately
                                   setAppointments((prev) => {
                                     if (!prev) return prev
                                     return prev.filter((a: any) => String(a.id) !== String(consulta.id))
                                   })
                                   // if modal open for this appointment, close it
                                   if (selectedAppointment && String(selectedAppointment.id) === String(consulta.id)) setSelectedAppointment(null)
+                                  // Optionally persist to deleted cache to help client-side filtering
+                                  try { addDeletedAppointmentId(consulta.id) } catch(e) {}
                                   setToast({ type: 'success', msg: 'Consulta cancelada.' })
                                 } catch (err: any) {
                                   console.error('[Consultas] falha ao cancelar agendamento', err)
@@ -1562,7 +1576,7 @@ export default function PacientePage() {
               className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto whitespace-nowrap text-xs sm:text-sm"
               onClick={() => setIsEditingProfile(true)}
             >
-              ✏️ Editar Perfil
+               Editar Perfil
             </Button>
           ) : (
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">

@@ -30,6 +30,7 @@ import {
   criarPaciente,
 } from "@/lib/api";
 import { getAvatarPublicUrl } from '@/lib/api';
+import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 
 import { validarCPFLocal } from "@/lib/utils";
 import { verificarCpfDuplicado } from "@/lib/api";
@@ -130,6 +131,9 @@ export function PatientRegistrationForm({
   const [isSearchingCEP, setSearchingCEP] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [serverAnexos, setServerAnexos] = useState<any[]>([]);
+
+  // Hook para carregar automaticamente o avatar do paciente
+  const { avatarUrl: retrievedAvatarUrl } = useAvatarUrl(mode === "edit" ? patientId : null);
 
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
   const [credentials, setCredentials] = useState<{
@@ -261,7 +265,14 @@ export function PatientRegistrationForm({
         if (patientId == null) throw new Error("Paciente inexistente para edição");
         const payload = toPayload(); const saved = await atualizarPaciente(String(patientId), payload);
         if (form.photo) {
-          try { setUploadingPhoto(true); try { await removerFotoPaciente(String(patientId)); setPhotoPreview(null); } catch (remErr) { console.warn('[PatientForm] aviso: falha ao remover avatar antes do upload:', remErr); } await uploadFotoPaciente(String(patientId), form.photo); }
+          try { 
+            setUploadingPhoto(true); 
+            try { await removerFotoPaciente(String(patientId)); setPhotoPreview(null); } catch (remErr) { console.warn('[PatientForm] aviso: falha ao remover avatar antes do upload:', remErr); } 
+            const uploadResult = await uploadFotoPaciente(String(patientId), form.photo);
+            // Upload realizado com sucesso - a foto está armazenada no Supabase Storage
+            // Não é necessário fazer PATCH para persistir a URL no banco
+            console.debug('[PatientForm] foto_url obtida do upload:', uploadResult.foto_url);
+          }
           catch (upErr) { console.warn('[PatientForm] Falha ao enviar foto do paciente:', upErr); alert('Paciente atualizado, mas falha ao enviar a foto. Tente novamente.'); }
           finally { setUploadingPhoto(false); }
         }
@@ -355,7 +366,15 @@ export function PatientRegistrationForm({
         }
 
         if (form.photo) {
-          try { setUploadingPhoto(true); const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id); if (pacienteId) await uploadFotoPaciente(String(pacienteId), form.photo); }
+          try { 
+            setUploadingPhoto(true); 
+            const pacienteId = savedPatientProfile?.id || (savedPatientProfile && (savedPatientProfile as any).id); 
+            if (pacienteId) {
+              const uploadResult = await uploadFotoPaciente(String(pacienteId), form.photo);
+              // Upload realizado com sucesso - a foto está armazenada no Supabase Storage
+              console.debug('[PatientForm] foto_url obtida do upload após criação:', uploadResult.foto_url);
+            }
+          }
           catch (upErr) { console.warn('[PatientForm] Falha ao enviar foto do paciente após criação:', upErr); alert('Paciente criado, mas falha ao enviar a foto. Você pode tentar novamente no perfil.'); }
           finally { setUploadingPhoto(false); }
         }

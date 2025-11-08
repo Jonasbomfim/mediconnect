@@ -74,6 +74,20 @@ const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
+const translateStatus = (status: string) => {
+  const statusMap: { [key: string]: string } = {
+    'requested': 'Solicitado',
+    'confirmed': 'Confirmado',
+    'checked_in': 'Check-in',
+    'in_progress': 'Em Andamento',
+    'completed': 'Concluído',
+    'cancelled': 'Cancelado',
+    'no_show': 'Não Compareceu',
+    'pending': 'Pendente',
+  };
+  return statusMap[status?.toLowerCase()] || capitalize(status || '');
+};
+
 export default function ConsultasPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [originalAppointments, setOriginalAppointments] = useState<any[]>([]);
@@ -197,7 +211,7 @@ export default function ConsultasPage() {
       const payload: any = {
         scheduled_at,
         duration_minutes,
-        status: formData.status || undefined,
+        status: 'confirmed',
         notes: formData.notes ?? null,
         chief_complaint: formData.chief_complaint ?? null,
         patient_notes: formData.patient_notes ?? null,
@@ -561,7 +575,7 @@ export default function ConsultasPage() {
                           }
                           className={appointment.status === "confirmed" ? "bg-green-600" : ""}
                         >
-                          {capitalize(appointment.status)}
+                          {translateStatus(appointment.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm">{formatDate(appointment.scheduled_at ?? appointment.time)}</TableCell>
@@ -652,7 +666,7 @@ export default function ConsultasPage() {
                           }
                           className={`text-[10px] sm:text-xs ${appointment.status === "confirmed" ? "bg-green-600" : ""}`}
                         >
-                          {capitalize(appointment.status)}
+                          {translateStatus(appointment.status)}
                         </Badge>
                       </div>
                       <div className="col-span-2">
@@ -771,7 +785,7 @@ export default function ConsultasPage() {
                     }
                     className={viewingAppointment?.status === "confirmed" ? "bg-green-600" : ""}
                   >
-                    {capitalize(viewingAppointment?.status || "")}
+                    {translateStatus(viewingAppointment?.status || "")}
                   </Badge>
                 </span>
               </div>

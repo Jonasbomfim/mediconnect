@@ -6,6 +6,8 @@ import Link from "next/link";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { UploadAvatar } from '@/components/ui/upload-avatar';
 import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
 import { ENV_CONFIG } from '@/lib/env-config';
 import { useReports } from "@/hooks/useReports";
@@ -115,6 +117,7 @@ const colorsByType = {
 
 const ProfissionalPage = () => {
   const { logout, user, token } = useAuth();
+  const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('calendario');
   const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
   
@@ -125,6 +128,9 @@ const ProfissionalPage = () => {
   // Estados para o perfil do médico
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [doctorId, setDoctorId] = useState<string | null>(null);
+  
+  // Hook para carregar automaticamente o avatar do médico
+  const { avatarUrl: retrievedAvatarUrl } = useAvatarUrl(doctorId);
   // Removemos o placeholder extenso — inicializamos com valores minimalistas e vazios.
   const [profileData, setProfileData] = useState({
     nome: '',
@@ -267,6 +273,15 @@ const ProfissionalPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email, user?.id]);
 
+  // Sincroniza a URL do avatar recuperada com o profileData
+  useEffect(() => {
+    if (retrievedAvatarUrl) {
+      setProfileData(prev => ({
+        ...prev,
+        fotoUrl: retrievedAvatarUrl
+      }));
+    }
+  }, [retrievedAvatarUrl]);
 
 
   // Estados para campos principais da consulta
@@ -2780,7 +2795,7 @@ const ProfissionalPage = () => {
             className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm w-full sm:w-auto"
             onClick={() => setIsEditingProfile(true)}
           >
-            ✏️ Editar Perfil
+             Editar Perfil
           </Button>
         ) : (
           <div className="flex gap-2 w-full sm:w-auto">
@@ -2966,17 +2981,42 @@ const ProfissionalPage = () => {
             <h3 className="text-base sm:text-lg font-semibold mb-4">Foto do Perfil</h3>
 
             <div className="flex flex-col items-center gap-4">
-              <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
-                <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
-                  {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
-                </AvatarFallback>
-              </Avatar>
+              {isEditingProfile ? (
+                <UploadAvatar
+                  userId={String(doctorId || (user && (user as any).id) || '')}
+                  currentAvatarUrl={(profileData as any).fotoUrl}
+                  userName={(profileData as any).nome}
+                  onAvatarChange={async (newUrl: string) => {
+                    try {
+                      setProfileData((prev) => ({ ...prev, fotoUrl: newUrl }));
+                      // Foto foi salva no Supabase Storage - atualizar apenas o estado local
+                      // Para persistir no banco, o usuário deve clicar em "Salvar" após isso
+                      try { toast({ title: 'Foto enviada', description: 'Clique em "Salvar" para confirmar as alterações.', variant: 'default' }); } catch (e) { /* ignore toast errors */ }
+                    } catch (err) {
+                      console.error('[ProfissionalPage] erro ao processar upload de foto:', err);
+                      try { toast({ title: 'Erro ao processar foto', description: (err as any)?.message || 'Falha ao processar a foto do perfil.', variant: 'destructive' }); } catch (e) {}
+                    }
+                  }}
+                />
+              ) : (
+                <>
+                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
+                    {(profileData as any).fotoUrl ? (
+                      <AvatarImage src={(profileData as any).fotoUrl} alt={(profileData as any).nome} />
+                    ) : (
+                      <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
+                        {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
 
-              <div className="text-center space-y-2">
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
-                </p>
-              </div>
+                  <div className="text-center space-y-2">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

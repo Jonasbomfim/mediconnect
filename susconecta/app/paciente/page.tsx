@@ -1562,7 +1562,7 @@ export default function PacientePage() {
               className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto whitespace-nowrap text-xs sm:text-sm"
               onClick={() => setIsEditingProfile(true)}
             >
-              ✏️ Editar Perfil
+               Editar Perfil
             </Button>
           ) : (
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">

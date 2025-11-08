@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { buscarPacientePorId, listarMedicos, buscarPacientesPorMedico, getAvailableSlots, buscarPacientes, listarPacientes, listarDisponibilidades, listarExcecoes } from "@/lib/api";
+import { buscarPacientePorId, listarMedicos, buscarPacientesPorMedico, getAvailableSlots, buscarPacientes, listarPacientes, listarDisponibilidades, listarExcecoes, listarAgendamentos } from "@/lib/api";
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -93,6 +93,7 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
   const [exceptionDialogOpen, setExceptionDialogOpen] = useState(false);
   const [exceptionDialogMessage, setExceptionDialogMessage] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set()); // ISO datetimes of already booked appointments
 
   // Helpers to convert between ISO (server) and input[type=datetime-local] value
   const isoToDatetimeLocal = (iso?: string | null) => {
@@ -298,31 +299,9 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     if (mountedRef.current) setLoadingSlots(true);
 
     try {
-      // Check for blocking exceptions first
-      try {
-        const exceptions = await listarExcecoes({ doctorId: String(docId), date: String(date) }).catch(() => []);
-        if (exceptions && exceptions.length) {
-          const blocking = (exceptions || []).find((e: any) => e && e.kind === 'bloqueio');
-          if (blocking) {
-            const reason = blocking.reason ? ` Motivo: ${blocking.reason}` : '';
-            const msg = `Não é possível agendar nesta data.${reason}`;
-            try {
-              setExceptionDialogMessage(msg);
-              setExceptionDialogOpen(true);
-            } catch (e) {
-              try { toast({ title: 'Data indisponível', description: msg }); } catch (ee) {}
-            }
-            if (mountedRef.current) {
-              setAvailableSlots([]);
-              setLoadingSlots(false);
-            }
-            return;
-          }
-        }
-      } catch (exCheckErr) {
-        console.warn('[CalendarRegistrationForm] listarExcecoes falhou, continuando para getAvailableSlots', exCheckErr);
-      }
-
+      // Skip exception checking - all dates are available for admin now
+      // NOTE: Exception checking disabled per user request
+      
       console.debug('[CalendarRegistrationForm] getAvailableSlots - params', { docId, date, appointmentType: formData.appointmentType });
 
       // Build local start/end for the day
@@ -556,7 +535,61 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter available slots: if date is today, only show future times
+  // Load already booked appointments for the selected doctor and date to prevent double-booking
+  useEffect(() => {
+    const docId = (formData as any).doctorId || (formData as any).doctor_id || null;
+    const date = (formData as any).appointmentDate || null;
+    
+    if (!docId || !date) {
+      setBookedSlots(new Set());
+      return;
+    }
+
+    let mounted = true;
+    (async () => {
+      try {
+        // Query appointments for this doctor on the selected date
+        // Format: YYYY-MM-DD
+        const [y, m, d] = String(date).split('-').map(n => Number(n));
+        const dateStart = new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
+        const dateEnd = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
+        
+        const query = `doctor_id=eq.${docId}&scheduled_at=gte.${dateStart}&scheduled_at=lte.${dateEnd}&select=scheduled_at`;
+        const appointments = await listarAgendamentos(query).catch(() => []);
+        
+        if (!mounted) return;
+        
+        // Extract booked datetime slots - store as HH:MM format for easier comparison
+        const booked = new Set<string>();
+        (appointments || []).forEach((appt: any) => {
+          if (appt && appt.scheduled_at) {
+            try {
+              const dt = new Date(appt.scheduled_at);
+              const hh = String(dt.getHours()).padStart(2, '0');
+              const mm = String(dt.getMinutes()).padStart(2, '0');
+              const timeKey = `${hh}:${mm}`;
+              booked.add(timeKey);
+              console.debug('[CalendarRegistrationForm] booked time:', timeKey, 'from', appt.scheduled_at);
+            } catch (e) {
+              console.warn('[CalendarRegistrationForm] erro parsing scheduled_at', appt.scheduled_at, e);
+            }
+          }
+        });
+        
+        if (mounted) {
+          setBookedSlots(booked);
+          console.debug('[CalendarRegistrationForm] total booked slots:', booked.size, 'slots:', Array.from(booked));
+        }
+      } catch (e) {
+        console.warn('[CalendarRegistrationForm] erro ao carregar agendamentos existentes', e);
+        if (mounted) setBookedSlots(new Set());
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, [(formData as any).doctorId, (formData as any).doctor_id, (formData as any).appointmentDate]);
+
+  // Filter available slots: if date is today, only show future times, AND remove already booked slots
   const filteredAvailableSlots = (() => {
     try {
       const now = new Date();
@@ -566,9 +599,11 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
       const currentMinutes = now.getMinutes();
       const currentTimeInMinutes = currentHours * 60 + currentMinutes;
 
+      let filtered = availableSlots || [];
+
       if (selectedDateStr === todayStr) {
         // Today: filter out past times (add 30-minute buffer for admin to schedule)
-        return (availableSlots || []).filter((s) => {
+        filtered = (availableSlots || []).filter((s) => {
           try {
             const slotDate = new Date(s.datetime);
             const slotHours = slotDate.getHours();
@@ -582,11 +617,29 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
         });
       } else if (selectedDateStr && selectedDateStr > todayStr) {
         // Future date: show all slots
-        return availableSlots || [];
+        filtered = availableSlots || [];
       } else {
         // Past date: no slots
         return [];
       }
+      
+      // Remove already booked slots - compare by HH:MM format
+      return filtered.filter((s) => {
+        try {
+          const dt = new Date(s.datetime);
+          const hh = String(dt.getHours()).padStart(2, '0');
+          const mm = String(dt.getMinutes()).padStart(2, '0');
+          const timeKey = `${hh}:${mm}`;
+          const isBooked = bookedSlots.has(timeKey);
+          if (isBooked) {
+            console.debug('[CalendarRegistrationForm] filtering out booked slot:', timeKey);
+          }
+          return !isBooked;
+        } catch (e) {
+          console.warn('[CalendarRegistrationForm] erro filtering booked slot', e);
+          return true;
+        }
+      });
     } catch (e) {
       return availableSlots || [];
     }

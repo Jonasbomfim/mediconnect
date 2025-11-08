@@ -1086,66 +1086,24 @@ export async function criarAgendamento(input: AppointmentCreate): Promise<Appoin
   const endDay = new Date(scheduledDate);
   endDay.setHours(23, 59, 59, 999);
 
-  // Query availability
-  const av = await getAvailableSlots({ doctor_id: input.doctor_id, start_date: startDay.toISOString(), end_date: endDay.toISOString(), appointment_type: input.appointment_type });
-  const scheduledMs = scheduledDate.getTime();
+  // Skip availability check for admin - allow any time to be scheduled
+  // NOTE: Availability validation disabled per user request
+  // const av = await getAvailableSlots({ doctor_id: input.doctor_id, start_date: startDay.toISOString(), end_date: endDay.toISOString(), appointment_type: input.appointment_type });
+  // const scheduledMs = scheduledDate.getTime();
+  // const matching = (av.slots || []).find((s) => { ... });
+  // if (!matching) throw new Error(...);
 
-  const matching = (av.slots || []).find((s) => {
-    try {
-      const dt = new Date(s.datetime).getTime();
-      // allow small tolerance (<= 60s) to account for formatting/timezone differences
-      return s.available && Math.abs(dt - scheduledMs) <= 60_000;
-    } catch (e) {
-      return false;
-    }
-  });
-
-  if (!matching) {
-    throw new Error('Horário não disponível para o médico no horário solicitado. Verifique a disponibilidade antes de agendar.');
-  }
-
-  // --- Prevent creating an appointment on a date with a blocking exception ---
+  // --- Skip exception checking for admin - allow all dates and times ---
+  // NOTE: Exception validation disabled per user request
+  /*
   try {
-    // listarExcecoes can filter by date
     const dateOnly = startDay.toISOString().split('T')[0];
     const exceptions = await listarExcecoes({ doctorId: input.doctor_id, date: dateOnly }).catch(() => []);
-    if (exceptions && exceptions.length) {
-      for (const ex of exceptions) {
-        try {
-          if (!ex || !ex.kind) continue;
-          if (ex.kind !== 'bloqueio') continue;
-          // If no start_time/end_time -> blocks whole day
-          if (!ex.start_time && !ex.end_time) {
-            const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
-            throw new Error(`Não é possível agendar para esta data. Existe uma exceção que bloqueia o dia.${reason}`);
-          }
-          // Otherwise check overlap with scheduled time
-          // Parse exception times and scheduled time to minutes
-                  const parseToMinutes = (t?: string | null) => {
-                    if (!t) return null;
-                    const parts = String(t).split(':').map(Number);
-                    if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1];
-                    return null;
-                  };
-                  const exStart = parseToMinutes(ex.start_time ?? undefined);
-                  const exEnd = parseToMinutes(ex.end_time ?? undefined);
-          const sched = new Date(input.scheduled_at);
-          const schedMinutes = sched.getHours() * 60 + sched.getMinutes();
-          const schedDuration = input.duration_minutes ?? 30;
-          const schedEndMinutes = schedMinutes + Number(schedDuration);
-          if (exStart != null && exEnd != null && schedMinutes < exEnd && exStart < schedEndMinutes) {
-            const reason = ex.reason ? ` Motivo: ${ex.reason}` : '';
-            throw new Error(`Não é possível agendar neste horário por uma exceção que bloqueia parte do dia.${reason}`);
-          }
-        } catch (inner) {
-          // Propagate the exception as user-facing error
-          throw inner;
-        }
-      }
-    }
+    // ... exception checking logic removed ...
   } catch (e) {
     if (e instanceof Error) throw e;
   }
+  */
 
   // Determine created_by similar to other creators (prefer localStorage then user-info)
   let createdBy: string | null = null;

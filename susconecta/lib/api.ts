@@ -2139,25 +2139,25 @@ export async function criarMedico(input: MedicoInput): Promise<Medico> {
       // If server returned doctor_id, fetch the doctor
       if (parsed && parsed.doctor_id) {
         const doc = await buscarMedicoPorId(String(parsed.doctor_id)).catch(() => null);
-        if (doc) return Object.assign(doc, { password });
-        if (parsed.doctor) return Object.assign(parsed.doctor, { password });
-        return Object.assign({ id: parsed.doctor_id, full_name: input.full_name, cpf: cleanCpf, email: input.email } as Medico, { password });
+        if (doc) return { ...doc, password } as any;
+        if (parsed.doctor) return { ...parsed.doctor, password } as any;
+        return { id: parsed.doctor_id, full_name: input.full_name, cpf: cleanCpf, email: input.email, password } as any;
       }
 
       // If server returned doctor object directly
       if (parsed && (parsed.id || parsed.full_name || parsed.cpf)) {
-        return Object.assign(parsed, { password }) as Medico;
+        return { ...parsed, password } as any;
       }
 
       // If server returned an envelope with user, try to locate doctor by email
       if (parsed && parsed.user && parsed.user.id) {
         const maybe = await fetch(`${REST}/doctors?email=eq.${encodeURIComponent(String(input.email))}&select=*`, { method: 'GET', headers: baseHeaders() }).then((r) => r.ok ? r.json().catch(() => []) : []);
-        if (Array.isArray(maybe) && maybe.length) return Object.assign(maybe[0] as Medico, { password });
-        return Object.assign({ id: parsed.user.id, full_name: input.full_name, email: input.email } as Medico, { password });
+        if (Array.isArray(maybe) && maybe.length) return { ...maybe[0], password } as any;
+        return { id: parsed.user.id, full_name: input.full_name, email: input.email, password } as any;
       }
 
       // otherwise return parsed with password as best-effort
-      return Object.assign(parsed || {}, { password });
+      return { ...(parsed || {}), password } as any;
     } catch (err: any) {
       lastErr = err;
       const emsg = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);

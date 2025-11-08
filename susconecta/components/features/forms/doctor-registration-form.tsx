@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { parse, parseISO, format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -167,6 +167,7 @@ export function DoctorRegistrationForm({
     userName: string;
     userType: 'médico' | 'paciente';
   } | null>(null);
+  const savedDoctorRef = useRef<any>(null);
 
   const title = useMemo(() => (mode === "create" ? "Cadastro de Médico" : "Editar Médico"), [mode]);
 
@@ -504,6 +505,11 @@ async function handleSubmit(ev: React.FormEvent) {
       // 1. Cria o perfil do médico na tabela doctors
       let savedDoctorProfile: any = await criarMedico(medicoPayload);
       console.log("✅ Perfil do médico criado:", savedDoctorProfile);
+      console.log("🔑 Senha no objeto retornado:", savedDoctorProfile?.password);
+
+      // Salvar a senha ANTES de qualquer operação que possa sobrescrever o objeto
+      const senhaGerada = savedDoctorProfile?.password;
+      console.log("💾 Senha salva em variável:", senhaGerada);
 
       // Fallback: some create flows don't persist optional fields like birth_date/cep/sexo.
       // If the returned object is missing those but our payload included them,
@@ -531,7 +537,9 @@ async function handleSubmit(ev: React.FormEvent) {
           const patched = await atualizarMedico(String(createdDoctorId), medicoPayload).catch((e) => { console.warn('[DoctorForm] fallback PATCH failed:', e); return null; });
           if (patched) {
             console.debug('[DoctorForm] fallback PATCH result:', patched);
-            savedDoctorProfile = patched;
+            // Preservar a senha ao atualizar o objeto
+            savedDoctorProfile = { ...patched, password: senhaGerada };
+            console.log("🔄 Senha preservada após PATCH:", savedDoctorProfile?.password);
           }
         }
       } catch (e) {
@@ -547,6 +555,7 @@ async function handleSubmit(ev: React.FormEvent) {
         // { doctor, doctor_id, email, password, user_id } or similar shapes.
         const result = savedDoctorProfile as any;
         console.log('✅ Resultado de criarMedico:', result);
+        console.log('🔑 Senha no resultado final:', result?.password);
 
         // Determine the doctor id if available
         let createdDoctorId: string | null = null;
@@ -559,13 +568,36 @@ async function handleSubmit(ev: React.FormEvent) {
 
         // If the function returned credentials, show them in the credentials dialog
         if (result && (result.password || result.email || result.user)) {
-          setCredentials({
+          console.log('📧 Credenciais recebidas - configurando dialog...');
+          console.log('📧 Email:', result.email || form.email);
+          console.log('🔑 Senha extraída:', result.password);
+          console.log('👤 Nome do usuário:', form.full_name);
+          
+          const credenciaisParaExibir = {
             email: result.email || form.email,
-            password: result.password || "",
+            password: result.password || senhaGerada || "",
             userName: form.full_name,
-            userType: 'médico',
-          });
+            userType: 'médico' as const,
+          };
+          
+          console.log('📋 Credenciais a serem definidas:', credenciaisParaExibir);
+          
+          // Salvar o médico no ref ANTES de abrir o dialog
+          savedDoctorRef.current = savedDoctorProfile;
+          
+          setCredentials(credenciaisParaExibir);
           setShowCredentialsDialog(true);
+          console.log('✅ Dialog de credenciais configurado e aberto');
+          
+          // Verificar estados após 100ms
+          setTimeout(() => {
+            console.log('🔍 Verificando estados após 100ms:');
+            console.log('- showCredentialsDialog:', showCredentialsDialog);
+            console.log('- credentials:', credentials);
+          }, 100);
+          
+          // NÃO fechar o formulário aqui - será fechado quando o usuário fechar o dialog de credenciais
+          return; // Sair da função para não executar o cleanup abaixo
         }
 
         // Upload photo if provided and we have an id
@@ -800,8 +832,8 @@ async function handleSubmit(ev: React.FormEvent) {
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
-                          selected={form.data_nascimento}
-                          onSelect={(date) => setField("data_nascimento", date || null)}
+                          selected={form.data_nascimento ?? undefined}
+                          onSelect={(date) => setField("data_nascimento", date ?? null)}
                           initialFocus
                         />
                       </PopoverContent>
@@ -1061,28 +1093,37 @@ async function handleSubmit(ev: React.FormEvent) {
       <>
         <div className="space-y-6">{content}</div>
         
-        {/* Dialog de credenciais */}
-        {credentials && (
-          <CredentialsDialog
-            open={showCredentialsDialog}
-            onOpenChange={(open) => {
-              setShowCredentialsDialog(open);
-              if (!open) {
-                // Quando o dialog de credenciais fecha, fecha o formulário também
-                setCredentials(null);
-                if (inline) {
-                  onClose?.();
-                } else {
-                  onOpenChange?.(false);
-                }
+        <CredentialsDialog
+          open={showCredentialsDialog}
+          onOpenChange={(open) => {
+            console.log('🔄 CredentialsDialog (inline) onOpenChange chamado com:', open);
+            setShowCredentialsDialog(open);
+            if (!open) {
+              // Dialog foi fechado - limpar estados e fechar formulário
+              console.log('✅ Dialog fechado - limpando formulário...');
+              setCredentials(null);
+              
+              // Chamar onSaved se houver médico salvo
+              if (savedDoctorRef.current) {
+                onSaved?.(savedDoctorRef.current);
+                savedDoctorRef.current = null;
               }
-            }}
-            email={credentials.email}
-            password={credentials.password}
-            userName={credentials.userName}
-            userType={credentials.userType}
-          />
-        )}
+              
+              // Limpar formulário
+              setForm(initial);
+              setPhotoPreview(null);
+              setServerAnexos([]);
+              
+              // Fechar formulário
+              if (inline) onClose?.();
+              else onOpenChange?.(false);
+            }
+          }}
+          email={credentials?.email || ''}
+          password={credentials?.password || ''}
+          userName={credentials?.userName || ''}
+          userType={credentials?.userType || 'médico'}
+        />
       </>
     );
   }
@@ -1100,23 +1141,36 @@ async function handleSubmit(ev: React.FormEvent) {
         </DialogContent>
       </Dialog>
       
-      {/* Dialog de credenciais */}
-      {credentials && (
-        <CredentialsDialog
-          open={showCredentialsDialog}
-          onOpenChange={(open) => {
-            setShowCredentialsDialog(open);
-            if (!open) {
-              setCredentials(null);
-              onOpenChange?.(false);
+      <CredentialsDialog
+        open={showCredentialsDialog}
+        onOpenChange={(open) => {
+          console.log('🔄 CredentialsDialog (dialog) onOpenChange chamado com:', open);
+          setShowCredentialsDialog(open);
+          if (!open) {
+            // Dialog foi fechado - limpar estados e fechar formulário
+            console.log('✅ Dialog fechado - limpando formulário...');
+            setCredentials(null);
+            
+            // Chamar onSaved se houver médico salvo
+            if (savedDoctorRef.current) {
+              onSaved?.(savedDoctorRef.current);
+              savedDoctorRef.current = null;
             }
-          }}
-          email={credentials.email}
-          password={credentials.password}
-          userName={credentials.userName}
-          userType={credentials.userType}
-        />
-      )}
+            
+            // Limpar formulário
+            setForm(initial);
+            setPhotoPreview(null);
+            setServerAnexos([]);
+            
+            // Fechar formulário principal
+            onOpenChange?.(false);
+          }
+        }}
+        email={credentials?.email || ''}
+        password={credentials?.password || ''}
+        userName={credentials?.userName || ''}
+        userType={credentials?.userType || 'médico'}
+      />
     </>
   );
 }

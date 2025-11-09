@@ -336,6 +336,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.userType, token, clearAuthData])
 
+  // Allow updating the in-memory user profile and persist to localStorage.
+  const updateUserProfile = useCallback((partial: Partial<UserData['profile']>) => {
+    try {
+      setUser((prev) => {
+        if (!prev) return prev
+        const next = { ...prev, profile: { ...(prev.profile || {}), ...(partial || {}) } }
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(next))
+          }
+        } catch (e) {
+          console.warn('[AUTH] Falha ao persistir user atualizado no localStorage:', e)
+        }
+        return next
+      })
+    } catch (err) {
+      console.warn('[AUTH] updateUserProfile erro:', err)
+    }
+  }, [])
+
   // Refresh token memoizado (usado pelo HTTP client)
   const refreshToken = useCallback(async (): Promise<boolean> => {
     // Esta função é principalmente para compatibilidade
@@ -350,8 +370,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     login,
     logout,
-    refreshToken
-  }), [authStatus, user, token, login, logout, refreshToken])
+    refreshToken,
+    updateUserProfile
+  }), [authStatus, user, token, login, logout, refreshToken, updateUserProfile])
 
   // Inicialização única
   useEffect(() => {

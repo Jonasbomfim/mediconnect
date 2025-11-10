@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -116,6 +117,7 @@ const colorsByType = {
   };
 
 const ProfissionalPage = () => {
+  const router = useRouter();
   const { logout, user, token } = useAuth();
   const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('calendario');
@@ -1367,7 +1369,7 @@ const ProfissionalPage = () => {
               <p className="text-muted-foreground">Nesta seção você pode gerenciar todos os laudos gerados.</p>
             </div>
             <Button 
-              onClick={() => setIsCreatingNew(true)}
+              onClick={() => router.push('/laudos-editor')}
               className="flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />

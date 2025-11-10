@@ -156,7 +156,7 @@ export async function loginUser(
       user: {
         id: data.user?.id || data.id || "1",
         email: email,
-        name: data.user?.name || data.name || email.split('@')[0],
+        name: data.user?.name || data.name || data.user?.full_name || data.full_name || email.split('@')[0],
         userType: userType,
         profile: data.user?.profile || data.profile || {}
       }

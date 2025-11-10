@@ -51,7 +51,7 @@ interface UserProfile {
 
 export default function PerfilPage() {
   const router = useRouter();
-  const { user: authUser } = useAuth();
+  const { user: authUser, updateUserProfile } = useAuth();
   const [userInfo, setUserInfo] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -229,6 +229,31 @@ export default function PerfilPage() {
           } : null,
         } : null
       );
+
+      // Also update global auth profile so header/avatar updates immediately
+      try {
+        if (typeof updateUserProfile === 'function') {
+          updateUserProfile({
+            // Persist common keys used across the app
+            foto_url: editingData.avatar_url || undefined,
+            telefone: editingData.phone || undefined
+          });
+        } else {
+          // Fallback: try to persist directly to localStorage so next reload shows it
+          try {
+            const raw = localStorage.getItem('auth_user')
+            if (raw) {
+              const u = JSON.parse(raw)
+              u.profile = u.profile || {}
+              if (editingData.avatar_url) { u.profile.foto_url = editingData.avatar_url; u.profile.avatar_url = editingData.avatar_url }
+              if (editingData.phone) u.profile.telefone = editingData.phone
+              localStorage.setItem('auth_user', JSON.stringify(u))
+            }
+          } catch (_e) {}
+        }
+      } catch (err) {
+        console.warn('[PERFIL] Falha ao sincronizar profile global:', err)
+      }
     } catch (err: any) {
       console.error('[PERFIL] Erro ao salvar:', err);
     }
@@ -296,7 +321,7 @@ export default function PerfilPage() {
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={handleEditClick}
               >
-                ✏️ Editar Perfil
+                 Editar Perfil
               </Button>
             ) : (
               <div className="flex gap-2">
@@ -591,7 +616,25 @@ export default function PerfilPage() {
                     <UploadAvatar
                       userId={userInfo.user.id}
                       currentAvatarUrl={editingData.avatar_url || userInfo.profile?.avatar_url || "/avatars/01.png"}
-                      onAvatarChange={(newUrl) => setEditingData({...editingData, avatar_url: newUrl})}
+                      onAvatarChange={(newUrl) => {
+                        setEditingData({...editingData, avatar_url: newUrl})
+                        try {
+                          if (typeof updateUserProfile === 'function') {
+                            updateUserProfile({ foto_url: newUrl })
+                          } else {
+                            const raw = localStorage.getItem('auth_user')
+                            if (raw) {
+                              const u = JSON.parse(raw)
+                              u.profile = u.profile || {}
+                              u.profile.foto_url = newUrl
+                              u.profile.avatar_url = newUrl
+                              localStorage.setItem('auth_user', JSON.stringify(u))
+                            }
+                          }
+                        } catch (err) {
+                          console.warn('[PERFIL] erro ao persistir avatar no auth_user localStorage', err)
+                        }
+                      }}
                       userName={editingData.full_name || userInfo.profile?.full_name || "Usuário"}
                     />
                   </div>

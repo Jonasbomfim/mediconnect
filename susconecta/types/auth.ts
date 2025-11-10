@@ -51,6 +51,8 @@ export interface AuthContextType {
   login: (email: string, password: string, userType: UserType) => Promise<boolean>
   logout: () => Promise<void>
   refreshToken: () => Promise<boolean>
+  // Merge partial profile into the stored user (client-side convenience)
+  updateUserProfile?: (partial: Partial<UserData['profile']>) => void
 }
 
 export interface AuthStorageKeys {

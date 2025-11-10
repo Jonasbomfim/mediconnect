@@ -60,9 +60,32 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
             className="relative h-8 w-8 rounded-full border-2 border-border hover:border-primary"
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
+            {/* Mostrar foto do usuário quando disponível; senão, mostrar fallback com iniciais */}
             <Avatar className="h-8 w-8">
-              <AvatarImage src="/avatars/01.png" alt="@usuario" />
-              <AvatarFallback className="bg-primary text-primary-foreground font-semibold">RA</AvatarFallback>
+              {
+                (() => {
+                  const userPhoto = (user as any)?.profile?.foto_url || (user as any)?.profile?.fotoUrl || (user as any)?.profile?.avatar_url
+                  const alt = user?.name || user?.email || 'Usuário'
+
+                  const getInitials = (name?: string, email?: string) => {
+                    if (name) {
+                      const parts = name.trim().split(/\s+/)
+                      const first = parts[0]?.charAt(0) ?? ''
+                      const second = parts[1]?.charAt(0) ?? ''
+                      return (first + second).toUpperCase() || (email?.charAt(0) ?? 'U').toUpperCase()
+                    }
+                    if (email) return email.charAt(0).toUpperCase()
+                    return 'U'
+                  }
+
+                  return (
+                    <>
+                      <AvatarImage src={userPhoto || undefined} alt={alt} />
+                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getInitials(user?.name, user?.email)}</AvatarFallback>
+                    </>
+                  )
+                })()
+              }
             </Avatar>
           </Button>
 
@@ -94,11 +117,9 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
                   }}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer"
                 >
-                  👤 Perfil
+                   Perfil
                 </button>
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer">
-                  ⚙️ Configurações
-                </button>
+                
                 <div className="border-t border-border my-1"></div>
                 <button 
                   onClick={(e) => {
@@ -110,7 +131,7 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
                   }}
                   className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
-                  🚪 Sair
+                   Sair
                 </button>
               </div>
             </div>

@@ -10,10 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { User, LogOut, Calendar, FileText, MessageCircle, UserCog, Home, Clock, FolderOpen, ChevronLeft, ChevronRight, MapPin, Stethoscope } from 'lucide-react'
 import { SimpleThemeToggle } from '@/components/ui/simple-theme-toggle'
 import { UploadAvatar } from '@/components/ui/upload-avatar'
+import { useAvatarUrl } from '@/hooks/useAvatarUrl'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
@@ -90,6 +91,9 @@ export default function PacientePage() {
     foto_url: undefined,
   })
   const [patientId, setPatientId] = useState<string | null>(null)
+
+  // Hook para carregar automaticamente o avatar do paciente
+  const { avatarUrl: retrievedAvatarUrl } = useAvatarUrl(patientId)
 
   // Load authoritative patient row for the logged-in user (prefer user_id lookup)
   useEffect(() => {
@@ -235,6 +239,16 @@ export default function PacientePage() {
     return () => { mounted = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.email])
+
+  // Sincroniza a URL do avatar recuperada com o profileData
+  useEffect(() => {
+    if (retrievedAvatarUrl) {
+      setProfileData((prev: any) => ({
+        ...prev,
+        foto_url: retrievedAvatarUrl
+      }))
+    }
+  }, [retrievedAvatarUrl])
 
   const handleProfileChange = (field: string, value: string) => {
     setProfileData((prev: any) => ({ ...prev, [field]: value }))
@@ -1736,6 +1750,7 @@ export default function PacientePage() {
               ) : (
                 <div className="flex flex-col items-center gap-3 sm:gap-4">
                   <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28">
+                    <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
                     <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl md:text-2xl font-bold">
                       {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
                     </AvatarFallback>
@@ -1763,6 +1778,7 @@ export default function PacientePage() {
         <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-4">
             <Avatar className="h-10 w-10 sm:h-12 sm:w-12 md:h-12 md:w-12">
+              <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
               <AvatarFallback className="bg-primary text-white font-bold text-sm sm:text-base">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">

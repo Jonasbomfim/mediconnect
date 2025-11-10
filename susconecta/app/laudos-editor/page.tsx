@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { listarPacientes } from '@/lib/api';
+import { listarPacientes, buscarMedicos } from '@/lib/api';
 import { useReports } from '@/hooks/useReports';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,8 @@ export default function LaudosEditorPage() {
 
   // Estados para solicitante e prazo
   const [solicitanteId, setSolicitanteId] = useState<string>(user?.id || '');
-  const displaySolicitante = user?.name || '';
+  // Nome exibido do solicitante (preferir nome do médico vindo da API)
+  const [solicitanteNome, setSolicitanteNome] = useState<string>(user?.name || '');
   const [prazoDate, setPrazoDate] = useState<string>('');
   const [prazoTime, setPrazoTime] = useState<string>('');
 
@@ -93,6 +94,42 @@ export default function LaudosEditorPage() {
     }
     fetchPacientes();
   }, [token]);
+
+  // Tentar obter o registro de médico correspondente ao usuário autenticado
+  useEffect(() => {
+    let mounted = true;
+    async function fetchDoctorName() {
+      try {
+        // Se já temos um nome razoável, não sobrescrever
+        if (solicitanteNome && solicitanteNome.trim().length > 1) return;
+        if (!user) return;
+        // Buscar médicos por email (buscarMedicos aceita termos com @ e faz a busca por email)
+        if (user.email && user.email.includes('@')) {
+          const docs = await buscarMedicos(user.email).catch(() => []);
+          if (!mounted) return;
+          if (Array.isArray(docs) && docs.length > 0) {
+            const d = docs[0];
+            // Preferir full_name do médico quando disponível
+            if (d && (d.full_name || (d as any).nome)) {
+              setSolicitanteNome((d.full_name as string) || ((d as any).nome as string) || user.name || user.email || '');
+              return;
+            }
+          }
+        }
+
+        // Fallbacks: usar user.name se existir; caso contrário, email completo
+        setSolicitanteNome(user.name || user.email || '');
+      } catch (err) {
+        // em caso de erro, manter o fallback
+        setSolicitanteNome(user?.name || user?.email || '');
+      }
+    }
+
+    fetchDoctorName();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   // Atualizar histórico
   useEffect(() => {
@@ -288,7 +325,7 @@ export default function LaudosEditorPage() {
         {/* Main Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Seleção de Paciente */}
-          <div className="border-b border-border bg-card px-2 sm:px-4 md:px-6 py-3 sm:py-4 flex-shrink-0 overflow-y-auto max-h-48 sm:max-h-56">
+          <div className="border-b border-border bg-card px-2 sm:px-4 md:px-6 py-3 sm:py-4 flex-shrink-0 overflow-y-auto md:max-h-56">
             {!pacienteSelecionado ? (
               <div className="bg-muted border border-border rounded-lg p-2 sm:p-4">
                 <Label htmlFor="select-paciente" className="text-xs sm:text-sm font-medium mb-2 block">
@@ -342,7 +379,7 @@ export default function LaudosEditorPage() {
                   <Label htmlFor="solicitante" className="text-xs sm:text-sm">
                     Solicitante
                   </Label>
-                  <Input id="solicitante" value={displaySolicitante} readOnly disabled className="text-xs sm:text-sm mt-1 h-8 sm:h-10" />
+                  <Input id="solicitante" value={solicitanteNome} readOnly disabled className="text-xs sm:text-sm mt-1 h-8 sm:h-10" />
                 </div>
                 <div>
                   <Label htmlFor="prazoDate" className="text-xs sm:text-sm">
@@ -420,7 +457,7 @@ export default function LaudosEditorPage() {
           {/* Content */}
           <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-background">
             {/* Left Panel */}
-            <div className={`flex flex-col overflow-hidden transition-all ${showPreview ? 'w-full md:w-3/5 h-1/2 md:h-full' : 'w-full'}`}>
+              <div className={`flex flex-col overflow-hidden transition-all ${showPreview ? 'w-full md:w-3/5 h-auto md:h-full' : 'w-full'}`}>
               {/* Editor Tab */}
               {activeTab === 'editor' && (
                 <div className="flex-1 flex flex-col overflow-hidden">
@@ -633,7 +670,7 @@ export default function LaudosEditorPage() {
 
             {/* Preview Panel */}
             {showPreview && (
-              <div className="w-full md:w-2/5 h-1/2 md:h-full border-t md:border-l md:border-t-0 border-border bg-muted/20 flex flex-col overflow-hidden">
+              <div className="w-full md:w-2/5 h-auto md:h-full border-t md:border-l md:border-t-0 border-border bg-muted/20 flex flex-col overflow-hidden">
                 <div className="p-2 sm:p-2.5 md:p-3 border-b border-border flex-shrink-0 bg-card">
                   <h3 className="font-semibold text-xs sm:text-sm text-foreground truncate">Pré-visualização</h3>
                 </div>
@@ -641,10 +678,10 @@ export default function LaudosEditorPage() {
                   <div className="bg-background border border-border rounded p-2 sm:p-2.5 md:p-3 text-xs space-y-1.5 sm:space-y-2">
                     {/* Header */}
                     <div className="text-center mb-2 pb-2 border-b border-border/40">
-                      <h2 className="text-xs sm:text-sm font-bold leading-tight line-clamp-2">
+                      <h2 className="text-xs sm:text-sm font-bold leading-tight whitespace-normal">
                         LAUDO {campos.especialidade ? `- ${campos.especialidade.toUpperCase().substring(0, 12)}` : ''}
                       </h2>
-                      {campos.exame && <p className="text-xs font-semibold mt-1 line-clamp-2">{campos.exame}</p>}
+                      {campos.exame && <p className="text-xs font-semibold mt-1 whitespace-pre-wrap break-words">{campos.exame}</p>}
                       {campos.mostrarData && (
                         <p className="text-xs text-muted-foreground mt-1">{new Date().toLocaleDateString('pt-BR')}</p>
                       )}
@@ -653,11 +690,13 @@ export default function LaudosEditorPage() {
                     {/* Paciente */}
                     {pacienteSelecionado && (
                       <div className="mb-1.5 pb-1.5 border-b border-border/40 space-y-0.5">
-                        <div className="text-xs line-clamp-1">
-                          <span className="font-semibold">Paciente:</span> {getPatientName(pacienteSelecionado).substring(0, 20)}
+                        <div className="text-xs whitespace-normal break-words">
+                          <span className="font-semibold">Paciente:</span>
+                          <div className="mt-0.5">{getPatientName(pacienteSelecionado)}</div>
                         </div>
-                        <div className="text-xs line-clamp-1">
-                          <span className="font-semibold">CPF:</span> {getPatientCpf(pacienteSelecionado).substring(0, 14)}
+                        <div className="text-xs whitespace-normal break-words">
+                          <span className="font-semibold">CPF:</span>
+                          <div className="mt-0.5">{getPatientCpf(pacienteSelecionado)}</div>
                         </div>
                       </div>
                     )}
@@ -665,9 +704,9 @@ export default function LaudosEditorPage() {
                     {/* Informações Clínicas */}
                     <div className="mb-1.5 pb-1.5 border-b border-border/40 space-y-0.5">
                       {campos.cid && (
-                        <div className="text-xs line-clamp-1">
-                          <span className="font-semibold">CID:</span>{' '}
-                          <span className="text-blue-600 dark:text-blue-400 font-semibold">{campos.cid}</span>
+                        <div className="text-xs whitespace-normal break-words">
+                          <div className="font-semibold">CID:</div>
+                          <div className="mt-0.5 text-blue-600 dark:text-blue-400 font-semibold">{campos.cid}</div>
                         </div>
                       )}
                     </div>
@@ -676,7 +715,7 @@ export default function LaudosEditorPage() {
                     {campos.diagnostico && (
                       <div className="mb-1.5 pb-1.5 border-b border-border/40">
                         <div className="text-xs font-semibold mb-0.5">Diagnóstico:</div>
-                        <div className="text-xs line-clamp-3 text-muted-foreground">
+                        <div className="text-xs leading-tight whitespace-pre-wrap text-muted-foreground break-words">
                           {campos.diagnostico}
                         </div>
                       </div>
@@ -687,9 +726,9 @@ export default function LaudosEditorPage() {
                       <div className="mb-1.5 pb-1.5 border-b border-border/40">
                         <div className="text-xs font-semibold mb-0.5">Conteúdo:</div>
                         <div
-                          className="text-xs leading-tight whitespace-pre-wrap line-clamp-3 md:line-clamp-4 text-muted-foreground"
+                          className="text-xs leading-tight whitespace-pre-wrap text-muted-foreground"
                           dangerouslySetInnerHTML={{
-                            __html: processContent(content).substring(0, 150),
+                            __html: processContent(content),
                           }}
                         />
                       </div>
@@ -699,7 +738,7 @@ export default function LaudosEditorPage() {
                     {campos.conclusao && (
                       <div className="mb-1.5 pb-1.5 border-b border-border/40">
                         <div className="text-xs font-semibold mb-0.5">Conclusão:</div>
-                        <div className="text-xs line-clamp-3 text-muted-foreground">
+                        <div className="text-xs leading-tight whitespace-pre-wrap text-muted-foreground break-words">
                           {campos.conclusao}
                         </div>
                       </div>

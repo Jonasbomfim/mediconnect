@@ -2747,35 +2747,6 @@ const ProfissionalPage = () => {
               {smsSending ? 'Enviando...' : 'Enviar SMS'}
             </Button>
           </div>
-
-          {/* Respostas do paciente */}
-          <div className="mt-6 border-t border-border pt-4">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h3 className="text-base sm:text-lg font-semibold">Últimas respostas do paciente</h3>
-              <div>
-                <Button size="sm" variant="outline" onClick={() => void loadCommResponses()} disabled={!commPatientId || commResponsesLoading} className="text-xs sm:text-sm">
-                  {commResponsesLoading ? 'Atualizando...' : 'Atualizar respostas'}
-                </Button>
-              </div>
-            </div>
-
-            {commResponsesLoading ? (
-              <div className="text-xs sm:text-sm text-muted-foreground">Carregando respostas...</div>
-            ) : commResponsesError ? (
-              <div className="text-xs sm:text-sm text-red-500">{commResponsesError}</div>
-            ) : (commResponses && commResponses.length) ? (
-              <div className="space-y-2">
-                {commResponses.map((m:any) => (
-                  <div key={m.id} className="p-3 rounded border border-border bg-muted/10">
-                    <div className="text-xs text-muted-foreground">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
-                    <div className="mt-1 whitespace-pre-wrap text-xs sm:text-sm">{m.body ?? m.content ?? m.message ?? '-'}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs sm:text-sm text-muted-foreground">Nenhuma resposta encontrada para o paciente selecionado.</div>
-            )}
-          </div>
         </div>
       </div>
     </div>

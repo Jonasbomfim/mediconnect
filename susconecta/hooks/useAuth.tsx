@@ -142,10 +142,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.warn('[AUTH] Falha ao buscar /auth/v1/user durante restauração de sessão:', e)
       }
-      // Tentar buscar profile consolidado (user-info) e mesclar
+        // Tentar buscar profile consolidado (user-info) e mesclar
       try {
         const info = await getUserInfo()
         if (info?.profile) {
+          // Atualizar nome se vem no profile
+          if (info.profile.full_name) {
+            userData.name = info.profile.full_name
+            console.log('[AUTH] Nome atualizado de profile na restauração:', info.profile.full_name)
+          }
           const mapped = {
             cpf: (info.profile as any).cpf ?? userData.profile?.cpf,
             crm: (info.profile as any).crm ?? userData.profile?.crm,
@@ -241,6 +246,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const info = await getUserInfo()
         if (info?.profile && response.user) {
+          // Atualizar nome se vem no profile
+          if (info.profile.full_name) {
+            response.user.name = info.profile.full_name
+            console.log('[AUTH] Nome atualizado de profile:', info.profile.full_name)
+          }
           const mapped = {
             cpf: (info.profile as any).cpf ?? response.user.profile?.cpf,
             crm: (info.profile as any).crm ?? response.user.profile?.crm,

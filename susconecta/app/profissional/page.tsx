@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import SignatureCanvas from "react-signature-canvas";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -116,6 +117,7 @@ const colorsByType = {
   };
 
 const ProfissionalPage = () => {
+  const router = useRouter();
   const { logout, user, token } = useAuth();
   const { toast } = useToast();
   const [activeSection, setActiveSection] = useState('calendario');
@@ -1367,7 +1369,7 @@ const ProfissionalPage = () => {
               <p className="text-muted-foreground">Nesta seção você pode gerenciar todos os laudos gerados.</p>
             </div>
             <Button 
-              onClick={() => setIsCreatingNew(true)}
+              onClick={() => router.push('/laudos-editor')}
               className="flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -1498,17 +1500,8 @@ const ProfissionalPage = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={async () => {
-                              try {
-                                const full = (laudo?.id || laudo?.order_number) ? await loadReportById(String(laudo?.id ?? laudo?.order_number)) : laudo;
-                                await ensurePaciente(full);
-                                setLaudoSelecionado(full);
-                                setIsViewing(true);
-                              } catch (e) {
-                                // fallback
-                                setLaudoSelecionado(laudo);
-                                setIsViewing(true);
-                              }
+                            onClick={() => {
+                              router.push(`/laudos/${laudo.id}`);
                             }}
                             className="flex items-center gap-1 hover:bg-primary! hover:text-white! transition-colors"
                           >
@@ -1519,8 +1512,7 @@ const ProfissionalPage = () => {
                             variant="default"
                             size="sm"
                             onClick={() => {
-                              setPatientForLaudo(laudo);
-                              setIsEditingLaudoForPatient(true);
+                              router.push(`/laudos/${laudo.id}/editar`);
                             }}
                             className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
                             title="Editar laudo para este paciente"
@@ -1569,8 +1561,7 @@ const ProfissionalPage = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setLaudoSelecionado(laudo);
-                            setIsViewing(true);
+                            router.push(`/laudos/${laudo.id}`);
                           }}
                           className="flex items-center gap-1"
                         >
@@ -1580,8 +1571,7 @@ const ProfissionalPage = () => {
                           variant="default"
                           size="sm"
                           onClick={() => {
-                            setPatientForLaudo(laudo);
-                            setIsEditingLaudoForPatient(true);
+                            router.push(`/laudos/${laudo.id}/editar`);
                           }}
                           className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
                           title="Editar laudo"

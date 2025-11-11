@@ -1,56 +1,34 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { listarPacientes, buscarMedicos } from '@/lib/api';
+import { buscarRelatorioPorId, buscarPacientePorId } from '@/lib/api';
 import { useReports } from '@/hooks/useReports';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { FileText, Upload, Settings, Eye, ArrowLeft, BookOpen } from 'lucide-react';
+import { FileText, Settings, Eye, ArrowLeft, BookOpen } from 'lucide-react';
 
-// Helpers para normalizar dados
-const getPatientName = (p: any) => p?.full_name ?? p?.nome ?? '';
-const getPatientCpf = (p: any) => p?.cpf ?? '';
-const getPatientSex = (p: any) => p?.sex ?? p?.sexo ?? '';
-const getPatientAge = (p: any) => {
-  if (!p) return '';
-  const bd = p?.birth_date ?? p?.data_nascimento ?? p?.birthDate;
-  if (bd) {
-    const d = new Date(bd);
-    if (!isNaN(d.getTime())) {
-      const age = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-      return `${age}`;
-    }
-  }
-  return p?.idade ?? p?.age ?? '';
-};
-
-export default function LaudosEditorPage() {
+export default function EditarLaudoPage() {
   const router = useRouter();
+  const params = useParams();
   const { user, token } = useAuth();
   const { toast } = useToast();
-  const { createNewReport } = useReports();
+  const { updateExistingReport } = useReports();
+  const laudoId = params.id as string;
 
   // Estados principais
-  const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(null);
-  const [listaPacientes, setListaPacientes] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<any>(null);
+  const [patient, setPatient] = useState<any>(null);
   const [content, setContent] = useState('');
   const [activeTab, setActiveTab] = useState('editor');
   const [showPreview, setShowPreview] = useState(false);
-
-  // Estados para solicitante e prazo
-  const [solicitanteId, setSolicitanteId] = useState<string>(user?.id || '');
-  // Nome exibido do solicitante (preferir nome do médico vindo da API)
-  const [solicitanteNome, setSolicitanteNome] = useState<string>(user?.name || '');
-  const [prazoDate, setPrazoDate] = useState<string>('');
-  const [prazoTime, setPrazoTime] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   // Campos do laudo
   const [campos, setCampos] = useState({
@@ -63,19 +41,11 @@ export default function LaudosEditorPage() {
     mostrarAssinatura: true,
   });
 
-  // Imagens
-  const [imagens, setImagens] = useState<any[]>([]);
-  const [templates] = useState([
-    'Exame normal, sem alterações significativas',
-    'Paciente em acompanhamento ambulatorial',
-    'Recomenda-se retorno em 30 dias',
-    'Alterações compatíveis com processo inflamatório',
-    'Resultado dentro dos parâmetros de normalidade',
-    'Recomendo seguimento com especialista',
-  ]);
+  // Editor ref
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // Frases prontas
-  const [frasesProntas] = useState([
+  const frasesProntas = [
     'Paciente apresenta bom estado geral.',
     'Recomenda-se seguimento clínico periódico.',
     'Encaminhar para especialista.',
@@ -86,14 +56,7 @@ export default function LaudosEditorPage() {
     'Seguir orientações prescritas rigorosamente.',
     'Compatível com os achados clínicos.',
     'Sem alterações significativas detectadas.',
-  ]);
-
-  // Histórico
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-
-  // Editor ref
-  const editorRef = useRef<HTMLDivElement>(null);
+  ];
 
   // Estado para rastrear formatações ativas
   const [activeFormats, setActiveFormats] = useState({
@@ -103,8 +66,37 @@ export default function LaudosEditorPage() {
     strikethrough: false,
   });
 
-  // Estado para controlar modal de confirmação de rascunho
-  const [showDraftConfirm, setShowDraftConfirm] = useState(false);
+  // Estado para rastrear alinhamento ativo
+  const [activeAlignment, setActiveAlignment] = useState('left');
+
+  // Salvar conteúdo no localStorage sempre que muda
+  useEffect(() => {
+    if (content && laudoId) {
+      localStorage.setItem(`laudo-draft-${laudoId}`, content);
+    }
+  }, [content, laudoId]);
+
+  // Sincronizar conteúdo com o editor
+  useEffect(() => {
+    if (editorRef.current && content) {
+      if (editorRef.current.innerHTML !== content) {
+        editorRef.current.innerHTML = content;
+      }
+    }
+  }, [content]);
+
+  // Restaurar conteúdo quando volta para a aba editor
+  useEffect(() => {
+    if (activeTab === 'editor' && editorRef.current && content) {
+      editorRef.current.focus();
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.setStart(editorRef.current, editorRef.current.childNodes.length);
+      range.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }, [activeTab]);
 
   // Atualizar formatações ativas ao mudar seleção
   useEffect(() => {
@@ -115,6 +107,17 @@ export default function LaudosEditorPage() {
         underline: document.queryCommandState('underline'),
         strikethrough: document.queryCommandState('strikeThrough'),
       });
+
+      // Detectar alinhamento ativo
+      if (document.queryCommandState('justifyCenter')) {
+        setActiveAlignment('center');
+      } else if (document.queryCommandState('justifyRight')) {
+        setActiveAlignment('right');
+      } else if (document.queryCommandState('justifyFull')) {
+        setActiveAlignment('justify');
+      } else {
+        setActiveAlignment('left');
+      }
     };
 
     editorRef.current?.addEventListener('mouseup', updateFormats);
@@ -126,121 +129,73 @@ export default function LaudosEditorPage() {
     };
   }, []);
 
-  // Carregar pacientes ao montar
+  // Carregar laudo ao montar
   useEffect(() => {
-    async function fetchPacientes() {
+    async function fetchLaudo() {
       try {
-        if (!token) {
-          setListaPacientes([]);
+        if (!laudoId || !token) {
+          setLoading(false);
           return;
         }
-        const pacientes = await listarPacientes();
-        setListaPacientes(pacientes || []);
-      } catch (err) {
-        console.warn('Erro ao carregar pacientes:', err);
-        setListaPacientes([]);
-      }
-    }
-    fetchPacientes();
+        const report = await buscarRelatorioPorId(laudoId);
+        setReportData(report);
 
-    // Carregar rascunho salvo ao montar
-    const savedDraft = localStorage.getItem('laudoDraft');
-    if (savedDraft) {
-      try {
-        const draft = JSON.parse(savedDraft);
-        setPacienteSelecionado(draft.pacienteSelecionado);
-        setContent(draft.content);
-        setCampos(draft.campos);
-        setSolicitanteId(draft.solicitanteId);
-        setPrazoDate(draft.prazoDate);
-        setPrazoTime(draft.prazoTime);
-        setImagens(draft.imagens || []);
-        
-        // Sincronizar editor com conteúdo carregado
-        if (editorRef.current) {
-          editorRef.current.innerHTML = draft.content;
-        }
-      } catch (err) {
-        console.warn('Erro ao carregar rascunho:', err);
-      }
-    }
-  }, [token]);
-
-  // Import Quill CSS on client side only
-  useEffect(() => {
-    // No CSS needed for native contenteditable
-  }, []);
-
-  // Sincronizar conteúdo inicial com editor ao montar
-  useEffect(() => {
-    if (editorRef.current && !editorRef.current.innerHTML) {
-      editorRef.current.innerHTML = content;
-    }
-  }, []);
-
-  // Tentar obter o registro de médico correspondente ao usuário autenticado
-  useEffect(() => {
-    let mounted = true;
-    async function fetchDoctorName() {
-      try {
-        // Se já temos um nome razoável, não sobrescrever
-        if (solicitanteNome && solicitanteNome.trim().length > 1) return;
-        if (!user) return;
-        // Buscar médicos por email (buscarMedicos aceita termos com @ e faz a busca por email)
-        if (user.email && user.email.includes('@')) {
-          const docs = await buscarMedicos(user.email).catch(() => []);
-          if (!mounted) return;
-          if (Array.isArray(docs) && docs.length > 0) {
-            const d = docs[0];
-            // Preferir full_name do médico quando disponível
-            if (d && (d.full_name || (d as any).nome)) {
-              setSolicitanteNome((d.full_name as string) || ((d as any).nome as string) || user.name || user.email || '');
-              return;
-            }
+        // Carregar paciente se existir patient_id
+        const r = report as any;
+        if (r.patient_id) {
+          try {
+            const patientData = await buscarPacientePorId(r.patient_id);
+            setPatient(patientData);
+          } catch (err) {
+            console.warn('Erro ao carregar paciente:', err);
           }
         }
 
-        // Fallbacks: usar user.name se existir; caso contrário, email completo
-        setSolicitanteNome(user.name || user.email || '');
+        // Preencher campos
+        setCampos({
+          cid: r.cid_code || r.cid || '',
+          diagnostico: r.diagnosis || r.diagnostico || '',
+          conclusao: r.conclusion || r.conclusao || '',
+          exame: r.exam || r.exame || '',
+          especialidade: r.especialidade || '',
+          mostrarData: !r.hide_date,
+          mostrarAssinatura: !r.hide_signature,
+        });
+
+        // Preencher conteúdo
+        const contentHtml = r.content_html || r.conteudo_html || '';
+        
+        // Verificar se existe rascunho salvo no localStorage
+        const draftContent = typeof window !== 'undefined' ? localStorage.getItem(`laudo-draft-${laudoId}`) : null;
+        const finalContent = draftContent || contentHtml;
+        
+        setContent(finalContent);
+        if (editorRef.current) {
+          editorRef.current.innerHTML = finalContent;
+          // Colocar cursor no final do texto
+          editorRef.current.focus();
+          const range = document.createRange();
+          const sel = window.getSelection();
+          range.setStart(editorRef.current, editorRef.current.childNodes.length);
+          range.collapse(true);
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
       } catch (err) {
-        // em caso de erro, manter o fallback
-        setSolicitanteNome(user?.name || user?.email || '');
+        console.warn('Erro ao carregar laudo:', err);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao carregar o laudo.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
       }
     }
+    fetchLaudo();
+  }, [laudoId, token, toast]);
 
-    fetchDoctorName();
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
-
-  // Atualizar histórico
-  useEffect(() => {
-    if (history[historyIndex] !== content) {
-      const newHistory = history.slice(0, historyIndex + 1);
-      setHistory([...newHistory, content]);
-      setHistoryIndex(newHistory.length);
-    }
-  }, [content]);
-
-  // Desfazer
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setContent(history[newIndex]);
-      setHistoryIndex(newIndex);
-      
-      // Atualizar editor com conteúdo anterior
-      setTimeout(() => {
-        if (editorRef.current) {
-          editorRef.current.innerHTML = history[newIndex];
-          editorRef.current.focus();
-        }
-      }, 0);
-    }
-  };
-
-  // Formatação com contenteditable (document.execCommand)
+  // Formatação com contenteditable
   const applyFormat = (command: string, value?: string) => {
     document.execCommand(command, false, value || undefined);
     editorRef.current?.focus();
@@ -261,79 +216,33 @@ export default function LaudosEditorPage() {
     editorRef.current?.focus();
   };
   
-  const alignLeft = () => applyFormat('justifyLeft');
-  const alignCenter = () => applyFormat('justifyCenter');
-  const alignRight = () => applyFormat('justifyRight');
-  const alignJustify = () => applyFormat('justifyFull');
+  const alignText = (alignment: 'left' | 'center' | 'right' | 'justify') => {
+    editorRef.current?.focus();
+    
+    const alignCommands: { [key: string]: string } = {
+      left: 'justifyLeft',
+      center: 'justifyCenter',
+      right: 'justifyRight',
+      justify: 'justifyFull',
+    };
 
-  const insertTemplate = (template: string) => {
-    setContent((prev: string) => (prev ? `${prev}\n\n${template}` : template));
+    document.execCommand(alignCommands[alignment], false, undefined);
+    
+    if (editorRef.current) {
+      setContent(editorRef.current.innerHTML);
+    }
   };
+
+  const alignLeft = () => alignText('left');
+  const alignCenter = () => alignText('center');
+  const alignRight = () => alignText('right');
+  const alignJustify = () => alignText('justify');
 
   const insertFraseProta = (frase: string) => {
     editorRef.current?.focus();
     document.execCommand('insertText', false, frase + ' ');
-    setContent(editorRef.current?.innerHTML || '');
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagens((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            url: e.target?.result,
-            type: file.type,
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Salvar rascunho no localStorage
-  const saveDraft = () => {
-    const draft = {
-      pacienteSelecionado,
-      content,
-      campos,
-      solicitanteId,
-      prazoDate,
-      prazoTime,
-      imagens,
-    };
-    localStorage.setItem('laudoDraft', JSON.stringify(draft));
-    toast({
-      title: 'Rascunho salvo!',
-      description: 'As informações do laudo foram salvas. Você pode continuar depois.',
-      variant: 'default',
-    });
-    
-    // Redirecionar para profissional após 1 segundo
-    setTimeout(() => {
-      router.push('/profissional');
-    }, 1000);
-  };
-
-  // Descartar rascunho
-  const discardDraft = () => {
-    localStorage.removeItem('laudoDraft');
-    router.push('/profissional');
-  };
-
-  // Processar cancelamento com confirmação
-  const handleCancel = () => {
-    // Verificar se há dados para salvar
-    const hasData = content || campos.cid || campos.diagnostico || campos.conclusao || campos.exame || imagens.length > 0;
-    
-    if (hasData) {
-      setShowDraftConfirm(true);
-    } else {
-      router.push('/profissional');
+    if (editorRef.current) {
+      setContent(editorRef.current.innerHTML);
     }
   };
 
@@ -356,56 +265,62 @@ export default function LaudosEditorPage() {
 
   const handleSave = async () => {
     try {
-      if (!pacienteSelecionado?.id) {
+      if (!reportData?.id) {
         toast({
           title: 'Erro',
-          description: 'Selecione um paciente para continuar.',
+          description: 'ID do laudo não encontrado.',
           variant: 'destructive',
         });
         return;
       }
 
-      const userId = user?.id || '00000000-0000-0000-0000-000000000001';
-
-      let composedDueAt = undefined;
-      if (prazoDate) {
-        const t = prazoTime || '23:59';
-        composedDueAt = new Date(`${prazoDate}T${t}:00`).toISOString();
-      }
+      // Pegar conteúdo diretamente do DOM para garantir que está atualizado
+      const currentContent = editorRef.current?.innerHTML || content;
 
       const payload = {
-        patient_id: pacienteSelecionado?.id,
-        order_number: '',
         exam: campos.exame || '',
         diagnosis: campos.diagnostico || '',
         conclusion: campos.conclusao || '',
         cid_code: campos.cid || '',
-        content_html: content,
+        content_html: currentContent,
         content_json: {},
-        requested_by: solicitanteId || userId,
-        due_at: composedDueAt ?? new Date().toISOString(),
         hide_date: !campos.mostrarData,
         hide_signature: !campos.mostrarAssinatura,
       };
 
-      if (createNewReport) {
-        await createNewReport(payload as any);
+      if (updateExistingReport) {
+        await updateExistingReport(reportData.id, payload as any);
+        
+        // Limpar rascunho do localStorage após salvar
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(`laudo-draft-${reportData.id}`);
+        }
+        
         toast({
-          title: 'Laudo criado com sucesso!',
-          description: 'O laudo foi liberado e salvo.',
+          title: 'Laudo atualizado com sucesso!',
+          description: 'As alterações foram salvas.',
           variant: 'default',
         });
-        // Redirecionar para profissional
-        router.push('/profissional');
+        router.push(`/laudos/${reportData.id}`);
       }
     } catch (err) {
       toast({
-        title: 'Erro ao criar laudo',
+        title: 'Erro ao atualizar laudo',
         description: (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err) || 'Tente novamente.',
         variant: 'destructive',
       });
     }
   };
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-lg text-muted-foreground">Carregando laudo...</div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -417,14 +332,21 @@ export default function LaudosEditorPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/profissional')}
+                onClick={() => router.back()}
                 className="p-0 h-auto flex-shrink-0"
               >
                 <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5" />
               </Button>
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-2xl font-bold truncate">Novo Laudo Médico</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">Crie um novo laudo selecionando um paciente</p>
+                <h1 className="text-lg sm:text-2xl font-bold truncate">Editar Laudo Médico</h1>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Atualize as informações do laudo</p>
+                  {patient && (
+                    <p className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
+                      Paciente: {patient.full_name || patient.name || 'N/A'}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -432,89 +354,6 @@ export default function LaudosEditorPage() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Seleção de Paciente */}
-          <div className="border-b border-border bg-card px-2 sm:px-4 md:px-6 py-3 sm:py-4 flex-shrink-0 overflow-y-auto md:max-h-56">
-            {!pacienteSelecionado ? (
-              <div className="bg-muted border border-border rounded-lg p-2 sm:p-4">
-                <Label htmlFor="select-paciente" className="text-xs sm:text-sm font-medium mb-2 block">
-                  Selecionar Paciente *
-                </Label>
-                <Select
-                  onValueChange={(value) => {
-                    const paciente = listaPacientes.find((p) => p.id === value);
-                    if (paciente) setPacienteSelecionado(paciente);
-                  }}
-                >
-                  <SelectTrigger className="w-full text-xs sm:text-sm">
-                    <SelectValue placeholder="Escolha um paciente para criar o laudo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {listaPacientes.map((paciente) => (
-                      <SelectItem key={paciente.id} value={paciente.id}>
-                        <span className="text-xs sm:text-sm">
-                          {paciente.full_name} {paciente.cpf ? `- CPF: ${paciente.cpf}` : ''}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-primary text-sm sm:text-lg truncate">{getPatientName(pacienteSelecionado)}</div>
-                  <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                    {getPatientCpf(pacienteSelecionado) ? `CPF: ${getPatientCpf(pacienteSelecionado)} | ` : ''}
-                    {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date}` : getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : ''}
-                    {getPatientSex(pacienteSelecionado) ? ` | Sexo: ${getPatientSex(pacienteSelecionado)}` : ''}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPacienteSelecionado(null)}
-                  className="text-xs sm:text-sm flex-shrink-0"
-                >
-                  Trocar
-                </Button>
-              </div>
-            )}
-
-            {/* Solicitante e Prazo */}
-            {pacienteSelecionado && (
-              <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                <div>
-                  <Label htmlFor="solicitante" className="text-xs sm:text-sm">
-                    Solicitante
-                  </Label>
-                  <Input id="solicitante" value={solicitanteNome} readOnly disabled className="text-xs sm:text-sm mt-1 h-8 sm:h-10" />
-                </div>
-                <div>
-                  <Label htmlFor="prazoDate" className="text-xs sm:text-sm">
-                    Prazo do Laudo
-                  </Label>
-                  <div className="flex gap-1 sm:gap-2 mt-1">
-                    <Input
-                      id="prazoDate"
-                      type="date"
-                      value={prazoDate}
-                      onChange={(e) => setPrazoDate(e.target.value)}
-                      className="text-xs sm:text-sm h-8 sm:h-10 flex-1"
-                    />
-                    <Input
-                      id="prazoTime"
-                      type="time"
-                      value={prazoTime}
-                      onChange={(e) => setPrazoTime(e.target.value)}
-                      className="text-xs sm:text-sm h-8 sm:h-10 flex-1"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Defina a data e hora (opcional).</p>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Tabs */}
           <div className="flex border-b border-border bg-card overflow-x-auto flex-shrink-0">
             <button
@@ -527,17 +366,6 @@ export default function LaudosEditorPage() {
             >
               <FileText className="w-3 sm:w-4 h-3 sm:h-4 inline mr-1" />
               Editor
-            </button>
-            <button
-              onClick={() => setActiveTab('imagens')}
-              className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'imagens'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-600 dark:text-muted-foreground'
-              }`}
-            >
-              <Upload className="w-3 sm:w-4 h-3 sm:h-4 inline mr-1" />
-              Imagens ({imagens.length})
             </button>
             <button
               onClick={() => setActiveTab('campos')}
@@ -564,7 +392,7 @@ export default function LaudosEditorPage() {
           {/* Content */}
           <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-background">
             {/* Left Panel */}
-              <div className={`flex flex-col overflow-hidden transition-all ${showPreview ? 'w-full md:w-3/5 h-auto md:h-full' : 'w-full'}`}>
+            <div className={`flex flex-col overflow-hidden transition-all ${showPreview ? 'w-full md:w-3/5 h-auto md:h-full' : 'w-full'}`}>
               {/* Editor Tab */}
               {activeTab === 'editor' && (
                 <div className="flex-1 flex flex-col overflow-hidden">
@@ -648,16 +476,40 @@ export default function LaudosEditorPage() {
                         1.
                       </Button>
                       <div className="w-px h-6 bg-border mx-1" />
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignLeft(); }} title="Alinhar à esquerda" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button 
+                        variant={activeAlignment === 'left' ? "default" : "outline"} 
+                        size="sm" 
+                        onMouseDown={(e) => { e.preventDefault(); alignLeft(); }} 
+                        title="Alinhar à esquerda" 
+                        className="text-xs h-8 px-2"
+                      >
                         ◄
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignCenter(); }} title="Centralizar" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button 
+                        variant={activeAlignment === 'center' ? "default" : "outline"} 
+                        size="sm" 
+                        onMouseDown={(e) => { e.preventDefault(); alignCenter(); }} 
+                        title="Centralizar" 
+                        className="text-xs h-8 px-2"
+                      >
                         ·
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignRight(); }} title="Alinhar à direita" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button 
+                        variant={activeAlignment === 'right' ? "default" : "outline"} 
+                        size="sm" 
+                        onMouseDown={(e) => { e.preventDefault(); alignRight(); }} 
+                        title="Alinhar à direita" 
+                        className="text-xs h-8 px-2"
+                      >
                         ►
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignJustify(); }} title="Justificar" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button 
+                        variant={activeAlignment === 'justify' ? "default" : "outline"} 
+                        size="sm" 
+                        onMouseDown={(e) => { e.preventDefault(); alignJustify(); }} 
+                        title="Justificar" 
+                        className="text-xs h-8 px-2"
+                      >
                         ≡
                       </Button>
                       <div className="w-px h-6 bg-border mx-1" />
@@ -697,48 +549,6 @@ export default function LaudosEditorPage() {
                       style={{ caretColor: 'currentColor' }}
                       suppressContentEditableWarning
                     />
-                  </div>
-                </div>
-              )}
-
-              {/* Imagens Tab */}
-              {activeTab === 'imagens' && (
-                <div className="flex-1 p-2 sm:p-3 md:p-4 overflow-y-auto">
-                  <div className="mb-3 sm:mb-4">
-                    <Label htmlFor="upload-images" className="text-xs sm:text-sm">
-                      Upload de Imagens
-                    </Label>
-                    <Input
-                      id="upload-images"
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleImageUpload}
-                      className="mt-1 sm:mt-2 text-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                    {imagens.map((img) => (
-                      <div key={img.id} className="border border-border rounded-lg p-1.5 sm:p-2">
-                        {img.type.startsWith('image/') ? (
-                          <img src={img.url} alt={img.name} className="w-full h-20 sm:h-24 md:h-28 object-cover rounded" />
-                        ) : (
-                          <div className="w-full h-20 sm:h-24 md:h-28 bg-muted rounded flex items-center justify-center">
-                            <FileText className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full mt-1 text-xs h-8"
-                          onClick={() => setImagens((prev) => prev.filter((i) => i.id !== img.id))}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
@@ -845,20 +655,6 @@ export default function LaudosEditorPage() {
                       )}
                     </div>
 
-                    {/* Paciente */}
-                    {pacienteSelecionado && (
-                      <div className="mb-1.5 pb-1.5 border-b border-border/40 space-y-0.5">
-                        <div className="text-xs whitespace-normal break-words">
-                          <span className="font-semibold">Paciente:</span>
-                          <div className="mt-0.5">{getPatientName(pacienteSelecionado)}</div>
-                        </div>
-                        <div className="text-xs whitespace-normal break-words">
-                          <span className="font-semibold">CPF:</span>
-                          <div className="mt-0.5">{getPatientCpf(pacienteSelecionado)}</div>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Informações Clínicas */}
                     <div className="mb-1.5 pb-1.5 border-b border-border/40 space-y-0.5">
                       {campos.cid && (
@@ -869,7 +665,7 @@ export default function LaudosEditorPage() {
                       )}
                     </div>
 
-                    {/* Diagnóstico - Completo */}
+                    {/* Diagnóstico */}
                     {campos.diagnostico && (
                       <div className="mb-1.5 pb-1.5 border-b border-border/40">
                         <div className="text-xs font-semibold mb-0.5">Diagnóstico:</div>
@@ -892,7 +688,7 @@ export default function LaudosEditorPage() {
                       </div>
                     )}
 
-                    {/* Conclusão - Completa */}
+                    {/* Conclusão */}
                     {campos.conclusao && (
                       <div className="mb-1.5 pb-1.5 border-b border-border/40">
                         <div className="text-xs font-semibold mb-0.5">Conclusão:</div>
@@ -912,58 +708,18 @@ export default function LaudosEditorPage() {
         <div className="p-2 sm:p-3 md:p-4 border-t border-border bg-card flex-shrink-0">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4">
             <div className="text-xs text-muted-foreground hidden md:block">
-              Editor de relatórios com formatação de texto rica.
+              Edite as informações do laudo e salve as alterações.
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button variant="outline" onClick={handleCancel} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
+              <Button variant="outline" onClick={() => router.back()} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
                 Cancelar
               </Button>
               <Button onClick={handleSave} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
-                Liberar Laudo
+                Salvar Alterações
               </Button>
             </div>
           </div>
         </div>
-
-        {/* Modal de Confirmação de Rascunho */}
-        {showDraftConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 max-w-sm w-full">
-              <h2 className="text-lg sm:text-xl font-bold mb-2 text-foreground">Salvar Rascunho?</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Você tem informações não salvas. Deseja salvar como rascunho para continuar depois?
-              </p>
-              <div className="flex gap-2 sm:gap-3 flex-col sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowDraftConfirm(false);
-                    discardDraft();
-                  }}
-                  className="text-xs sm:text-sm h-9 sm:h-10"
-                >
-                  Descartar
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDraftConfirm(false)}
-                  className="text-xs sm:text-sm h-9 sm:h-10"
-                >
-                  Voltar
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowDraftConfirm(false);
-                    saveDraft();
-                  }}
-                  className="text-xs sm:text-sm h-9 sm:h-10"
-                >
-                  Salvar Rascunho
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </ProtectedRoute>
   );

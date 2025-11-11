@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Printer, Download, MoreVertical } from 'lucide-react'
-import { buscarRelatorioPorId, getDoctorById, buscarMedicosPorIds } from '@/lib/api'
+import { buscarRelatorioPorId, getDoctorById, buscarMedicosPorIds, buscarPacientePorId } from '@/lib/api'
 import { ENV_CONFIG } from '@/lib/env-config'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
@@ -21,6 +21,7 @@ export default function LaudoPage() {
 
   const [report, setReport] = useState<any | null>(null)
   const [doctor, setDoctor] = useState<any | null>(null)
+  const [patient, setPatient] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -37,8 +38,21 @@ export default function LaudoPage() {
         if (!mounted) return
         setReport(reportData)
 
-        // Load doctor info using the same strategy as paciente/page.tsx
+        // Load patient info if patient_id exists
         const rd = reportData as any
+        const patientId = rd?.patient_id
+        if (patientId) {
+          try {
+            const patientData = await buscarPacientePorId(patientId).catch(() => null)
+            if (mounted && patientData) {
+              setPatient(patientData)
+            }
+          } catch (e) {
+            console.warn('Erro ao carregar dados do paciente:', e)
+          }
+        }
+
+        // Load doctor info using the same strategy as paciente/page.tsx
         const maybeId = rd?.doctor_id ?? rd?.created_by ?? rd?.doctor ?? null
         
         if (maybeId) {
@@ -142,11 +156,18 @@ export default function LaudoPage() {
         }
       }
 
+      // Extrair nome do paciente
+      let patientName = ''
+      if (patient) {
+        patientName = patient.full_name || patient.name || ''
+      }
+
       // Montar HTML do documento
       element.innerHTML = `
         <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;">
           <h1 style="text-align: center; font-size: 24px; font-weight: bold; color: #1f2937; margin: 0;">RELATÓRIO MÉDICO</h1>
           <p style="text-align: center; font-size: 10px; color: #6b7280; margin: 5px 0;">Data: ${reportDate}</p>
+          ${patientName ? `<p style="text-align: center; font-size: 10px; color: #6b7280; margin: 5px 0;">Paciente: ${patientName}</p>` : ''}
           ${doctorName ? `<p style="text-align: center; font-size: 10px; color: #6b7280; margin: 5px 0;">Profissional: ${doctorName}</p>` : ''}
         </div>
 
@@ -386,6 +407,16 @@ export default function LaudoPage() {
                   : 'bg-slate-50 border-slate-200'
               }`}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6 text-xs sm:text-sm">
+                  {patient && (
+                    <div>
+                      <label className={`text-xs uppercase font-semibold tracking-wide block mb-1.5 sm:mb-2 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>Paciente</label>
+                      <p className={`text-base sm:text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {patient.full_name || patient.name || 'N/A'}
+                      </p>
+                    </div>
+                  )}
                   {cid && (
                     <div>
                       <label className={`text-xs uppercase font-semibold tracking-wide block mb-1.5 sm:mb-2 ${

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { FileText, Settings, Eye, ArrowLeft, BookOpen, Upload } from 'lucide-react';
+import { FileText, Settings, Eye, ArrowLeft, BookOpen } from 'lucide-react';
 
 export default function EditarLaudoPage() {
   const router = useRouter();
@@ -29,9 +29,6 @@ export default function EditarLaudoPage() {
   const [activeTab, setActiveTab] = useState('editor');
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  // Imagens
-  const [imagens, setImagens] = useState<any[]>([]);
 
   // Campos do laudo
   const [campos, setCampos] = useState({
@@ -249,25 +246,6 @@ export default function EditarLaudoPage() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagens((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            url: e.target?.result,
-            type: file.type,
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   const processContent = (content: string) => {
     return content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -308,7 +286,6 @@ export default function EditarLaudoPage() {
         content_json: {},
         hide_date: !campos.mostrarData,
         hide_signature: !campos.mostrarAssinatura,
-        imagens,
       };
 
       if (updateExistingReport) {
@@ -389,17 +366,6 @@ export default function EditarLaudoPage() {
             >
               <FileText className="w-3 sm:w-4 h-3 sm:h-4 inline mr-1" />
               Editor
-            </button>
-            <button
-              onClick={() => setActiveTab('imagens')}
-              className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'imagens'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-600 dark:text-muted-foreground'
-              }`}
-            >
-              <Upload className="w-3 sm:w-4 h-3 sm:h-4 inline mr-1" />
-              Imagens ({imagens.length})
             </button>
             <button
               onClick={() => setActiveTab('campos')}
@@ -583,48 +549,6 @@ export default function EditarLaudoPage() {
                       style={{ caretColor: 'currentColor' }}
                       suppressContentEditableWarning
                     />
-                  </div>
-                </div>
-              )}
-
-              {/* Imagens Tab */}
-              {activeTab === 'imagens' && (
-                <div className="flex-1 p-2 sm:p-3 md:p-4 overflow-y-auto">
-                  <div className="mb-3 sm:mb-4">
-                    <Label htmlFor="upload-images" className="text-xs sm:text-sm">
-                      Upload de Imagens
-                    </Label>
-                    <Input
-                      id="upload-images"
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleImageUpload}
-                      className="mt-1 sm:mt-2 text-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                    {imagens.map((img) => (
-                      <div key={img.id} className="border border-border rounded-lg p-1.5 sm:p-2">
-                        {img.type.startsWith('image/') ? (
-                          <img src={img.url} alt={img.name} className="w-full h-20 sm:h-24 md:h-28 object-cover rounded" />
-                        ) : (
-                          <div className="w-full h-20 sm:h-24 md:h-28 bg-muted rounded flex items-center justify-center">
-                            <FileText className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full mt-1 text-xs h-8"
-                          onClick={() => setImagens((prev) => prev.filter((i) => i.id !== img.id))}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}

@@ -609,7 +609,7 @@ export default function LaudosEditorPage() {
                         size="sm" 
                         onMouseDown={(e) => { e.preventDefault(); makeBold(); }} 
                         title="Negrito (Ctrl+B)" 
-                        className="text-xs h-8 px-2"
+                        className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950"
                       >
                         <strong>B</strong>
                       </Button>
@@ -618,7 +618,7 @@ export default function LaudosEditorPage() {
                         size="sm" 
                         onMouseDown={(e) => { e.preventDefault(); makeItalic(); }} 
                         title="Itálico (Ctrl+I)" 
-                        className="text-xs h-8 px-2"
+                        className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950"
                       >
                         <em>I</em>
                       </Button>
@@ -627,7 +627,7 @@ export default function LaudosEditorPage() {
                         size="sm" 
                         onMouseDown={(e) => { e.preventDefault(); makeUnderline(); }} 
                         title="Sublinhado (Ctrl+U)" 
-                        className="text-xs h-8 px-2"
+                        className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950"
                       >
                         <u>U</u>
                       </Button>
@@ -636,34 +636,34 @@ export default function LaudosEditorPage() {
                         size="sm" 
                         onMouseDown={(e) => { e.preventDefault(); makeStrikethrough(); }} 
                         title="Tachado" 
-                        className="text-xs h-8 px-2"
+                        className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950"
                       >
                         <del>S</del>
                       </Button>
                       <div className="w-px h-6 bg-border mx-1" />
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); insertUnorderedList(); }} title="Lista com marcadores" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); insertUnorderedList(); }} title="Lista com marcadores" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                         •
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); insertOrderedList(); }} title="Lista numerada" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); insertOrderedList(); }} title="Lista numerada" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                         1.
                       </Button>
                       <div className="w-px h-6 bg-border mx-1" />
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignLeft(); }} title="Alinhar à esquerda" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignLeft(); }} title="Alinhar à esquerda" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                         ◄
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignCenter(); }} title="Centralizar" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignCenter(); }} title="Centralizar" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                         ·
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignRight(); }} title="Alinhar à direita" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignRight(); }} title="Alinhar à direita" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                         ►
                       </Button>
-                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignJustify(); }} title="Justificar" className="text-xs h-8 px-2 hover:bg-muted">
+                      <Button variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); alignJustify(); }} title="Justificar" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                         ≡
                       </Button>
                       <div className="w-px h-6 bg-border mx-1" />
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" title="Frases prontas" className="text-xs h-8 px-2 hover:bg-muted">
+                          <Button variant="outline" size="sm" title="Frases prontas" className="text-xs h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950">
                             <BookOpen className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -915,7 +915,7 @@ export default function LaudosEditorPage() {
               Editor de relatórios com formatação de texto rica.
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button variant="outline" onClick={handleCancel} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
+              <Button variant="outline" onClick={handleCancel} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950">
                 Cancelar
               </Button>
               <Button onClick={handleSave} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
@@ -940,14 +940,14 @@ export default function LaudosEditorPage() {
                     setShowDraftConfirm(false);
                     discardDraft();
                   }}
-                  className="text-xs sm:text-sm h-9 sm:h-10"
+                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950"
                 >
                   Descartar
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowDraftConfirm(false)}
-                  className="text-xs sm:text-sm h-9 sm:h-10"
+                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950"
                 >
                   Voltar
                 </Button>

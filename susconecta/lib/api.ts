@@ -1847,6 +1847,48 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   return results.slice(0, 20); // Limita a 20 resultados
 }
 
+export async function listarTodosMedicos(): Promise<Medico[]> {
+  try {
+    const url = `${REST}/doctors?limit=1000`;
+    const headers = baseHeaders();
+    const res = await fetch(url, { method: 'GET', headers });
+    const arr = await parse<Medico[]>(res);
+    
+    // Mapeamento de correções para especialidades com encoding errado
+    const specialtyFixes: Record<string, string> = {
+      'Cl\u00EDnica Geral': 'Clínica Geral',
+      'Cl\u00E3nica Geral': 'Clínica Geral',
+      'Cl?nica Geral': 'Clínica Geral',
+      'Cl©nica Geral': 'Clínica Geral',
+      'Cl\uFFFDnica Geral': 'Clínica Geral',
+    };
+    
+    // Sanitiza caracteres UTF-8 nos especialties
+    if (Array.isArray(arr)) {
+      return arr.map((medico: any) => {
+        if (medico.specialty && typeof medico.specialty === 'string') {
+          try {
+            // Primeiro tenta aplicar mapeamento
+            let spec = medico.specialty;
+            for (const [wrong, correct] of Object.entries(specialtyFixes)) {
+              spec = spec.replace(new RegExp(wrong, 'g'), correct);
+            }
+            // Depois normaliza
+            medico.specialty = spec.normalize('NFC');
+          } catch (e) {
+            // Se falhar, mantém original
+          }
+        }
+        return medico;
+      });
+    }
+    return Array.isArray(arr) ? arr : [];
+  } catch (error) {
+    console.error('[API] Erro ao listar todos os médicos:', error);
+    return [];
+  }
+}
+
 export async function buscarMedicoPorId(id: string | number): Promise<Medico | null> {
   // Primeiro tenta buscar no Supabase (dados reais)
   const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;

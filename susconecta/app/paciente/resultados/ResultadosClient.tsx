@@ -62,6 +62,8 @@ export default function ResultadosClient() {
   const [bairro, setBairro] = useState<string>('Todos')
   // Busca por nome do médico
   const [searchQuery, setSearchQuery] = useState<string>('')
+  // Filtro de médico específico vindo da URL (quando clicado no dashboard)
+  const [medicoFiltro, setMedicoFiltro] = useState<string | null>(null)
 
   // Track if URL params have been synced to avoid race condition
   const [paramsSync, setParamsSync] = useState(false)
@@ -117,6 +119,10 @@ export default function ResultadosClient() {
     const especialidadeParam = params.get('especialidade')
     if (especialidadeParam) setEspecialidadeHero(especialidadeParam)
     
+    // Ler filtro de médico específico da URL
+    const medicoParam = params.get('medico')
+    if (medicoParam) setMedicoFiltro(medicoParam)
+    
     // Mark params as synced
     setParamsSync(true)
   }, [params])
@@ -163,9 +169,10 @@ export default function ResultadosClient() {
   }, [])
 
   // 4) Re-fetch doctors when especialidade changes (after initial sync)
+  // SKIP this if medicoFiltro está definido (médico específico selecionado)
   useEffect(() => {
-    // Skip if this is the initial render or if user is searching by name
-    if (!paramsSync || (searchQuery && String(searchQuery).trim().length > 1)) return
+    // Skip if this is the initial render or if user is searching by name or if a specific doctor is selected
+    if (!paramsSync || medicoFiltro || (searchQuery && String(searchQuery).trim().length > 1)) return
 
     let mounted = true
     ;(async () => {
@@ -191,10 +198,13 @@ export default function ResultadosClient() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [especialidadeHero, paramsSync])
+  }, [especialidadeHero, paramsSync, medicoFiltro])
 
   // 5) Debounced search by doctor name
+  // SKIP this if medicoFiltro está definido
   useEffect(() => {
+    if (medicoFiltro) return // Skip se médico específico foi selecionado
+    
     let mounted = true
     const term = String(searchQuery || '').trim()
     const handle = setTimeout(async () => {
@@ -216,7 +226,35 @@ export default function ResultadosClient() {
       }
     }, 350)
     return () => { mounted = false; clearTimeout(handle) }
-  }, [searchQuery])
+  }, [searchQuery, medicoFiltro])
+
+  // 5b) Quando um médico específico é selecionado, fazer uma busca por ele (PRIORIDADE MÁXIMA)
+  useEffect(() => {
+    if (!medicoFiltro || !paramsSync) return
+    
+    let mounted = true
+    ;(async () => {
+      try {
+        setLoadingMedicos(true)
+        // Resetar agenda e expandidas quando mudar o médico
+        setAgendaByDoctor({})
+        setAgendasExpandida({})
+        console.log('[ResultadosClient] Buscando médico específico:', medicoFiltro)
+        // Tentar buscar pelo nome do médico
+        const list = await buscarMedicos(medicoFiltro).catch(() => [])
+        if (!mounted) return
+        console.log('[ResultadosClient] Médicos encontrados:', list?.length || 0)
+        setMedicos(Array.isArray(list) ? list : [])
+      } catch (e: any) {
+        console.warn('[ResultadosClient] Erro ao buscar médico:', e)
+        showToast('error', e?.message || 'Falha ao buscar profissional')
+      } finally {
+        if (mounted) setLoadingMedicos(false)
+      }
+    })()
+    
+    return () => { mounted = false }
+  }, [medicoFiltro, paramsSync])
 
   // 3) Carregar horários disponíveis para um médico (próximos 7 dias) e agrupar por dia
   async function loadAgenda(doctorId: string): Promise<{ iso: string; label: string } | null> {
@@ -618,12 +656,24 @@ export default function ResultadosClient() {
 
   // Filtro visual (convenio/bairro são cosméticos; quando sem dado, mantemos tudo)
   const profissionais = useMemo(() => {
-    return (medicos || []).filter((m: any) => {
+    let filtered = (medicos || []).filter((m: any) => {
       if (convenio !== 'Todos' && m.convenios && !m.convenios.includes(convenio)) return false
       if (bairro !== 'Todos' && m.neighborhood && String(m.neighborhood).toLowerCase() !== String(bairro).toLowerCase()) return false
       return true
     })
-  }, [medicos, convenio, bairro])
+    
+    // Se um médico específico foi selecionado no dashboard, filtrar apenas por ele
+    if (medicoFiltro) {
+      filtered = filtered.filter((m: any) => {
+        // Comparar nome completo com flexibilidade
+        const nomeMedico = String(m.full_name || m.name || '').toLowerCase()
+        const filtro = String(medicoFiltro).toLowerCase()
+        return nomeMedico.includes(filtro) || filtro.includes(nomeMedico.split(' ')[0]) // comparar por primeiro nome também
+      })
+    }
+    
+    return filtered
+  }, [medicos, convenio, bairro, medicoFiltro])
 
   // Paginação local para a lista de médicos
   const [currentPage, setCurrentPage] = useState(1)

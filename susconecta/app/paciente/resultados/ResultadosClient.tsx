@@ -53,7 +53,6 @@ export default function ResultadosClient() {
   // Filtros/controles da UI - initialize with defaults to avoid hydration mismatch
   const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>('teleconsulta')
   const [especialidadeHero, setEspecialidadeHero] = useState<string>('Psicólogo')
-  const [convenio, setConvenio] = useState<string>('Todos')
   const [bairro, setBairro] = useState<string>('Todos')
   // Busca por nome do médico
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -649,11 +648,27 @@ export default function ResultadosClient() {
     }
   }
 
-  // Filtro visual (convenio/bairro são cosméticos; quando sem dado, mantemos tudo)
+  // Extrair bairros únicos dos médicos
+  const bairrosDisponiveis = useMemo(() => {
+    const neighborhoods = new Set<string>();
+    (medicos || []).forEach((m: any) => {
+      if (m.neighborhood) {
+        neighborhoods.add(String(m.neighborhood))
+      }
+    })
+    return Array.from(neighborhoods).sort()
+  }, [medicos])
+
+  // Filtro visual (bairro é o único filtro; quando sem dado, mantemos tudo)
   const profissionais = useMemo(() => {
     let filtered = (medicos || []).filter((m: any) => {
-      if (convenio !== 'Todos' && m.convenios && !m.convenios.includes(convenio)) return false
-      if (bairro !== 'Todos' && m.neighborhood && String(m.neighborhood).toLowerCase() !== String(bairro).toLowerCase()) return false
+      // Se um bairro específico foi selecionado, filtrar rigorosamente
+      if (bairro !== 'Todos') {
+        // Se o médico não tem neighborhood, não incluir
+        if (!m.neighborhood) return false
+        // Se tem neighborhood, deve corresponder ao filtro
+        if (String(m.neighborhood).toLowerCase() !== String(bairro).toLowerCase()) return false
+      }
       return true
     })
     
@@ -668,7 +683,7 @@ export default function ResultadosClient() {
     }
     
     return filtered
-  }, [medicos, convenio, bairro, medicoFiltro])
+  }, [medicos, bairro, medicoFiltro])
 
   // Paginação local para a lista de médicos
   const [currentPage, setCurrentPage] = useState(1)
@@ -824,23 +839,6 @@ export default function ResultadosClient() {
             {/* divider visual */}
             <div className="sm:col-span-12 h-px bg-border/60 my-1" />
 
-            {/* Convênio */}
-            <div className="sm:col-span-6 lg:col-span-4">
-              <Select value={convenio} onValueChange={setConvenio}>
-                <SelectTrigger className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:border-primary focus:ring-2 focus:ring-primary">
-                  <SelectValue placeholder="Convênio" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos os convênios</SelectItem>
-                  <SelectItem value="Amil">Amil</SelectItem>
-                  <SelectItem value="Unimed">Unimed</SelectItem>
-                  <SelectItem value="SulAmérica">SulAmérica</SelectItem>
-                  <SelectItem value="Bradesco Saúde">Bradesco Saúde</SelectItem>
-                  <SelectItem value="Particular">Particular</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Bairro */}
             <div className="sm:col-span-6 lg:col-span-4">
               <Select value={bairro} onValueChange={setBairro}>
@@ -849,9 +847,11 @@ export default function ResultadosClient() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Todos">Todos os bairros</SelectItem>
-                  <SelectItem value="Centro">Centro</SelectItem>
-                  <SelectItem value="Jardins">Jardins</SelectItem>
-                  <SelectItem value="Farolândia">Farolândia</SelectItem>
+                  {bairrosDisponiveis.map((b: string) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -977,48 +977,13 @@ export default function ResultadosClient() {
                   <span className="ml-auto text-sm font-semibold text-primary">{precoTipoConsulta}</span>
                 </div>
 
-                {/* Próximos horários */}
-                {!isLoadingAgenda && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground">Próximos horários disponíveis:</p>
-                    {proximos3Horarios.length > 0 ? (
-                      <div className="flex gap-2 flex-wrap">
-                        {proximos3Horarios.map(slot => (
-                          <button
-                            key={slot.iso}
-                            type="button"
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition"
-                            onClick={() => openConfirmDialog(id, slot.iso)}
-                          >
-                            {slot.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Carregando horários...</p>
-                    )}
-                  </div>
-                )}
-
                 {/* Ações */}
                 <div className="flex gap-2 pt-2">
                   <Button
                     className="flex-1 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={async () => {
-                      if (!agendaByDoctor[id]) {
-                        const nearest = await loadAgenda(id)
-                        if (nearest) {
-                          openConfirmDialog(id, nearest.iso)
-                          return
-                        }
-                      }
-                      const nearest = nearestSlotByDoctor[id]
-                      if (nearest) {
-                        openConfirmDialog(id, nearest.iso)
-                      } else {
-                        setMoreTimesForDoctor(id)
-                        void fetchSlotsForDate(id, moreTimesDate)
-                      }
+                      setMoreTimesForDoctor(id)
+                      void fetchSlotsForDate(id, moreTimesDate)
                     }}
                   >
                     Agendar
@@ -1057,6 +1022,8 @@ export default function ResultadosClient() {
                     <SelectItem value="5">5</SelectItem>
                     <SelectItem value="10">10</SelectItem>
                     <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
                   </SelectContent>
                 </Select>
                 <span>Mostrando {startItem} a {endItem} de {profissionais.length}</span>

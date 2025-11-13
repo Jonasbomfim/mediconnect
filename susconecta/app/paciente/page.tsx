@@ -482,7 +482,8 @@ export default function PacientePage() {
           }
           
           console.log('[DashboardCards] Especialidades encontradas:', specs)
-          setEspecialidades(specs.length > 0 ? specs.sort() : [])
+          // Ordenação alfabética usando localeCompare para suportar acentuação (português)
+          setEspecialidades(specs.length > 0 ? specs.sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base' })) : [])
         } catch (e) {
           console.error('[DashboardCards] erro ao carregar especialidades', e)
           if (mounted) setEspecialidades([])
@@ -574,20 +575,21 @@ export default function PacientePage() {
             <div className="space-y-3 sm:space-y-4">
               <p className="text-sm sm:text-base font-semibold opacity-90">Especialidades populares</p>
               {especialidadesLoading ? (
-                <div className="flex gap-2 flex-wrap">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-10 w-24 bg-white/20 rounded-full animate-pulse"></div>
+                    <div key={i} className="h-12 w-full bg-white/20 rounded-full animate-pulse" />
                   ))}
                 </div>
               ) : especialidades && especialidades.length > 0 ? (
-                <div className="flex flex-wrap gap-2 sm:gap-3">
+                // Grid responsivo com botões arredondados e tamanho uniforme
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
                   {especialidades.map((esp) => (
                     <button
                       key={esp}
                       onClick={() => handleEspecialidadeClick(esp)}
-                      className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white font-medium text-xs sm:text-sm transition-colors border border-white/30 whitespace-nowrap"
+                      className="w-full min-h-[44px] sm:min-h-[48px] flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-colors border border-white/20 px-3 py-2 text-center break-words"
                     >
-                      {esp}
+                      <span className="leading-tight">{esp}</span>
                     </button>
                   ))}
                 </div>
@@ -693,10 +695,10 @@ export default function PacientePage() {
     const [tipoConsulta, setTipoConsulta] = useState<'teleconsulta' | 'presencial'>('teleconsulta')
     const [especialidade, setEspecialidade] = useState('cardiologia')
     const [localizacao, setLocalizacao] = useState('')
-    const hoverPrimaryClass = "transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97]"
-    const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
-    const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
-    const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
+    const hoverPrimaryClass = "hover-primary-blue focus-visible:ring-2 focus-visible:ring-blue-500/60 active:scale-[0.97]"
+    const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-blue-500/60 active:scale-[0.97] bg-blue-500 text-white hover:bg-blue-500 hover:text-white"
+    const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-blue-500 border border-blue-500/30 hover:bg-blue-50 hover:text-blue-500 dark:bg-white/5 dark:text-white dark:hover:bg-blue-500/20 dark:border-white/20"
+    const hoverPrimaryIconClass = "rounded-xl bg-white text-slate-900 border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover-primary-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none"
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
     const isSelectedDateToday = selectedDate.getTime() === today.getTime()

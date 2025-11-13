@@ -43,14 +43,14 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
       </div>
 
       <div className="flex items-center space-x-4">
-  <Button variant="ghost" size="icon" className="hover:bg-primary! hover:text-white! transition-colors">
+  <Button variant="ghost" size="icon" className="hover-primary-blue">
           <Bell className="h-4 w-4" />
         </Button>
 
         <SimpleThemeToggle />
                     <Button
                       variant="outline"
-                      className="text-primary border-primary bg-transparent shadow-sm shadow-blue-500/10 border border-blue-200 hover:bg-blue-50 dark:shadow-none dark:border-primary dark:hover:bg-primary dark:hover:text-primary-foreground"
+                      className="text-blue-500 border-blue-500 bg-transparent shadow-sm shadow-blue-500/10 border hover-primary-blue"
                       asChild
                     ></Button>
         {/* Avatar Dropdown Simples */}

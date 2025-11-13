@@ -1826,7 +1826,7 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
   // Executa as buscas e combina resultados únicos
   for (const query of queries) {
     try {
-      const url = `${REST}/doctors?${query}&limit=10`;
+      const url = `${REST}/doctors?${query}&limit=100`;
       const headers = baseHeaders();
       const res = await fetch(url, { method: 'GET', headers });
       const arr = await parse<Medico[]>(res);
@@ -1844,7 +1844,7 @@ export async function buscarMedicos(termo: string): Promise<Medico[]> {
     }
   }
   
-  return results.slice(0, 20); // Limita a 20 resultados
+  return results.slice(0, 100); // Limita a 100 resultados
 }
 
 export async function listarTodosMedicos(): Promise<Medico[]> {

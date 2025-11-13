@@ -761,11 +761,12 @@ export default function ResultadosClient() {
             {/* Barra de busca principal */}
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
-                placeholder="Buscar médico por nome ou especialidade"
-                value={searchQuery || especialidadeHero}
+                placeholder={especialidadeHero && especialidadeHero !== 'Veja mais' ? especialidadeHero : 'Buscar médico por nome ou especialidade'}
+                value={searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 className="flex-1 h-11 rounded-full bg-primary-foreground/15 border border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/60 focus:bg-primary-foreground/20"
-              />              {searchQuery && (
+              />
+              {searchQuery && (
                 <Button
                   variant="ghost"
                   className="h-11 px-6 rounded-full text-primary-foreground hover:bg-primary-foreground/20"

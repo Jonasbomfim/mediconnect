@@ -5,21 +5,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Mic, MicOff, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AIAssistantInterface } from "@/components/ZoeIA/ai-assistant-interface";
+import {
+  AIAssistantInterface,
+  ChatSession,
+} from "@/components/ZoeIA/ai-assistant-interface";
 import { VoicePoweredOrb } from "@/components/ZoeIA/voice-powered-orb";
-
-interface HistoryEntry {
-  id: string;
-  text: string;
-  createdAt: string;
-}
 
 export function ChatWidget() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [realtimeOpen, setRealtimeOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceDetected, setVoiceDetected] = useState(false);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [history, setHistory] = useState<ChatSession[]>([]);
 
   useEffect(() => {
     if (!assistantOpen && !realtimeOpen) return;
@@ -74,8 +71,16 @@ export function ChatWidget() {
     openRealtime();
   };
 
-  const handleAddHistory = (entry: HistoryEntry) => {
-    setHistory((prev) => [...prev, entry]);
+  const handleUpsertHistory = (session: ChatSession) => {
+    setHistory((previous) => {
+      const index = previous.findIndex((item) => item.id === session.id);
+      if (index >= 0) {
+        const updated = [...previous];
+        updated[index] = session;
+        return updated;
+      }
+      return [...previous, session];
+    });
   };
 
   const handleClearHistory = () => {
@@ -105,7 +110,7 @@ export function ChatWidget() {
               onOpenDocuments={handleOpenDocuments}
               onOpenChat={handleOpenChat}
               history={history}
-              onAddHistory={handleAddHistory}
+              onAddHistory={handleUpsertHistory}
               onClearHistory={handleClearHistory}
             />
           </div>

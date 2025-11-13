@@ -687,7 +687,7 @@ export default function ResultadosClient() {
 
   // Paginação local para a lista de médicos
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(100)
 
   // Resetar para página 1 quando o conjunto de profissionais (filtro) ou itemsPerPage mudar
   useEffect(() => {
@@ -1022,6 +1022,8 @@ export default function ResultadosClient() {
                     <SelectItem value="5">5</SelectItem>
                     <SelectItem value="10">10</SelectItem>
                     <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
                   </SelectContent>
                 </Select>
                 <span>Mostrando {startItem} a {endItem} de {profissionais.length}</span>

@@ -1,9 +1,12 @@
+
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AIAssistantInterface } from "@/components/ZoeIA/ai-assistant-interface";
+import { VoicePoweredOrb } from "@/components/ZoeIA/voice-powered-orb";
 
 interface HistoryEntry {
   id: string;
@@ -13,10 +16,13 @@ interface HistoryEntry {
 
 export function ChatWidget() {
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [realtimeOpen, setRealtimeOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceDetected, setVoiceDetected] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
-    if (!assistantOpen) return;
+    if (!assistantOpen && !realtimeOpen) return;
 
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -24,7 +30,7 @@ export function ChatWidget() {
     return () => {
       document.body.style.overflow = original;
     };
-  }, [assistantOpen]);
+  }, [assistantOpen, realtimeOpen]);
 
   const gradientRing = useMemo(
     () => (
@@ -39,14 +45,33 @@ export function ChatWidget() {
   const openAssistant = () => setAssistantOpen(true);
   const closeAssistant = () => setAssistantOpen(false);
 
+  const openRealtime = () => setRealtimeOpen(true);
+  const closeRealtime = () => {
+    setRealtimeOpen(false);
+    setAssistantOpen(true);
+    setIsRecording(false);
+    setVoiceDetected(false);
+  };
+
+  const toggleRecording = () => {
+    setIsRecording((prev) => {
+      const next = !prev;
+      if (!next) {
+        setVoiceDetected(false);
+      }
+      return next;
+    });
+  };
+
   const handleOpenDocuments = () => {
     console.log("[ChatWidget] Abrindo fluxo de documentos");
     closeAssistant();
   };
 
   const handleOpenChat = () => {
-    console.log("[ChatWidget] Encaminhando para chat humano");
-    closeAssistant();
+    console.log("[ChatWidget] Encaminhando para chat em tempo real");
+    setAssistantOpen(false);
+    openRealtime();
   };
 
   const handleAddHistory = (entry: HistoryEntry) => {
@@ -83,6 +108,66 @@ export function ChatWidget() {
               onAddHistory={handleAddHistory}
               onClearHistory={handleClearHistory}
             />
+          </div>
+        </div>
+      )}
+
+      {realtimeOpen && (
+        <div
+          id="ai-realtime-overlay"
+          className="fixed inset-0 z-[110] flex flex-col bg-background"
+        >
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex items-center gap-2"
+              onClick={closeRealtime}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              <span className="text-sm">Voltar para a Zoe</span>
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            <div className="mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center gap-8 px-6 py-10 text-center">
+              <div className="relative w-full max-w-md aspect-square">
+                <VoicePoweredOrb
+                  enableVoiceControl={isRecording}
+                  className="h-full w-full rounded-3xl shadow-2xl"
+                  onVoiceDetected={setVoiceDetected}
+                />
+                {voiceDetected && (
+                  <span className="absolute bottom-6 right-6 rounded-full bg-primary/90 px-3 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
+                    Ouvindo…
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col items-center gap-4">
+                <Button
+                  onClick={toggleRecording}
+                  size="lg"
+                  className="px-8 py-3"
+                  variant={isRecording ? "destructive" : "default"}
+                >
+                  {isRecording ? (
+                    <>
+                      <MicOff className="mr-2 h-5 w-5" aria-hidden />
+                      Parar captura de voz
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="mr-2 h-5 w-5" aria-hidden />
+                      Iniciar captura de voz
+                    </>
+                  )}
+                </Button>
+                <p className="max-w-md text-sm text-muted-foreground">
+                  Ative a captura para falar com a equipe em tempo real. Assim que sua voz for detectada, a Zoe sinaliza visualmente e encaminha o atendimento.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

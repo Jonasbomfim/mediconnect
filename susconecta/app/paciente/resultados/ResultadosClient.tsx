@@ -687,7 +687,7 @@ export default function ResultadosClient() {
 
   // Paginação local para a lista de médicos
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(100)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
 
   // Resetar para página 1 quando o conjunto de profissionais (filtro) ou itemsPerPage mudar
   useEffect(() => {

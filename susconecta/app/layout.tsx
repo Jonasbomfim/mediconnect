@@ -19,6 +19,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="antialiased" suppressHydrationWarning>
+      <head>
+        <meta charSet="utf-8" />
+      </head>
       <body style={{ fontFamily: "var(--font-geist-sans)" }}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>

@@ -19,7 +19,7 @@ import Link from 'next/link'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById, atualizarAgendamento, deletarAgendamento, addDeletedAppointmentId } from '@/lib/api'
+import { buscarPacientes, buscarPacientePorUserId, getUserInfo, listarAgendamentos, buscarMedicosPorIds, buscarMedicos, atualizarPaciente, buscarPacientePorId, getDoctorById, atualizarAgendamento, deletarAgendamento, addDeletedAppointmentId, listarTodosMedicos } from '@/lib/api'
 import { CalendarRegistrationForm } from '@/components/features/forms/calendar-registration-form'
 import { buscarRelatorioPorId, listarRelatoriosPorMedico } from '@/lib/reports'
 import { ENV_CONFIG } from '@/lib/env-config'
@@ -309,9 +309,15 @@ export default function PacientePage() {
     setIsEditingProfile(false)
   }
   function DashboardCards() {
+    const router = useRouter()
     const [nextAppt, setNextAppt] = useState<string | null>(null)
     const [examsCount, setExamsCount] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [medicos, setMedicos] = useState<any[]>([])
+    const [searchLoading, setSearchLoading] = useState(false)
+    const [especialidades, setEspecialidades] = useState<string[]>([])
+    const [especialidadesLoading, setEspecialidadesLoading] = useState(true)
 
     useEffect(() => {
       let mounted = true
@@ -429,37 +435,200 @@ export default function PacientePage() {
       return () => { mounted = false }
     }, [])
 
-    return (
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-4 mb-6 md:grid-cols-2">
-        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
-          <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Calendar className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
-            </div>
-            {/* rótulo e número com mesma fonte e mesmo tamanho (harmônico) */}
-            <span className="text-base sm:text-lg md:text-lg font-semibold text-muted-foreground tracking-wide">
-              {strings.proximaConsulta}
-            </span>
-            <span className="text-base sm:text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
-              {loading ? strings.carregando : (nextAppt ?? '-')}
-            </span>
-          </div>
-        </Card>
+    // Carregar especialidades únicas dos médicos ao montar
+    useEffect(() => {
+      let mounted = true
+      setEspecialidadesLoading(true)
+      ;(async () => {
+        try {
+          console.log('[DashboardCards] Carregando especialidades...')
+          const todos = await listarTodosMedicos().catch((err) => {
+            console.error('[DashboardCards] Erro ao buscar médicos:', err)
+            return []
+          })
+          console.log('[DashboardCards] Médicos carregados:', todos?.length || 0, todos)
+          if (!mounted) return
+          
+          // Mapeamento de correções para especialidades com encoding errado
+          const specialtyFixes: Record<string, string> = {
+            'Cl\u00EDnica Geral': 'Clínica Geral',
+            'Cl\u00E3nica Geral': 'Clínica Geral',
+            'Cl?nica Geral': 'Clínica Geral',
+            'Cl©nica Geral': 'Clínica Geral',
+            'Cl\uFFFDnica Geral': 'Clínica Geral',
+          };
+          
+          let specs: string[] = []
+          if (Array.isArray(todos) && todos.length > 0) {
+            // Extrai TODAS as especialidades únicas do campo specialty
+            specs = Array.from(new Set(
+              todos
+                .map((m: any) => {
+                  let spec = m.specialty || m.speciality || ''
+                  // Aplica correções conhecidas
+                  for (const [wrong, correct] of Object.entries(specialtyFixes)) {
+                    spec = String(spec).replace(new RegExp(wrong, 'g'), correct)
+                  }
+                  // Normaliza caracteres UTF-8 e limpa
+                  try {
+                    const normalized = String(spec || '').normalize('NFC').trim()
+                    return normalized
+                  } catch (e) {
+                    return String(spec || '').trim()
+                  }
+                })
+                .filter((s: string) => s && s.length > 0)
+            ))
+          }
+          
+          console.log('[DashboardCards] Especialidades encontradas:', specs)
+          setEspecialidades(specs.length > 0 ? specs.sort() : [])
+        } catch (e) {
+          console.error('[DashboardCards] erro ao carregar especialidades', e)
+          if (mounted) setEspecialidades([])
+        } finally {
+          if (mounted) setEspecialidadesLoading(false)
+        }
+      })()
+      return () => { mounted = false }
+    }, [])
 
-        <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
-          <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <FileText className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
+    // Debounced search por médico
+    useEffect(() => {
+      let mounted = true
+      const term = String(searchQuery || '').trim()
+      const handle = setTimeout(async () => {
+        if (!mounted) return
+        if (!term || term.length < 2) {
+          setMedicos([])
+          return
+        }
+        try {
+          setSearchLoading(true)
+          const results = await buscarMedicos(term).catch(() => [])
+          if (!mounted) return
+          setMedicos(Array.isArray(results) ? results : [])
+        } catch (e) {
+          if (mounted) setMedicos([])
+        } finally {
+          if (mounted) setSearchLoading(false)
+        }
+      }, 300)
+      return () => { mounted = false; clearTimeout(handle) }
+    }, [searchQuery])
+
+    const handleSearchMedico = (medico: any) => {
+      const qs = new URLSearchParams()
+      qs.set('tipo', 'teleconsulta')
+      if (medico?.full_name) qs.set('medico', medico.full_name)
+      if (medico?.specialty) qs.set('especialidade', medico.specialty || medico.especialidade || '')
+      qs.set('origin', 'paciente')
+      router.push(`/paciente/resultados?${qs.toString()}`)
+      setSearchQuery('')
+      setMedicos([])
+    }
+
+    const handleEspecialidadeClick = (especialidade: string) => {
+      const qs = new URLSearchParams()
+      qs.set('tipo', 'teleconsulta')
+      qs.set('especialidade', especialidade)
+      qs.set('origin', 'paciente')
+      router.push(`/paciente/resultados?${qs.toString()}`)
+    }
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Hero Section com Busca */}
+        <section className="rounded-2xl sm:rounded-3xl bg-linear-to-br from-primary to-primary/90 p-4 sm:p-6 md:p-8 text-primary-foreground shadow-lg">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">Encontre especialistas e clínicas</h2>
+              <p className="text-sm sm:text-base md:text-lg opacity-90">Busque por médico, especialidade ou localização</p>
             </div>
-            <span className="text-base sm:text-lg md:text-lg font-semibold text-muted-foreground tracking-wide">
-              {strings.ultimosExames}
-            </span>
-            <span className="text-base sm:text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
-              {loading ? strings.carregando : (examsCount !== null ? String(examsCount) : '-')}
-            </span>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Input
+                placeholder="Buscar médico, especialidade..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 rounded-xl bg-white text-foreground placeholder:text-muted-foreground text-sm sm:text-base border-0 shadow-md"
+              />
+              {searchQuery && medicos.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-xl border border-border shadow-lg z-50 max-h-64 overflow-y-auto">
+                  {medicos.map((medico) => (
+                    <button
+                      key={medico.id}
+                      onClick={() => handleSearchMedico(medico)}
+                      className="w-full text-left px-4 py-3 sm:py-4 hover:bg-primary/10 border-b border-border/50 last:border-0 transition-colors text-foreground text-sm sm:text-base"
+                    >
+                      <div className="font-semibold">{medico.full_name || 'Médico'}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">{medico.specialty || medico.especialidade || ''}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Especialidades */}
+            <div className="space-y-3 sm:space-y-4">
+              <p className="text-sm sm:text-base font-semibold opacity-90">Especialidades populares</p>
+              {especialidadesLoading ? (
+                <div className="flex gap-2 flex-wrap">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-10 w-24 bg-white/20 rounded-full animate-pulse"></div>
+                  ))}
+                </div>
+              ) : especialidades && especialidades.length > 0 ? (
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {especialidades.map((esp) => (
+                    <button
+                      key={esp}
+                      onClick={() => handleEspecialidadeClick(esp)}
+                      className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white font-medium text-xs sm:text-sm transition-colors border border-white/30 whitespace-nowrap"
+                    >
+                      {esp}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm opacity-75">Nenhuma especialidade disponível</p>
+              )}
+            </div>
           </div>
-        </Card>
-  </div>
+        </section>
+
+        {/* Cards com Informações */}
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-4 md:grid-cols-2">
+          <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+            <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
+              <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Calendar className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
+              </div>
+              <span className="text-base sm:text-lg md:text-lg font-semibold text-muted-foreground tracking-wide">
+                {strings.proximaConsulta}
+              </span>
+              <span className="text-base sm:text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
+                {loading ? strings.carregando : (nextAppt ?? '-')}
+              </span>
+            </div>
+          </Card>
+
+          <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+            <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
+              <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <FileText className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
+              </div>
+              <span className="text-base sm:text-lg md:text-lg font-semibold text-muted-foreground tracking-wide">
+                {strings.ultimosExames}
+              </span>
+              <span className="text-base sm:text-lg md:text-xl font-semibold text-foreground" aria-live="polite">
+                {loading ? strings.carregando : (examsCount !== null ? String(examsCount) : '-')}
+              </span>
+            </div>
+          </Card>
+        </div>
+      </div>
     )
   }
 
@@ -726,26 +895,6 @@ export default function PacientePage() {
 
     return (
       <div className="space-y-6">
-        {/* Hero Section */}
-        <section className="bg-linear-to-br from-card to-card/95 shadow-lg rounded-2xl border border-primary/10 p-4 sm:p-6 md:p-8">
-          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
-            <header className="text-center space-y-2 sm:space-y-3 md:space-y-4">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Agende sua próxima consulta</h2>
-              <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed">Escolha o formato ideal, selecione a especialidade e encontre o profissional perfeito para você.</p>
-            </header>
-
-            <div className="space-y-4 sm:space-y-6 rounded-2xl border border-primary/15 bg-linear-to-r from-primary/5 to-primary/10 p-4 sm:p-6 md:p-8 shadow-sm">
-              <div className="flex justify-center">
-                <Button asChild className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-2 sm:py-2.5 md:py-3 bg-primary text-white hover:bg-primary/90! hover:text-white! transition-all duration-200 font-semibold text-sm sm:text-base rounded-lg shadow-md hover:shadow-lg active:scale-95">
-                  <Link href={buildResultadosHref()} prefetch={false}>
-                    Pesquisar Médicos
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Consultas Agendadas Section */}
         <section className="bg-card shadow-md rounded-lg border border-border p-4 sm:p-5 md:p-6">
           <div className="space-y-4 sm:space-y-5 md:space-y-6">

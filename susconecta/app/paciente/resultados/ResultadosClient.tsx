@@ -16,14 +16,9 @@ import {
   Building2,
   Filter,
   Globe,
-  HeartPulse,
-  Languages,
   MapPin,
-  ShieldCheck,
   Star,
-  Stethoscope,
   ChevronRight,
-  UserRound
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -62,6 +57,8 @@ export default function ResultadosClient() {
   const [bairro, setBairro] = useState<string>('Todos')
   // Busca por nome do médico
   const [searchQuery, setSearchQuery] = useState<string>('')
+  // Filtro de médico específico vindo da URL (quando clicado no dashboard)
+  const [medicoFiltro, setMedicoFiltro] = useState<string | null>(null)
 
   // Track if URL params have been synced to avoid race condition
   const [paramsSync, setParamsSync] = useState(false)
@@ -117,6 +114,10 @@ export default function ResultadosClient() {
     const especialidadeParam = params.get('especialidade')
     if (especialidadeParam) setEspecialidadeHero(especialidadeParam)
     
+    // Ler filtro de médico específico da URL
+    const medicoParam = params.get('medico')
+    if (medicoParam) setMedicoFiltro(medicoParam)
+    
     // Mark params as synced
     setParamsSync(true)
   }, [params])
@@ -163,9 +164,10 @@ export default function ResultadosClient() {
   }, [])
 
   // 4) Re-fetch doctors when especialidade changes (after initial sync)
+  // SKIP this if medicoFiltro está definido (médico específico selecionado)
   useEffect(() => {
-    // Skip if this is the initial render or if user is searching by name
-    if (!paramsSync || (searchQuery && String(searchQuery).trim().length > 1)) return
+    // Skip if this is the initial render or if user is searching by name or if a specific doctor is selected
+    if (!paramsSync || medicoFiltro || (searchQuery && String(searchQuery).trim().length > 1)) return
 
     let mounted = true
     ;(async () => {
@@ -191,10 +193,13 @@ export default function ResultadosClient() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [especialidadeHero, paramsSync])
+  }, [especialidadeHero, paramsSync, medicoFiltro])
 
   // 5) Debounced search by doctor name
+  // SKIP this if medicoFiltro está definido
   useEffect(() => {
+    if (medicoFiltro) return // Skip se médico específico foi selecionado
+    
     let mounted = true
     const term = String(searchQuery || '').trim()
     const handle = setTimeout(async () => {
@@ -216,7 +221,35 @@ export default function ResultadosClient() {
       }
     }, 350)
     return () => { mounted = false; clearTimeout(handle) }
-  }, [searchQuery])
+  }, [searchQuery, medicoFiltro])
+
+  // 5b) Quando um médico específico é selecionado, fazer uma busca por ele (PRIORIDADE MÁXIMA)
+  useEffect(() => {
+    if (!medicoFiltro || !paramsSync) return
+    
+    let mounted = true
+    ;(async () => {
+      try {
+        setLoadingMedicos(true)
+        // Resetar agenda e expandidas quando mudar o médico
+        setAgendaByDoctor({})
+        setAgendasExpandida({})
+        console.log('[ResultadosClient] Buscando médico específico:', medicoFiltro)
+        // Tentar buscar pelo nome do médico
+        const list = await buscarMedicos(medicoFiltro).catch(() => [])
+        if (!mounted) return
+        console.log('[ResultadosClient] Médicos encontrados:', list?.length || 0)
+        setMedicos(Array.isArray(list) ? list : [])
+      } catch (e: any) {
+        console.warn('[ResultadosClient] Erro ao buscar médico:', e)
+        showToast('error', e?.message || 'Falha ao buscar profissional')
+      } finally {
+        if (mounted) setLoadingMedicos(false)
+      }
+    })()
+    
+    return () => { mounted = false }
+  }, [medicoFiltro, paramsSync])
 
   // 3) Carregar horários disponíveis para um médico (próximos 7 dias) e agrupar por dia
   async function loadAgenda(doctorId: string): Promise<{ iso: string; label: string } | null> {
@@ -618,12 +651,24 @@ export default function ResultadosClient() {
 
   // Filtro visual (convenio/bairro são cosméticos; quando sem dado, mantemos tudo)
   const profissionais = useMemo(() => {
-    return (medicos || []).filter((m: any) => {
+    let filtered = (medicos || []).filter((m: any) => {
       if (convenio !== 'Todos' && m.convenios && !m.convenios.includes(convenio)) return false
       if (bairro !== 'Todos' && m.neighborhood && String(m.neighborhood).toLowerCase() !== String(bairro).toLowerCase()) return false
       return true
     })
-  }, [medicos, convenio, bairro])
+    
+    // Se um médico específico foi selecionado no dashboard, filtrar apenas por ele
+    if (medicoFiltro) {
+      filtered = filtered.filter((m: any) => {
+        // Comparar nome completo com flexibilidade
+        const nomeMedico = String(m.full_name || m.name || '').toLowerCase()
+        const filtro = String(medicoFiltro).toLowerCase()
+        return nomeMedico.includes(filtro) || filtro.includes(nomeMedico.split(' ')[0]) // comparar por primeiro nome também
+      })
+    }
+    
+    return filtered
+  }, [medicos, convenio, bairro, medicoFiltro])
 
   // Paginação local para a lista de médicos
   const [currentPage, setCurrentPage] = useState(1)
@@ -633,11 +678,20 @@ export default function ResultadosClient() {
   useEffect(() => {
     setCurrentPage(1)
   }, [profissionais, itemsPerPage])
-
   const totalPages = Math.max(1, Math.ceil((profissionais || []).length / itemsPerPage))
   const paginatedProfissionais = (profissionais || []).slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
   const startItem = (profissionais || []).length ? (currentPage - 1) * itemsPerPage + 1 : 0
   const endItem = Math.min(currentPage * itemsPerPage, (profissionais || []).length)
+
+  // Memoized map para calcular próximos 3 horários para cada médico
+  const proximosHorariosPorMedico = useMemo(() => {
+    const result: Record<string, Array<{ iso: string; label: string }>> = {}
+    for (const id in agendaByDoctor) {
+      const slots = agendaByDoctor[id]?.flatMap(d => d.horarios) || []
+      result[id] = slots.slice(0, 3)
+    }
+    return result
+  }, [agendaByDoctor])
 
   // Render
   return (
@@ -696,36 +750,49 @@ export default function ResultadosClient() {
                 <Button variant="outline" onClick={() => setBookingSuccessOpen(false)}>Fechar</Button>
               </div>
             </DialogContent>
-          </Dialog>
-
-        {/* Hero de filtros (mantido) */}
-        <section className="rounded-2xl sm:rounded-3xl bg-primary p-4 sm:p-6 text-primary-foreground shadow-lg">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          </Dialog>        {/* Hero section com barra de busca */}
+        <section className="rounded-2xl sm:rounded-3xl bg-gradient-to-r from-primary to-primary/80 p-6 sm:p-8 text-primary-foreground shadow-lg">
+          <div className="space-y-4">
             <div>
-              <h1 className="text-xl font-semibold sm:text-2xl md:text-3xl">Resultados da procura</h1>
-              <p className="text-sm text-primary-foreground/80">Qual especialização você deseja?</p>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Encontre o profissional ideal</h1>
+              <p className="text-sm sm:text-base text-primary-foreground/90 mt-1">Busque por nome, especialidade ou disponibilidade</p>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-full border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground! hover:text-primary! transition-colors"
-            >
-              Ajustar filtros
-            </Button>
-          </div>
-          <div className="mt-4 sm:mt-6 flex flex-wrap gap-2 sm:gap-3">
-            {especialidadesHero.map(item => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setEspecialidadeHero(item)}
-                className={cn(
-                  'rounded-full px-4 sm:px-5 py-2 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-primary-foreground/80',
-                  especialidadeHero === item ? 'bg-primary-foreground text-primary' : 'bg-primary-foreground/10'
-                )}
-              >
-                {item}
-              </button>
-            ))}
+
+            {/* Barra de busca principal */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder={especialidadeHero && especialidadeHero !== 'Veja mais' ? especialidadeHero : 'Buscar médico por nome ou especialidade'}
+                value={searchQuery}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                className="flex-1 h-11 rounded-full bg-primary-foreground/15 border border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/60 focus:bg-primary-foreground/20"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  className="h-11 px-6 rounded-full text-primary-foreground hover:bg-primary-foreground/20"
+                  onClick={async () => {
+                    setSearchQuery('')
+                    setCurrentPage(1)
+                    try {
+                      setLoadingMedicos(true)
+                      setMedicos([])
+                      setAgendaByDoctor({})
+                      setAgendasExpandida({})
+                      // Manter a especialidade da URL se existir
+                      const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
+                      const list = await buscarMedicos(termo).catch(() => [])
+                      setMedicos(Array.isArray(list) ? list : [])
+                    } catch (e: any) {
+                      showToast('error', e?.message || 'Falha ao buscar profissionais')
+                    } finally {
+                      setLoadingMedicos(false)
+                    }
+                  }}
+                >
+                  Limpar
+                </Button>
+              )}
+            </div>
           </div>
         </section>
 
@@ -774,51 +841,6 @@ export default function ResultadosClient() {
               </Select>
             </div>
 
-            {/* Busca por nome + Mais filtros/Limpar */}
-            <div className="sm:col-span-6 lg:col-span-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Input
-                  placeholder="Buscar médico por nome"
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  className="w-full sm:min-w-[220px] rounded-full"
-                />
-                {searchQuery ? (
-                  <Button
-                    variant="ghost"
-                    className="h-10 w-full sm:w-auto rounded-full"
-                    onClick={async () => {
-                      setSearchQuery('')
-                      setCurrentPage(1)
-                      try {
-                        setLoadingMedicos(true)
-                        setMedicos([])
-                        setAgendaByDoctor({})
-                        setAgendasExpandida({})
-                        const termo = (especialidadeHero && especialidadeHero !== 'Veja mais') ? especialidadeHero : (params?.get('q') || 'medico')
-                        const list = await buscarMedicos(termo).catch(() => [])
-                        setMedicos(Array.isArray(list) ? list : [])
-                      } catch (e: any) {
-                        showToast('error', e?.message || 'Falha ao buscar profissionais')
-                      } finally {
-                        setLoadingMedicos(false)
-                      }
-                    }}
-                  >
-                    Limpar
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full sm:w-auto rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
-                  >
-                    <Filter className="mr-2 h-4 w-4" />
-                    Mais filtros
-                  </Button>
-                )}
-              </div>
-            </div>
-
             {/* Bairro */}
             <div className="sm:col-span-6 lg:col-span-4">
               <Select value={bairro} onValueChange={setBairro}>
@@ -832,6 +854,17 @@ export default function ResultadosClient() {
                   <SelectItem value="Farolândia">Farolândia</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Mais filtros / Voltar */}
+            <div className="sm:col-span-4">
+              <Button
+                variant="outline"
+                className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Mais filtros
+              </Button>
             </div>
 
             {/* Voltar */}
@@ -854,133 +887,131 @@ export default function ResultadosClient() {
             <Card className="flex items-center justify-center border border-dashed border-border bg-card/60 p-12 text-muted-foreground">
               Buscando profissionais...
             </Card>
-          )}
-
-          {!loadingMedicos && paginatedProfissionais.map((medico) => {
+          )}          {!loadingMedicos && paginatedProfissionais.map((medico) => {
             const id = String(medico.id)
             const agenda = agendaByDoctor[id]
             const isLoadingAgenda = !!agendaLoading[id]
-            const atendeLocal = true // dados ausentes → manter visual
+            const atendeLocal = true
             const atendeTele = true
             const nome = medico.full_name || 'Profissional'
             const esp = (medico as any).specialty || medico.especialidade || '—'
-            const crm = [medico.crm, (medico as any).crm_uf].filter(Boolean).join(' / ')
-            const convenios = '—'
+            const crm = [medico.crm, (medico as any).crm_uf].filter(Boolean).join(' ')
             const endereco = [medico.street, medico.number].filter(Boolean).join(', ') || medico.street || '—'
-            const cidade = [medico.city, medico.state].filter(Boolean).join(' • ')
-            const precoLocal = '—'
-            const precoTeleconsulta = '—'
+            const cidade = medico.city || '—'
+            const precoTipoConsulta = tipoConsulta === 'local' ? 'R$ —' : 'R$ —'
+            
+            // Usar os próximos 3 horários já memoizados
+            const proximos3Horarios = proximosHorariosPorMedico[id] || []
 
             return (
               <Card
                 key={id}
                 className="flex flex-col gap-4 border border-border bg-card/80 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
-                <div className="flex flex-wrap items-start gap-4">
-                  <Avatar className="h-14 w-14 border border-primary/20 bg-primary/5">
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      <UserRound className="h-6 w-6" />
+                {/* Header com Avatar, Nome, Especialidade e Botão Ver Perfil */}
+                <div className="flex gap-4 items-start">
+                  <Avatar className="h-20 w-20 border-2 border-primary/20 bg-primary/5 flex-shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
+                      {nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-1 flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-semibold text-foreground">{nome}</h2>
-                      <Badge className="rounded-full bg-primary/10 text-primary">{esp}</Badge>
+                  
+                  <div className="flex-1 flex flex-col gap-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold text-foreground">{nome}</h2>
+                        <p className="text-sm text-primary font-medium">{esp}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          setMedicoSelecionado(medico)
+                          setAbaDetalhe('experiencia')
+                          if (!agendaByDoctor[id]) loadAgenda(id)
+                        }}
+                      >
+                        Mais
+                      </Button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-primary">
+                    
+                    {/* Rating e Info */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 fill-primary text-primary" />
-                        {/* sem avaliação → travar layout */}
-                        {'4.9'} • {'23'} avaliações
-                      </span>
-                      <span>{crm || '—'}</span>
-                      <span>{convenios}</span>
+                        <span className="text-sm font-medium text-primary">4.9</span>
+                        <span className="text-xs text-muted-foreground">• 23 avaliações</span>
+                      </div>
                     </div>
+
+                    {/* CRM */}
+                    <p className="text-xs text-muted-foreground">CRM: {crm || '—'}</p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    className="ml-0 sm:ml-auto w-full sm:w-auto h-fit rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
-                    onClick={() => {
-                      setMedicoSelecionado(medico)
-                      setAbaDetalhe('experiencia')
-                      // carregar agenda para o diálogo
-                      if (!agendaByDoctor[id]) loadAgenda(id)
-                    }}
-                  >
-                    Ver perfil completo
-                  </Button>
                 </div>
 
-                {tipoConsulta === 'local' && atendeLocal && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-2 text-foreground">
+                {/* Endereço */}
+                {tipoConsulta === 'local' && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50">
+                    <MapPin className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 text-sm">
+                      <p className="font-medium text-foreground">{endereco}</p>
+                      <p className="text-xs text-muted-foreground">{cidade}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tipo de Consulta */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5">
+                  {tipoConsulta === 'teleconsulta' ? (
+                    <>
+                      <Globe className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-primary">Teleconsulta</span>
+                    </>
+                  ) : (
+                    <>
                       <MapPin className="h-4 w-4 text-primary" />
-                      {endereco}
-                    </span>
-                    <div className="flex flex-col text-right">
-                      <span className="text-xs text-muted-foreground">{cidade || '—'}</span>
-                      <span className="text-sm font-semibold text-primary">{precoLocal}</span>
-                    </div>
-                  </div>
-                )}
-
-                {tipoConsulta === 'teleconsulta' && atendeTele && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-primary">
-                    <span className="inline-flex items-center gap-2 font-medium">
-                      <Globe className="h-4 w-4" />
-                      Teleconsulta
-                    </span>
-                    <span className="text-sm font-semibold">{precoTeleconsulta}</span>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1">
-                    <Languages className="h-3.5 w-3.5 text-primary" />
-                    Idiomas: Português, Inglês
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1">
-                    <HeartPulse className="h-3.5 w-3.5 text-primary" />
-                    Acolhimento em cada consulta
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1">
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                    Pagamento seguro
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1">
-                    <Stethoscope className="h-3.5 w-3.5 text-primary" />
-                    Especialista recomendado
-                  </span>
+                      <span className="text-sm font-medium text-primary">Consulta presencial</span>
+                    </>
+                  )}
+                  <span className="ml-auto text-sm font-semibold text-primary">{precoTipoConsulta}</span>
                 </div>
 
-                {/* Quick action: nearest available slot */}
-                {nearestSlotByDoctor[id] && (
-                  <div className="mb-2 flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground">Próximo horário:</span>
-                    <Button className="h-9 rounded-full bg-primary/10 text-primary" onClick={() => openConfirmDialog(id, nearestSlotByDoctor[id]!.iso)}>
-                      {nearestSlotByDoctor[id]!.label}
-                    </Button>
+                {/* Próximos horários */}
+                {!isLoadingAgenda && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Próximos horários disponíveis:</p>
+                    {proximos3Horarios.length > 0 ? (
+                      <div className="flex gap-2 flex-wrap">
+                        {proximos3Horarios.map(slot => (
+                          <button
+                            key={slot.iso}
+                            type="button"
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition"
+                            onClick={() => openConfirmDialog(id, slot.iso)}
+                          >
+                            {slot.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Carregando horários...</p>
+                    )}
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-3 pt-2">
+                {/* Ações */}
+                <div className="flex gap-2 pt-2">
                   <Button
-                    className="h-11 w-full sm:w-auto rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="flex-1 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={async () => {
-                      // If we don't have the agenda loaded, load it and try to open the nearest slot.
                       if (!agendaByDoctor[id]) {
                         const nearest = await loadAgenda(id)
                         if (nearest) {
                           openConfirmDialog(id, nearest.iso)
                           return
                         }
-                        // fallback: open the "more times" modal to let the user pick a date/time
-                        setMoreTimesForDoctor(id)
-                        void fetchSlotsForDate(id, moreTimesDate)
-                        return
                       }
-
-                      // If agenda already loaded, try nearest known slot
                       const nearest = nearestSlotByDoctor[id]
                       if (nearest) {
                         openConfirmDialog(id, nearest.iso)
@@ -990,33 +1021,19 @@ export default function ResultadosClient() {
                       }
                     }}
                   >
-                    Agendar consulta
-                  </Button>
-                  <Button variant="outline" className="h-11 w-full sm:w-auto rounded-full border-primary/40 bg-primary/10 text-primary hover:bg-primary! hover:text-white! transition-colors">
-                    Enviar mensagem
+                    Agendar
                   </Button>
                   <Button
-                    variant="ghost"
-                    className="h-11 w-full sm:w-auto rounded-full text-primary hover:bg-primary! hover:text-white! transition-colors"
+                    variant="outline"
+                    className="flex-1 h-10 rounded-full border-primary/40 text-primary hover:bg-primary/10"
                     onClick={() => {
-                      const willOpen = !agendasExpandida[id]
-                      setAgendasExpandida(prev => ({ ...prev, [id]: !prev[id] }))
-                      if (!agendaByDoctor[id]) loadAgenda(id)
-                      // open the "more times" modal when expanding
-                      if (willOpen) {
-                        setMoreTimesForDoctor(id)
-                        // prefetch for the default date
-                        void fetchSlotsForDate(id, moreTimesDate)
-                      } else {
-                        setMoreTimesForDoctor(null)
-                      }
+                      setMoreTimesForDoctor(id)
+                      void fetchSlotsForDate(id, moreTimesDate)
                     }}
                   >
-                    {agendasExpandida[id] ? 'Ocultar horários' : 'Mostrar mais horários'}
+                    Mais horários
                   </Button>
                 </div>
-
-                {/* Horários compactos removidos conforme solicitação do design (colunas HOJE/AMANHÃ/etc.). */}
               </Card>
             )
           })}

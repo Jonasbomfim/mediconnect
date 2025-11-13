@@ -809,13 +809,13 @@ const ProfissionalPage = () => {
         </div>
         
         {/* Navegação de Data - Responsiva */}
-        <div className="flex flex-col gap-2 sm:gap-3 mb-4 sm:mb-6 p-2 sm:p-3 md:p-4 bg-blue-50 rounded-lg dark:bg-muted">
+        <div className="flex flex-col gap-2 sm:gap-3 mb-4 sm:mb-6 p-2 sm:p-3 md:p-4 bg-muted rounded-lg">
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 flex-wrap">
             <Button 
               variant="outline"
               size="sm"
               onClick={() => navigateDate('prev')}
-              className="p-1.5 sm:p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors h-auto"
+              className="p-1.5 sm:p-2 hover-primary-blue cursor-pointer h-auto"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -826,7 +826,7 @@ const ProfissionalPage = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateDate('next')}
-              className="p-1.5 sm:p-2 hover:bg-primary! hover:text-white! cursor-pointer transition-colors h-auto"
+              className="p-1.5 sm:p-2 hover-primary-blue cursor-pointer h-auto"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -1027,7 +1027,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'todos' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('todos')}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover-primary-blue"
           >
             Todos
           </Button>
@@ -1035,7 +1035,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'semana' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('semana')}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover-primary-blue"
           >
             Semana
           </Button>
@@ -1043,7 +1043,7 @@ const ProfissionalPage = () => {
             variant={selectedRange === 'mes' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRange('mes')}
-            className="hover:bg-primary! hover:text-white! transition-colors"
+            className="hover-primary-blue"
           >
             Mês
           </Button>
@@ -1204,7 +1204,7 @@ const ProfissionalPage = () => {
             <Button size="sm" onClick={doSearch} disabled={searching}>
               Buscar
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleClear} className="hover:bg-primary! hover:text-white! transition-colors">
+            <Button size="sm" variant="ghost" onClick={handleClear} className="hover-primary-blue">
               Limpar
             </Button>
           </div>
@@ -1503,7 +1503,7 @@ const ProfissionalPage = () => {
                             onClick={() => {
                               router.push(`/laudos/${laudo.id}`);
                             }}
-                            className="flex items-center gap-1 hover:bg-primary! hover:text-white! transition-colors"
+                            className="flex items-center gap-1 hover-primary-blue"
                           >
                             <Eye className="w-4 h-4" />
                             Ver Laudo
@@ -2308,16 +2308,16 @@ const ProfissionalPage = () => {
                         title="Cor da fonte"
                       />
                       {/* Alinhamento */}
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-left')} title="Alinhar à esquerda" className="px-1 hover:bg-primary/10 hover:text-primary"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-center')} title="Centralizar" className="px-1 hover:bg-primary/10 hover:text-primary"><svg width="16" height="16" fill="none"><rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="3" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-right')} title="Alinhar à direita" className="px-1 hover:bg-primary/10 hover:text-primary"><svg width="16" height="16" fill="none"><rect x="6" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="4" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('align-justify')} title="Justificar" className="px-1 hover:bg-primary/10 hover:text-primary"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-left')} title="Alinhar à esquerda" className="px-1 hover-primary-blue-soft"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-center')} title="Centralizar" className="px-1 hover-primary-blue-soft"><svg width="16" height="16" fill="none"><rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="3" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-right')} title="Alinhar à direita" className="px-1 hover-primary-blue-soft"><svg width="16" height="16" fill="none"><rect x="6" y="4" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="4" y="10" width="10" height="2" rx="1" fill="currentColor"/></svg></Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('align-justify')} title="Justificar" className="px-1 hover-primary-blue-soft"><svg width="16" height="16" fill="none"><rect x="2" y="4" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor"/></svg></Button>
                       {/* Listas */}
-                      <Button variant="outline" size="sm" onClick={() => formatText('list-ol')} title="Lista numerada" className="px-1 hover:bg-primary/10 hover:text-primary">1.</Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('list-ul')} title="Lista com marcadores" className="px-1 hover:bg-primary/10 hover:text-primary">•</Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('list-ol')} title="Lista numerada" className="px-1 hover-primary-blue-soft">1.</Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('list-ul')} title="Lista com marcadores" className="px-1 hover-primary-blue-soft">•</Button>
                       {/* Recuo */}
-                      <Button variant="outline" size="sm" onClick={() => formatText('indent')} title="Aumentar recuo" className="px-1 hover:bg-primary/10 hover:text-primary">→</Button>
-                      <Button variant="outline" size="sm" onClick={() => formatText('outdent')} title="Diminuir recuo" className="px-1 hover:bg-primary/10 hover:text-primary">←</Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('indent')} title="Aumentar recuo" className="px-1 hover-primary-blue-soft">→</Button>
+                      <Button variant="outline" size="sm" onClick={() => formatText('outdent')} title="Diminuir recuo" className="px-1 hover-primary-blue-soft">←</Button>
                       {/* Desfazer/Refazer */}
                       <Button variant="outline" size="sm" onClick={handleUndo} title="Desfazer" className="px-1 hover:bg-primary/10 hover:text-primary">↺</Button>
                       <div className="flex flex-wrap gap-1">

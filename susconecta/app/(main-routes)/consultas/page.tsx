@@ -519,7 +519,7 @@ export default function ConsultasPage() {
         {/* Linha 2: Selects responsivos */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <Select onValueChange={(v) => { setSelectedStatus(String(v)); }}>
-            <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
+            <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm select-hover-blue">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -693,7 +693,7 @@ export default function ConsultasPage() {
           <select
             value={itemsPerPage}
             onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary select-hover-blue cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={15}>15</option>

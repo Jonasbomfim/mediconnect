@@ -693,10 +693,10 @@ export default function PacientePage() {
     const [tipoConsulta, setTipoConsulta] = useState<'teleconsulta' | 'presencial'>('teleconsulta')
     const [especialidade, setEspecialidade] = useState('cardiologia')
     const [localizacao, setLocalizacao] = useState('')
-    const hoverPrimaryClass = "transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97]"
-    const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563eb]/60 active:scale-[0.97] bg-[#2563eb] text-white hover:bg-[#2563eb] hover:text-white"
-    const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-[#2563eb] border border-[#2563eb]/30 hover:bg-slate-100 hover:text-[#2563eb] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:border-white/20"
-    const hoverPrimaryIconClass = "rounded-xl bg-white text-[#1e293b] border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition duration-200 hover:bg-[#2563eb] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none dark:hover:bg-[#2563eb] dark:hover:text-white"
+    const hoverPrimaryClass = "hover-primary-blue focus-visible:ring-2 focus-visible:ring-blue-500/60 active:scale-[0.97]"
+    const activeToggleClass = "w-full transition duration-200 focus-visible:ring-2 focus-visible:ring-blue-500/60 active:scale-[0.97] bg-blue-500 text-white hover:bg-blue-500 hover:text-white"
+    const inactiveToggleClass = "w-full transition duration-200 bg-slate-50 text-blue-500 border border-blue-500/30 hover:bg-blue-50 hover:text-blue-500 dark:bg-white/5 dark:text-white dark:hover:bg-blue-500/20 dark:border-white/20"
+    const hoverPrimaryIconClass = "rounded-xl bg-white text-slate-900 border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover-primary-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:border-white/10 dark:shadow-none"
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(currentDate); selectedDate.setHours(0, 0, 0, 0);
     const isSelectedDateToday = selectedDate.getTime() === today.getTime()

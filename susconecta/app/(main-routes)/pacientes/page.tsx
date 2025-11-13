@@ -297,7 +297,7 @@ export default function PacientesPage() {
             aria-label="Ordenar por"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary select-hover-blue cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value="name_asc">A–Z</option>
             <option value="name_desc">Z–A</option>
@@ -313,7 +313,7 @@ export default function PacientesPage() {
               setStateFilter(e.target.value);
               setCityFilter("");
             }}
-            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary select-hover-blue cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value="">Estado</option>
             {stateOptions.map((uf) => (
@@ -326,7 +326,7 @@ export default function PacientesPage() {
             aria-label="Filtrar por cidade"
             value={cityFilter}
             onChange={(e) => setCityFilter(e.target.value)}
-            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary select-hover-blue cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value="">Cidade</option>
             {cityOptions.map((c) => (
@@ -470,7 +470,7 @@ export default function PacientesPage() {
           <select
             value={itemsPerPage}
             onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary select-hover-blue cursor-pointer"
+            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value={10}>10</option>
             <option value={15}>15</option>

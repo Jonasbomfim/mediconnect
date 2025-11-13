@@ -53,7 +53,6 @@ export default function ResultadosClient() {
   // Filtros/controles da UI - initialize with defaults to avoid hydration mismatch
   const [tipoConsulta, setTipoConsulta] = useState<TipoConsulta>('teleconsulta')
   const [especialidadeHero, setEspecialidadeHero] = useState<string>('Psicólogo')
-  const [convenio, setConvenio] = useState<string>('Todos')
   const [bairro, setBairro] = useState<string>('Todos')
   // Busca por nome do médico
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -649,11 +648,27 @@ export default function ResultadosClient() {
     }
   }
 
-  // Filtro visual (convenio/bairro são cosméticos; quando sem dado, mantemos tudo)
+  // Extrair bairros únicos dos médicos
+  const bairrosDisponiveis = useMemo(() => {
+    const neighborhoods = new Set<string>();
+    (medicos || []).forEach((m: any) => {
+      if (m.neighborhood) {
+        neighborhoods.add(String(m.neighborhood))
+      }
+    })
+    return Array.from(neighborhoods).sort()
+  }, [medicos])
+
+  // Filtro visual (bairro é o único filtro; quando sem dado, mantemos tudo)
   const profissionais = useMemo(() => {
     let filtered = (medicos || []).filter((m: any) => {
-      if (convenio !== 'Todos' && m.convenios && !m.convenios.includes(convenio)) return false
-      if (bairro !== 'Todos' && m.neighborhood && String(m.neighborhood).toLowerCase() !== String(bairro).toLowerCase()) return false
+      // Se um bairro específico foi selecionado, filtrar rigorosamente
+      if (bairro !== 'Todos') {
+        // Se o médico não tem neighborhood, não incluir
+        if (!m.neighborhood) return false
+        // Se tem neighborhood, deve corresponder ao filtro
+        if (String(m.neighborhood).toLowerCase() !== String(bairro).toLowerCase()) return false
+      }
       return true
     })
     
@@ -668,7 +683,7 @@ export default function ResultadosClient() {
     }
     
     return filtered
-  }, [medicos, convenio, bairro, medicoFiltro])
+  }, [medicos, bairro, medicoFiltro])
 
   // Paginação local para a lista de médicos
   const [currentPage, setCurrentPage] = useState(1)
@@ -824,23 +839,6 @@ export default function ResultadosClient() {
             {/* divider visual */}
             <div className="sm:col-span-12 h-px bg-border/60 my-1" />
 
-            {/* Convênio */}
-            <div className="sm:col-span-6 lg:col-span-4">
-              <Select value={convenio} onValueChange={setConvenio}>
-                <SelectTrigger className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:border-primary focus:ring-2 focus:ring-primary">
-                  <SelectValue placeholder="Convênio" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos os convênios</SelectItem>
-                  <SelectItem value="Amil">Amil</SelectItem>
-                  <SelectItem value="Unimed">Unimed</SelectItem>
-                  <SelectItem value="SulAmérica">SulAmérica</SelectItem>
-                  <SelectItem value="Bradesco Saúde">Bradesco Saúde</SelectItem>
-                  <SelectItem value="Particular">Particular</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Bairro */}
             <div className="sm:col-span-6 lg:col-span-4">
               <Select value={bairro} onValueChange={setBairro}>
@@ -849,9 +847,11 @@ export default function ResultadosClient() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Todos">Todos os bairros</SelectItem>
-                  <SelectItem value="Centro">Centro</SelectItem>
-                  <SelectItem value="Jardins">Jardins</SelectItem>
-                  <SelectItem value="Farolândia">Farolândia</SelectItem>
+                  {bairrosDisponiveis.map((b: string) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

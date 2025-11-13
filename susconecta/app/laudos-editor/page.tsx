@@ -504,15 +504,9 @@ export default function LaudosEditorPage() {
               </div>
             )}
 
-            {/* Solicitante e Prazo */}
+            {/* Prazo */}
             {pacienteSelecionado && (
-              <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                <div>
-                  <Label htmlFor="solicitante" className="text-xs sm:text-sm">
-                    Solicitante
-                  </Label>
-                  <Input id="solicitante" value={solicitanteNome} readOnly disabled className="text-xs sm:text-sm mt-1 h-8 sm:h-10" />
-                </div>
+              <div className="mt-3 sm:mt-4">
                 <div>
                   <Label htmlFor="prazoDate" className="text-xs sm:text-sm">
                     Prazo do Laudo

@@ -977,48 +977,13 @@ export default function ResultadosClient() {
                   <span className="ml-auto text-sm font-semibold text-primary">{precoTipoConsulta}</span>
                 </div>
 
-                {/* Próximos horários */}
-                {!isLoadingAgenda && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground">Próximos horários disponíveis:</p>
-                    {proximos3Horarios.length > 0 ? (
-                      <div className="flex gap-2 flex-wrap">
-                        {proximos3Horarios.map(slot => (
-                          <button
-                            key={slot.iso}
-                            type="button"
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition"
-                            onClick={() => openConfirmDialog(id, slot.iso)}
-                          >
-                            {slot.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Carregando horários...</p>
-                    )}
-                  </div>
-                )}
-
                 {/* Ações */}
                 <div className="flex gap-2 pt-2">
                   <Button
                     className="flex-1 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={async () => {
-                      if (!agendaByDoctor[id]) {
-                        const nearest = await loadAgenda(id)
-                        if (nearest) {
-                          openConfirmDialog(id, nearest.iso)
-                          return
-                        }
-                      }
-                      const nearest = nearestSlotByDoctor[id]
-                      if (nearest) {
-                        openConfirmDialog(id, nearest.iso)
-                      } else {
-                        setMoreTimesForDoctor(id)
-                        void fetchSlotsForDate(id, moreTimesDate)
-                      }
+                      setMoreTimesForDoctor(id)
+                      void fetchSlotsForDate(id, moreTimesDate)
                     }}
                   >
                     Agendar

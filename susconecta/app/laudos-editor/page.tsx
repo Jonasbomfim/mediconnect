@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { listarPacientes, buscarMedicos } from '@/lib/api';
+import { listarPacientes, buscarMedicos, getUserInfo } from '@/lib/api';
 import { useReports } from '@/hooks/useReports';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,25 +186,49 @@ export default function LaudosEditorPage() {
         // Se já temos um nome razoável, não sobrescrever
         if (solicitanteNome && solicitanteNome.trim().length > 1) return;
         if (!user) return;
-        // Buscar médicos por email (buscarMedicos aceita termos com @ e faz a busca por email)
-        if (user.email && user.email.includes('@')) {
-          const docs = await buscarMedicos(user.email).catch(() => []);
+
+        // First try: query doctors index with any available identifier (email, id or username)
+        try {
+          const term = (user.email && user.email.trim()) || user.name || user.id || '';
+          if (term && term.length > 1) {
+            const docs = await buscarMedicos(term).catch(() => []);
+            if (!mounted) return;
+            if (Array.isArray(docs) && docs.length > 0) {
+              const d = docs[0];
+              if (d && (d.full_name || (d as any).nome)) {
+                setSolicitanteNome((d.full_name as string) || ((d as any).nome as string) || user.name || user.email || '');
+                setSolicitanteId(user.id || solicitanteId);
+                return;
+              }
+            }
+          }
+        } catch (err) {
+          // non-fatal, continue to next fallback
+        }
+
+        // Second try: fetch consolidated user-info (may contain profile.full_name)
+        try {
+          const info = await getUserInfo().catch(() => null);
           if (!mounted) return;
-          if (Array.isArray(docs) && docs.length > 0) {
-            const d = docs[0];
-            // Preferir full_name do médico quando disponível
-            if (d && (d.full_name || (d as any).nome)) {
-              setSolicitanteNome((d.full_name as string) || ((d as any).nome as string) || user.name || user.email || '');
+          if (info && (info.profile as any)?.full_name) {
+            const full = (info.profile as any).full_name as string;
+            if (full && full.trim().length > 1) {
+              setSolicitanteNome(full);
+              setSolicitanteId(user.id || solicitanteId);
               return;
             }
           }
+        } catch (err) {
+          // ignore and fallback
         }
 
-        // Fallbacks: usar user.name se existir; caso contrário, email completo
+        // Final fallback: use name from auth user or email/username
         setSolicitanteNome(user.name || user.email || '');
+        setSolicitanteId(user.id || solicitanteId);
       } catch (err) {
         // em caso de erro, manter o fallback
         setSolicitanteNome(user?.name || user?.email || '');
+        setSolicitanteId(user?.id || solicitanteId);
       }
     }
 

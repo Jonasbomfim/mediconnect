@@ -555,7 +555,7 @@ export default function PacientePage() {
                 className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 rounded-xl bg-white text-foreground placeholder:text-muted-foreground text-sm sm:text-base border-0 shadow-md"
               />
               {searchQuery && medicos.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-border shadow-lg z-50 max-h-64 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-xl border border-border shadow-lg z-50 max-h-64 overflow-y-auto">
                   {medicos.map((medico) => (
                     <button
                       key={medico.id}

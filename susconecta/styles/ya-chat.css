@@ -1,0 +1,237 @@
+/* ============================
+   WRAPPER GERAL
+============================ */
+
+.ya-chat-wrapper {
+  background: radial-gradient(circle at top left, #1b2a4a 0, #050816 40%, #020308 100%);
+  border-radius: 24px;
+  padding: 24px;
+  border: 1px solid rgba(120, 180, 255, 0.3);
+  box-shadow: 0 0 40px rgba(80, 140, 255, 0.35), 0 0 80px rgba(110, 60, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  color: #e5ecff;
+}
+
+/* ============================
+   HEADER
+============================ */
+
+.ya-chat-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.ya-chat-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 0, #ffffff, #7ea4ff, #a96dff);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  color: #0b1020;
+  box-shadow: 0 0 16px rgba(125, 160, 255, 0.8), 0 0 40px rgba(129, 87, 255, 0.9);
+}
+
+.ya-chat-title {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.ya-chat-subtitle {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.ya-chat-header-pill {
+  border-radius: 999px;
+  background: rgba(35, 70, 150, 0.9);
+  padding: 8px 14px;
+  border: 1px solid rgba(150, 200, 255, 0.7);
+  font-size: 11px;
+  color: #eaf2ff;
+}
+
+/* ============================
+   CORPO
+============================ */
+
+.ya-chat-body {
+  background: #0a0f1d;
+  border: 1px solid rgba(110, 160, 255, 0.25);
+  padding: 18px;
+  border-radius: 16px;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Empty */
+.ya-chat-empty {
+  text-align: center;
+  opacity: 0.75;
+}
+
+.ya-chat-empty-hint {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+/* ============================
+   MENSAGENS
+============================ */
+
+.ya-chat-message-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ya-chat-row-user {
+  justify-content: flex-end;
+}
+
+.ya-chat-row-assistant {
+  justify-content: flex-start;
+}
+
+.ya-chat-badge-ya {
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #d8e5ff;
+  background: rgba(80, 120, 200, 0.25);
+  border: 1px solid rgba(160, 200, 255, 0.5);
+}
+
+.ya-chat-bubble {
+  max-width: 70%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  position: relative;
+}
+
+.ya-chat-bubble-user {
+  background: linear-gradient(135deg, #4d8aff, #a163ff);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 0 20px rgba(120, 160, 255, 0.6);
+}
+
+.ya-chat-bubble-assistant {
+  background: #10182e;
+  color: #cdd9ff;
+  border: 1px solid rgba(130, 170, 255, 0.4);
+  border-bottom-left-radius: 4px;
+}
+
+.ya-chat-time {
+  font-size: 10px;
+  opacity: 0.6;
+  position: absolute;
+  bottom: -16px;
+  right: 8px;
+}
+
+/* ============================
+   INPUT BAR
+============================ */
+
+.ya-chat-input-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ya-chat-input-wrapper {
+  flex: 1;
+  background: rgba(10, 15, 30, 0.9);
+  border-radius: 999px;
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  padding: 2px 16px;
+}
+
+.ya-chat-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e5ecff;
+  padding: 8px 0;
+}
+
+.ya-chat-send-btn {
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #4c8dff, #a163ff);
+  color: white;
+  border: none;
+  box-shadow: 0 0 20px rgba(120, 160, 255, 0.6);
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.ya-chat-send-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Voz */
+.ya-chat-voice-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 0, #ffffff, #6b9cff, #a267ff);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.ya-chat-voice-btn-active {
+  box-shadow: 0 0 28px rgba(160, 110, 255, 0.9);
+}
+
+.ya-chat-voice-icon {
+  font-size: 22px;
+  z-index: 2;
+  position: relative;
+}
+
+.ya-chat-voice-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 70%);
+  animation: ya-chat-pulse 2s infinite;
+}
+
+@keyframes ya-chat-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* ============================
+   FOOTER
+============================ */
+
+.ya-chat-footer {
+  font-size: 11px;
+  opacity: 0.7;
+}

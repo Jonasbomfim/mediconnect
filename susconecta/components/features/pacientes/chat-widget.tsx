@@ -5,10 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Mic, MicOff, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  AIAssistantInterface,
-  ChatSession,
-} from "@/components/ZoeIA/ai-assistant-interface";
+import FileUploadChat from "@/components/ui/file-upload-and-chat";
 import { VoicePoweredOrb } from "@/components/ZoeIA/voice-powered-orb";
 
 export function ChatWidget() {
@@ -16,7 +13,6 @@ export function ChatWidget() {
   const [realtimeOpen, setRealtimeOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceDetected, setVoiceDetected] = useState(false);
-  const [history, setHistory] = useState<ChatSession[]>([]);
 
   useEffect(() => {
     if (!assistantOpen && !realtimeOpen) return;
@@ -33,7 +29,7 @@ export function ChatWidget() {
     () => (
       <span
         aria-hidden
-        className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-sky-500 to-emerald-400 opacity-90 blur-sm transition group-hover:blur group-hover:opacity-100"
+        className="absolute inset-0 rounded-full bg-linear-to-br from-primary via-sky-500 to-emerald-400 opacity-90 blur-sm transition group-hover:blur group-hover:opacity-100"
       />
     ),
     []
@@ -71,48 +67,26 @@ export function ChatWidget() {
     openRealtime();
   };
 
-  const handleUpsertHistory = (session: ChatSession) => {
-    setHistory((previous) => {
-      const index = previous.findIndex((item) => item.id === session.id);
-      if (index >= 0) {
-        const updated = [...previous];
-        updated[index] = session;
-        return updated;
-      }
-      return [...previous, session];
-    });
-  };
-
-  const handleClearHistory = () => {
-    setHistory([]);
-  };
-
   return (
     <>
       {assistantOpen && (
         <div
           id="ai-assistant-overlay"
-          className="fixed inset-0 z-[100] flex flex-col bg-background"
+          className="fixed inset-0 z-100 flex flex-col bg-gray-50 dark:bg-slate-950 border-b border-border"
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between border-b px-4 py-3 bg-slate-100 dark:bg-slate-900 border-gray-300 dark:border-slate-700 shadow-sm">
             <Button
               type="button"
               variant="ghost"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-slate-900 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
               onClick={closeAssistant}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
-              <span className="text-sm">Voltar</span>
+              <span className="text-sm font-semibold">Voltar</span>
             </Button>
           </div>
           <div className="flex-1 overflow-auto">
-            <AIAssistantInterface
-              onOpenDocuments={handleOpenDocuments}
-              onOpenChat={handleOpenChat}
-              history={history}
-              onAddHistory={handleUpsertHistory}
-              onClearHistory={handleClearHistory}
-            />
+            <FileUploadChat onOpenVoice={openRealtime} />
           </div>
         </div>
       )}
@@ -120,7 +94,7 @@ export function ChatWidget() {
       {realtimeOpen && (
         <div
           id="ai-realtime-overlay"
-          className="fixed inset-0 z-[110] flex flex-col bg-background"
+          className="fixed inset-0 z-110 flex flex-col bg-background"
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <Button

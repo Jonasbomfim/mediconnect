@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
-import { Clock, Mic, Plus } from "lucide-react";
+import { Clock, Mic, Plus, HeartPulse } from "lucide-react";
 
 const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/cd7d10e6-bcfc-4f3a-b649-351d12b714f1";
 const FALLBACK_RESPONSE = "Tive um problema para responder agora. Tente novamente em alguns instantes.";
@@ -47,7 +47,7 @@ export function AIAssistantInterface({
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const messageListRef = useRef<HTMLElement | null>(null);
   const voiceTimeoutRef = useRef<number>();
   const history = internalHistory;
   const historyRef = useRef<ChatSession[]>(history);
@@ -112,16 +112,15 @@ export function AIAssistantInterface({
       return;
     }
 
-    if (!activeSessionId && !manualSelection) {
-      setActiveSessionId(history[history.length - 1].id);
-      return;
+    // Não reabrir automaticamente a última conversa ao montar/atualizar o histórico.
+    // Apenas garantir que o id ativo ainda existe. Caso contrário, limpar seleção.
+    if (activeSessionId) {
+      const exists = history.some((session) => session.id === activeSessionId);
+      if (!exists) {
+        setActiveSessionId(null);
+      }
     }
-
-    const exists = history.some((session) => session.id === activeSessionId);
-    if (!exists && !manualSelection) {
-      setActiveSessionId(history[history.length - 1].id);
-    }
-  }, [history, activeSessionId, manualSelection]);
+  }, [history, activeSessionId]);
 
   useEffect(() => {
     if (!messageListRef.current) return;
@@ -130,6 +129,10 @@ export function AIAssistantInterface({
       behavior: "smooth",
     });
   }, [activeMessages.length]);
+
+  // always allow scrolling; auto-scroll handled on message updates
+
+  // removed scroll-lock logic to always allow natural scrolling inside the chat main
 
   // header stays fixed; messages area will scroll independently
 
@@ -284,6 +287,8 @@ export function AIAssistantInterface({
     setQuestion("");
     setHistoryPanelOpen(false);
 
+    // after sending, auto-scroll will run via effect
+
     void sendMessageToAssistant(trimmed, sessionToPersist);
   };
 
@@ -302,35 +307,6 @@ export function AIAssistantInterface({
     }
     console.log("[ZoeIA] Abrir chat em tempo real");
   };
-
-  const VoiceTriggerButton = () => (
-    <button
-      type="button"
-      onClick={() => {
-        setIsListening(true);
-        handleOpenRealtimeChat();
-        if (voiceTimeoutRef.current) {
-          window.clearTimeout(voiceTimeoutRef.current);
-        }
-        voiceTimeoutRef.current = window.setTimeout(() => setIsListening(false), 1300);
-      }}
-      className={`group relative flex h-12 w-12 items-center justify-center rounded-full border border-primary/50 bg-muted text-primary transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-primary/15 ${
-        isListening ? "shadow-[0_0_0_6px_rgba(79,70,229,0.18)]" : "shadow-sm"
-      }`}
-      aria-label="Abrir chat em tempo real com voz"
-    >
-      <span
-        className={`absolute inset-0 rounded-full bg-primary/20 transition duration-300 ${
-          isListening ? "opacity-100" : "opacity-0 group-hover:opacity-80 group-focus-visible:opacity-80"
-        }`}
-        aria-hidden
-      />
-      {isListening && (
-        <span className="absolute -inset-2 rounded-full border border-primary/40 opacity-80 blur-[1px]" aria-hidden />
-      )}
-      <Mic className={`relative h-5 w-5 ${isListening ? "animate-pulse" : ""}`} aria-hidden />
-    </button>
-  );
 
   const handleClearHistory = () => {
     if (onClearHistory) {
@@ -371,215 +347,189 @@ export function AIAssistantInterface({
   }, []);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
-      <div className="max-w-4xl w-full mx-auto flex flex-col h-full">
-        <div className="shrink-0">
-        <motion.header
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.32, ease: "easeOut" }}
-          className="sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur"
-        >
-          <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:text-primary"
-                onClick={() => setHistoryPanelOpen(true)}
-              >
-                <Clock className="h-4 w-4" aria-hidden />
-                Histórico
-              </Button>
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 text-sm font-semibold text-primary-foreground shadow-sm dark:via-primary/70 dark:to-primary/80">
-                Zoe
-              </span>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assistente Zoe</p>
-                <motion.h1
-                  key={typedGreeting}
-                  className="text-xl font-semibold sm:text-2xl"
-                  initial={{ opacity: 0.6 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  {gradientGreeting && (
-                    <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent dark:from-primary/70 dark:to-primary/40">
-                      {gradientGreeting}
-                      {plainGreeting ? " " : ""}
-                    </span>
-                  )}
-                  {plainGreeting && <span>{plainGreeting}</span>}
-                  <span
-                    className={`ml-1 inline-block h-5 w-[0.12rem] align-middle ${
-                      isTypingGreeting ? "animate-pulse bg-primary" : "bg-transparent"
-                    }`}
-                  />
-                </motion.h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {history.length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:text-primary"
-                  onClick={startNewConversation}
-                >
-                  Nova conversa
-                </Button>
-              )}
-              <SimpleThemeToggle />
+    <div className="flex h-screen w-full flex-col bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100">
+      <motion.header
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: "easeOut" }}
+        className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-md shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+      >
+        <div className="mx-auto flex h-16 w-full max-w-4xl items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow">
+              <HeartPulse className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold">Zoe</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Assistente clínica digital</span>
             </div>
           </div>
-          <div className="px-4 pb-4 sm:px-6">
-            <p className="text-lg font-semibold">Olá, eu sou Zoe.</p>
-            <p className="text-sm text-muted-foreground">Como posso ajudar você hoje?</p>
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-full border border-slate-200/80 px-3 py-1.5 text-slate-600 transition hover:text-blue-600 dark:border-slate-800 dark:text-slate-200"
+              onClick={() => setHistoryPanelOpen(true)}
+            >
+              <Clock className="h-3.5 w-3.5" aria-hidden />
+              Histórico
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full border border-blue-500/60 px-4 py-1.5 text-blue-600 dark:text-blue-400"
+              onClick={startNewConversation}
+            >
+              Nova conversa
+            </Button>
+            <SimpleThemeToggle />
           </div>
-        </motion.header>
         </div>
+      </motion.header>
 
+      <div className="flex-1 overflow-hidden">
         <motion.main
+          ref={messageListRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-          className="flex-1 overflow-hidden"
+          transition={{ delay: 0.05, duration: 0.2 }}
+          className="mx-auto flex h-full w-full max-w-3xl flex-1 flex-col px-4"
         >
-          <div
-            ref={messageListRef}
-            className="flex-1 overflow-y-auto px-6 py-4 pb-28"
-          >
-            <div className="max-w-4xl w-full mx-auto">
-              {activeMessages.length > 0 ? (
-                activeMessages.map((message) => (
-                  <motion.div
-                    key={message.id}
-                    variants={messageVariants}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ duration: 0.25 }}
-                    className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`flex max-w-[78%] items-end gap-3 ${
-                        message.sender === "user" ? "flex-row-reverse" : "flex-row"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                          message.sender === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {message.sender === "user" ? "Você" : "Zoe"}
-                      </span>
-                      <div
-                        className={`w-full rounded-[18px] px-5 py-4 text-sm leading-relaxed shadow-sm transition ${
-                          message.sender === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted/80 text-foreground"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
-                        <span
-                          className={`mt-2 block text-[0.68rem] uppercase tracking-[0.18em] ${
-                            message.sender === "user"
-                              ? "text-primary-foreground/70"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {formatTime(message.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-muted/40 px-6 py-12 text-center text-sm text-muted-foreground">
-                  <p className="text-sm font-medium text-foreground">Envie sua primeira mensagem</p>
-                  <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                    Compartilhe uma dúvida ou descreva uma orientação. A Zoe registra o pedido e organiza a resposta para você.
-                  </p>
-                </div>
-              )}
-
-              {isAssistantTyping && (
+          <div className="flex-1 space-y-6 overflow-y-auto pb-36 pt-6">
+            {activeMessages.length > 0 ? (
+              activeMessages.map((message) => (
                 <motion.div
+                  key={message.id}
                   variants={messageVariants}
                   initial="hidden"
                   animate="visible"
                   transition={{ duration: 0.2 }}
-                  className="flex justify-start"
+                  className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  <div className="flex max-w-[60%] items-end gap-3">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                      Zoe
-                    </span>
-                    <div className="rounded-[18px] border border-border/60 bg-card/90 px-4 py-3 text-sm text-muted-foreground shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex h-2 w-2 animate-bounce rounded-full bg-primary" />
-                        <span
-                          className="inline-flex h-2 w-2 animate-bounce rounded-full bg-primary"
-                          style={{ animationDelay: "0.18s" }}
-                        />
-                        <span
-                          className="inline-flex h-2 w-2 animate-bounce rounded-full bg-primary"
-                          style={{ animationDelay: "0.32s" }}
-                        />
+                  {message.sender === "assistant" ? (
+                    <div className="flex max-w-[90%] items-start gap-3">
+                      <span className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                        <HeartPulse className="h-4 w-4" aria-hidden />
+                      </span>
+                      <div className="flex flex-1 flex-col gap-2 rounded-3xl border border-slate-200 bg-white/95 px-5 py-4 text-sm leading-relaxed shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+                        <p className="whitespace-pre-wrap text-slate-700 dark:text-slate-100">{message.content}</p>
+                        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-400">{formatTime(message.createdAt)}</span>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex max-w-[85%] flex-col gap-2 rounded-3xl bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-4 text-sm leading-relaxed text-white shadow-sm">
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      <span className="text-[11px] font-medium text-blue-100">{formatTime(message.createdAt)}</span>
+                    </div>
+                  )}
                 </motion.div>
-              )}
-            </div>
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <motion.div
+                  initial={{ opacity: 0.9, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white/90 p-6 text-center shadow-lg backdrop-blur dark:border-slate-800 dark:bg-slate-900/80"
+                >
+                  <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 text-white">
+                    <HeartPulse className="h-5 w-5" aria-hidden />
+                  </span>
+                  <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">Pronto para ajudar</h2>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Descreva sua dúvida clínica ou exame e receba orientações instantâneas.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-4 rounded-full bg-blue-600 text-white hover:bg-blue-500"
+                    onClick={() => {
+                      const sample = "Preciso de ajuda com meus exames.";
+                      setQuestion(sample);
+                    }}
+                  >
+                    Sugerir mensagem
+                  </Button>
+                </motion.div>
+              </div>
+            )}
+
+            {isAssistantTyping && (
+              <motion.div
+                variants={messageVariants}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.18 }}
+                className="flex justify-start"
+              >
+                <div className="flex max-w-[70%] items-center gap-2 rounded-3xl border border-slate-200 bg-white/90 px-5 py-3 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+                  <span className="inline-flex h-2 w-2 animate-bounce rounded-full bg-blue-600" />
+                  <span className="inline-flex h-2 w-2 animate-bounce rounded-full bg-blue-600" style={{ animationDelay: "0.18s" }} />
+                  <span className="inline-flex h-2 w-2 animate-bounce rounded-full bg-blue-600" style={{ animationDelay: "0.32s" }} />
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Zoe digitando</span>
+                </div>
+              </motion.div>
+            )}
           </div>
         </motion.main>
+      </div>
 
-        <div className="fixed left-0 right-0 bottom-0 z-50">
-          <div className="max-w-4xl w-full mx-auto">
-            <div className="border-t bg-background p-4">
-              <div className="flex items-center gap-2 rounded-[26px] border border-border/60 bg-card/80 p-2 shadow-[0_18px_35px_rgba(15,23,42,0.18)] sm:p-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="rounded-full border border-border/60 text-muted-foreground transition hover:text-primary"
-                onClick={handleOpenDocuments}
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
-              <Input
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="Escreva sua mensagem"
-                className="h-11 flex-1 rounded-full border-0 bg-transparent text-sm placeholder:text-muted-foreground focus-visible:ring-0"
-              />
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Button
-                  type="button"
-                  className="rounded-full bg-gradient-to-r from-primary via-primary to-primary/70 px-5 text-primary-foreground shadow-[0_14px_35px_rgba(79,70,229,0.35)] transition hover:scale-[1.01]"
-                  onClick={handleSendMessage}
-                  disabled={!question.trim()}
-                >
-                  Enviar
-                </Button>
-                <VoiceTriggerButton />
-              </div>
-              </div>
-            </div>
+      <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4">
+        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-full border border-slate-200/80 text-slate-500 transition hover:text-blue-600 dark:border-slate-700 dark:text-slate-300"
+              onClick={handleOpenDocuments}
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+            <Input
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Faça uma pergunta para a Zoe..."
+              className="h-12 flex-1 border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setIsListening(true);
+                handleOpenRealtimeChat();
+                if (voiceTimeoutRef.current) {
+                  window.clearTimeout(voiceTimeoutRef.current);
+                }
+                voiceTimeoutRef.current = window.setTimeout(() => setIsListening(false), 1300);
+              }}
+              className={`relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 text-slate-500 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 dark:border-slate-700 dark:text-slate-300 ${
+                isListening ? "shadow-[0_0_18px_rgba(37,99,235,0.35)] text-blue-600" : ""
+              }`}
+              aria-label="Abrir chat em tempo real com voz"
+            >
+              {isListening && <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" aria-hidden />}
+              <Mic className="relative h-4 w-4" aria-hidden />
+            </button>
+            <Button
+              type="button"
+              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-500 disabled:opacity-60"
+              onClick={handleSendMessage}
+              disabled={!question.trim()}
+            >
+              Enviar
+            </Button>
           </div>
         </div>
+      </div>
 
-        <AnimatePresence>
+      <AnimatePresence>
         {historyPanelOpen && (
           <>
             <motion.div
@@ -591,14 +541,14 @@ export function AIAssistantInterface({
               onClick={() => setHistoryPanelOpen(false)}
             />
             <motion.aside
-              className="fixed inset-y-0 right-0 z-[160] w-[min(22rem,80vw)] border-l border-border/60 bg-card/95 shadow-[0_-20px_60px_rgba(15,23,42,0.16)] backdrop-blur-md"
+              className="fixed inset-y-0 right-0 z-[160] w-[320px] max-w-[100vw] rounded-l-2xl border-l border-border/40 bg-card/95 shadow-[0_8px_24px_rgba(2,6,23,0.12)] backdrop-blur-md"
               initial={{ x: 360 }}
               animate={{ x: 0 }}
               exit={{ x: 360 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              transition={{ type: "spring", stiffness: 260, damping: 24 }}
             >
               <div className="flex h-full flex-col">
-                <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
+                <div className="flex items-center justify-between border-b border-border/40 px-4 py-4">
                   <div className="flex items-center gap-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 text-sm font-semibold text-primary-foreground shadow-sm dark:via-primary/70 dark:to-primary/80">
                       Zoe
@@ -620,7 +570,7 @@ export function AIAssistantInterface({
                   </Button>
                 </div>
 
-                <div className="border-b border-border/60 px-4 py-3">
+                <div className="border-b border-border/40 px-4 py-3">
                   <Button
                     type="button"
                     className="w-full justify-start gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/70 text-primary-foreground shadow-[0_14px_32px_rgba(79,70,229,0.28)] transition hover:scale-[1.01]"
@@ -651,11 +601,11 @@ export function AIAssistantInterface({
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <p className="font-semibold text-foreground line-clamp-2">{session.topic}</p>
+                                <p className="line-clamp-2 font-semibold text-foreground">{session.topic}</p>
                                 <span className="text-xs text-muted-foreground">{formatDateTime(session.updatedAt)}</span>
                               </div>
                               {lastMessage && (
-                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                <p className="line-clamp-2 text-xs text-muted-foreground">
                                   {lastMessage.sender === "assistant" ? "Zoe: " : "Você: "}
                                   {lastMessage.content}
                                 </p>
@@ -675,7 +625,7 @@ export function AIAssistantInterface({
                 </div>
 
                 {history.length > 0 && (
-                  <div className="border-t border-border/60 px-4 py-3">
+                  <div className="border-t border-border/40 px-4 py-3">
                     <Button
                       type="button"
                       variant="ghost"
@@ -690,17 +640,8 @@ export function AIAssistantInterface({
             </motion.aside>
           </>
         )}
-          </AnimatePresence>
-          </div>
-          <style jsx>{`
-            .no-scrollbar {
-              -ms-overflow-style: none;
-              scrollbar-width: none;
-            }
-            .no-scrollbar::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
-        </div>
-      );
-    }
+      </AnimatePresence>
+
+    </div>
+  );
+}

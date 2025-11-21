@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Paperclip, Send, Moon, Sun, X, FileText, ImageIcon, Video, Music, Archive, MessageCircle, Bot, User, Info, Lock, Mic } from 'lucide-react';
 
-const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/cd7d10e6-bcfc-4f3a-b649-351d12b714f1";
+const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook-test/zoe2";
 const FALLBACK_RESPONSE = "Tive um problema para responder agora. Tente novamente em alguns instantes.";
 
 const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
@@ -368,6 +368,18 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
               >
                 <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                  handleFileSelect(event.target.files);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
+              />
               
               <div className="flex-1 relative">
                 <textarea

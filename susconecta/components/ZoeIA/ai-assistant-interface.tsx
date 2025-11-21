@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
+import { useToast } from "@/hooks/use-toast";
 import { Clock, Info, Lock, MessageCircle, Plus, Upload } from "lucide-react";
 
 const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/cd7d10e6-bcfc-4f3a-b649-351d12b714f1";
@@ -26,7 +27,7 @@ export interface ChatSession {
 }
 
 interface AIAssistantInterfaceProps {
-  onOpenDocuments?: () => void;
+  onOpenDocuments?: (files?: FileList) => void;
   onOpenChat?: () => void;
   history?: ChatSession[];
   onAddHistory?: (session: ChatSession) => void;
@@ -45,7 +46,9 @@ export function AIAssistantInterface({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [manualSelection, setManualSelection] = useState(false);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const { toast } = useToast();
   const messageListRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const history = internalHistory;
   const historyRef = useRef<ChatSession[]>(history);
   const baseGreeting = "Olá, eu sou Zoe. Como posso ajudar hoje?";
@@ -153,7 +156,11 @@ export function AIAssistantInterface({
     return () => window.clearTimeout(timeout);
   }, [greetingWords, isTypingGreeting, typedIndex]);
 
-  const handleDocuments = () => {
+  const handleOpenDocuments = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+      return;
+    }
     if (onOpenDocuments) {
       onOpenDocuments();
       return;
@@ -161,6 +168,46 @@ export function AIAssistantInterface({
     console.log("[ZoeIA] Abrir fluxo de documentos");
   };
 
+  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { files } = event.target;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const pdfFiles = Array.from(files).filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+
+    if (pdfFiles.length === 0) {
+      toast({
+        title: "Formato inválido",
+        description: "Envie apenas documentos em PDF.",
+        variant: "destructive",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (onOpenDocuments) {
+      const dataTransfer = new DataTransfer();
+      pdfFiles.forEach((file) => dataTransfer.items.add(file));
+      onOpenDocuments(dataTransfer.files);
+    } else {
+      pdfFiles.forEach((file) =>
+        sendUserMessage(`PDF anexado: ${file.name}`, {
+          triggerAssistant: false,
+        })
+      );
+    }
+
+    toast({
+      title: pdfFiles.length > 1 ? "PDFs anexados" : "PDF anexado",
+      description:
+        pdfFiles.length > 1
+          ? `${pdfFiles.length} arquivos prontos para a Zoe analisar.`
+          : `${pdfFiles[0].name} pronto para a Zoe analisar.`,
+    });
+
+    event.target.value = "";
+  };
   const handleOpenRealtimeChat = () => {
     if (onOpenChat) {
       onOpenChat();
@@ -254,44 +301,57 @@ export function AIAssistantInterface({
     [upsertSession]
   );
 
+  const sendUserMessage = useCallback(
+    (content: string, options?: { triggerAssistant?: boolean }) => {
+      const trimmed = content.trim();
+      if (!trimmed) return;
+
+      const now = new Date();
+      const userMessage: ChatMessage = {
+        id: `msg-user-${now.getTime()}`,
+        sender: "user",
+        content: trimmed,
+        createdAt: now.toISOString(),
+      };
+
+      const existingSession = history.find((session) => session.id === activeSessionId) ?? null;
+
+      const sessionToPersist: ChatSession = existingSession
+        ? {
+            ...existingSession,
+            updatedAt: userMessage.createdAt,
+            topic:
+              existingSession.messages.length === 0
+                ? buildSessionTopic(trimmed)
+                : existingSession.topic,
+            messages: [...existingSession.messages, userMessage],
+          }
+        : {
+            id: `session-${now.getTime()}`,
+            startedAt: now.toISOString(),
+            updatedAt: userMessage.createdAt,
+            topic: buildSessionTopic(trimmed),
+            messages: [userMessage],
+          };
+
+      upsertSession(sessionToPersist);
+
+      if (options?.triggerAssistant === false) {
+        return;
+      }
+
+      void sendMessageToAssistant(trimmed, sessionToPersist);
+    },
+    [activeSessionId, buildSessionTopic, history, sendMessageToAssistant, upsertSession]
+  );
+
   const handleSendMessage = () => {
     const trimmed = question.trim();
     if (!trimmed) return;
 
-    const now = new Date();
-    const userMessage: ChatMessage = {
-      id: `msg-user-${now.getTime()}`,
-      sender: "user",
-      content: trimmed,
-      createdAt: now.toISOString(),
-    };
-
-    const existingSession = history.find((session) => session.id === activeSessionId) ?? null;
-
-    const sessionToPersist: ChatSession = existingSession
-      ? {
-          ...existingSession,
-          updatedAt: userMessage.createdAt,
-          topic:
-            existingSession.messages.length === 0
-              ? buildSessionTopic(trimmed)
-              : existingSession.topic,
-          messages: [...existingSession.messages, userMessage],
-        }
-      : {
-          id: `session-${now.getTime()}`,
-          startedAt: now.toISOString(),
-          updatedAt: userMessage.createdAt,
-          topic: buildSessionTopic(trimmed),
-          messages: [userMessage],
-        };
-
-    upsertSession(sessionToPersist);
-    console.log("[ZoeIA] Mensagem registrada na Zoe", trimmed);
+    sendUserMessage(trimmed);
     setQuestion("");
     setHistoryPanelOpen(false);
-
-    void sendMessageToAssistant(trimmed, sessionToPersist);
   };
 
   const RealtimeTriggerButton = () => (
@@ -463,7 +523,7 @@ export function AIAssistantInterface({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Button
-              onClick={handleDocuments}
+              onClick={handleOpenDocuments}
               size="lg"
               className="justify-start gap-3 rounded-2xl bg-primary text-primary-foreground shadow-md transition hover:shadow-xl"
             >
@@ -551,6 +611,15 @@ export function AIAssistantInterface({
           </div>
         </motion.section>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf"
+          multiple
+          className="hidden"
+          onChange={handleFileInputChange}
+        />
+
         <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card/70 px-4 py-3 shadow-xl sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Button
@@ -558,7 +627,7 @@ export function AIAssistantInterface({
               variant="ghost"
               size="icon"
               className="rounded-full border border-border/40 bg-background/60 text-muted-foreground transition hover:text-primary"
-              onClick={handleDocuments}
+              onClick={handleOpenDocuments}
             >
               <Plus className="h-5 w-5" />
             </Button>

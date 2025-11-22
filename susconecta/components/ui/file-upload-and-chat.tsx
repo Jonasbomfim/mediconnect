@@ -124,44 +124,28 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
     setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId));
   };
 
+
   const generateAIResponse = useCallback(
     async (userMessage: string, files: any[]) => {
       try {
-        const hasAudio = files.some((file) =>
-          file.name.toLowerCase().endsWith(".mp3")
-        );
-        const hasPdf = files.some((file) =>
-          file.name.toLowerCase().endsWith(".pdf")
-        );
+        const pdfFile = files.find((file) => file.name.toLowerCase().endsWith(".pdf"));
 
-        const formData = new FormData();
-
-        // Adiciona mensagem
-        formData.append("message", userMessage);
-
-        // Adiciona arquivos corretamente
-        files.forEach((file) => {
-          const ext = file.name.toLowerCase().split(".").pop();
-          if (ext === "mp3") {
-            formData.append("audio", file.file); // nome do campo deve ser 'audio'
-          } else if (ext === "pdf") {
-            formData.append("pdf", file.file); // nome do campo deve ser 'pdf'
-          }
-        });
-
-        const response = await fetch(API_ENDPOINT, {
-          method: "POST",
-          body:
-            hasAudio || hasPdf
-              ? formData
-              : JSON.stringify({ message: userMessage }),
-          headers:
-            hasAudio || hasPdf
-              ? undefined // Quando usar FormData, NÃO definir Content-Type, o navegador define com boundary correto
-              : {
-                  "Content-Type": "application/json",
-                },
-        });
+        let response: Response;
+        if (pdfFile) {
+          const formData = new FormData();
+          formData.append("pdf", pdfFile.file); // campo 'pdf'
+          formData.append("message", userMessage); // campo 'message'
+          response = await fetch(API_ENDPOINT, {
+            method: "POST",
+            body: formData, // multipart/form-data automático
+          });
+        } else {
+          response = await fetch(API_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: userMessage }),
+          });
+        }
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
@@ -546,6 +530,13 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
               >
                 <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileSelect(e.target.files)}
+              />
 
               <div className="flex-1 relative">
                 <textarea

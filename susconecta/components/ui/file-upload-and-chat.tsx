@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Paperclip, Send, Moon, Sun, X, FileText, ImageIcon, Video, Music, Archive, MessageCircle, Bot, User, Info, Lock, Mic } from 'lucide-react';
 
-const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/cd7d10e6-bcfc-4f3a-b649-351d12b714f1";
+const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/zoe2";
 const FALLBACK_RESPONSE = "Tive um problema para responder agora. Tente novamente em alguns instantes.";
 
 const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
@@ -100,14 +100,35 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
     setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
-  const generateAIResponse = useCallback(async (userMessage: string, files: any[]) => {
+const generateAIResponse = useCallback(
+  async (userMessage: string, files: any[]) => {
     try {
+      const hasAudio = files.some((file) => file.name.toLowerCase().endsWith('.mp3'));
+      const hasPdf = files.some((file) => file.name.toLowerCase().endsWith('.pdf'));
+
+      const formData = new FormData();
+
+      // Adiciona mensagem
+      formData.append("message", userMessage);
+
+      // Adiciona arquivos corretamente
+      files.forEach((file) => {
+        const ext = file.name.toLowerCase().split('.').pop();
+        if (ext === 'mp3') {
+          formData.append("audio", file.file); // nome do campo deve ser 'audio'
+        } else if (ext === 'pdf') {
+          formData.append("pdf", file.file); // nome do campo deve ser 'pdf'
+        }
+      });
+
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: userMessage }),
+        body: hasAudio || hasPdf ? formData : JSON.stringify({ message: userMessage }),
+        headers: hasAudio || hasPdf
+          ? undefined // Quando usar FormData, NÃO definir Content-Type, o navegador define com boundary correto
+          : {
+              "Content-Type": "application/json",
+            },
       });
 
       if (!response.ok) {
@@ -131,7 +152,10 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
       console.error("[FileUploadChat] Failed to get API response", error);
       return FALLBACK_RESPONSE;
     }
-  }, []);
+  },
+  []
+);
+
 
   const sendMessage = useCallback(async () => {
     if (inputValue.trim() || uploadedFiles.length > 0) {

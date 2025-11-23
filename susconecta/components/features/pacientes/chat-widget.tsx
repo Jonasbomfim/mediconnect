@@ -1,18 +1,16 @@
-
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Mic, MicOff, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FileUploadChat from "@/components/ui/file-upload-and-chat";
-import { VoicePoweredOrb } from "@/components/ZoeIA/voice-powered-orb";
+
+// 👉 AQUI você importa o fluxo correto de voz (já testado e funcionando)
+import AIVoiceFlow from "@/components/ZoeIA/ai-voice-flow";
 
 export function ChatWidget() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [realtimeOpen, setRealtimeOpen] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [voiceDetected, setVoiceDetected] = useState(false);
 
   useEffect(() => {
     if (!assistantOpen && !realtimeOpen) return;
@@ -42,33 +40,11 @@ export function ChatWidget() {
   const closeRealtime = () => {
     setRealtimeOpen(false);
     setAssistantOpen(true);
-    setIsRecording(false);
-    setVoiceDetected(false);
-  };
-
-  const toggleRecording = () => {
-    setIsRecording((prev) => {
-      const next = !prev;
-      if (!next) {
-        setVoiceDetected(false);
-      }
-      return next;
-    });
-  };
-
-  const handleOpenDocuments = () => {
-    console.log("[ChatWidget] Abrindo fluxo de documentos");
-    closeAssistant();
-  };
-
-  const handleOpenChat = () => {
-    console.log("[ChatWidget] Encaminhando para chat em tempo real");
-    setAssistantOpen(false);
-    openRealtime();
   };
 
   return (
     <>
+      {/* ----------------- ASSISTANT PANEL ----------------- */}
       {assistantOpen && (
         <div
           id="ai-assistant-overlay"
@@ -85,12 +61,14 @@ export function ChatWidget() {
               <span className="text-sm font-semibold">Voltar</span>
             </Button>
           </div>
+
           <div className="flex-1 overflow-auto">
             <FileUploadChat onOpenVoice={openRealtime} />
           </div>
         </div>
       )}
 
+      {/* ----------------- REALTIME VOICE PANEL ----------------- */}
       {realtimeOpen && (
         <div
           id="ai-realtime-overlay"
@@ -108,57 +86,19 @@ export function ChatWidget() {
             </Button>
           </div>
 
-          <div className="flex-1 overflow-auto">
-            <div className="mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center gap-8 px-6 py-10 text-center">
-              <div className="relative w-full max-w-md aspect-square">
-                <VoicePoweredOrb
-                  enableVoiceControl={isRecording}
-                  className="h-full w-full rounded-3xl shadow-2xl"
-                  onVoiceDetected={setVoiceDetected}
-                />
-                {voiceDetected && (
-                  <span className="absolute bottom-6 right-6 rounded-full bg-primary/90 px-3 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
-                    Ouvindo…
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col items-center gap-4">
-                <Button
-                  onClick={toggleRecording}
-                  size="lg"
-                  className="px-8 py-3"
-                  variant={isRecording ? "destructive" : "default"}
-                >
-                  {isRecording ? (
-                    <>
-                      <MicOff className="mr-2 h-5 w-5" aria-hidden />
-                      Parar captura de voz
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="mr-2 h-5 w-5" aria-hidden />
-                      Iniciar captura de voz
-                    </>
-                  )}
-                </Button>
-                <p className="max-w-md text-sm text-muted-foreground">
-                  Ative a captura para falar com a equipe em tempo real. Assim que sua voz for detectada, a Zoe sinaliza visualmente e encaminha o atendimento.
-                </p>
-              </div>
-            </div>
+          {/* 🔥 Aqui entra o AIVoiceFlow COMPLETO */}
+          <div className="flex-1 overflow-auto flex items-center justify-center">
+            <AIVoiceFlow />
           </div>
         </div>
       )}
 
+      {/* ----------------- FLOATING BUTTON ----------------- */}
       <div className="fixed bottom-6 right-6 z-50 sm:bottom-8 sm:right-8">
         <button
           type="button"
           onClick={openAssistant}
           className="group relative flex h-16 w-16 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          aria-haspopup="dialog"
-          aria-expanded={assistantOpen}
-          aria-controls="ai-assistant-overlay"
         >
           {gradientRing}
           <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-background text-primary shadow-[0_12px_30px_rgba(37,99,235,0.25)] ring-1 ring-primary/10 transition group-hover:scale-[1.03] group-active:scale-95">

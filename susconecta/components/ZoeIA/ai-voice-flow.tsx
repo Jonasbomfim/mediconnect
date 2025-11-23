@@ -5,6 +5,7 @@ import { VoicePoweredOrb } from "@/components/ZoeIA/voice-powered-orb";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff } from "lucide-react";
 
+
 // ⚠ Coloque aqui o webhook real do seu n8n
 const N8N_WEBHOOK_URL = "https://n8n.jonasbomfim.store/webhook/zoe2";
 

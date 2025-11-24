@@ -89,16 +89,7 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
       file: file,
     }));
     setUploadedFiles((prev) => [...prev, ...newFiles]);
-
-    // Add system message about file upload
-    const fileNames = newFiles.map((f) => f.name).join(", ");
-    const systemMessage = {
-      id: Date.now(),
-      type: "system",
-      content: `📎 Added ${newFiles.length} file(s): ${fileNames}`,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, systemMessage]);
+    // Removido: mensagem de sistema de arquivos adicionados (não desejada na UI)
   };
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -350,50 +341,7 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
               </p>
             </div>
 
-            {/* Files Ready to Send */}
-            {uploadedFiles.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <h4
-                    className={`text-xs sm:text-sm font-medium ${themeClasses.text}`}
-                  >
-                    Files ready to send ({uploadedFiles.length})
-                  </h4>
-                  <button
-                    onClick={() => setUploadedFiles([])}
-                    className={`text-xs px-2 sm:px-3 py-1 rounded-full ${themeClasses.textSecondary} hover:text-red-500 transition-colors`}
-                  >
-                    Clear all
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 gap-2">
-                  {uploadedFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border ${themeClasses.border} ${themeClasses.inputBg}`}
-                    >
-                      {getFileIcon(file.name)}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-xs sm:text-sm font-medium truncate ${themeClasses.text}`}
-                        >
-                          {file.name}
-                        </p>
-                        <p className={`text-xs ${themeClasses.textSecondary}`}>
-                          {formatFileSize(file.size)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => removeFile(file.id)}
-                        className={`p-1 rounded-full hover:bg-red-500/20 ${themeClasses.textSecondary} hover:text-red-500 transition-colors`}
-                      >
-                        <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* (Removido) Lista de arquivos antiga – agora exibida sobre o input */}
           </div>
         </div>
 
@@ -522,7 +470,44 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
 
           {/* Chat Input */}
           <div className={`border-t p-3 sm:p-4 ${themeClasses.border}`}>
-            <div className="flex gap-2 sm:gap-3 items-end">
+            <div className="flex flex-col gap-2">
+              {/* Anexos selecionados (chips) */}
+              {uploadedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pb-1">
+                  {uploadedFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className={`group flex items-center gap-2 px-3 py-2 rounded-lg border ${themeClasses.border} ${themeClasses.inputBg} relative`}
+                    >
+                      {getFileIcon(file.name)}
+                      <div className="min-w-0 max-w-[160px]">
+                        <p className={`text-xs font-medium truncate ${themeClasses.text}`}>
+                          {file.name}
+                        </p>
+                        <p className={`text-[10px] leading-tight ${themeClasses.textSecondary}`}>
+                          {formatFileSize(file.size)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeFile(file.id)}
+                        className={`p-1 rounded-full transition-colors ${themeClasses.textSecondary} hover:text-red-500 hover:bg-red-500/20`}
+                        aria-label="Remover arquivo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setUploadedFiles([])}
+                    className={`ml-auto text-[11px] px-2 py-1 rounded-md ${themeClasses.textSecondary} hover:text-red-500 transition-colors`}
+                  >
+                    Limpar tudo
+                  </button>
+                </div>
+              )}
+
+              {/* Linha com botões e textarea */}
+              <div className="flex gap-2 sm:gap-3 items-end">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
@@ -576,6 +561,7 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
               >
                 <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
+              </div>
             </div>
 
             {/* Quick Actions */}

@@ -21,6 +21,7 @@ import {
   Lock,
   Mic,
   AudioLines,
+  Plus,
 } from "lucide-react";
 
 const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/zoe2";
@@ -48,17 +49,14 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        textareaRef.current.scrollHeight + "px";
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
     }
   }, [inputValue]);
 
@@ -279,9 +277,10 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
                 </button>
                 <button
                   onClick={() => setTheme(isDarkMode ? "light" : "dark")}
-                  className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
+                  className={`p-1.5 sm:p-2 rounded-lg sm:rounded-lg border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
+                  aria-label="Alternar tema"
                 >
-                  <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
@@ -510,61 +509,61 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
                 </div>
               )}
 
-              {/* Linha com botões e textarea */}
-              <div className="flex gap-2 sm:gap-3 items-end">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
-                title="Attach files"
-              >
-                <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => handleFileSelect(e.target.files)}
-              />
-
-              <div className="flex-1 relative">
-                <textarea
-                  ref={textareaRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Pergunte qualquer coisa para a Zoe"
-                  rows={1}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl border resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 max-h-32 text-sm ${themeClasses.inputBg} ${themeClasses.border} ${themeClasses.text} placeholder-gray-400`}
-                  style={{ minHeight: "40px" }}
-                />
-
-                {/* Character count */}
-                {inputValue.length > 0 && (
-                  <div
-                    className={`absolute bottom-1 right-2 text-xs ${themeClasses.textSecondary}`}
+              {/* Input unificado com ícones embutidos */}
+              <div className="flex w-full">
+                <div className={`relative flex items-center w-full rounded-full border ${themeClasses.border} ${themeClasses.inputBg} overflow-hidden h-11`}>
+                  {/* Botão anexar (esquerda) */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    type="button"
+                    className={`absolute left-2 flex items-center justify-center h-7 w-7 rounded-full transition-colors hover:bg-primary/20 ${themeClasses.text}`}
+                    aria-label="Anexar arquivos"
                   >
-                    {inputValue.length}
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFileSelect(e.target.files)}
+                  />
+                  {/* Textarea */}
+                  <textarea
+                    ref={textareaRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Pergunte qualquer coisa para a Zoe"
+                    rows={1}
+                    className={`pl-11 pr-24 w-full h-full bg-transparent resize-none focus:outline-none text-sm leading-snug py-3 ${themeClasses.text} placeholder-gray-400`}
+                    style={{ minHeight: 'auto', overflow: 'hidden' }}
+                  />
+                  {/* Ícones à direita */}
+                  <div className="absolute right-2 flex items-center gap-2">
+                    <button
+                      onClick={() => onOpenVoice?.()}
+                      type="button"
+                      className={`flex items-center justify-center h-8 w-8 rounded-full border ${themeClasses.border} transition-colors hover:bg-primary/20 ${themeClasses.text}`}
+                      aria-label="Entrada de voz"
+                    >
+                      <AudioLines className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={sendMessage}
+                      disabled={!inputValue.trim() && uploadedFiles.length === 0}
+                      type="button"
+                      className="flex items-center justify-center h-8 w-8 rounded-full bg-linear-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
+                      aria-label="Enviar mensagem"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
                   </div>
-                )}
-              </div>
-
-              <button
-                onClick={sendMessage}
-                disabled={!inputValue.trim() && uploadedFiles.length === 0}
-                className="p-2 sm:p-3 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-lg sm:rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 disabled:hover:scale-100 shadow-lg"
-                title="Send message"
-              >
-                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-
-              <button
-                onClick={() => onOpenVoice?.()}
-                className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
-                title="Captura de voz"
-              >
-                <AudioLines className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+                  {/* Contador de caracteres */}
+                  {inputValue.length > 0 && (
+                    <span className={`absolute bottom-1 right-24 text-[10px] ${themeClasses.textSecondary}`}>{inputValue.length}</span>
+                  )}
+                </div>
               </div>
             </div>
 

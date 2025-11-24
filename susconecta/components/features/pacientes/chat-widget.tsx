@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTheme } from "next-themes";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FileUploadChat from "@/components/ui/file-upload-and-chat";
@@ -11,6 +12,8 @@ import AIVoiceFlow from "@/components/ZoeIA/ai-voice-flow";
 export function ChatWidget() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [realtimeOpen, setRealtimeOpen] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (!assistantOpen && !realtimeOpen) return;
@@ -48,13 +51,13 @@ export function ChatWidget() {
       {assistantOpen && (
         <div
           id="ai-assistant-overlay"
-          className="fixed inset-0 z-100 flex flex-col bg-gray-50 dark:bg-slate-950 border-b border-border"
+          className={`fixed inset-0 z-100 flex flex-col transition-colors ${isDark ? "bg-slate-950" : "bg-white"}`}
         >
-          <div className="flex items-center justify-between border-b px-4 py-3 bg-slate-100 dark:bg-slate-900 border-gray-300 dark:border-slate-700 shadow-sm">
+          <div className={`flex items-center justify-between border-b px-4 py-3 shadow-sm transition-colors ${isDark ? "bg-slate-900 border-slate-700" : "bg-white border-gray-200"}`}>
             <Button
               type="button"
               variant="ghost"
-              className="flex items-center gap-2 text-slate-900 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
+              className={`flex items-center gap-2 ${isDark ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"}`}
               onClick={closeAssistant}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -72,13 +75,13 @@ export function ChatWidget() {
       {realtimeOpen && (
         <div
           id="ai-realtime-overlay"
-          className="fixed inset-0 z-110 flex flex-col bg-background"
+          className={`fixed inset-0 z-110 flex flex-col transition-colors ${isDark ? "bg-slate-950" : "bg-white"}`}
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className={`flex items-center justify-between border-b px-4 py-3 transition-colors ${isDark ? "bg-slate-900 border-slate-700" : "bg-white border-gray-200"}`}>
             <Button
               type="button"
               variant="ghost"
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isDark ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"}`}
               onClick={closeRealtime}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />

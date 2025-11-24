@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useTheme } from "next-themes";
 import {
   Upload,
   Paperclip,
@@ -19,6 +20,7 @@ import {
   Info,
   Lock,
   Mic,
+  AudioLines,
 } from "lucide-react";
 
 const API_ENDPOINT = "https://n8n.jonasbomfim.store/webhook/zoe2";
@@ -26,7 +28,9 @@ const FALLBACK_RESPONSE =
   "Tive um problema para responder agora. Tente novamente em alguns instantes.";
 
 const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  // Usa tema global fornecido por next-themes
+  const { theme, setTheme } = useTheme();
+  const isDarkMode = theme === "dark";
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -269,12 +273,12 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
               <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
                 <button
                   type="button"
-                  className={`rounded-full border-primary/40 px-2 sm:px-4 py-1 sm:py-2 text-xs font-semibold uppercase tracking-[0.12em] sm:tracking-[0.18em] text-primary shadow-sm transition hover:bg-primary/10 border whitespace-nowrap`}
+                  className={`rounded-full px-2 sm:px-4 py-1 sm:py-2 text-xs font-semibold uppercase tracking-[0.12em] sm:tracking-[0.18em] whitespace-nowrap transition shadow-sm border ${isDarkMode ? "border-primary/40 text-primary hover:bg-primary/10" : "bg-primary border-primary text-white hover:bg-primary/90"}`}
                 >
                   Novo atendimento
                 </button>
                 <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  onClick={() => setTheme(isDarkMode ? "light" : "dark")}
                   className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
                 >
                   <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -557,9 +561,9 @@ const FileUploadChat = ({ onOpenVoice }: { onOpenVoice?: () => void }) => {
               <button
                 onClick={() => onOpenVoice?.()}
                 className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg ${themeClasses.border} ${themeClasses.inputBg} ${themeClasses.text}`}
-                title="Voice capture"
+                title="Captura de voz"
               >
-                <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+                <AudioLines className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               </div>
             </div>

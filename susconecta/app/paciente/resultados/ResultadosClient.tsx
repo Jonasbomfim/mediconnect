@@ -876,17 +876,6 @@ export default function ResultadosClient() {
               </Select>
             </div>
 
-            {/* Mais filtros / Voltar */}
-            <div className="sm:col-span-4">
-              <Button
-                variant="outline"
-                className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                Mais filtros
-              </Button>
-            </div>
-
             {/* Voltar */}
             <div className="sm:col-span-12">
               <Button

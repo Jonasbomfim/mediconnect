@@ -69,32 +69,47 @@ export default function EditarLaudoPage() {
   // Estado para rastrear alinhamento ativo
   const [activeAlignment, setActiveAlignment] = useState('left');
 
-  // Salvar conteúdo no localStorage sempre que muda
+  // Salvar conteúdo no localStorage sempre que muda (com debounce)
   useEffect(() => {
-    if (content && laudoId) {
-      localStorage.setItem(`laudo-draft-${laudoId}`, content);
-    }
-  }, [content, laudoId]);
+    const timeoutId = setTimeout(() => {
+      if (laudoId) {
+        // Capturar conteúdo atual do editor antes de salvar
+        const currentContent = editorRef.current?.innerHTML || content;
+        
+        const draft = {
+          content: currentContent,
+          campos,
+          lastSaved: new Date().toISOString(),
+        };
+        
+        localStorage.setItem(`laudo-draft-${laudoId}`, JSON.stringify(draft));
+      }
+    }, 1000); // Aguarda 1 segundo após última mudança
+
+    return () => clearTimeout(timeoutId);
+  }, [content, campos, laudoId]);
 
   // Sincronizar conteúdo com o editor
   useEffect(() => {
     if (editorRef.current && content) {
-      if (editorRef.current.innerHTML !== content) {
-        editorRef.current.innerHTML = content;
-      }
+      editorRef.current.innerHTML = content;
     }
   }, [content]);
+
+  // Função para trocar de aba salvando conteúdo antes
+  const handleTabChange = (newTab: string) => {
+    // Salvar conteúdo do editor antes de trocar
+    if (editorRef.current) {
+      const editorContent = editorRef.current.innerHTML;
+      setContent(editorContent);
+    }
+    setActiveTab(newTab);
+  };
 
   // Restaurar conteúdo quando volta para a aba editor
   useEffect(() => {
     if (activeTab === 'editor' && editorRef.current && content) {
-      editorRef.current.focus();
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.setStart(editorRef.current, editorRef.current.childNodes.length);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+      editorRef.current.innerHTML = content;
     }
   }, [activeTab]);
 
@@ -166,20 +181,36 @@ export default function EditarLaudoPage() {
         const contentHtml = r.content_html || r.conteudo_html || '';
         
         // Verificar se existe rascunho salvo no localStorage
-        const draftContent = typeof window !== 'undefined' ? localStorage.getItem(`laudo-draft-${laudoId}`) : null;
-        const finalContent = draftContent || contentHtml;
+        let finalContent = contentHtml;
+        let finalCampos = {
+          cid: r.cid_code || r.cid || '',
+          diagnostico: r.diagnosis || r.diagnostico || '',
+          conclusao: r.conclusion || r.conclusao || '',
+          exame: r.exam || r.exame || '',
+          especialidade: r.especialidade || '',
+          mostrarData: !r.hide_date,
+          mostrarAssinatura: !r.hide_signature,
+        };
         
+        if (typeof window !== 'undefined') {
+          const draftData = localStorage.getItem(`laudo-draft-${laudoId}`);
+          if (draftData) {
+            try {
+              const draft = JSON.parse(draftData);
+              if (draft.content) finalContent = draft.content;
+              if (draft.campos) finalCampos = { ...finalCampos, ...draft.campos };
+            } catch (err) {
+              // Se falhar parse, tentar como string simples (formato antigo)
+              finalContent = draftData;
+            }
+          }
+        }
+        
+        setCampos(finalCampos);
         setContent(finalContent);
+        
         if (editorRef.current) {
           editorRef.current.innerHTML = finalContent;
-          // Colocar cursor no final do texto
-          editorRef.current.focus();
-          const range = document.createRange();
-          const sel = window.getSelection();
-          range.setStart(editorRef.current, editorRef.current.childNodes.length);
-          range.collapse(true);
-          sel?.removeAllRanges();
-          sel?.addRange(range);
         }
       } catch (err) {
         console.warn('Erro ao carregar laudo:', err);
@@ -357,7 +388,7 @@ export default function EditarLaudoPage() {
           {/* Tabs */}
           <div className="flex border-b border-border bg-card overflow-x-auto flex-shrink-0">
             <button
-              onClick={() => setActiveTab('editor')}
+              onClick={() => handleTabChange('editor')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'editor'
                   ? 'border-blue-500 text-blue-600'
@@ -368,7 +399,7 @@ export default function EditarLaudoPage() {
               Editor
             </button>
             <button
-              onClick={() => setActiveTab('campos')}
+              onClick={() => handleTabChange('campos')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'campos'
                   ? 'border-blue-500 text-blue-600'

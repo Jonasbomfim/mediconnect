@@ -309,7 +309,7 @@ export default function AgendamentoPage() {
             </div>
 
             {/* legenda dinâmica: mostra as cores presentes nos agendamentos do dia atual */}
-            <div className="sm:absolute sm:top-2 sm:right-2 mt-2 sm:mt-0 z-40">
+            <div className="sm:absolute sm:top-2 sm:right-2 mt-2 sm:mt-0 z-10">
               <DynamicLegend events={managerEvents} />
             </div>
           </div>

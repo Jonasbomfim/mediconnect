@@ -178,6 +178,33 @@ export default function LaudosEditorPage() {
     }
   }, []);
 
+  // Auto-salvar no localStorage sempre que houver mudanças (com debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Capturar conteúdo atual do editor antes de salvar
+      const currentContent = editorRef.current?.innerHTML || content;
+      
+      const draft = {
+        pacienteSelecionado,
+        content: currentContent,
+        campos,
+        solicitanteId,
+        solicitanteNome,
+        prazoDate,
+        prazoTime,
+        imagens,
+        lastSaved: new Date().toISOString(),
+      };
+      
+      // Só salvar se houver conteúdo ou dados preenchidos
+      if (currentContent || pacienteSelecionado || campos.exame || campos.diagnostico || imagens.length > 0) {
+        localStorage.setItem('laudoDraft', JSON.stringify(draft));
+      }
+    }, 1000); // Aguarda 1 segundo após última mudança
+
+    return () => clearTimeout(timeoutId);
+  }, [pacienteSelecionado, content, campos, solicitanteId, solicitanteNome, prazoDate, prazoTime, imagens]);
+
   // Tentar obter o registro de médico correspondente ao usuário autenticado
   useEffect(() => {
     let mounted = true;
@@ -246,6 +273,23 @@ export default function LaudosEditorPage() {
       setHistoryIndex(newHistory.length);
     }
   }, [content]);
+
+  // Função para trocar de aba salvando conteúdo antes
+  const handleTabChange = (newTab: string) => {
+    // Salvar conteúdo do editor antes de trocar
+    if (editorRef.current) {
+      const editorContent = editorRef.current.innerHTML;
+      setContent(editorContent);
+    }
+    setActiveTab(newTab);
+  };
+
+  // Restaurar conteúdo do editor quando voltar para a aba editor
+  useEffect(() => {
+    if (activeTab === 'editor' && editorRef.current && content) {
+      editorRef.current.innerHTML = content;
+    }
+  }, [activeTab]);
 
   // Desfazer
   const handleUndo = () => {
@@ -321,11 +365,15 @@ export default function LaudosEditorPage() {
 
   // Salvar rascunho no localStorage
   const saveDraft = () => {
+    // Capturar conteúdo atual do editor antes de salvar
+    const currentContent = editorRef.current?.innerHTML || content;
+    
     const draft = {
       pacienteSelecionado,
-      content,
+      content: currentContent,
       campos,
       solicitanteId,
+      solicitanteNome,
       prazoDate,
       prazoTime,
       imagens,
@@ -389,6 +437,9 @@ export default function LaudosEditorPage() {
         return;
       }
 
+      // Capturar conteúdo atual do editor antes de salvar
+      const currentContent = editorRef.current?.innerHTML || content;
+
       const userId = user?.id || '00000000-0000-0000-0000-000000000001';
 
       let composedDueAt = undefined;
@@ -404,7 +455,7 @@ export default function LaudosEditorPage() {
         diagnosis: campos.diagnostico || '',
         conclusion: campos.conclusao || '',
         cid_code: campos.cid || '',
-        content_html: content,
+        content_html: currentContent,
         content_json: {},
         requested_by: solicitanteId || userId,
         due_at: composedDueAt ?? new Date().toISOString(),
@@ -414,6 +465,10 @@ export default function LaudosEditorPage() {
 
       if (createNewReport) {
         await createNewReport(payload as any);
+        
+        // Limpar rascunho salvo após sucesso
+        localStorage.removeItem('laudoDraft');
+        
         toast({
           title: 'Laudo criado com sucesso!',
           description: 'O laudo foi liberado e salvo.',
@@ -536,7 +591,7 @@ export default function LaudosEditorPage() {
           {/* Tabs */}
           <div className="flex border-b border-border bg-card overflow-x-auto flex-shrink-0">
             <button
-              onClick={() => setActiveTab('editor')}
+              onClick={() => handleTabChange('editor')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'editor'
                   ? 'border-blue-500 text-blue-600'
@@ -547,7 +602,7 @@ export default function LaudosEditorPage() {
               Editor
             </button>
             <button
-              onClick={() => setActiveTab('imagens')}
+              onClick={() => handleTabChange('imagens')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'imagens'
                   ? 'border-blue-500 text-blue-600'
@@ -558,7 +613,7 @@ export default function LaudosEditorPage() {
               Imagens ({imagens.length})
             </button>
             <button
-              onClick={() => setActiveTab('campos')}
+              onClick={() => handleTabChange('campos')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'campos'
                   ? 'border-blue-500 text-blue-600'

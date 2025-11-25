@@ -1396,13 +1396,13 @@ const ProfissionalPage = () => {
 
           {/* Filtros */}
           <div className="p-4 border-b border-border">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-start gap-4">
               <div className="relative flex-1 min-w-[200px]">
                 {/* Search input integrado com busca por ID */}
                 <SearchBox />
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-0">
                 <div className="flex items-center gap-1 text-sm">
                   <CalendarIcon className="w-4 h-4" />
                   <Input type="date" value={startDate ?? ''} onChange={(e) => { setStartDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm h-10" />
@@ -1411,7 +1411,7 @@ const ProfissionalPage = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center mt-0">
                 {/* date range buttons: Semana / Mês */}
                 <DateRangeButtons />
               </div>

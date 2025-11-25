@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Toggle } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -31,6 +31,7 @@ import {
   buscarPacientes,
   listarDisponibilidades,
   listarExcecoes,
+  getAvatarPublicUrl,
   type Medico,
 } from '@/lib/api'
 
@@ -66,6 +67,9 @@ export default function ResultadosClient() {
   const [patientId, setPatientId] = useState<string | null>(null)
   const [medicos, setMedicos] = useState<Medico[]>([])
   const [loadingMedicos, setLoadingMedicos] = useState(false)
+  
+  // Avatares dos médicos
+  const [medicosAvatars, setMedicosAvatars] = useState<Record<string, string>>({})
 
   // agenda por médico e loading por médico
   const [agendaByDoctor, setAgendaByDoctor] = useState<Record<string, DayAgenda[]>>({})
@@ -249,6 +253,22 @@ export default function ResultadosClient() {
     
     return () => { mounted = false }
   }, [medicoFiltro, paramsSync])
+
+  // Carregar avatares dos médicos quando a lista mudar
+  useEffect(() => {
+    if (!medicos || medicos.length === 0) return
+    
+    const avatars: Record<string, string> = {}
+    
+    // Gerar URLs dos avatares sem fazer verificação (deixar o browser carregar)
+    for (const medico of medicos) {
+      if (!medico.id) continue
+      // Usar jpg como padrão (mais comum)
+      avatars[medico.id] = getAvatarPublicUrl(medico.id, 'jpg')
+    }
+    
+    setMedicosAvatars(avatars)
+  }, [medicos])
 
   // 3) Carregar horários disponíveis para um médico (próximos 7 dias) e agrupar por dia
   async function loadAgenda(doctorId: string): Promise<{ iso: string; label: string } | null> {
@@ -911,6 +931,7 @@ export default function ResultadosClient() {
                 {/* Header com Avatar, Nome, Especialidade e Botão Ver Perfil */}
                 <div className="flex gap-4 items-start">
                   <Avatar className="h-20 w-20 border-2 border-primary/20 bg-primary/5 flex-shrink-0">
+                    {medicosAvatars[id] && <AvatarImage src={medicosAvatars[id]} alt={nome} />}
                     <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
                       {nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </AvatarFallback>

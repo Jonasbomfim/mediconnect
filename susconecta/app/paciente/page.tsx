@@ -1698,7 +1698,6 @@ export default function PacientePage() {
                 </div>
                 <div className="flex gap-2 w-full md:w-auto flex-col sm:flex-row">
                   <Button variant="outline" className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm w-full md:w-auto" onClick={async () => { router.push(`/laudos/${r.id}`); }}>{strings.visualizarLaudo}</Button>
-                  <Button variant="secondary" className="hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm w-full md:w-auto" onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(r)); setToast({ type: 'success', msg: 'Laudo copiado.' }) } catch { setToast({ type: 'error', msg: 'Falha ao copiar.' }) } }}>{strings.compartilhar}</Button>
                 </div>
               </div>
                   ))}

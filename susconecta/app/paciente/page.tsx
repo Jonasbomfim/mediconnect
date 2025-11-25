@@ -602,7 +602,7 @@ export default function PacientePage() {
 
         {/* Cards com Informações */}
         <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-4 md:grid-cols-2">
-          <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <Card className="group rounded-2xl border border-border/60 bg-card p-4 sm:p-5 md:p-5 shadow-sm transition hover:shadow-md">
             <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
               <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Calendar className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
@@ -616,7 +616,7 @@ export default function PacientePage() {
             </div>
           </Card>
 
-          <Card className="group rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5 md:p-5 backdrop-blur-sm shadow-sm transition hover:shadow-md">
+          <Card className="group rounded-2xl border border-border/60 bg-card p-4 sm:p-5 md:p-5 shadow-sm transition hover:shadow-md">
             <div className="flex h-32 sm:h-36 md:h-40 w-full flex-col items-center justify-center gap-2 sm:gap-3">
               <div className="flex h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <FileText className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" aria-hidden />
@@ -1960,8 +1960,8 @@ export default function PacientePage() {
         {/* Layout com sidebar e conteúdo */}
         <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[220px_1fr] gap-4 sm:gap-5 md:gap-6">
           {/* Sidebar vertical - sticky */}
-          <aside className="sticky top-24 h-fit md:top-24">
-            <nav aria-label="Navegação do dashboard" className="bg-card shadow-md rounded-lg border border-border p-1.5 sm:p-2 md:p-3 z-30">
+          <aside className="sticky top-24 h-fit md:top-24 z-40">
+            <nav aria-label="Navegação do dashboard" className="relative isolate bg-card shadow-lg rounded-lg border border-border p-1.5 sm:p-2 md:p-3 z-50">
               <div className="grid grid-cols-2 md:grid-cols-1 gap-1 sm:gap-1.5">
                 <Button
                   variant={tab==='dashboard'?'default':'ghost'}

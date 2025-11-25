@@ -900,7 +900,7 @@ export default function ResultadosClient() {
             const cidade = medico.city || '—'
             const precoTipoConsulta = tipoConsulta === 'local' ? 'R$ —' : 'R$ —'
             
-            // Usar os próximos 3 horários já memoizados
+            // Usar os próxios 3 horários já memoizados
             const proximos3Horarios = proximosHorariosPorMedico[id] || []
 
             return (

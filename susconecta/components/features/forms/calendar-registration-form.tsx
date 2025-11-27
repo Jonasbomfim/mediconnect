@@ -869,22 +869,39 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
           <div className="md:col-span-6 flex items-start justify-end">
             <div className="text-right text-sm">
               {loadingPatient ? (
-                <div>Carregando dados do paciente...</div>
+                <div className="text-muted-foreground">Carregando dados do paciente...</div>
               ) : patientDetails ? (
                 patientDetails.error ? (
                   <div className="text-red-500">Erro ao carregar paciente: {String(patientDetails.error)}</div>
                 ) : (
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <div><strong>CPF:</strong> {patientDetails.cpf || '-'}</div>
-                    <div><strong>Telefone:</strong> {patientDetails.phone_mobile || patientDetails.telefone || '-'}</div>
-                    <div><strong>E-mail:</strong> {patientDetails.email || '-'}</div>
-                    <div><strong>Data de nascimento:</strong> {patientDetails.birth_date || '-'}</div>
+                  <div className="grid grid-cols-1 gap-2 bg-muted/30 p-4 rounded-lg border border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">CPF:</span>
+                      <span className="text-sm font-medium text-foreground">{patientDetails.cpf || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Telefone:</span>
+                      <span className="text-sm font-medium text-foreground">{patientDetails.phone_mobile || patientDetails.telefone || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">E-mail:</span>
+                      <span className="text-sm font-medium text-foreground">{patientDetails.email || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Data de nascimento:</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {patientDetails.birth_date 
+                          ? new Date(patientDetails.birth_date + 'T00:00:00').toLocaleDateString('pt-BR')
+                          : '-'
+                        }
+                      </span>
+                    </div>
                   </div>
                 )
               ) : (
                 <div className="text-xs text-muted-foreground">Paciente não vinculado</div>
               )}
-              <div className="mt-1 text-xs text-muted-foreground">Para editar os dados do paciente, acesse a ficha do paciente.</div>
+              <div className="mt-2 text-xs text-muted-foreground italic">Para editar os dados do paciente, acesse a ficha do paciente.</div>
             </div>
           </div>
         </div>

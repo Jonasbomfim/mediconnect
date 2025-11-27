@@ -55,7 +55,7 @@ export interface EventManagerProps {
 
 const defaultColors = [
   { name: "Blue", value: "blue", bg: "bg-blue-500", text: "text-blue-700" },
-  { name: "Green", value: "green", bg: "bg-green-500", text: "text-green-700" },
+  { name: "Green", value: "green", bg: "bg-[#10B981]", text: "text-green-700" },
   { name: "Purple", value: "purple", bg: "bg-purple-500", text: "text-purple-700" },
   { name: "Orange", value: "orange", bg: "bg-orange-500", text: "text-orange-700" },
   { name: "Pink", value: "pink", bg: "bg-pink-500", text: "text-pink-700" },

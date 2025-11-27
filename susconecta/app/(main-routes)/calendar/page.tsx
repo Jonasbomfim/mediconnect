@@ -157,7 +157,7 @@ export default function AgendamentoPage() {
     // Mapa de classes para cores conhecidas
     const colorClassMap: Record<string, string> = {
       blue: "bg-blue-500 ring-blue-500/20",
-      green: "bg-green-500 ring-green-500/20",
+      green: "bg-[#10B981] ring-[#10B981]/20",
       orange: "bg-orange-500 ring-orange-500/20",
       red: "bg-red-500 ring-red-500/20",
       purple: "bg-purple-500 ring-purple-500/20",
@@ -242,7 +242,7 @@ export default function AgendamentoPage() {
             <span className="text-foreground text-xs sm:text-sm font-medium">Solicitado</span>
           </div>
           <div className="flex items-center gap-2">
-            <span aria-hidden className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-green-500 ring-1 ring-white/6" />
+            <span aria-hidden className="h-2 w-2 sm:h-3 sm:w-3 rounded-full ring-1 ring-white/6" style={{ backgroundColor: '#10B981' }} />
             <span className="text-foreground text-xs sm:text-sm font-medium">Confirmado</span>
           </div>
           <div className="flex items-center gap-2">

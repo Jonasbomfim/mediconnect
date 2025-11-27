@@ -336,11 +336,11 @@ export function EventManager({
             {view === "list" && "Todos os eventos"}
           </h2>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigateDate("prev")} className="h-8 w-8">
-              <ChevronLeft className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={() => navigateDate("prev")} className="h-8 w-8 hover:bg-primary/10 hover:border-primary transition-colors hover:!text-primary">
+              <ChevronLeft className="h-4 w-4 text-current" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => navigateDate("next")} className="h-8 w-8">
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={() => navigateDate("next")} className="h-8 w-8 hover:bg-primary/10 hover:border-primary transition-colors hover:!text-primary">
+              <ChevronRight className="h-4 w-4 text-current" />
             </Button>
           </div>
         </div>

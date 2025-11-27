@@ -567,13 +567,19 @@ export default function ConsultasPage() {
                       <TableCell>
                         <Badge
                           variant={
-                            appointment.status === "confirmed"
+                            appointment.status === "confirmed" || appointment.status === "confirmado"
                               ? "default"
-                              : appointment.status === "pending"
+                              : appointment.status === "pending" || appointment.status === "pendente"
                               ? "secondary"
+                              : appointment.status === "requested" || appointment.status === "solicitado"
+                              ? "default"
                               : "destructive"
                           }
-                          className={appointment.status === "confirmed" ? "bg-green-600" : ""}
+                          className={
+                            appointment.status === "confirmed" || appointment.status === "confirmado" ? "bg-[#10B981]" :
+                            appointment.status === "requested" || appointment.status === "solicitado" ? "bg-blue-500" :
+                            appointment.status === "canceled" || appointment.status === "cancelled" || appointment.status === "cancelado" ? "bg-red-500" : ""
+                          }
                         >
                           {translateStatus(appointment.status)}
                         </Badge>
@@ -658,13 +664,21 @@ export default function ConsultasPage() {
                         <div className="text-[10px] sm:text-xs text-muted-foreground">Status</div>
                         <Badge
                           variant={
-                            appointment.status === "confirmed"
+                            appointment.status === "confirmed" || appointment.status === "confirmado"
                               ? "default"
-                              : appointment.status === "pending"
+                              : appointment.status === "pending" || appointment.status === "pendente"
                               ? "secondary"
+                              : appointment.status === "requested" || appointment.status === "solicitado"
+                              ? "default"
                               : "destructive"
                           }
-                          className={`text-[10px] sm:text-xs ${appointment.status === "confirmed" ? "bg-green-600" : ""}`}
+                          className={
+                            `text-[10px] sm:text-xs ${
+                              appointment.status === "confirmed" || appointment.status === "confirmado" ? "bg-[#10B981]" :
+                              appointment.status === "requested" || appointment.status === "solicitado" ? "bg-blue-500" :
+                              appointment.status === "canceled" || appointment.status === "cancelled" || appointment.status === "cancelado" ? "bg-red-500" : ""
+                            }`
+                          }
                         >
                           {translateStatus(appointment.status)}
                         </Badge>
@@ -777,13 +791,19 @@ export default function ConsultasPage() {
                 <span className="col-span-3">
                   <Badge
                     variant={
-                      viewingAppointment?.status === "confirmed"
+                      viewingAppointment?.status === "confirmed" || viewingAppointment?.status === "confirmado"
                         ? "default"
-                        : viewingAppointment?.status === "pending"
+                        : viewingAppointment?.status === "pending" || viewingAppointment?.status === "pendente"
                         ? "secondary"
+                        : viewingAppointment?.status === "requested" || viewingAppointment?.status === "solicitado"
+                        ? "default"
                         : "destructive"
                     }
-                    className={viewingAppointment?.status === "confirmed" ? "bg-green-600" : ""}
+                    className={
+                      viewingAppointment?.status === "confirmed" || viewingAppointment?.status === "confirmado" ? "bg-[#10B981]" :
+                      viewingAppointment?.status === "requested" || viewingAppointment?.status === "solicitado" ? "bg-blue-500" :
+                      viewingAppointment?.status === "canceled" || viewingAppointment?.status === "cancelled" || viewingAppointment?.status === "cancelado" ? "bg-red-500" : ""
+                    }
                   >
                     {translateStatus(viewingAppointment?.status || "")}
                   </Badge>

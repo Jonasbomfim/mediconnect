@@ -148,7 +148,10 @@ export default function LaudosEditorPage() {
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
-        setPacienteSelecionado(draft.pacienteSelecionado);
+        // Carregar paciente do rascunho se existir
+        if (draft.pacienteSelecionado) {
+          setPacienteSelecionado(draft.pacienteSelecionado);
+        }
         setContent(draft.content);
         setCampos(draft.campos);
         setSolicitanteId(draft.solicitanteId);

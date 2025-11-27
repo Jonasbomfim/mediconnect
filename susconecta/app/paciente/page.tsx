@@ -1927,6 +1927,18 @@ export default function PacientePage() {
         {/* Header com informações do paciente */}
         <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-4">
+            {/* Logo MEDIConnect */}
+            <div className="flex items-center gap-2 mr-2 sm:mr-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center shrink-0">
+                <Stethoscope className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+              </div>
+              <span className="text-base sm:text-lg font-semibold text-foreground hidden sm:inline">
+                MEDIConnect
+              </span>
+            </div>
+            
+            <div className="h-8 w-px bg-border hidden sm:block"></div>
+            
             <Avatar className="h-10 w-10 sm:h-12 sm:w-12 md:h-12 md:w-12">
               <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
               <AvatarFallback className="bg-primary text-white font-bold text-sm sm:text-base">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>

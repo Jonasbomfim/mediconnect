@@ -3042,6 +3042,18 @@ const ProfissionalPage = () => {
             <div className="flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
               {/* Logo/Avatar Section */}
               <div className="flex items-center gap-3 min-w-0 flex-1 md:flex-none">
+                {/* Logo MEDIConnect */}
+                <div className="flex items-center gap-2 mr-2 md:mr-4">
+                  <div className="w-8 h-8 md:w-10 md:h-10 bg-primary rounded-lg flex items-center justify-center shrink-0">
+                    <Stethoscope className="w-4 h-4 md:w-5 md:h-5 text-primary-foreground" />
+                  </div>
+                  <span className="text-base md:text-lg font-semibold text-foreground hidden sm:inline">
+                    MEDIConnect
+                  </span>
+                </div>
+                
+                <div className="h-8 w-px bg-border hidden sm:block"></div>
+                
                 <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
                   <AvatarImage src={(profileData as any).fotoUrl || undefined} alt={profileData.nome} />
                   <AvatarFallback className="bg-muted text-xs md:text-sm">

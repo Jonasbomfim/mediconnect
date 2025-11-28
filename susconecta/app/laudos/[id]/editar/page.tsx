@@ -768,7 +768,7 @@ export default function EditarLaudoPage() {
                   setShowExitDialog(false);
                   router.back();
                 }}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Descartar
               </Button>
@@ -778,7 +778,7 @@ export default function EditarLaudoPage() {
                   setShowExitDialog(false);
                   router.back();
                 }}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Voltar
               </Button>

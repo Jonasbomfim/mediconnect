@@ -1016,14 +1016,14 @@ export default function LaudosEditorPage() {
                     setShowDraftConfirm(false);
                     discardDraft();
                   }}
-                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950"
+                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Descartar
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowDraftConfirm(false)}
-                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950"
+                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Voltar
                 </Button>

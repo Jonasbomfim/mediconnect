@@ -89,13 +89,6 @@ export default function EditarLaudoPage() {
     return () => clearTimeout(timeoutId);
   }, [content, campos, laudoId]);
 
-  // Sincronizar conteúdo com o editor
-  useEffect(() => {
-    if (editorRef.current && content) {
-      editorRef.current.innerHTML = content;
-    }
-  }, [content]);
-
   // Função para trocar de aba salvando conteúdo antes
   const handleTabChange = (newTab: string) => {
     // Salvar conteúdo do editor antes de trocar
@@ -103,15 +96,18 @@ export default function EditarLaudoPage() {
       const editorContent = editorRef.current.innerHTML;
       setContent(editorContent);
     }
+    
+    // Se estiver voltando para o editor, restaurar conteúdo
+    if (newTab === 'editor') {
+      setTimeout(() => {
+        if (editorRef.current && content) {
+          editorRef.current.innerHTML = content;
+        }
+      }, 0);
+    }
+    
     setActiveTab(newTab);
   };
-
-  // Restaurar conteúdo quando volta para a aba editor
-  useEffect(() => {
-    if (activeTab === 'editor' && editorRef.current && content) {
-      editorRef.current.innerHTML = content;
-    }
-  }, [activeTab]);
 
   // Atualizar formatações ativas ao mudar seleção
   useEffect(() => {

@@ -499,7 +499,7 @@ export default function LaudosEditorPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/profissional')}
+                onClick={() => setShowDraftConfirm(true)}
                 className="p-0 h-auto flex-shrink-0"
               >
                 <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -547,7 +547,7 @@ export default function LaudosEditorPage() {
                   <div className="font-semibold text-primary text-sm sm:text-lg truncate">{getPatientName(pacienteSelecionado)}</div>
                   <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                     {getPatientCpf(pacienteSelecionado) ? `CPF: ${getPatientCpf(pacienteSelecionado)} | ` : ''}
-                    {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date}` : getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : ''}
+                    {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date.split('T')[0].split('-').reverse().join('/')}` : getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : ''}
                     {getPatientSex(pacienteSelecionado) ? ` | Sexo: ${getPatientSex(pacienteSelecionado)}` : ''}
                   </div>
                 </div>

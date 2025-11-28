@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileText, Settings, Eye, ArrowLeft, BookOpen } from 'lucide-react';
 
 export default function EditarLaudoPage() {
@@ -29,6 +30,7 @@ export default function EditarLaudoPage() {
   const [activeTab, setActiveTab] = useState('editor');
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showExitDialog, setShowExitDialog] = useState(false);
 
   // Campos do laudo
   const [campos, setCampos] = useState({
@@ -359,7 +361,7 @@ export default function EditarLaudoPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.back()}
+                onClick={() => setShowExitDialog(true)}
                 className="p-0 h-auto flex-shrink-0"
               >
                 <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -738,7 +740,7 @@ export default function EditarLaudoPage() {
               Edite as informações do laudo e salve as alterações.
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button variant="outline" onClick={() => router.back()} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950">
+              <Button variant="outline" onClick={() => setShowExitDialog(true)} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950">
                 Cancelar
               </Button>
               <Button onClick={handleSave} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
@@ -747,6 +749,66 @@ export default function EditarLaudoPage() {
             </div>
           </div>
         </div>
+
+        {/* Dialog de confirmação de saída */}
+        <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Salvar Rascunho?</DialogTitle>
+              <DialogDescription>
+                Você tem informações não salvas. Deseja salvar como rascunho para continuar depois?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Limpar rascunho
+                  localStorage.removeItem(`laudo-draft-${laudoId}`);
+                  setShowExitDialog(false);
+                  router.back();
+                }}
+                className="w-full sm:w-auto"
+              >
+                Descartar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowExitDialog(false);
+                  router.back();
+                }}
+                className="w-full sm:w-auto"
+              >
+                Voltar
+              </Button>
+              <Button
+                onClick={() => {
+                  // Salvar rascunho manualmente antes de sair
+                  const currentContent = editorRef.current?.innerHTML || content;
+                  const draft = {
+                    content: currentContent,
+                    campos,
+                    lastSaved: new Date().toISOString(),
+                  };
+                  localStorage.setItem(`laudo-draft-${laudoId}`, JSON.stringify(draft));
+                  
+                  toast({
+                    title: 'Rascunho salvo!',
+                    description: 'Suas alterações foram salvas.',
+                    variant: 'default',
+                  });
+                  
+                  setShowExitDialog(false);
+                  router.back();
+                }}
+                className="w-full sm:w-auto"
+              >
+                Salvar Rascunho
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );

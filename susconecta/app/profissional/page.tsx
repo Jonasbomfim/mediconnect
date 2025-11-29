@@ -13,6 +13,7 @@ import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesP
 import { ENV_CONFIG } from '@/lib/env-config';
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
+import { createAndNotifyReport } from "@/lib/reportService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -2588,6 +2589,9 @@ const ProfissionalPage = () => {
                         if (isNewLaudo) {
                           if (createNewReport) {
                             const created = await createNewReport(payload as any);
+                            console.log('[LaudoEditor] Report criado:', { created, patient_id: payload.patient_id });
+                            // ✅ Webhook agora é enviado automaticamente dentro de createNewReport() / criarRelatorio()
+                            
                             if (onSaved) onSaved(created);
                           }
                         } else {

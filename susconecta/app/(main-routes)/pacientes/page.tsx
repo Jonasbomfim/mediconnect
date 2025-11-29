@@ -297,7 +297,7 @@ export default function PacientesPage() {
             aria-label="Ordenar por"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
+                className="h-8 sm:h-9 rounded-md border border-input bg-background px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary hover:border-primary transition-colors cursor-pointer"
           >
             <option value="name_asc">A–Z</option>
             <option value="name_desc">Z–A</option>

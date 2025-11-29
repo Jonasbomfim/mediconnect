@@ -33,105 +33,89 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
   }, [dropdownOpen]);
 
   return (
-    <header className="h-16 border-b border-border bg-background px-6 flex items-center justify-between">
-      <div className="flex flex-row items-center gap-4">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-3 sm:px-6 py-2 flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <SidebarTrigger />
-        <div className="flex items-start flex-col justify-center py-2">
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          <p className="text-muted-foreground">{subtitle}</p>
+        <div className="flex flex-col justify-center leading-tight min-w-0">
+          <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate max-w-[55vw] sm:max-w-none">{title}</h1>
+          {subtitle && (
+            <p className="text-[11px] sm:text-xs text-muted-foreground truncate max-w-[55vw] sm:max-w-none">{subtitle}</p>
+          )}
         </div>
       </div>
-
-      <div className="flex items-center space-x-4">
-  <Button variant="ghost" size="icon" className="hover-primary-blue">
+      <div className="flex items-center gap-2 ml-auto">
+        <Button variant="ghost" size="icon" className="hover-primary-blue hidden xs:flex">
           <Bell className="h-4 w-4" />
         </Button>
-
         <SimpleThemeToggle />
-                    <Button
-                      variant="outline"
-                      className="text-blue-500 border-blue-500 bg-transparent shadow-sm shadow-blue-500/10 border hover-primary-blue"
-                      asChild
-                    ></Button>
-        {/* Avatar Dropdown Simples */}
         <div className="relative" ref={dropdownRef}>
-          <Button 
-            variant="ghost" 
-            className="relative h-8 w-8 rounded-full border-2 border-border hover:border-primary"
+          <Button
+            variant="ghost"
+            className="relative h-8 w-8 rounded-full border border-border hover:border-primary"
             onClick={() => setDropdownOpen(!dropdownOpen)}
+            aria-label="Abrir menu do perfil"
           >
-            {/* Mostrar foto do usuário quando disponível; senão, mostrar fallback com iniciais */}
             <Avatar className="h-8 w-8">
-              {
-                (() => {
-                  const userPhoto = (user as any)?.profile?.foto_url || (user as any)?.profile?.fotoUrl || (user as any)?.profile?.avatar_url
-                  const alt = user?.name || user?.email || 'Usuário'
-
-                  const getInitials = (name?: string, email?: string) => {
-                    if (name) {
-                      const parts = name.trim().split(/\s+/)
-                      const first = parts[0]?.charAt(0) ?? ''
-                      const second = parts[1]?.charAt(0) ?? ''
-                      return (first + second).toUpperCase() || (email?.charAt(0) ?? 'U').toUpperCase()
-                    }
-                    if (email) return email.charAt(0).toUpperCase()
-                    return 'U'
+              {(() => {
+                const userPhoto = (user as any)?.profile?.foto_url || (user as any)?.profile?.fotoUrl || (user as any)?.profile?.avatar_url
+                const alt = user?.name || user?.email || 'Usuário'
+                const getInitials = (name?: string, email?: string) => {
+                  if (name) {
+                    const parts = name.trim().split(/\s+/)
+                    const first = parts[0]?.charAt(0) ?? ''
+                    const second = parts[1]?.charAt(0) ?? ''
+                    return (first + second).toUpperCase() || (email?.charAt(0) ?? 'U').toUpperCase()
                   }
-
-                  return (
-                    <>
-                      <AvatarImage src={userPhoto || undefined} alt={alt} />
-                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getInitials(user?.name, user?.email)}</AvatarFallback>
-                    </>
-                  )
-                })()
-              }
+                  if (email) return email.charAt(0).toUpperCase()
+                  return 'U'
+                }
+                return (
+                  <>
+                    <AvatarImage src={userPhoto || undefined} alt={alt} />
+                    <AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getInitials(user?.name, user?.email)}</AvatarFallback>
+                  </>
+                )
+              })()}
             </Avatar>
           </Button>
-
-          {/* Dropdown Content */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-md shadow-lg z-50 text-popover-foreground">
-              <div className="p-4 border-b border-border">
+            <div className="absolute right-0 mt-2 w-64 sm:w-80 bg-popover border border-border rounded-md shadow-lg z-50 text-popover-foreground animate-in fade-in slide-in-from-top-2">
+              <div className="p-3 sm:p-4 border-b border-border">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-semibold leading-none">
+                  <p className="text-xs sm:text-sm font-semibold leading-none">
                     {user?.userType === 'administrador' ? 'Administrador da Clínica' : 'Usuário do Sistema'}
                   </p>
                   {user?.email ? (
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    <p className="text-[10px] sm:text-xs leading-none text-muted-foreground truncate">{user.email}</p>
                   ) : (
-                    <p className="text-xs leading-none text-muted-foreground">Email não disponível</p>
+                    <p className="text-[10px] sm:text-xs leading-none text-muted-foreground">Email não disponível</p>
                   )}
-                  <p className="text-xs leading-none text-primary font-medium">
+                  <p className="text-[10px] sm:text-xs leading-none text-primary font-medium">
                     Tipo: {user?.userType === 'administrador' ? 'Administrador' : user?.userType || 'Não definido'}
                   </p>
                 </div>
               </div>
-              
               <div className="py-1">
-                <button 
+                <button
                   onClick={(e) => {
                     e.preventDefault();
                     setDropdownOpen(false);
                     router.push('/perfil');
                   }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm hover:bg-accent cursor-pointer"
                 >
-                   Perfil
+                  Perfil
                 </button>
-                
-                <div className="border-t border-border my-1"></div>
-                <button 
+                <div className="border-t border-border my-1" />
+                <button
                   onClick={(e) => {
                     e.preventDefault();
                     setDropdownOpen(false);
-                    
-                    // Usar sempre o logout do hook useAuth (ele já redireciona corretamente)
                     logout();
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
+                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
-                   Sair
+                  Sair
                 </button>
               </div>
             </div>

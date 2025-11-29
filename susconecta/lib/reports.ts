@@ -47,6 +47,7 @@ import {
   ReportsResponse, 
   ReportResponse
 } from '@/types/report-types';
+import { buscarPacientePorId } from '@/lib/api';
 
 // Definição local para ApiError
 type ApiError = {
@@ -214,7 +215,52 @@ export async function criarRelatorio(dadosRelatorio: CreateReportData, token?: s
   const resultado = await resposta.json();
   // Supabase retorna array
   if (Array.isArray(resultado) && resultado.length > 0) {
-    return resultado[0];
+    const novoRelatorio = resultado[0];
+    
+    // ✅ ENVIAR NOTIFICAÇÃO PARA N8N APÓS CRIAR RELATÓRIO
+    if (novoRelatorio && novoRelatorio.id && dadosRelatorio.patient_id) {
+      try {
+        console.log('[criarRelatorio] Enviando notificação para n8n webhook...');
+        
+        // Buscar dados do paciente para incluir nome e telefone
+        const pacienteData = await buscarPacientePorId(dadosRelatorio.patient_id).catch(e => {
+          console.warn('[criarRelatorio] Erro ao buscar paciente:', e);
+          return null;
+        });
+        
+        const pacienteNome = pacienteData?.full_name || '';
+        const pacienteCelular = pacienteData?.phone_mobile || '';
+        
+        const payloadWebhook = {
+          pacienteId: dadosRelatorio.patient_id,
+          reportId: novoRelatorio.id,
+          pacienteNome: pacienteNome,
+          pacienteCelular: pacienteCelular
+        };
+        
+        console.log('[criarRelatorio] Payload do webhook:', payloadWebhook);
+        
+        const resNotificacao = await fetch('https://joaogustavo.me/webhook/notificar-laudo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadWebhook)
+        }).catch(e => {
+          console.warn('[criarRelatorio] Erro de rede ao enviar webhook:', e);
+          return null;
+        });
+
+        if (resNotificacao?.ok) {
+          console.log('[criarRelatorio] ✅ Notificação enviada com sucesso ao n8n');
+        } else if (resNotificacao) {
+          console.warn('[criarRelatorio] ⚠️ Notificação ao n8n retornou status:', resNotificacao.status);
+        }
+      } catch (erroNotificacao) {
+        console.warn('[criarRelatorio] ❌ Erro ao enviar notificação para n8n:', erroNotificacao);
+        // Não falha a criação do relatório se a notificação falhar
+      }
+    }
+    
+    return novoRelatorio;
   }
   throw new Error('Resposta inesperada da API Supabase');
 }
@@ -383,5 +429,135 @@ export async function listarRelatoriosParaMedicoAtribuido(userId?: string): Prom
   } catch (err) {
     console.error('[listarRelatoriosParaMedicoAtribuido] erro:', err);
     throw err;
+  }
+}
+
+/**
+ * Interface para dados necessários ao criar um laudo
+ */
+export interface CriarLaudoData {
+  pacienteId: string;           // ID do paciente (obrigatório)
+  textoLaudo: string;           // Texto do laudo (obrigatório)
+  medicoId?: string;            // ID do médico que criou (opcional)
+  exame?: string;               // Tipo de exame (opcional)
+  diagnostico?: string;         // Diagnóstico (opcional)
+  conclusao?: string;           // Conclusão (opcional)
+  cidCode?: string;             // Código CID (opcional)
+  status?: 'rascunho' | 'concluido' | 'enviado';  // Status (opcional, padrão: 'concluido')
+  contentHtml?: string;         // Conteúdo HTML (opcional)
+  contentJson?: any;            // Conteúdo JSON (opcional)
+}
+
+/**
+ * Cria um novo laudo no Supabase e notifica o paciente via n8n
+ * 
+ * Fluxo:
+ * 1. Salva o laudo no Supabase (tabela 'reports')
+ * 2. Envia notificação ao n8n com pacienteId e laudoId
+ * 3. Retorna o laudo criado
+ * 
+ * @param laudoData Dados do laudo a criar
+ * @returns Laudo criado com ID
+ * @throws Erro se falhar ao criar o laudo
+ */
+export async function criarLaudo(laudoData: CriarLaudoData): Promise<any> {
+  try {
+    // 1. Validação dos dados obrigatórios
+    if (!laudoData.pacienteId || !laudoData.textoLaudo) {
+      throw new Error('Paciente ID e Texto do Laudo são obrigatórios');
+    }
+
+    console.log('[criarLaudo] Criando laudo para paciente:', laudoData.pacienteId);
+
+    // 2. Monta o payload para Supabase
+    const payloadSupabase = {
+      patient_id: laudoData.pacienteId,
+      ...(laudoData.medicoId && { requested_by: laudoData.medicoId }),
+      ...(laudoData.exame && { exam: laudoData.exame }),
+      ...(laudoData.diagnostico && { diagnosis: laudoData.diagnostico }),
+      ...(laudoData.conclusao && { conclusion: laudoData.conclusao }),
+      ...(laudoData.cidCode && { cid_code: laudoData.cidCode }),
+      ...(laudoData.contentHtml && { content_html: laudoData.contentHtml }),
+      ...(laudoData.contentJson && { content_json: laudoData.contentJson }),
+      status: laudoData.status || 'concluido',
+    };
+
+    // 3. Salva o laudo no Supabase
+    const urlSupabase = 'https://yuanqfswhberkoevtmfr.supabase.co/rest/v1/reports';
+    
+    let tokenAuth: string | undefined = undefined;
+    if (typeof window !== 'undefined') {
+      tokenAuth =
+        localStorage.getItem('auth_token') ||
+        localStorage.getItem('token') ||
+        sessionStorage.getItem('auth_token') ||
+        sessionStorage.getItem('token') ||
+        undefined;
+    }
+
+    const headersSupabase: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW5xZnN3aGJlcmtvZXZ0bWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQzNjksImV4cCI6MjA3MDUzMDM2OX0.g8Fm4XAvtX46zifBZnYVH4tVuQkqUH6Ia9CXQj4DztQ',
+      'Prefer': 'return=representation',
+    };
+    
+    if (tokenAuth) {
+      headersSupabase['Authorization'] = `Bearer ${tokenAuth}`;
+    }
+
+    const resSupabase = await fetch(urlSupabase, {
+      method: 'POST',
+      headers: headersSupabase,
+      body: JSON.stringify(payloadSupabase),
+    });
+
+    if (!resSupabase.ok) {
+      const errorText = await resSupabase.text();
+      console.error('[criarLaudo] Erro ao salvar laudo no Supabase:', errorText);
+      throw new Error(`Falha ao salvar laudo: ${resSupabase.statusText}`);
+    }
+
+    const novoLaudo = await resSupabase.json();
+    const laudoId = novoLaudo?.id;
+
+    if (!laudoId) {
+      throw new Error('Laudo criado mas sem ID retornado');
+    }
+
+    console.log('[criarLaudo] Laudo salvo com sucesso. ID:', laudoId);
+
+    // 4. CHAMAR O N8N para notificar o paciente
+    // Padrão simples: apenas pacienteId e reportId
+    try {
+      console.log('[criarLaudo] Enviando notificação para n8n...');
+      
+      const resNotificacao = await fetch('https://joaogustavo.me/webhook/notificar-laudo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pacienteId: laudoData.pacienteId,  // ← ID do paciente
+          reportId: laudoId                   // ← ID do report criado
+        })
+      });
+
+      if (resNotificacao.ok) {
+        console.log('[criarLaudo] Notificação enviada com sucesso ao n8n');
+      } else {
+        console.warn('[criarLaudo] Notificação ao n8n retornou status:', resNotificacao.status);
+      }
+    } catch (erroNotificacao) {
+      // Não falha a criação do laudo se a notificação falhar
+      console.warn('[criarLaudo] Erro ao enviar notificação para n8n:', erroNotificacao);
+    }
+
+    // 5. Retorna o laudo criado
+    return {
+      ...novoLaudo,
+      mensagem: 'Laudo criado e paciente notificado com sucesso!',
+    };
+  } catch (erro) {
+    console.error('[criarLaudo] Erro ao criar laudo:', erro);
+    throw erro;
   }
 }

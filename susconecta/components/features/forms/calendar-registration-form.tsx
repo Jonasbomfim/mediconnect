@@ -1041,7 +1041,11 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                     const d = new Date(s.datetime);
                                     const hh = String(d.getHours()).padStart(2, '0');
                                     const mm = String(d.getMinutes()).padStart(2, '0');
-                                    const dateOnly = d.toISOString().split('T')[0];
+                                    // Use local date components instead of toISOString to avoid timezone conversion
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    const dateOnly = `${year}-${month}-${day}`;
                                     return dateOnly === date && `${hh}:${mm}` === time;
                                   } catch (e) {
                                     return false;

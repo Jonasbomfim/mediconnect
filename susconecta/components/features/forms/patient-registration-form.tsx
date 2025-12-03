@@ -467,6 +467,10 @@ export function PatientRegistrationForm({
                           selected={form.birth_date ?? undefined}
                           onSelect={(date) => setField("birth_date", date || null)}
                           initialFocus
+                          captionLayout="dropdown"
+                          fromYear={1900}
+                          toYear={new Date().getFullYear()}
+                          disabled={(date) => date > new Date()}
                         />
                       </PopoverContent>
                     </Popover>

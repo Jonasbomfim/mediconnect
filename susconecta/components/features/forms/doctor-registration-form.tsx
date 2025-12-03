@@ -835,6 +835,10 @@ async function handleSubmit(ev: React.FormEvent) {
                           selected={form.data_nascimento ?? undefined}
                           onSelect={(date) => setField("data_nascimento", date ?? null)}
                           initialFocus
+                          captionLayout="dropdown"
+                          fromYear={1900}
+                          toYear={new Date().getFullYear()}
+                          disabled={(date) => date > new Date()}
                         />
                       </PopoverContent>
                     </Popover>

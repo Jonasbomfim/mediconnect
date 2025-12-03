@@ -964,7 +964,14 @@ export default function DoutoresPage() {
                   {exceptions.map((ex) => (
                     <div key={String(ex.id)} className="p-2 border rounded flex justify-between items-start">
                       <div>
-                        <div className="font-medium">{ex.date} {ex.start_time ? `• ${ex.start_time}` : ''} {ex.end_time ? `— ${ex.end_time}` : ''}</div>
+                        <div className="font-medium">{(() => {
+                          try {
+                            const [y, m, d] = String(ex.date).split('-');
+                            return `${d}/${m}/${y}`;
+                          } catch (e) {
+                            return ex.date;
+                          }
+                        })()} {ex.start_time ? `• ${ex.start_time}` : ''} {ex.end_time ? `— ${ex.end_time}` : ''}</div>
                         <div className="text-xs text-muted-foreground">Tipo: {ex.kind} • Motivo: {ex.reason || '—'}</div>
                       </div>
                       <div className="flex gap-2">

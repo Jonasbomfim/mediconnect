@@ -414,35 +414,31 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
           } catch (e) {}
 
           const generatedSet = new Set<string>();
+          
+          // Helper to create ISO-like string without timezone conversion
+          const toLocalISOString = (date: Date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+          };
+          
           windows.forEach((w: any) => {
             try {
               const perWindowStep = Number(w.slotMinutes) || stepMinutes;
               const startMs = w.winStart.getTime();
               const endMs = w.winEnd.getTime();
               const lastStartMs = endMs - perWindowStep * 60000;
-              const backendSlotsInWindow = (av.slots || []).filter((s: any) => {
-                try {
-                  const sd = new Date(s.datetime);
-                  const sm = sd.getHours() * 60 + sd.getMinutes();
-                  const wmStart = w.winStart.getHours() * 60 + w.winStart.getMinutes();
-                  const wmEnd = w.winEnd.getHours() * 60 + w.winEnd.getMinutes();
-                  return sm >= wmStart && sm <= wmEnd;
-                } catch (e) { return false; }
-              }).map((s: any) => new Date(s.datetime).getTime()).sort((a: number, b: number) => a - b);
-
-              if (!backendSlotsInWindow.length) {
-                let cursorMs = startMs;
-                while (cursorMs <= lastStartMs) {
-                  generatedSet.add(new Date(cursorMs).toISOString());
-                  cursorMs += perWindowStep * 60000;
-                }
-              } else {
-                const lastBackendMs = backendSlotsInWindow[backendSlotsInWindow.length - 1];
-                let cursorMs = lastBackendMs + perWindowStep * 60000;
-                while (cursorMs <= lastStartMs) {
-                  generatedSet.add(new Date(cursorMs).toISOString());
-                  cursorMs += perWindowStep * 60000;
-                }
+              
+              // Always generate slots from the start of the window to the end
+              // This ensures slots start at the configured availability start time
+              let cursorMs = startMs;
+              while (cursorMs <= lastStartMs) {
+                generatedSet.add(toLocalISOString(new Date(cursorMs)));
+                cursorMs += perWindowStep * 60000;
               }
             } catch (e) {}
           });
@@ -463,15 +459,10 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
             } catch (e) { return null; }
           };
 
-          (existingInWindow || []).forEach((s: any) => {
-            const sm = findWindowSlotMinutes(s.datetime);
-            mergedMap.set(s.datetime, sm ? { ...s, slot_minutes: sm } : { ...s });
-          });
+          // Use only generated slots based on availability windows
           Array.from(generatedSet).forEach((dt) => {
-            if (!mergedMap.has(dt)) {
-              const sm = findWindowSlotMinutes(dt) || stepMinutes;
-              mergedMap.set(dt, { datetime: dt, available: true, slot_minutes: sm });
-            }
+            const sm = findWindowSlotMinutes(dt) || stepMinutes;
+            mergedMap.set(dt, { datetime: dt, available: true, slot_minutes: sm });
           });
 
           const merged = Array.from(mergedMap.values()).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
@@ -1071,7 +1062,8 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                 }
                                 const hh = String(dt.getHours()).padStart(2, '0');
                                 const mm = String(dt.getMinutes()).padStart(2, '0');
-                                const dateOnly = dt.toISOString().split('T')[0];
+                                // Keep the existing appointmentDate, don't override it
+                                const currentDate = (formData as any).appointmentDate;
                                 // set duration from slot if available
                                 const sel = (availableSlots || []).find((s) => s.datetime === value) as any;
                                 const slotMinutes = sel && sel.slot_minutes ? Number(sel.slot_minutes) : null;
@@ -1082,11 +1074,11 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                 const endM = String(endDt.getMinutes()).padStart(2, '0');
                                 const endStr = `${endH}:${endM}`;
                                 if (slotMinutes) {
-                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: slotMinutes, endTime: endStr });
+                                  onFormChange({ ...formData, appointmentDate: currentDate, startTime: `${hh}:${mm}`, duration_minutes: slotMinutes, endTime: endStr });
                                   try { setLockedDurationFromSlot(true); } catch (e) {}
                                   try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
                                 } else {
-                                  onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, endTime: endStr });
+                                  onFormChange({ ...formData, appointmentDate: currentDate, startTime: `${hh}:${mm}`, endTime: endStr });
                                   try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
                                 }
                               } catch (e) {
@@ -1188,9 +1180,8 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                               type="button"
                               className={`h-10 rounded-md border ${formData.startTime === `${hh}:${mm}` ? 'bg-blue-600 text-white' : 'bg-background'}`}
                               onClick={() => {
-                                // when selecting a slot, set appointmentDate (if missing) and startTime and duration
-                                const isoDate = dt.toISOString();
-                                const dateOnly = isoDate.split('T')[0];
+                                // when selecting a slot, keep the existing appointmentDate and only update time
+                                const currentDate = (formData as any).appointmentDate;
                                 const slotMinutes = s.slot_minutes || null;
                                   // compute endTime based on duration
                                   const durationForCalc = slotMinutes || (formData as any).duration_minutes || 0;
@@ -1199,11 +1190,11 @@ export function CalendarRegistrationForm({ formData, onFormChange, createMode = 
                                   const endM = String(endDt.getMinutes()).padStart(2, '0');
                                   const endStr = `${endH}:${endM}`;
                                   if (slotMinutes) {
-                                    onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, duration_minutes: Number(slotMinutes), endTime: endStr });
+                                    onFormChange({ ...formData, appointmentDate: currentDate, startTime: `${hh}:${mm}`, duration_minutes: Number(slotMinutes), endTime: endStr });
                                     try { setLockedDurationFromSlot(true); } catch (e) {}
                                     try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
                                   } else {
-                                    onFormChange({ ...formData, appointmentDate: dateOnly, startTime: `${hh}:${mm}`, endTime: endStr });
+                                    onFormChange({ ...formData, appointmentDate: currentDate, startTime: `${hh}:${mm}`, endTime: endStr });
                                     try { (lastAutoEndRef as any).current = endStr; } catch (e) {}
                                   }
                               }}

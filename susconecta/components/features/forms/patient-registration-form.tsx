@@ -453,7 +453,7 @@ export function PatientRegistrationForm({
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal hover:bg-muted hover:text-foreground",
                             !form.birth_date && "text-muted-foreground"
                           )}
                         >

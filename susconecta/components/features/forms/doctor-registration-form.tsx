@@ -821,7 +821,7 @@ async function handleSubmit(ev: React.FormEvent) {
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal hover:bg-muted hover:text-foreground",
                             !form.data_nascimento && "text-muted-foreground"
                           )}
                         >

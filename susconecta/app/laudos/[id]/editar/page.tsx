@@ -175,8 +175,17 @@ export default function EditarLaudoPage() {
           mostrarAssinatura: !r.hide_signature,
         });
 
-        // Preencher conteúdo
-        const contentHtml = r.content_html || r.conteudo_html || '';
+        // Preencher conteúdo - verificar todos os possíveis nomes de campo
+        const contentHtml = r.content_html || r.conteudo_html || r.contentHtml || r.conteudo || r.content || '';
+        console.log('[EditarLaudoPage] Loading content - report:', r);
+        console.log('[EditarLaudoPage] Content fields check:', {
+          content_html: r.content_html,
+          conteudo_html: r.conteudo_html,
+          contentHtml: r.contentHtml,
+          conteudo: r.conteudo,
+          content: r.content,
+          finalContent: contentHtml
+        });
         
         // Verificar se existe rascunho salvo no localStorage
         let finalContent = contentHtml;

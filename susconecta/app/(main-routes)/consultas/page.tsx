@@ -111,8 +111,11 @@ export default function ConsultasPage() {
     const baseDate = scheduledBase ? new Date(scheduledBase) : new Date();
     const duration = appointment.duration_minutes ?? appointment.duration ?? 30;
 
-    // compute start and end times (HH:MM)
-    const appointmentDateStr = baseDate.toISOString().split("T")[0];
+    // compute start and end times (HH:MM) and date using local time to avoid timezone issues
+    const year = baseDate.getFullYear();
+    const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+    const day = String(baseDate.getDate()).padStart(2, '0');
+    const appointmentDateStr = `${year}-${month}-${day}`;
     const startTime = `${String(baseDate.getHours()).padStart(2, '0')}:${String(baseDate.getMinutes()).padStart(2, '0')}`;
     const endDate = new Date(baseDate.getTime() + duration * 60000);
     const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
@@ -811,7 +814,7 @@ export default function ConsultasPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Tipo</Label>
-                <span className="col-span-3">{capitalize(viewingAppointment?.type || "")}</span>
+                <span className="col-span-3">{capitalize(viewingAppointment?.appointment_type || viewingAppointment?.type || "")}</span>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Observações</Label>

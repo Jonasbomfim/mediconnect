@@ -286,8 +286,8 @@ export default function DashboardPage() {
       </div>
 
       {/* 2. PRÓXIMAS CONSULTAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <div className="lg:col-span-2 bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
+      <div className="grid grid-cols-1 gap-4 md:gap-6">
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
           <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Próximas Consultas (7 dias)</h2>
           {appointments.length > 0 ? (
             <div className="space-y-2 sm:space-y-3">

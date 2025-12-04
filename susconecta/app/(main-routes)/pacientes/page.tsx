@@ -539,27 +539,27 @@ export default function PacientesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Nome</Label>
-                <span className="col-span-3 font-medium">{viewingPatient.full_name}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Nome</Label>
+                <span className="col-span-1 sm:col-span-3 font-medium">{viewingPatient.full_name}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">CPF</Label>
-                <span className="col-span-3">{viewingPatient.cpf}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">CPF</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingPatient.cpf}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Telefone</Label>
-                <span className="col-span-3">{viewingPatient.phone_mobile}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Telefone</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingPatient.phone_mobile}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Endereço</Label>
-                <span className="col-span-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Endereço</Label>
+                <span className="col-span-1 sm:col-span-3">
                   {`${viewingPatient.street || ''}, ${viewingPatient.number || ''} - ${viewingPatient.neighborhood || ''}, ${viewingPatient.city || ''} - ${viewingPatient.state || ''}`}
                 </span>
               </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Observações</Label>
-                <span className="col-span-3">{viewingPatient.notes || "Nenhuma"}</span>
+               <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Observações</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingPatient.notes || "Nenhuma"}</span>
               </div>
             </div>
             <DialogFooter>

@@ -236,7 +236,20 @@ export default function EditarLaudoPage() {
   useEffect(() => {
     if (content && editorRef.current && !loading) {
       console.log('[EditarLaudoPage] Injecting content into editor, length:', content.length);
-      editorRef.current.innerHTML = content;
+      // Só injetar se o conteúdo do editor estiver vazio ou muito diferente
+      const currentContent = editorRef.current.innerHTML;
+      if (!currentContent || currentContent.length === 0) {
+        editorRef.current.innerHTML = content;
+        // Mover cursor para o final
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (editorRef.current.childNodes.length > 0) {
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false); // false = colapsar no final
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      }
     }
   }, [content, loading]);
 
@@ -584,7 +597,10 @@ export default function EditarLaudoPage() {
                     <div
                       ref={editorRef}
                       contentEditable
-                      onInput={(e) => setContent(e.currentTarget.innerHTML)}
+                      onInput={(e) => {
+                        // Capturar conteúdo sem perder posição do cursor
+                        setContent(e.currentTarget.innerHTML);
+                      }}
                       onPaste={(e) => {
                         e.preventDefault();
                         const text = e.clipboardData.getData('text/plain');

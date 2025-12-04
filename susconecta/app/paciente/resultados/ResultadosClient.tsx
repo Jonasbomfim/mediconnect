@@ -1030,11 +1030,11 @@ export default function ResultadosClient() {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Primeira</Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Anterior</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Primeira</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Anterior</Button>
                 <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Próxima</Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Última</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Próxima</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Última</Button>
               </div>
             </div>
           )}

@@ -2312,32 +2312,6 @@ const ProfissionalPage = () => {
               Editor
             </button>
             <button
-              onClick={() => setActiveTab("imagens")}
-              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === "imagens"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
-              }`}
-              style={{
-                backgroundColor: activeTab === "imagens" ? undefined : "transparent"
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== "imagens") {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#4B5563";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== "imagens") {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#4B5563";
-                }
-              }}
-            >
-              <Upload className="w-4 h-4 inline mr-1" />
-              Imagens ({imagens.length})
-            </button>
-            <button
               onClick={() => setActiveTab("campos")}
               className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "campos"
@@ -2475,50 +2449,6 @@ const ProfissionalPage = () => {
                       placeholder="Digite o conteúdo do laudo aqui. Use ** para negrito, * para itálico, <u></u> para sublinhado."
                       className="w-full min-h-[200px] sm:min-h-[300px] resize-none text-xs sm:text-sm"
                     />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "imagens" && (
-                <div className="flex-1 p-2 sm:p-4 overflow-y-auto">
-                  <div className="mb-3 sm:mb-4">
-                    <Label htmlFor="upload-images" className="text-xs sm:text-sm">Upload de Imagens</Label>
-                    <Input
-                      id="upload-images"
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleImageUpload}
-                      className="mt-1 text-xs"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
-                    {imagens.map((img) => (
-                      <div key={img.id} className="border border-border rounded-lg p-1.5 sm:p-2">
-                        {img.type.startsWith('image/') ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img 
-                            src={img.url} 
-                            alt={img.name}
-                            className="w-full h-24 sm:h-32 object-cover rounded"
-                          />
-                        ) : (
-                          <div className="w-full h-24 sm:h-32 bg-muted rounded flex items-center justify-center">
-                            <FileText className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full mt-1 text-xs"
-                          onClick={() => setImagens(prev => prev.filter(i => i.id !== img.id))}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
@@ -3234,42 +3164,21 @@ const ProfissionalPage = () => {
             <h3 className="text-base sm:text-lg font-semibold mb-4">Foto do Perfil</h3>
 
             <div className="flex flex-col items-center gap-4">
-              {isEditingProfile ? (
-                <UploadAvatar
-                  userId={String(doctorId || (user && (user as any).id) || '')}
-                  currentAvatarUrl={(profileData as any).fotoUrl}
-                  userName={(profileData as any).nome}
-                  onAvatarChange={async (newUrl: string) => {
-                    try {
-                      setProfileData((prev) => ({ ...prev, fotoUrl: newUrl }));
-                      // Foto foi salva no Supabase Storage - atualizar apenas o estado local
-                      // Para persistir no banco, o usuário deve clicar em "Salvar" após isso
-                      try { toast({ title: 'Foto enviada', description: 'Clique em "Salvar" para confirmar as alterações.', variant: 'default' }); } catch (e) { /* ignore toast errors */ }
-                    } catch (err) {
-                      console.error('[ProfissionalPage] erro ao processar upload de foto:', err);
-                      try { toast({ title: 'Erro ao processar foto', description: (err as any)?.message || 'Falha ao processar a foto do perfil.', variant: 'destructive' }); } catch (e) {}
-                    }
-                  }}
-                />
-              ) : (
-                <>
-                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
-                    {(profileData as any).fotoUrl ? (
-                      <AvatarImage src={(profileData as any).fotoUrl} alt={(profileData as any).nome} />
-                    ) : (
-                      <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
-                        {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
+                {(profileData as any).fotoUrl ? (
+                  <AvatarImage src={(profileData as any).fotoUrl} alt={(profileData as any).nome} />
+                ) : (
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
+                    {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                  </AvatarFallback>
+                )}
+              </Avatar>
 
-                  <div className="text-center space-y-2">
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
-                    </p>
-                  </div>
-                </>
-              )}
+              <div className="text-center space-y-2">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                </p>
+              </div>
             </div>
           </div>
         </div>

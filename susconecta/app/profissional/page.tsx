@@ -160,6 +160,7 @@ const ProfissionalPage = () => {
   // Estados para disponibilidades e exceções do médico logado
   const [availabilities, setAvailabilities] = useState<DoctorAvailability[]>([]);
   const [exceptions, setExceptions] = useState<DoctorException[]>([]);
+  const [availabilitiesForCreate, setAvailabilitiesForCreate] = useState<DoctorAvailability[]>([]);
   const [availLoading, setAvailLoading] = useState(false);
   const [exceptLoading, setExceptLoading] = useState(false);
   const [editingAvailability, setEditingAvailability] = useState<DoctorAvailability | null>(null);
@@ -2842,7 +2843,28 @@ const ProfissionalPage = () => {
         availabilityByDay.set(day, a);
       }
     });
-    const filteredAvailabilities = Array.from(availabilityByDay.values());
+    let filteredAvailabilities = Array.from(availabilityByDay.values());
+
+    // Ordenar por dia da semana (Segunda a Domingo)
+    filteredAvailabilities = filteredAvailabilities.sort((a, b) => {
+      const weekdayOrder: Record<string, number> = {
+        'segunda': 1, 'segunda-feira': 1, 'mon': 1, 'monday': 1, '1': 1,
+        'terca': 2, 'terça': 2, 'terça-feira': 2, 'tue': 2, 'tuesday': 2, '2': 2,
+        'quarta': 3, 'quarta-feira': 3, 'wed': 3, 'wednesday': 3, '3': 3,
+        'quinta': 4, 'quinta-feira': 4, 'thu': 4, 'thursday': 4, '4': 4,
+        'sexta': 5, 'sexta-feira': 5, 'fri': 5, 'friday': 5, '5': 5,
+        'sabado': 6, 'sábado': 6, 'sat': 6, 'saturday': 6, '6': 6,
+        'domingo': 7, 'dom': 7, 'sun': 7, 'sunday': 7, '0': 7, '7': 7
+      };
+      
+      const getWeekdayOrder = (weekday: any) => {
+        if (typeof weekday === 'number') return weekday === 0 ? 7 : weekday;
+        const normalized = String(weekday).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+        return weekdayOrder[normalized] || 999;
+      };
+      
+      return getWeekdayOrder(a.weekday) - getWeekdayOrder(b.weekday);
+    });
 
     // Filtrar apenas a primeira exceção de cada data
     const exceptionByDate = new Map<string, DoctorException>();
@@ -2862,9 +2884,18 @@ const ProfissionalPage = () => {
             <Button 
               size="sm"
               className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
-              onClick={() => {
-                setEditingAvailability(null);
-                setShowAvailabilityForm(true);
+              onClick={async () => {
+                try {
+                  const list = await listarDisponibilidades({ doctorId: doctorId!, active: true });
+                  setAvailabilitiesForCreate(list || []);
+                  setEditingAvailability(null);
+                  setShowAvailabilityForm(true);
+                } catch (e) {
+                  console.warn('Erro ao carregar disponibilidades:', e);
+                  setAvailabilitiesForCreate([]);
+                  setEditingAvailability(null);
+                  setShowAvailabilityForm(true);
+                }
               }}
             >
               + Disponibilidade
@@ -2878,27 +2909,26 @@ const ProfissionalPage = () => {
         ) : filteredAvailabilities && filteredAvailabilities.length > 0 ? (
           <div className="space-y-2">
             {filteredAvailabilities.map((a) => (
-              <div key={String(a.id)} className="p-3 border rounded flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="font-medium text-sm sm:text-base">{translateWeekday(a.weekday)} • {a.start_time} — {a.end_time}</div>
+              <div key={String(a.id)} className="p-2 border rounded flex justify-between items-start">
+                <div>
+                  <div className="font-medium">{translateWeekday(a.weekday)} • {a.start_time} — {a.end_time}</div>
                   <div className="text-xs text-muted-foreground">Duração: {a.slot_minutes} min • Tipo: {a.appointment_type || '—'} • {a.active ? 'Ativa' : 'Inativa'}</div>
                 </div>
-                <div className="flex gap-2 ml-2">
+                <div className="flex gap-2">
                   <Button 
                     size="sm" 
-                    variant="outline" 
-                    className="text-xs"
+                    variant="outline"
                     onClick={() => {
                       setEditingAvailability(a);
                       setShowAvailabilityForm(true);
                     }}
+                    className="hover:bg-muted hover:text-foreground"
                   >
                     Editar
                   </Button>
                   <Button 
                     size="sm" 
                     variant="destructive" 
-                    className="text-xs"
                     onClick={async () => {
                       if (!confirm('Excluir esta disponibilidade?')) return;
                       try {
@@ -2907,7 +2937,7 @@ const ProfissionalPage = () => {
                         toast({ title: 'Disponibilidade excluída', variant: 'default' });
                       } catch (e) {
                         console.warn('Erro ao deletar disponibilidade:', e);
-                        toast({ title: 'Erro ao excluir', description: (e as any)?.message || String(e), variant: 'destructive' });
+                        alert((e as any)?.message || 'Erro ao deletar disponibilidade');
                       }
                     }}
                   >
@@ -3424,15 +3454,18 @@ const ProfissionalPage = () => {
             if (!open) {
               setShowAvailabilityForm(false);
               setEditingAvailability(null);
+              setAvailabilitiesForCreate([]);
             }
           }}
           doctorId={editingAvailability?.doctor_id ?? doctorId}
           availability={editingAvailability}
+          existingAvailabilities={availabilitiesForCreate}
           mode={editingAvailability ? "edit" : "create"}
           onSaved={(saved) => {
             console.log('Disponibilidade salva', saved);
             setEditingAvailability(null);
             setShowAvailabilityForm(false);
+            setAvailabilitiesForCreate([]);
             reloadAvailabilities();
           }}
         />

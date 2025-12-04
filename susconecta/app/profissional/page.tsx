@@ -2841,7 +2841,9 @@ const ProfissionalPage = () => {
     // Filtrar apenas a primeira exceção de cada data
     const exceptionByDate = new Map<string, DoctorException>();
     (exceptions || []).forEach((ex) => {
-      const date = String(ex.exception_date ?? ex.date ?? '');
+      // Alguns backends/versões usam nomes diferentes para a data da exceção.
+      // Fazemos cast para any ao verificar campos legados para satisfazer o tipo DoctorException.
+      const date = String(((ex as any).exception_date) ?? ((ex as any).exceptionDate) ?? ex.date ?? '');
       if (!exceptionByDate.has(date)) {
         exceptionByDate.set(date, ex);
       }
@@ -2928,7 +2930,7 @@ const ProfissionalPage = () => {
         {/* Exceções */}
         <div className="mt-8">
           <h3 className="text-lg sm:text-xl font-bold mb-4">Exceções (Bloqueios/Liberações)</h3>
-          {exceptLoading ? (
+            {exceptLoading ? (
             <div className="text-sm text-muted-foreground p-4">Carregando exceções…</div>
           ) : filteredExceptions && filteredExceptions.length > 0 ? (
             <div className="space-y-2">
@@ -2938,15 +2940,26 @@ const ProfissionalPage = () => {
                     <div className="font-medium text-sm sm:text-base">
                       {(() => {
                         try {
-                          const [y, m, d] = String(ex.exception_date ?? ex.date).split('-');
-                          return `${d}/${m}/${y}`;
+                          // Normaliza possíveis nomes de campo (exception_date, exceptionDate, date) e formata com fallback
+                          const dateRaw = (ex as any).exception_date ?? (ex as any).exceptionDate ?? ex.date ?? '';
+                          const parts = String(dateRaw).split('-');
+                          if (parts.length >= 3) {
+                            const [y, m, d] = parts;
+                            return `${d}/${m}/${y}`;
+                          }
+                          // fallback: tentar parse ISO/locale
+                          const dt = new Date(String(dateRaw));
+                          if (!isNaN(dt.getTime())) {
+                            return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+                          }
+                          return String(dateRaw);
                         } catch (e) {
-                          return ex.exception_date ?? ex.date;
+                          return ((ex as any).exception_date ?? (ex as any).exceptionDate ?? ex.date) as any;
                         }
                       })()}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Tipo: {ex.kind || 'bloqueio'} • Motivo: {ex.reason || '—'}
+                      Tipo: {(ex as any).kind || 'bloqueio'} • Motivo: {(ex as any).reason || '—'}
                     </div>
                   </div>
                   <div className="flex gap-2 ml-2">

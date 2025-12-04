@@ -1294,14 +1294,56 @@ const ProfissionalPage = () => {
     // helper to load laudos for the patients assigned to the logged-in user
     const loadAssignedLaudos = async () => {
       try {
+        // Primeiro, tenta carregar laudos criados pelo próprio médico
+        console.log('[LaudoManager] Tentando carregar laudos criados pelo médico:', user?.id);
+        try {
+          const reportsMod = await import('@/lib/reports');
+          const allMyReports = await loadReports();
+          
+          if (Array.isArray(allMyReports) && allMyReports.length > 0) {
+            // Filtrar apenas os criados por mim
+            const createdByMe = allMyReports.filter((r: any) => {
+              const creator = ((r.created_by ?? r.executante ?? r.createdBy) || '').toString();
+              return user?.id && creator && creator === user.id;
+            });
+
+            if (createdByMe.length > 0) {
+              console.log('[LaudoManager] Encontrados', createdByMe.length, 'laudos criados pelo médico');
+              const enriched = await (async (reportsArr: any[]) => {
+                if (!reportsArr || !reportsArr.length) return reportsArr;
+                const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+                if (!pids.length) return reportsArr;
+                try {
+                  const patients = await buscarPacientesPorIds(pids);
+                  const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+                  return reportsArr.map((r: any) => {
+                    const pid = String(getReportPatientId(r));
+                    return { ...r, paciente: r.paciente ?? map.get(pid) ?? r.paciente } as any;
+                  });
+                } catch (e) {
+                  console.warn('[LaudoManager] Erro ao enriquecer pacientes:', e);
+                  return reportsArr;
+                }
+              })(createdByMe);
+              setLaudos(enriched || []);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('[LaudoManager] erro ao carregar laudos criados pelo médico:', e);
+        }
+
+        // Fallback: carregar laudos de pacientes atribuídos
         const assignments = await import('@/lib/assignment').then(m => m.listAssignmentsForUser(user?.id || ''));
         const patientIds = Array.isArray(assignments) ? assignments.map(a => String(a.patient_id)).filter(Boolean) : [];
 
         if (patientIds.length === 0) {
+          console.log('[LaudoManager] Nenhum paciente atribuído, laudos vazios');
           setLaudos([]);
           return;
         }
 
+        console.log('[LaudoManager] Carregando laudos de', patientIds.length, 'pacientes atribuídos');
         try {
           const reportsMod = await import('@/lib/reports');
           if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
@@ -1393,7 +1435,7 @@ const ProfissionalPage = () => {
           return;
         }
       } catch (e) {
-        console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);
+        console.warn('[LaudoManager] erro ao carregar laudos:', e);
         setLaudos(reports || []);
       }
     };

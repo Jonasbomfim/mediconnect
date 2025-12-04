@@ -16,7 +16,7 @@
 
 ---
 
-## 📋 Índice
+## Índice
 
 1. [Visão Geral](#-visão-geral)
 2. [Problema e Solução](#-problema-e-solução)
@@ -32,61 +32,61 @@
 
 ---
 
-## 🎯 Visão Geral
+## Visão Geral
 
 **MEDIConnect** é uma plataforma web moderna e intuitiva desenvolvida para revolucionar a gestão de saúde em clínicas e hospitais. Com foco na redução do absenteísmo (faltas em consultas), a plataforma oferece uma experiência completa para pacientes, profissionais de saúde e administradores.
 
-### 🌟 Diferenciais
+### Diferenciais
 
-- 🤖 **Zoe IA Assistant**: Assistente virtual inteligente para suporte aos usuários
-- 📱 **Interface Responsiva**: Design moderno e adaptável a qualquer dispositivo
-- 🔐 **Autenticação Segura**: Sistema robusto com perfis diferenciados
-- ⚡ **Performance**: Construído com Next.js 15 para máxima velocidade
-- 🎨 **UX/UI Premium**: Interface limpa e profissional voltada para área da saúde
+- **Zoe IA Assistant**: Assistente virtual inteligente para suporte aos usuários
+- **Interface Responsiva**: Design moderno e adaptável a qualquer dispositivo
+- **Autenticação Segura**: Sistema robusto com perfis diferenciados
+- **Performance**: Construído com Next.js 15 para máxima velocidade
+- **UX/UI Premium**: Interface limpa e profissional voltada para área da saúde
 
 ---
 
-## 🩺 Problema e Solução
+## Problema e Solução
 
 ### O Problema
 O **absenteísmo** (não comparecimento a consultas agendadas) é um problema crítico em clínicas e hospitais, causando:
-- ⏰ Desperdício de tempo dos profissionais
-- 💰 Perda de receita para estabelecimentos
-- 📉 Redução da eficiência operacional
-- 😔 Impacto negativo no atendimento de outros pacientes
+- Desperdício de tempo dos profissionais
+- Perda de receita para estabelecimentos
+- Redução da eficiência operacional
+- Impacto negativo no atendimento de outros pacientes
 
 ### Nossa Solução
 MEDIConnect oferece um sistema inteligente de gestão que:
-- ✅ Facilita o agendamento e reagendamento de consultas
-- ✅ Permite visualização clara da agenda para profissionais
-- ✅ Oferece assistência via IA para dúvidas e suporte
+- Facilita o agendamento e reagendamento de consultas
+- Permite visualização clara da agenda para profissionais
+- Oferece assistência via IA para dúvidas e suporte
 
 ---
 
-## ✨ Funcionalidades
+## Funcionalidades
 
-### 👤 Para Pacientes
-- 🏠 **Dashboard Personalizado**: Visão geral de consultas e exames
-- 📅 **Agendamento**: Sistema fácil de marcar consultas
-- 📋 **Resultados de Exames**: Acesso seguro a laudos e resultados
-- 👨‍⚕️ **Busca de Profissionais**: Encontre médicos por especialidade
-- 💬 **Zoe IA Assistant**: Tire dúvidas 24/7 com nossa assistente virtual
+### Para Pacientes
+- **Dashboard Personalizado**: Visão geral de consultas e exames
+- **Agendamento**: Sistema fácil de marcar consultas
+- **Resultados de Exames**: Acesso seguro a laudos e resultados
+- **Busca de Profissionais**: Encontre médicos por especialidade
+- **Zoe IA Assistant**: Tire dúvidas 24/7 com nossa assistente virtual
 
-### 👨‍⚕️ Para Profissionais
-- 📊 **Dashboard Profissional**: Visão completa de atendimentos
-- ✍️ **Editor de Laudos**: Crie e edite laudos médicos de forma rápida
-- 👥 **Gestão de Pacientes**: Acesse informações dos pacientes
-- 📈 **Agenda**: Visualização clara de consultas
+### Para Profissionais
+- **Dashboard Profissional**: Visão completa de atendimentos
+- **Editor de Laudos**: Crie e edite laudos médicos de forma rápida
+- **Gestão de Pacientes**: Acesse informações dos pacientes
+- **Agenda**: Visualização clara de consultas
 
-### 🔧 Para Administradores
-- 📊 **Dashboard Administrativo**: Métricas e estatísticas em tempo real
-- 📈 **Relatórios Detalhados**: Análise de comparecimento e absenteísmo
-- 👥 **Gestão Completa**: Gerencie pacientes, profissionais e agendamentos
-- 🎯 **Painel de Controle**: Visão 360° da operação da clínica
+### Para Administradores
+- **Dashboard Administrativo**: Métricas e estatísticas em tempo real
+- **Relatórios Detalhados**: Análise de comparecimento e absenteísmo
+- **Gestão Completa**: Gerencie pacientes, profissionais e agendamentos
+- **Painel de Controle**: Visão 360° da operação da clínica
 
 ---
 
-## 🛠️ Tecnologias
+## Tecnologias
 
 ### Frontend (Atual)
 - **[Next.js 15](https://nextjs.org/)** - Framework React com Server Components
@@ -111,7 +111,7 @@ MEDIConnect oferece um sistema inteligente de gestão que:
 
 ---
 
-## 🚀 Instalação
+## Instalação
 
 ### Pré-requisitos
 
@@ -167,21 +167,21 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
 ---
 
-## 💻 Como Usar
+## Como Usar
 
 ### Navegação Principal
 
-#### 🏠 Página Inicial
+#### Página Inicial
 Acesse `/home` para conhecer a plataforma e suas funcionalidades.
 
-#### 🔐 Autenticação
+#### Autenticação
 O sistema possui três níveis de acesso:
 
 - **Pacientes**: `/login-paciente`
 - **Profissionais**: `/login-profissional`
 - **Administradores**: `/login-admin`
 
-#### 📱 Funcionalidades por Perfil
+#### Funcionalidades por Perfil
 
 **Como Paciente:**
 1. Faça login em `/login-paciente`
@@ -205,7 +205,7 @@ O sistema possui três níveis de acesso:
 
 ---
 
-## 🎭 Fluxos de Usuário
+## Fluxos de Usuário
 
 ### Fluxo de Agendamento (Paciente)
 
@@ -243,9 +243,9 @@ E --> F[Tomar Decisões]
 
 ---
 
-## 🧩 Componentes Principais
+## Componentes Principais
 
-### 🤖 Zoe IA Assistant
+### Zoe IA Assistant
 
 Assistente virtual inteligente que oferece:
 - Suporte 24/7 aos usuários
@@ -258,7 +258,7 @@ Assistente virtual inteligente que oferece:
 - `components/ZoeIA/voice-powered-orb.tsx`
 - `components/ZoeIA/demo.tsx`
 
-### 📅 Sistema de Agendamento
+### Sistema de Agendamento
 
 Gerenciamento completo de consultas e exames:
 - Calendário interativo
@@ -271,7 +271,7 @@ Gerenciamento completo de consultas e exames:
 - `components/features/Calendario/`
 - `app/(main-routes)/consultas/`
 
-### 📋 Editor de Laudos
+### Editor de Laudos
 
 Ferramenta profissional para criação de laudos médicos:
 - Interface intuitiva
@@ -283,7 +283,7 @@ Ferramenta profissional para criação de laudos médicos:
 - `lib/laudo-exemplos.ts`
 - `lib/laudo-notification.ts`
 
-### 📊 Dashboard Analytics
+### Dashboard Analytics
 
 Painéis administrativos com:
 - Métricas em tempo real
@@ -298,7 +298,7 @@ Painéis administrativos com:
 
 ---
 
-## 🤝 Contribuindo
+## Contribuindo
 
 Contribuições são bem-vindas! Siga estes passos:
 
@@ -351,26 +351,26 @@ Descreva suas mudanças detalhadamente.
 
 ---
 
-## 📝 Licença
+## Licença
 
 Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-## 📞 Contato
+## Contato
 
 **MEDIConnect Team**
 
-- 🌐 Website: [mediconnect.com](https://mediconecta-app-liart.vercel.app/)
-- 📧 Email dos Desenvolvedores:  
-    - 📧 [Jonas Francisco](mailto:jonastom478@gmail.com)
-    - 📧 [João Gustavo](mailto:jgcmendonca@gmail.com)
-    - 📧 [Maria Gabrielly](mailto:maria.gabrielly221106@gmail.com)
-    - 📧 [Pedro Gomes](mailto:pedrogomes5913@gmail.com)
+- Website: [mediconnect.com](https://mediconecta-app-liart.vercel.app/)
+- Email dos Desenvolvedores:  
+    - [Jonas Francisco](mailto:jonastom478@gmail.com)
+    - [João Gustavo](mailto:jgcmendonca@gmail.com)
+    - [Maria Gabrielly](mailto:maria.gabrielly221106@gmail.com)
+    - [Pedro Gomes](mailto:pedrogomes5913@gmail.com)
 
 ---
 
 <div align="center">
 
-**Desenvolvido com ❤️ pelo squad 20**
+**Desenvolvido pelo squad 20**
 
 *Transformando a gestão de saúde através da tecnologia*
 

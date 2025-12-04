@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
@@ -46,12 +46,14 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
   };
 
   // Get list of already used weekdays (excluding current one in edit mode)
-  const usedWeekdays = new Set(
-    (existingAvailabilities || [])
-      .filter(a => mode === 'edit' ? a.id !== availability?.id : true)
-      .map(a => normalizeWeekdayForComparison(a.weekday))
-      .filter(Boolean)
-  );
+  const usedWeekdays = useMemo(() => {
+    return new Set(
+      (existingAvailabilities || [])
+        .filter(a => mode === 'edit' ? a.id !== availability?.id : true)
+        .map(a => normalizeWeekdayForComparison(a.weekday))
+        .filter(Boolean)
+    );
+  }, [existingAvailabilities, mode, availability?.id]);
 
   // When editing, populate state from availability prop
   useEffect(() => {

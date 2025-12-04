@@ -175,8 +175,17 @@ export default function EditarLaudoPage() {
           mostrarAssinatura: !r.hide_signature,
         });
 
-        // Preencher conteúdo
-        const contentHtml = r.content_html || r.conteudo_html || '';
+        // Preencher conteúdo - verificar todos os possíveis nomes de campo
+        const contentHtml = r.content_html || r.conteudo_html || r.contentHtml || r.conteudo || r.content || '';
+        console.log('[EditarLaudoPage] Loading content - report:', r);
+        console.log('[EditarLaudoPage] Content fields check:', {
+          content_html: r.content_html,
+          conteudo_html: r.conteudo_html,
+          contentHtml: r.contentHtml,
+          conteudo: r.conteudo,
+          content: r.content,
+          finalContent: contentHtml
+        });
         
         // Verificar se existe rascunho salvo no localStorage
         let finalContent = contentHtml;
@@ -206,10 +215,9 @@ export default function EditarLaudoPage() {
         
         setCampos(finalCampos);
         setContent(finalContent);
+        console.log('[EditarLaudoPage] Setting content state with length:', finalContent.length);
         
-        if (editorRef.current) {
-          editorRef.current.innerHTML = finalContent;
-        }
+        // O innerHTML será setado no useEffect separado abaixo
       } catch (err) {
         console.warn('Erro ao carregar laudo:', err);
         toast({
@@ -223,6 +231,14 @@ export default function EditarLaudoPage() {
     }
     fetchLaudo();
   }, [laudoId, token, toast]);
+
+  // UseEffect separado para injetar o conteúdo no editor quando estiver pronto
+  useEffect(() => {
+    if (content && editorRef.current && !loading) {
+      console.log('[EditarLaudoPage] Injecting content into editor, length:', content.length);
+      editorRef.current.innerHTML = content;
+    }
+  }, [content, loading]);
 
   // Formatação com contenteditable
   const applyFormat = (command: string, value?: string) => {

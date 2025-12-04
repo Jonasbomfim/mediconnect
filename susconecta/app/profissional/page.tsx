@@ -1865,7 +1865,15 @@ const ProfissionalPage = () => {
   function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient, createNewReport, updateExistingReport, reloadReports, onSaved }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any; createNewReport?: (data: any) => Promise<any>; updateExistingReport?: (id: string, data: any) => Promise<any>; reloadReports?: () => Promise<void>; onSaved?: (r:any) => void }) {
   const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("editor");
-    const [content, setContent] = useState(laudo?.conteudo || "");
+    // Initialize content checking all possible field names
+    const initialContent = laudo?.conteudo ?? laudo?.content_html ?? laudo?.contentHtml ?? laudo?.content ?? "";
+    console.log('[LaudoEditor] Initializing content - laudo:', laudo, 'initialContent length:', initialContent?.length, 'fields:', {
+      conteudo: laudo?.conteudo,
+      content_html: laudo?.content_html, 
+      contentHtml: laudo?.contentHtml,
+      content: laudo?.content
+    });
+    const [content, setContent] = useState(initialContent);
     const [showPreview, setShowPreview] = useState(false);
     const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
     const [listaPacientes, setListaPacientes] = useState<any[]>([]);
@@ -1952,8 +1960,10 @@ const ProfissionalPage = () => {
     // Carregar dados do laudo existente quando disponível (mais robusto: suporta vários nomes de campo)
     useEffect(() => {
       if (laudo && !isNewLaudo) {
+        console.log('[LaudoEditor useEffect] Loading existing laudo data:', laudo);
         // Conteúdo: aceita 'conteudo', 'content_html', 'contentHtml', 'content'
         const contentValue = laudo.conteudo ?? laudo.content_html ?? laudo.contentHtml ?? laudo.content ?? "";
+        console.log('[LaudoEditor useEffect] Content value length:', contentValue?.length, 'Setting content...');
         setContent(contentValue);
 
         // Campos: use vários fallbacks

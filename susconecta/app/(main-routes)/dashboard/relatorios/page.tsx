@@ -2,10 +2,11 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDown, BarChart2, Users, CalendarCheck } from "lucide-react";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
   countAppointmentsToday,
@@ -30,10 +31,51 @@ const FALLBACK_MEDICOS = [
 // Helper Functions
 // ============================================================================
 
-function exportPDF(title: string, content: string) {
+async function exportPDF(title: string, content: string, chartElementId?: string) {
   const doc = new jsPDF();
-  doc.text(title, 10, 10);
-  doc.text(content, 10, 20);
+  let yPosition = 15;
+
+  // Add title
+  doc.setFontSize(16);
+  doc.setFont(undefined, "bold");
+  doc.text(title, 15, yPosition);
+  yPosition += 10;
+
+  // Add description/content
+  doc.setFontSize(11);
+  doc.setFont(undefined, "normal");
+  const contentLines = doc.splitTextToSize(content, 180);
+  doc.text(contentLines, 15, yPosition);
+  yPosition += contentLines.length * 5 + 15;
+
+  // Capture chart if chartElementId is provided
+  if (chartElementId) {
+    try {
+      const chartElement = document.getElementById(chartElementId);
+      if (chartElement) {
+        // Create a canvas from the chart element
+        const canvas = await html2canvas(chartElement, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          logging: false,
+        });
+
+        // Convert canvas to image
+        const imgData = canvas.toDataURL("image/png");
+        const imgWidth = 180;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // Add image to PDF
+        doc.addImage(imgData, "PNG", 15, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 10;
+      }
+    } catch (error) {
+      console.error("Error capturing chart:", error);
+      doc.text("(Erro ao capturar gráfico)", 15, yPosition);
+      yPosition += 10;
+    }
+  }
+
   doc.save(`${title.toLowerCase().replace(/ /g, "-")}.pdf`);
 }
 
@@ -203,7 +245,7 @@ export default function RelatoriosPage() {
               size="sm"
               variant="outline"
               className="hover:bg-primary! hover:text-white! transition-colors w-full md:w-auto"
-              onClick={() => exportPDF("Consultas por Período", "Resumo das consultas realizadas por período.")}
+              onClick={() => exportPDF("Consultas por Período", "Resumo das consultas realizadas por período.", "chart-consultas")}
             >
               <FileDown className="w-4 h-4 mr-1" /> Exportar PDF
             </Button>
@@ -211,15 +253,17 @@ export default function RelatoriosPage() {
           {loading ? (
             <div className="h-[220px] flex items-center justify-center text-muted-foreground">Carregando dados...</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={consultasData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="periodo" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="consultas" fill="#6366f1" name="Consultas" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div id="chart-consultas">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={consultasData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="periodo" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="consultas" fill="#6366f1" name="Consultas" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>
@@ -229,9 +273,10 @@ export default function RelatoriosPage() {
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><Users className="w-5 h-5" /> Pacientes Mais Atendidos</h2>
-            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Pacientes Mais Atendidos", "Lista dos pacientes mais atendidos.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Pacientes Mais Atendidos", "Lista dos pacientes mais atendidos.", "table-pacientes")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
-          <table className="w-full text-sm mt-4">
+          <div id="table-pacientes">
+            <table className="w-full text-sm mt-4">
             <thead>
               <tr className="text-muted-foreground">
                 <th className="text-left font-medium">Paciente</th>
@@ -257,15 +302,17 @@ export default function RelatoriosPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Médicos mais produtivos */}
         <div className="bg-card border border-border rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-lg text-foreground flex items-center gap-2"><Users className="w-5 h-5" /> Médicos Mais Produtivos</h2>
-            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Médicos Mais Produtivos", "Lista dos médicos mais produtivos.")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
+            <Button size="sm" variant="outline" className="hover:bg-primary! hover:text-white! transition-colors" onClick={() => exportPDF("Médicos Mais Produtivos", "Lista dos médicos mais produtivos.", "table-medicos")}> <FileDown className="w-4 h-4 mr-1" /> Exportar PDF</Button>
           </div>
-          <table className="w-full text-sm mt-4">
+          <div id="table-medicos">
+            <table className="w-full text-sm mt-4">
             <thead>
               <tr className="text-muted-foreground">
                 <th className="text-left font-medium">Médico</th>
@@ -291,6 +338,7 @@ export default function RelatoriosPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

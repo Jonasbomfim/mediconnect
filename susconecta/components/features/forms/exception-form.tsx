@@ -28,6 +28,19 @@ export default function ExceptionForm({ open, onOpenChange, doctorId = null, onS
   const [showDatePicker, setShowDatePicker] = useState(false)
   const { toast } = useToast()
 
+  // Resetar form quando dialog fecha
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      setDate('')
+      setStartTime('')
+      setEndTime('')
+      setKind('bloqueio')
+      setReason('')
+      setShowDatePicker(false)
+    }
+    onOpenChange(newOpen)
+  }
+
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault()
     if (!doctorId) {
@@ -53,7 +66,7 @@ export default function ExceptionForm({ open, onOpenChange, doctorId = null, onS
       const saved = await criarExcecao(payload)
       toast({ title: 'Exceção criada', description: `${payload.date} • ${kind}`, variant: 'default' })
       onSaved?.(saved)
-      onOpenChange(false)
+      handleOpenChange(false)
     } catch (err: any) {
       console.error('Erro ao criar exceção:', err)
       toast({ title: 'Erro', description: err?.message || String(err), variant: 'destructive' })
@@ -63,7 +76,7 @@ export default function ExceptionForm({ open, onOpenChange, doctorId = null, onS
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar exceção</DialogTitle>
@@ -103,6 +116,7 @@ export default function ExceptionForm({ open, onOpenChange, doctorId = null, onS
                     mode="single"
                     selected={date ? (() => {
                       try {
+                        // Parse como local date para compatibilidade com Calendar
                         const [y, m, d] = String(date).split('-').map(Number);
                         return new Date(y, m - 1, d);
                       } catch (e) {
@@ -111,10 +125,12 @@ export default function ExceptionForm({ open, onOpenChange, doctorId = null, onS
                     })() : undefined}
                     onSelect={(selectedDate) => {
                       if (selectedDate) {
+                        // Extrair data como local para evitar problemas de timezone
                         const y = selectedDate.getFullYear();
                         const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
                         const d = String(selectedDate.getDate()).padStart(2, '0');
                         const dateStr = `${y}-${m}-${d}`;
+                        console.log('[ExceptionForm] Data selecionada:', dateStr, 'de', selectedDate);
                         setDate(dateStr);
                         setShowDatePicker(false);
                       }
@@ -160,7 +176,7 @@ export default function ExceptionForm({ open, onOpenChange, doctorId = null, onS
           </div>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => handleOpenChange(false)} disabled={submitting}>Cancelar</Button>
             <Button type="submit" disabled={submitting}>{submitting ? 'Salvando...' : 'Criar exceção'}</Button>
           </DialogFooter>
         </form>

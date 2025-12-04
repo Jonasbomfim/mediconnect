@@ -488,11 +488,10 @@ export async function deletarDisponibilidade(id: string): Promise<void> {
     headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
   });
 
-  if (res.status === 204) return;
-  // Some deployments may return 200 with a representation — accept that too
-  if (res.status === 200) return;
-  // Otherwise surface a friendly error using parse()
-  await parse(res as Response);
+  if (res.status === 204 || res.status === 200) return;
+  
+  // Se chegou aqui e não foi sucesso, lance erro
+  throw new Error(`Erro ao deletar disponibilidade: ${res.status}`);
 }
 
 // ===== EXCEÇÕES (Doctor Exceptions) =====
@@ -580,14 +579,21 @@ export async function listarExcecoes(params?: { doctorId?: string; date?: string
 export async function deletarExcecao(id: string): Promise<void> {
   if (!id) throw new Error('ID da exceção é obrigatório');
   const url = `${REST}/doctor_exceptions?id=eq.${encodeURIComponent(String(id))}`;
+  console.log('[deletarExcecao] Deletando exceção:', id, 'URL:', url);
   const res = await fetch(url, {
     method: 'DELETE',
     headers: withPrefer({ ...baseHeaders() }, 'return=minimal'),
   });
 
-  if (res.status === 204) return;
-  if (res.status === 200) return;
-  await parse(res as Response);
+  console.log('[deletarExcecao] Status da resposta:', res.status);
+  
+  if (res.status === 204 || res.status === 200) {
+    console.log('[deletarExcecao] Exceção deletada com sucesso');
+    return;
+  }
+  
+  // Se chegou aqui e não foi sucesso, lance erro
+  throw new Error(`Erro ao deletar exceção: ${res.status}`);
 }
 
 

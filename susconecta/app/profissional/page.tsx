@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { UploadAvatar } from '@/components/ui/upload-avatar';
-import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico, listarDisponibilidades, DoctorAvailability, deletarDisponibilidade, listarExcecoes, DoctorException, deletarExcecao } from "@/lib/api";
 import { ENV_CONFIG } from '@/lib/env-config';
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import AvailabilityForm from '@/components/features/forms/availability-form';
+import ExceptionForm from '@/components/features/forms/exception-form';
 import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
 import {
   Table,
@@ -64,6 +66,29 @@ const colorsByType = {
   Dermatologia: "#9b59b6",
   Oftalmologia: "#2ecc71"
 };
+
+  // Função para traduzir dias da semana
+  function translateWeekday(w?: string) {
+    if (!w) return '';
+    const key = w.toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+    const map: Record<string, string> = {
+      'segunda': 'Segunda',
+      'terca': 'Terça',
+      'quarta': 'Quarta',
+      'quinta': 'Quinta',
+      'sexta': 'Sexta',
+      'sabado': 'Sábado',
+      'domingo': 'Domingo',
+      'monday': 'Segunda',
+      'tuesday': 'Terça',
+      'wednesday': 'Quarta',
+      'thursday': 'Quinta',
+      'friday': 'Sexta',
+      'saturday': 'Sábado',
+      'sunday': 'Domingo',
+    };
+    return map[key] ?? w;
+  }
 
   // Helpers para normalizar dados de paciente (suporta schema antigo e novo)
   const getPatientName = (p: any) => p?.full_name ?? p?.nome ?? '';
@@ -131,6 +156,16 @@ const ProfissionalPage = () => {
   // Estados para o perfil do médico
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [doctorId, setDoctorId] = useState<string | null>(null);
+  
+  // Estados para disponibilidades e exceções do médico logado
+  const [availabilities, setAvailabilities] = useState<DoctorAvailability[]>([]);
+  const [exceptions, setExceptions] = useState<DoctorException[]>([]);
+  const [availLoading, setAvailLoading] = useState(false);
+  const [exceptLoading, setExceptLoading] = useState(false);
+  const [editingAvailability, setEditingAvailability] = useState<DoctorAvailability | null>(null);
+  const [editingException, setEditingException] = useState<DoctorException | null>(null);
+  const [showAvailabilityForm, setShowAvailabilityForm] = useState(false);
+  const [showExceptionForm, setShowExceptionForm] = useState(false);
   
   // Hook para carregar automaticamente o avatar do médico
   const { avatarUrl: retrievedAvatarUrl } = useAvatarUrl(doctorId);
@@ -285,6 +320,48 @@ const ProfissionalPage = () => {
       }));
     }
   }, [retrievedAvatarUrl]);
+
+  // Carregar disponibilidades e exceções do médico logado
+  const reloadAvailabilities = async (medId?: string) => {
+    const id = medId || doctorId;
+    if (!id) return;
+    try {
+      setAvailLoading(true);
+      const avails = await listarDisponibilidades({ doctorId: id, active: true });
+      setAvailabilities(Array.isArray(avails) ? avails : []);
+    } catch (e) {
+      console.warn('[ProfissionalPage] Erro ao carregar disponibilidades:', e);
+      setAvailabilities([]);
+    } finally {
+      setAvailLoading(false);
+    }
+  };
+
+  const reloadExceptions = async (medId?: string) => {
+    const id = medId || doctorId;
+    if (!id) return;
+    try {
+      setExceptLoading(true);
+      console.log('[ProfissionalPage] Recarregando exceções para médico:', id);
+      const excepts = await listarExcecoes({ doctorId: id });
+      console.log('[ProfissionalPage] Exceções carregadas:', excepts);
+      setExceptions(Array.isArray(excepts) ? excepts : []);
+    } catch (e) {
+      console.warn('[ProfissionalPage] Erro ao carregar exceções:', e);
+      setExceptions([]);
+    } finally {
+      setExceptLoading(false);
+    }
+  };
+
+  // Carrega disponibilidades quando doctorId muda
+  useEffect(() => {
+    if (doctorId) {
+      reloadAvailabilities(doctorId);
+      reloadExceptions(doctorId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
 
 
   // Estados para campos principais da consulta
@@ -2746,7 +2823,129 @@ const ProfissionalPage = () => {
     </div>
   );
 
-  
+  const renderDisponibilidadesSection = () => {
+    // Filtrar apenas a primeira disponibilidade de cada dia da semana
+    const availabilityByDay = new Map<string, DoctorAvailability>();
+    (availabilities || []).forEach((a) => {
+      const day = String(a.weekday ?? '').toLowerCase();
+      if (!availabilityByDay.has(day)) {
+        availabilityByDay.set(day, a);
+      }
+    });
+    const filteredAvailabilities = Array.from(availabilityByDay.values());
+
+    // Filtrar apenas a primeira exceção de cada data
+    const exceptionByDate = new Map<string, DoctorException>();
+    (exceptions || []).forEach((ex) => {
+      const date = String(ex.exception_date ?? ex.date ?? '');
+      if (!exceptionByDate.has(date)) {
+        exceptionByDate.set(date, ex);
+      }
+    });
+    const filteredExceptions = Array.from(exceptionByDate.values());
+
+    return (
+      <section className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6 w-full">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold">Minhas Disponibilidades</h2>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              size="sm"
+              className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+              onClick={() => {
+                setEditingAvailability(null);
+                setShowAvailabilityForm(true);
+              }}
+            >
+              + Disponibilidade
+            </Button>
+          </div>
+        </div>
+
+        {/* Disponibilidades */}
+        {availLoading ? (
+          <div className="text-sm text-muted-foreground p-4">Carregando disponibilidades…</div>
+        ) : filteredAvailabilities && filteredAvailabilities.length > 0 ? (
+          <div className="space-y-2">
+            {filteredAvailabilities.map((a) => (
+              <div key={String(a.id)} className="p-3 border rounded flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="font-medium text-sm sm:text-base">{translateWeekday(a.weekday)} • {a.start_time} — {a.end_time}</div>
+                  <div className="text-xs text-muted-foreground">Duração: {a.slot_minutes} min • Tipo: {a.appointment_type || '—'} • {a.active ? 'Ativa' : 'Inativa'}</div>
+                </div>
+                <div className="flex gap-2 ml-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="text-xs"
+                    onClick={() => {
+                      setEditingAvailability(a);
+                      setShowAvailabilityForm(true);
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    className="text-xs"
+                    onClick={async () => {
+                      if (!confirm('Excluir esta disponibilidade?')) return;
+                      try {
+                        await deletarDisponibilidade(String(a.id));
+                        reloadAvailabilities();
+                        toast({ title: 'Disponibilidade excluída', variant: 'default' });
+                      } catch (e) {
+                        console.warn('Erro ao deletar disponibilidade:', e);
+                        toast({ title: 'Erro ao excluir', description: (e as any)?.message || String(e), variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50">
+            Nenhuma disponibilidade cadastrada.
+          </div>
+        )}
+
+        {/* Exceções */}
+        <div className="mt-8">
+          <h3 className="text-lg sm:text-xl font-bold mb-4">Exceções (Bloqueios/Liberações)</h3>
+          {exceptLoading ? (
+            <div className="text-sm text-muted-foreground p-4">Carregando exceções…</div>
+          ) : filteredExceptions && filteredExceptions.length > 0 ? (
+            <div className="space-y-2">
+              {filteredExceptions.map((ex) => (
+                <div key={String(ex.id)} className="p-3 border rounded flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm sm:text-base">
+                      {new Date(ex.exception_date ?? ex.date).toLocaleDateString('pt-BR')}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Tipo: bloqueio • Motivo: {ex.reason || '—'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 ml-2">
+                    {/* Sem ações para exceções */}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50">
+              Nenhuma exceção cadastrada.
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const renderPerfilSection = () => (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6 px-0 py-4 sm:py-8 md:px-4">
       {/* Header com Título e Botão */}
@@ -3022,6 +3221,8 @@ const ProfissionalPage = () => {
     );
       case 'laudos':
         return renderLaudosSection();
+      case 'disponibilidades':
+        return renderDisponibilidadesSection();
       case 'comunicacao':
         return renderComunicacaoSection();
       case 'perfil':
@@ -3159,6 +3360,17 @@ const ProfissionalPage = () => {
               Laudos
             </Button>
             <Button 
+              variant={activeSection === 'disponibilidades' ? 'default' : 'ghost'} 
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('disponibilidades');
+                setSidebarOpen(false);
+              }}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Disponibilidades
+            </Button>
+            <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
               className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => {
@@ -3194,7 +3406,29 @@ const ProfissionalPage = () => {
         </main>
       </div>
 
-      {}
+      {/* AvailabilityForm para criar/editar disponibilidades */}
+      {showAvailabilityForm && (
+        <AvailabilityForm
+          open={showAvailabilityForm}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowAvailabilityForm(false);
+              setEditingAvailability(null);
+            }
+          }}
+          doctorId={editingAvailability?.doctor_id ?? doctorId}
+          availability={editingAvailability}
+          mode={editingAvailability ? "edit" : "create"}
+          onSaved={(saved) => {
+            console.log('Disponibilidade salva', saved);
+            setEditingAvailability(null);
+            setShowAvailabilityForm(false);
+            reloadAvailabilities();
+          }}
+        />
+      )}
+
+      {/* Popup antigo (manter para compatibilidade) */}
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 

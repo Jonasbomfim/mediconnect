@@ -844,27 +844,27 @@ export default function DoutoresPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Nome</Label>
-                <span className="col-span-3 font-medium">{viewingDoctor?.full_name}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Nome</Label>
+                <span className="col-span-1 sm:col-span-3 font-medium">{viewingDoctor?.full_name}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Especialidade</Label>
-                <span className="col-span-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Especialidade</Label>
+                <span className="col-span-1 sm:col-span-3">
                   <Badge variant="outline">{viewingDoctor?.especialidade}</Badge>
                 </span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">CRM</Label>
-                <span className="col-span-3">{viewingDoctor?.crm}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">CRM</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingDoctor?.crm}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Email</Label>
-                <span className="col-span-3">{viewingDoctor?.email}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Email</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingDoctor?.email}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Telefone</Label>
-                <span className="col-span-3">{viewingDoctor?.telefone}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Telefone</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingDoctor?.telefone}</span>
               </div>
             </div>
             <DialogFooter>

@@ -384,37 +384,37 @@ export function EventManager({
           {/* Desktop: Button group */}
           <div className="hidden sm:flex items-center gap-1 rounded-lg border bg-background p-1">
             <Button
-              variant={view === "month" ? "secondary" : "ghost"}
+              variant={view === "month" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("month")}
-              className="h-8"
+              className={cn("h-8", view !== "month" && "hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white")}
             >
               <Calendar className="h-4 w-4" />
               <span className="ml-1">Mês</span>
             </Button>
             <Button
-              variant={view === "week" ? "secondary" : "ghost"}
+              variant={view === "week" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("week")}
-              className="h-8"
+              className={cn("h-8", view !== "week" && "hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white")}
             >
               <Grid3x3 className="h-4 w-4" />
               <span className="ml-1">Semana</span>
             </Button>
             <Button
-              variant={view === "day" ? "secondary" : "ghost"}
+              variant={view === "day" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("day")}
-              className="h-8"
+              className={cn("h-8", view !== "day" && "hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white")}
             >
               <Clock className="h-4 w-4" />
               <span className="ml-1">Dia</span>
             </Button>
             <Button
-              variant={view === "list" ? "secondary" : "ghost"}
+              variant={view === "list" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("list")}
-              className="h-8"
+              className={cn("h-8", view !== "list" && "hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white")}
             >
               <List className="h-4 w-4" />
               <span className="ml-1">Lista</span>
@@ -432,7 +432,7 @@ export function EventManager({
               aria-label="Buscar"
               className="flex items-center justify-center h-10 w-10 p-0 text-muted-foreground bg-transparent border-0"
               onClick={() => {
-                const el = document.querySelector<HTMLInputElement>('input[placeholder="Buscar eventos..."]')
+                const el = document.querySelector<HTMLInputElement>('input[placeholder="Buscar pacientes..."]')
                 el?.focus()
               }}
             >
@@ -441,7 +441,7 @@ export function EventManager({
 
             {/* Input central com altura consistente e foco visível */}
             <Input
-              placeholder="Buscar eventos..."
+              placeholder="Buscar paciente..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={cn(

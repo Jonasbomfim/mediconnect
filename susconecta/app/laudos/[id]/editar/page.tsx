@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileText, Settings, Eye, ArrowLeft, BookOpen } from 'lucide-react';
 
 export default function EditarLaudoPage() {
@@ -29,6 +30,7 @@ export default function EditarLaudoPage() {
   const [activeTab, setActiveTab] = useState('editor');
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showExitDialog, setShowExitDialog] = useState(false);
 
   // Campos do laudo
   const [campos, setCampos] = useState({
@@ -69,34 +71,45 @@ export default function EditarLaudoPage() {
   // Estado para rastrear alinhamento ativo
   const [activeAlignment, setActiveAlignment] = useState('left');
 
-  // Salvar conteúdo no localStorage sempre que muda
+  // Salvar conteúdo no localStorage sempre que muda (com debounce)
   useEffect(() => {
-    if (content && laudoId) {
-      localStorage.setItem(`laudo-draft-${laudoId}`, content);
-    }
-  }, [content, laudoId]);
-
-  // Sincronizar conteúdo com o editor
-  useEffect(() => {
-    if (editorRef.current && content) {
-      if (editorRef.current.innerHTML !== content) {
-        editorRef.current.innerHTML = content;
+    const timeoutId = setTimeout(() => {
+      if (laudoId) {
+        // Capturar conteúdo atual do editor antes de salvar
+        const currentContent = editorRef.current?.innerHTML || content;
+        
+        const draft = {
+          content: currentContent,
+          campos,
+          lastSaved: new Date().toISOString(),
+        };
+        
+        localStorage.setItem(`laudo-draft-${laudoId}`, JSON.stringify(draft));
       }
-    }
-  }, [content]);
+    }, 1000); // Aguarda 1 segundo após última mudança
 
-  // Restaurar conteúdo quando volta para a aba editor
-  useEffect(() => {
-    if (activeTab === 'editor' && editorRef.current && content) {
-      editorRef.current.focus();
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.setStart(editorRef.current, editorRef.current.childNodes.length);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+    return () => clearTimeout(timeoutId);
+  }, [content, campos, laudoId]);
+
+  // Função para trocar de aba salvando conteúdo antes
+  const handleTabChange = (newTab: string) => {
+    // Salvar conteúdo do editor antes de trocar
+    if (editorRef.current) {
+      const editorContent = editorRef.current.innerHTML;
+      setContent(editorContent);
     }
-  }, [activeTab]);
+    
+    // Se estiver voltando para o editor, restaurar conteúdo
+    if (newTab === 'editor') {
+      setTimeout(() => {
+        if (editorRef.current && content) {
+          editorRef.current.innerHTML = content;
+        }
+      }, 0);
+    }
+    
+    setActiveTab(newTab);
+  };
 
   // Atualizar formatações ativas ao mudar seleção
   useEffect(() => {
@@ -162,25 +175,49 @@ export default function EditarLaudoPage() {
           mostrarAssinatura: !r.hide_signature,
         });
 
-        // Preencher conteúdo
-        const contentHtml = r.content_html || r.conteudo_html || '';
+        // Preencher conteúdo - verificar todos os possíveis nomes de campo
+        const contentHtml = r.content_html || r.conteudo_html || r.contentHtml || r.conteudo || r.content || '';
+        console.log('[EditarLaudoPage] Loading content - report:', r);
+        console.log('[EditarLaudoPage] Content fields check:', {
+          content_html: r.content_html,
+          conteudo_html: r.conteudo_html,
+          contentHtml: r.contentHtml,
+          conteudo: r.conteudo,
+          content: r.content,
+          finalContent: contentHtml
+        });
         
         // Verificar se existe rascunho salvo no localStorage
-        const draftContent = typeof window !== 'undefined' ? localStorage.getItem(`laudo-draft-${laudoId}`) : null;
-        const finalContent = draftContent || contentHtml;
+        let finalContent = contentHtml;
+        let finalCampos = {
+          cid: r.cid_code || r.cid || '',
+          diagnostico: r.diagnosis || r.diagnostico || '',
+          conclusao: r.conclusion || r.conclusao || '',
+          exame: r.exam || r.exame || '',
+          especialidade: r.especialidade || '',
+          mostrarData: !r.hide_date,
+          mostrarAssinatura: !r.hide_signature,
+        };
         
-        setContent(finalContent);
-        if (editorRef.current) {
-          editorRef.current.innerHTML = finalContent;
-          // Colocar cursor no final do texto
-          editorRef.current.focus();
-          const range = document.createRange();
-          const sel = window.getSelection();
-          range.setStart(editorRef.current, editorRef.current.childNodes.length);
-          range.collapse(true);
-          sel?.removeAllRanges();
-          sel?.addRange(range);
+        if (typeof window !== 'undefined') {
+          const draftData = localStorage.getItem(`laudo-draft-${laudoId}`);
+          if (draftData) {
+            try {
+              const draft = JSON.parse(draftData);
+              if (draft.content) finalContent = draft.content;
+              if (draft.campos) finalCampos = { ...finalCampos, ...draft.campos };
+            } catch (err) {
+              // Se falhar parse, tentar como string simples (formato antigo)
+              finalContent = draftData;
+            }
+          }
         }
+        
+        setCampos(finalCampos);
+        setContent(finalContent);
+        console.log('[EditarLaudoPage] Setting content state with length:', finalContent.length);
+        
+        // O innerHTML será setado no useEffect separado abaixo
       } catch (err) {
         console.warn('Erro ao carregar laudo:', err);
         toast({
@@ -194,6 +231,14 @@ export default function EditarLaudoPage() {
     }
     fetchLaudo();
   }, [laudoId, token, toast]);
+
+  // UseEffect separado para injetar o conteúdo no editor quando estiver pronto
+  useEffect(() => {
+    if (content && editorRef.current && !loading) {
+      console.log('[EditarLaudoPage] Injecting content into editor, length:', content.length);
+      editorRef.current.innerHTML = content;
+    }
+  }, [content, loading]);
 
   // Formatação com contenteditable
   const applyFormat = (command: string, value?: string) => {
@@ -332,7 +377,7 @@ export default function EditarLaudoPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.back()}
+                onClick={() => setShowExitDialog(true)}
                 className="p-0 h-auto flex-shrink-0"
               >
                 <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -357,7 +402,7 @@ export default function EditarLaudoPage() {
           {/* Tabs */}
           <div className="flex border-b border-border bg-card overflow-x-auto flex-shrink-0">
             <button
-              onClick={() => setActiveTab('editor')}
+              onClick={() => handleTabChange('editor')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'editor'
                   ? 'border-blue-500 text-blue-600'
@@ -368,7 +413,7 @@ export default function EditarLaudoPage() {
               Editor
             </button>
             <button
-              onClick={() => setActiveTab('campos')}
+              onClick={() => handleTabChange('campos')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'campos'
                   ? 'border-blue-500 text-blue-600'
@@ -711,7 +756,7 @@ export default function EditarLaudoPage() {
               Edite as informações do laudo e salve as alterações.
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button variant="outline" onClick={() => router.back()} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950">
+              <Button variant="outline" onClick={() => setShowExitDialog(true)} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950">
                 Cancelar
               </Button>
               <Button onClick={handleSave} className="flex-1 sm:flex-none text-xs sm:text-sm h-8 sm:h-10">
@@ -720,6 +765,66 @@ export default function EditarLaudoPage() {
             </div>
           </div>
         </div>
+
+        {/* Dialog de confirmação de saída */}
+        <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Salvar Rascunho?</DialogTitle>
+              <DialogDescription>
+                Você tem informações não salvas. Deseja salvar como rascunho para continuar depois?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Limpar rascunho
+                  localStorage.removeItem(`laudo-draft-${laudoId}`);
+                  setShowExitDialog(false);
+                  router.back();
+                }}
+                className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Descartar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowExitDialog(false);
+                  router.back();
+                }}
+                className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Voltar
+              </Button>
+              <Button
+                onClick={() => {
+                  // Salvar rascunho manualmente antes de sair
+                  const currentContent = editorRef.current?.innerHTML || content;
+                  const draft = {
+                    content: currentContent,
+                    campos,
+                    lastSaved: new Date().toISOString(),
+                  };
+                  localStorage.setItem(`laudo-draft-${laudoId}`, JSON.stringify(draft));
+                  
+                  toast({
+                    title: 'Rascunho salvo!',
+                    description: 'Suas alterações foram salvas.',
+                    variant: 'default',
+                  });
+                  
+                  setShowExitDialog(false);
+                  router.back();
+                }}
+                className="w-full sm:w-auto"
+              >
+                Salvar Rascunho
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );

@@ -79,7 +79,7 @@ export function PagesHeader({ title = "", subtitle = "" }: { title?: string, sub
             </Avatar>
           </Button>
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 sm:w-80 bg-popover border border-border rounded-md shadow-lg z-50 text-popover-foreground animate-in fade-in slide-in-from-top-2">
+            <div className="absolute right-0 mt-2 w-64 sm:w-80 bg-popover border border-border rounded-md shadow-lg z-[100] text-popover-foreground animate-in fade-in slide-in-from-top-2">
               <div className="p-3 sm:p-4 border-b border-border">
                 <div className="flex flex-col space-y-1">
                   <p className="text-xs sm:text-sm font-semibold leading-none">

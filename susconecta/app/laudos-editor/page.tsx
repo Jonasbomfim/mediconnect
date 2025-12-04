@@ -148,7 +148,10 @@ export default function LaudosEditorPage() {
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
-        setPacienteSelecionado(draft.pacienteSelecionado);
+        // Carregar paciente do rascunho se existir
+        if (draft.pacienteSelecionado) {
+          setPacienteSelecionado(draft.pacienteSelecionado);
+        }
         setContent(draft.content);
         setCampos(draft.campos);
         setSolicitanteId(draft.solicitanteId);
@@ -177,6 +180,33 @@ export default function LaudosEditorPage() {
       editorRef.current.innerHTML = content;
     }
   }, []);
+
+  // Auto-salvar no localStorage sempre que houver mudanças (com debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Capturar conteúdo atual do editor antes de salvar
+      const currentContent = editorRef.current?.innerHTML || content;
+      
+      const draft = {
+        pacienteSelecionado,
+        content: currentContent,
+        campos,
+        solicitanteId,
+        solicitanteNome,
+        prazoDate,
+        prazoTime,
+        imagens,
+        lastSaved: new Date().toISOString(),
+      };
+      
+      // Só salvar se houver conteúdo ou dados preenchidos
+      if (currentContent || pacienteSelecionado || campos.exame || campos.diagnostico || imagens.length > 0) {
+        localStorage.setItem('laudoDraft', JSON.stringify(draft));
+      }
+    }, 1000); // Aguarda 1 segundo após última mudança
+
+    return () => clearTimeout(timeoutId);
+  }, [pacienteSelecionado, content, campos, solicitanteId, solicitanteNome, prazoDate, prazoTime, imagens]);
 
   // Tentar obter o registro de médico correspondente ao usuário autenticado
   useEffect(() => {
@@ -246,6 +276,23 @@ export default function LaudosEditorPage() {
       setHistoryIndex(newHistory.length);
     }
   }, [content]);
+
+  // Função para trocar de aba salvando conteúdo antes
+  const handleTabChange = (newTab: string) => {
+    // Salvar conteúdo do editor antes de trocar
+    if (editorRef.current) {
+      const editorContent = editorRef.current.innerHTML;
+      setContent(editorContent);
+    }
+    setActiveTab(newTab);
+  };
+
+  // Restaurar conteúdo do editor quando voltar para a aba editor
+  useEffect(() => {
+    if (activeTab === 'editor' && editorRef.current && content) {
+      editorRef.current.innerHTML = content;
+    }
+  }, [activeTab]);
 
   // Desfazer
   const handleUndo = () => {
@@ -321,11 +368,15 @@ export default function LaudosEditorPage() {
 
   // Salvar rascunho no localStorage
   const saveDraft = () => {
+    // Capturar conteúdo atual do editor antes de salvar
+    const currentContent = editorRef.current?.innerHTML || content;
+    
     const draft = {
       pacienteSelecionado,
-      content,
+      content: currentContent,
       campos,
       solicitanteId,
+      solicitanteNome,
       prazoDate,
       prazoTime,
       imagens,
@@ -389,6 +440,9 @@ export default function LaudosEditorPage() {
         return;
       }
 
+      // Capturar conteúdo atual do editor antes de salvar
+      const currentContent = editorRef.current?.innerHTML || content;
+
       const userId = user?.id || '00000000-0000-0000-0000-000000000001';
 
       let composedDueAt = undefined;
@@ -404,7 +458,7 @@ export default function LaudosEditorPage() {
         diagnosis: campos.diagnostico || '',
         conclusion: campos.conclusao || '',
         cid_code: campos.cid || '',
-        content_html: content,
+        content_html: currentContent,
         content_json: {},
         requested_by: solicitanteId || userId,
         due_at: composedDueAt ?? new Date().toISOString(),
@@ -414,6 +468,10 @@ export default function LaudosEditorPage() {
 
       if (createNewReport) {
         await createNewReport(payload as any);
+        
+        // Limpar rascunho salvo após sucesso
+        localStorage.removeItem('laudoDraft');
+        
         toast({
           title: 'Laudo criado com sucesso!',
           description: 'O laudo foi liberado e salvo.',
@@ -441,7 +499,7 @@ export default function LaudosEditorPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/profissional')}
+                onClick={() => setShowDraftConfirm(true)}
                 className="p-0 h-auto flex-shrink-0"
               >
                 <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -489,7 +547,7 @@ export default function LaudosEditorPage() {
                   <div className="font-semibold text-primary text-sm sm:text-lg truncate">{getPatientName(pacienteSelecionado)}</div>
                   <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                     {getPatientCpf(pacienteSelecionado) ? `CPF: ${getPatientCpf(pacienteSelecionado)} | ` : ''}
-                    {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date}` : getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : ''}
+                    {pacienteSelecionado?.birth_date ? `Nascimento: ${pacienteSelecionado.birth_date.split('T')[0].split('-').reverse().join('/')}` : getPatientAge(pacienteSelecionado) ? `Idade: ${getPatientAge(pacienteSelecionado)} anos` : ''}
                     {getPatientSex(pacienteSelecionado) ? ` | Sexo: ${getPatientSex(pacienteSelecionado)}` : ''}
                   </div>
                 </div>
@@ -536,7 +594,7 @@ export default function LaudosEditorPage() {
           {/* Tabs */}
           <div className="flex border-b border-border bg-card overflow-x-auto flex-shrink-0">
             <button
-              onClick={() => setActiveTab('editor')}
+              onClick={() => handleTabChange('editor')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'editor'
                   ? 'border-blue-500 text-blue-600'
@@ -547,18 +605,7 @@ export default function LaudosEditorPage() {
               Editor
             </button>
             <button
-              onClick={() => setActiveTab('imagens')}
-              className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'imagens'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-600 dark:text-muted-foreground'
-              }`}
-            >
-              <Upload className="w-3 sm:w-4 h-3 sm:h-4 inline mr-1" />
-              Imagens ({imagens.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('campos')}
+              onClick={() => handleTabChange('campos')}
               className={`px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'campos'
                   ? 'border-blue-500 text-blue-600'
@@ -715,48 +762,6 @@ export default function LaudosEditorPage() {
                       style={{ caretColor: 'currentColor' }}
                       suppressContentEditableWarning
                     />
-                  </div>
-                </div>
-              )}
-
-              {/* Imagens Tab */}
-              {activeTab === 'imagens' && (
-                <div className="flex-1 p-2 sm:p-3 md:p-4 overflow-y-auto">
-                  <div className="mb-3 sm:mb-4">
-                    <Label htmlFor="upload-images" className="text-xs sm:text-sm">
-                      Upload de Imagens
-                    </Label>
-                    <Input
-                      id="upload-images"
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleImageUpload}
-                      className="mt-1 sm:mt-2 text-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                    {imagens.map((img) => (
-                      <div key={img.id} className="border border-border rounded-lg p-1.5 sm:p-2">
-                        {img.type.startsWith('image/') ? (
-                          <img src={img.url} alt={img.name} className="w-full h-20 sm:h-24 md:h-28 object-cover rounded" />
-                        ) : (
-                          <div className="w-full h-20 sm:h-24 md:h-28 bg-muted rounded flex items-center justify-center">
-                            <FileText className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full mt-1 text-xs h-8"
-                          onClick={() => setImagens((prev) => prev.filter((i) => i.id !== img.id))}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
@@ -958,14 +963,14 @@ export default function LaudosEditorPage() {
                     setShowDraftConfirm(false);
                     discardDraft();
                   }}
-                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950"
+                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Descartar
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowDraftConfirm(false)}
-                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-blue-50 dark:hover:bg-blue-950"
+                  className="text-xs sm:text-sm h-9 sm:h-10 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Voltar
                 </Button>

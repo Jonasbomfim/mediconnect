@@ -131,6 +131,7 @@ export default function DoutoresPage() {
   const [availabilityOpenFor, setAvailabilityOpenFor] = useState<Medico | null>(null);
   const [availabilityViewingFor, setAvailabilityViewingFor] = useState<Medico | null>(null);
   const [availabilities, setAvailabilities] = useState<DoctorAvailability[]>([]);
+  const [availabilitiesForCreate, setAvailabilitiesForCreate] = useState<DoctorAvailability[]>([]);
   const [availLoading, setAvailLoading] = useState(false);
   const [editingAvailability, setEditingAvailability] = useState<DoctorAvailability | null>(null);
   const [exceptions, setExceptions] = useState<DoctorException[]>([]);
@@ -633,7 +634,17 @@ export default function DoutoresPage() {
                           Ver pacientes atribuídos
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem onClick={() => setAvailabilityOpenFor(doctor)}>
+                        <DropdownMenuItem onClick={async () => {
+                          try {
+                            const list = await listarDisponibilidades({ doctorId: doctor.id, active: true });
+                            setAvailabilitiesForCreate(list || []);
+                            setAvailabilityOpenFor(doctor);
+                          } catch (e) {
+                            console.warn('Erro ao carregar disponibilidades:', e);
+                            setAvailabilitiesForCreate([]);
+                            setAvailabilityOpenFor(doctor);
+                          }
+                        }}>
                           <Plus className="mr-2 h-4 w-4" />
                           Criar disponibilidade
                         </DropdownMenuItem>
@@ -833,27 +844,27 @@ export default function DoutoresPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Nome</Label>
-                <span className="col-span-3 font-medium">{viewingDoctor?.full_name}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Nome</Label>
+                <span className="col-span-1 sm:col-span-3 font-medium">{viewingDoctor?.full_name}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Especialidade</Label>
-                <span className="col-span-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Especialidade</Label>
+                <span className="col-span-1 sm:col-span-3">
                   <Badge variant="outline">{viewingDoctor?.especialidade}</Badge>
                 </span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">CRM</Label>
-                <span className="col-span-3">{viewingDoctor?.crm}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">CRM</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingDoctor?.crm}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Email</Label>
-                <span className="col-span-3">{viewingDoctor?.email}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Email</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingDoctor?.email}</span>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Telefone</Label>
-                <span className="col-span-3">{viewingDoctor?.telefone}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                <Label className="text-left sm:text-right">Telefone</Label>
+                <span className="col-span-1 sm:col-span-3">{viewingDoctor?.telefone}</span>
               </div>
             </div>
             <DialogFooter>
@@ -869,6 +880,7 @@ export default function DoutoresPage() {
           open={!!availabilityOpenFor}
           onOpenChange={(open) => { if (!open) setAvailabilityOpenFor(null); }}
           doctorId={availabilityOpenFor?.id}
+          existingAvailabilities={availabilitiesForCreate}
           onSaved={(saved) => { console.log('Disponibilidade salva', saved); setAvailabilityOpenFor(null); /* optionally reload list */ reloadAvailabilities(availabilityOpenFor?.id); }}
         />
       )}
@@ -890,6 +902,7 @@ export default function DoutoresPage() {
           doctorId={editingAvailability?.doctor_id ?? availabilityViewingFor?.id}
           availability={editingAvailability}
           mode="edit"
+          existingAvailabilities={availabilities}
           onSaved={(saved) => { console.log('Disponibilidade atualizada', saved); setEditingAvailability(null); reloadAvailabilities(editingAvailability?.doctor_id ?? availabilityViewingFor?.id); }}
         />
       )}
@@ -910,14 +923,35 @@ export default function DoutoresPage() {
                 <div>Carregando disponibilidades…</div>
               ) : availabilities && availabilities.length ? (
                 <div className="space-y-2">
-                  {availabilities.map((a) => (
+                  {availabilities
+                    .sort((a, b) => {
+                      // Define a ordem dos dias da semana (Segunda a Domingo)
+                      const weekdayOrder: Record<string, number> = {
+                        'segunda': 1, 'segunda-feira': 1, 'mon': 1, 'monday': 1, '1': 1,
+                        'terca': 2, 'terça': 2, 'terça-feira': 2, 'tue': 2, 'tuesday': 2, '2': 2,
+                        'quarta': 3, 'quarta-feira': 3, 'wed': 3, 'wednesday': 3, '3': 3,
+                        'quinta': 4, 'quinta-feira': 4, 'thu': 4, 'thursday': 4, '4': 4,
+                        'sexta': 5, 'sexta-feira': 5, 'fri': 5, 'friday': 5, '5': 5,
+                        'sabado': 6, 'sábado': 6, 'sat': 6, 'saturday': 6, '6': 6,
+                        'domingo': 7, 'dom': 7, 'sun': 7, 'sunday': 7, '0': 7, '7': 7
+                      };
+                      
+                      const getWeekdayOrder = (weekday: any) => {
+                        if (typeof weekday === 'number') return weekday === 0 ? 7 : weekday;
+                        const normalized = String(weekday).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+                        return weekdayOrder[normalized] || 999;
+                      };
+                      
+                      return getWeekdayOrder(a.weekday) - getWeekdayOrder(b.weekday);
+                    })
+                    .map((a) => (
                       <div key={String(a.id)} className="p-2 border rounded flex justify-between items-start">
                         <div>
                           <div className="font-medium">{translateWeekday(a.weekday)} • {a.start_time} — {a.end_time}</div>
                           <div className="text-xs text-muted-foreground">Duração: {a.slot_minutes} min • Tipo: {a.appointment_type || '—'} • {a.active ? 'Ativa' : 'Inativa'}</div>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setEditingAvailability(a)}>Editar</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingAvailability(a)} className="hover:bg-muted hover:text-foreground">Editar</Button>
                           <Button size="sm" variant="destructive" onClick={async () => {
                             if (!confirm('Excluir esta disponibilidade?')) return;
                             try {
@@ -964,7 +998,14 @@ export default function DoutoresPage() {
                   {exceptions.map((ex) => (
                     <div key={String(ex.id)} className="p-2 border rounded flex justify-between items-start">
                       <div>
-                        <div className="font-medium">{ex.date} {ex.start_time ? `• ${ex.start_time}` : ''} {ex.end_time ? `— ${ex.end_time}` : ''}</div>
+                        <div className="font-medium">{(() => {
+                          try {
+                            const [y, m, d] = String(ex.date).split('-');
+                            return `${d}/${m}/${y}`;
+                          } catch (e) {
+                            return ex.date;
+                          }
+                        })()} {ex.start_time ? `• ${ex.start_time}` : ''} {ex.end_time ? `— ${ex.end_time}` : ''}</div>
                         <div className="text-xs text-muted-foreground">Tipo: {ex.kind} • Motivo: {ex.reason || '—'}</div>
                       </div>
                       <div className="flex gap-2">

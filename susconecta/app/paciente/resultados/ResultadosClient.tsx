@@ -876,17 +876,6 @@ export default function ResultadosClient() {
               </Select>
             </div>
 
-            {/* Mais filtros / Voltar */}
-            <div className="sm:col-span-4">
-              <Button
-                variant="outline"
-                className="h-10 w-full rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                Mais filtros
-              </Button>
-            </div>
-
             {/* Voltar */}
             <div className="sm:col-span-12">
               <Button
@@ -1001,23 +990,13 @@ export default function ResultadosClient() {
                 {/* Ações */}
                 <div className="flex gap-2 pt-2">
                   <Button
-                    className="flex-1 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="w-full h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={async () => {
                       setMoreTimesForDoctor(id)
                       void fetchSlotsForDate(id, moreTimesDate)
                     }}
                   >
                     Agendar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-10 rounded-full border-primary/40 text-primary hover:bg-primary/10"
-                    onClick={() => {
-                      setMoreTimesForDoctor(id)
-                      void fetchSlotsForDate(id, moreTimesDate)
-                    }}
-                  >
-                    Mais horários
                   </Button>
                 </div>
               </Card>
@@ -1051,11 +1030,11 @@ export default function ResultadosClient() {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Primeira</Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-primary! hover:text-white!">Anterior</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Primeira</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Anterior</Button>
                 <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Próxima</Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:bg-primary! hover:text-white!">Última</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Próxima</Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white">Última</Button>
               </div>
             </div>
           )}
@@ -1186,8 +1165,17 @@ export default function ResultadosClient() {
             </DialogHeader>
             
             <div className="flex items-center gap-2 mb-4">
-              <input type="date" className="flex-1 rounded-md border border-border px-3 py-2 text-sm" value={moreTimesDate} onChange={(e) => setMoreTimesDate(e.target.value)} />
-              <Button className="h-10" onClick={async () => { if (moreTimesForDoctor) await fetchSlotsForDate(moreTimesForDoctor, moreTimesDate) }}>Buscar horários</Button>
+              <input 
+                type="date" 
+                className="flex-1 rounded-md border border-border px-3 py-2 text-sm" 
+                value={moreTimesDate} 
+                onChange={(e) => {
+                  setMoreTimesDate(e.target.value)
+                  if (moreTimesForDoctor) {
+                    void fetchSlotsForDate(moreTimesForDoctor, e.target.value)
+                  }
+                }} 
+              />
             </div>
 
             <div className="mt-2">
@@ -1196,12 +1184,14 @@ export default function ResultadosClient() {
               ) : moreTimesException ? (
                 <div className="text-sm text-red-500">{moreTimesException}</div>
               ) : (moreTimesSlots.length ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {moreTimesSlots.map(s => (
-                    <button key={s.iso} type="button" className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-foreground" onClick={() => { if (moreTimesForDoctor) { openConfirmDialog(moreTimesForDoctor, s.iso); setMoreTimesForDoctor(null); } }}>
-                      {s.label}
-                    </button>
-                  ))}
+                <div className="max-h-[60vh] overflow-y-auto pr-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    {moreTimesSlots.map(s => (
+                      <button key={s.iso} type="button" className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary hover:text-primary-foreground transition-colors" onClick={() => { if (moreTimesForDoctor) { openConfirmDialog(moreTimesForDoctor, s.iso); setMoreTimesForDoctor(null); } }}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground">Sem horários para a data selecionada.</div>

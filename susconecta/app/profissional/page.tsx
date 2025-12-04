@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { UploadAvatar } from '@/components/ui/upload-avatar';
-import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico } from "@/lib/api";
+import { buscarPacientes, listarPacientes, buscarPacientePorId, buscarPacientesPorIds, buscarMedicoPorId, buscarMedicosPorIds, buscarMedicos, listarAgendamentos, type Paciente, buscarRelatorioPorId, atualizarMedico, listarDisponibilidades, DoctorAvailability, deletarDisponibilidade, listarExcecoes, DoctorException, deletarExcecao } from "@/lib/api";
 import { ENV_CONFIG } from '@/lib/env-config';
 import { useReports } from "@/hooks/useReports";
 import { CreateReportData } from "@/types/report-types";
@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import AvailabilityForm from '@/components/features/forms/availability-form';
+import ExceptionForm from '@/components/features/forms/exception-form';
 import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
 import {
   Table,
@@ -64,6 +66,29 @@ const colorsByType = {
   Dermatologia: "#9b59b6",
   Oftalmologia: "#2ecc71"
 };
+
+  // Função para traduzir dias da semana
+  function translateWeekday(w?: string) {
+    if (!w) return '';
+    const key = w.toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+    const map: Record<string, string> = {
+      'segunda': 'Segunda',
+      'terca': 'Terça',
+      'quarta': 'Quarta',
+      'quinta': 'Quinta',
+      'sexta': 'Sexta',
+      'sabado': 'Sábado',
+      'domingo': 'Domingo',
+      'monday': 'Segunda',
+      'tuesday': 'Terça',
+      'wednesday': 'Quarta',
+      'thursday': 'Quinta',
+      'friday': 'Sexta',
+      'saturday': 'Sábado',
+      'sunday': 'Domingo',
+    };
+    return map[key] ?? w;
+  }
 
   // Helpers para normalizar dados de paciente (suporta schema antigo e novo)
   const getPatientName = (p: any) => p?.full_name ?? p?.nome ?? '';
@@ -131,6 +156,17 @@ const ProfissionalPage = () => {
   // Estados para o perfil do médico
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [doctorId, setDoctorId] = useState<string | null>(null);
+  
+  // Estados para disponibilidades e exceções do médico logado
+  const [availabilities, setAvailabilities] = useState<DoctorAvailability[]>([]);
+  const [exceptions, setExceptions] = useState<DoctorException[]>([]);
+  const [availabilitiesForCreate, setAvailabilitiesForCreate] = useState<DoctorAvailability[]>([]);
+  const [availLoading, setAvailLoading] = useState(false);
+  const [exceptLoading, setExceptLoading] = useState(false);
+  const [editingAvailability, setEditingAvailability] = useState<DoctorAvailability | null>(null);
+  const [editingException, setEditingException] = useState<DoctorException | null>(null);
+  const [showAvailabilityForm, setShowAvailabilityForm] = useState(false);
+  const [showExceptionForm, setShowExceptionForm] = useState(false);
   
   // Hook para carregar automaticamente o avatar do médico
   const { avatarUrl: retrievedAvatarUrl } = useAvatarUrl(doctorId);
@@ -285,6 +321,48 @@ const ProfissionalPage = () => {
       }));
     }
   }, [retrievedAvatarUrl]);
+
+  // Carregar disponibilidades e exceções do médico logado
+  const reloadAvailabilities = async (medId?: string) => {
+    const id = medId || doctorId;
+    if (!id) return;
+    try {
+      setAvailLoading(true);
+      const avails = await listarDisponibilidades({ doctorId: id, active: true });
+      setAvailabilities(Array.isArray(avails) ? avails : []);
+    } catch (e) {
+      console.warn('[ProfissionalPage] Erro ao carregar disponibilidades:', e);
+      setAvailabilities([]);
+    } finally {
+      setAvailLoading(false);
+    }
+  };
+
+  const reloadExceptions = async (medId?: string) => {
+    const id = medId || doctorId;
+    if (!id) return;
+    try {
+      setExceptLoading(true);
+      console.log('[ProfissionalPage] Recarregando exceções para médico:', id);
+      const excepts = await listarExcecoes({ doctorId: id });
+      console.log('[ProfissionalPage] Exceções carregadas:', excepts);
+      setExceptions(Array.isArray(excepts) ? excepts : []);
+    } catch (e) {
+      console.warn('[ProfissionalPage] Erro ao carregar exceções:', e);
+      setExceptions([]);
+    } finally {
+      setExceptLoading(false);
+    }
+  };
+
+  // Carrega disponibilidades quando doctorId muda
+  useEffect(() => {
+    if (doctorId) {
+      reloadAvailabilities(doctorId);
+      reloadExceptions(doctorId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
 
 
   // Estados para campos principais da consulta
@@ -1216,14 +1294,56 @@ const ProfissionalPage = () => {
     // helper to load laudos for the patients assigned to the logged-in user
     const loadAssignedLaudos = async () => {
       try {
+        // Primeiro, tenta carregar laudos criados pelo próprio médico
+        console.log('[LaudoManager] Tentando carregar laudos criados pelo médico:', user?.id);
+        try {
+          const reportsMod = await import('@/lib/reports');
+          const allMyReports = await loadReports();
+          
+          if (Array.isArray(allMyReports) && allMyReports.length > 0) {
+            // Filtrar apenas os criados por mim
+            const createdByMe = allMyReports.filter((r: any) => {
+              const creator = ((r.created_by ?? r.executante ?? r.createdBy) || '').toString();
+              return user?.id && creator && creator === user.id;
+            });
+
+            if (createdByMe.length > 0) {
+              console.log('[LaudoManager] Encontrados', createdByMe.length, 'laudos criados pelo médico');
+              const enriched = await (async (reportsArr: any[]) => {
+                if (!reportsArr || !reportsArr.length) return reportsArr;
+                const pids = reportsArr.map(r => String(getReportPatientId(r))).filter(Boolean);
+                if (!pids.length) return reportsArr;
+                try {
+                  const patients = await buscarPacientesPorIds(pids);
+                  const map = new Map((patients || []).map((p: any) => [String(p.id), p]));
+                  return reportsArr.map((r: any) => {
+                    const pid = String(getReportPatientId(r));
+                    return { ...r, paciente: r.paciente ?? map.get(pid) ?? r.paciente } as any;
+                  });
+                } catch (e) {
+                  console.warn('[LaudoManager] Erro ao enriquecer pacientes:', e);
+                  return reportsArr;
+                }
+              })(createdByMe);
+              setLaudos(enriched || []);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('[LaudoManager] erro ao carregar laudos criados pelo médico:', e);
+        }
+
+        // Fallback: carregar laudos de pacientes atribuídos
         const assignments = await import('@/lib/assignment').then(m => m.listAssignmentsForUser(user?.id || ''));
         const patientIds = Array.isArray(assignments) ? assignments.map(a => String(a.patient_id)).filter(Boolean) : [];
 
         if (patientIds.length === 0) {
+          console.log('[LaudoManager] Nenhum paciente atribuído, laudos vazios');
           setLaudos([]);
           return;
         }
 
+        console.log('[LaudoManager] Carregando laudos de', patientIds.length, 'pacientes atribuídos');
         try {
           const reportsMod = await import('@/lib/reports');
           if (typeof reportsMod.listarRelatoriosPorPacientes === 'function') {
@@ -1315,7 +1435,7 @@ const ProfissionalPage = () => {
           return;
         }
       } catch (e) {
-        console.warn('[LaudoManager] erro ao carregar laudos para pacientes atribuídos:', e);
+        console.warn('[LaudoManager] erro ao carregar laudos:', e);
         setLaudos(reports || []);
       }
     };
@@ -1396,13 +1516,13 @@ const ProfissionalPage = () => {
 
           {/* Filtros */}
           <div className="p-4 border-b border-border">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-start gap-4">
               <div className="relative flex-1 min-w-[200px]">
                 {/* Search input integrado com busca por ID */}
                 <SearchBox />
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-0">
                 <div className="flex items-center gap-1 text-sm">
                   <CalendarIcon className="w-4 h-4" />
                   <Input type="date" value={startDate ?? ''} onChange={(e) => { setStartDate(e.target.value); setSelectedRange('custom'); }} className="p-1 text-sm h-10" />
@@ -1411,7 +1531,7 @@ const ProfissionalPage = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center mt-0">
                 {/* date range buttons: Semana / Mês */}
                 <DateRangeButtons />
               </div>
@@ -1788,7 +1908,15 @@ const ProfissionalPage = () => {
   function LaudoEditor({ pacientes, laudo, onClose, isNewLaudo, preSelectedPatient, createNewReport, updateExistingReport, reloadReports, onSaved }: { pacientes?: any[]; laudo?: any; onClose: () => void; isNewLaudo?: boolean; preSelectedPatient?: any; createNewReport?: (data: any) => Promise<any>; updateExistingReport?: (id: string, data: any) => Promise<any>; reloadReports?: () => Promise<void>; onSaved?: (r:any) => void }) {
   const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("editor");
-    const [content, setContent] = useState(laudo?.conteudo || "");
+    // Initialize content checking all possible field names
+    const initialContent = laudo?.conteudo ?? laudo?.content_html ?? laudo?.contentHtml ?? laudo?.content ?? "";
+    console.log('[LaudoEditor] Initializing content - laudo:', laudo, 'initialContent length:', initialContent?.length, 'fields:', {
+      conteudo: laudo?.conteudo,
+      content_html: laudo?.content_html, 
+      contentHtml: laudo?.contentHtml,
+      content: laudo?.content
+    });
+    const [content, setContent] = useState(initialContent);
     const [showPreview, setShowPreview] = useState(false);
     const [pacienteSelecionado, setPacienteSelecionado] = useState<any>(preSelectedPatient || null);
     const [listaPacientes, setListaPacientes] = useState<any[]>([]);
@@ -1875,8 +2003,10 @@ const ProfissionalPage = () => {
     // Carregar dados do laudo existente quando disponível (mais robusto: suporta vários nomes de campo)
     useEffect(() => {
       if (laudo && !isNewLaudo) {
+        console.log('[LaudoEditor useEffect] Loading existing laudo data:', laudo);
         // Conteúdo: aceita 'conteudo', 'content_html', 'contentHtml', 'content'
         const contentValue = laudo.conteudo ?? laudo.content_html ?? laudo.contentHtml ?? laudo.content ?? "";
+        console.log('[LaudoEditor useEffect] Content value length:', contentValue?.length, 'Setting content...');
         setContent(contentValue);
 
         // Campos: use vários fallbacks
@@ -2182,32 +2312,6 @@ const ProfissionalPage = () => {
               Editor
             </button>
             <button
-              onClick={() => setActiveTab("imagens")}
-              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === "imagens"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-600 dark:text-muted-foreground dark:hover:text-foreground dark:hover:bg-blue-900"
-              }`}
-              style={{
-                backgroundColor: activeTab === "imagens" ? undefined : "transparent"
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== "imagens") {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#4B5563";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== "imagens") {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#4B5563";
-                }
-              }}
-            >
-              <Upload className="w-4 h-4 inline mr-1" />
-              Imagens ({imagens.length})
-            </button>
-            <button
               onClick={() => setActiveTab("campos")}
               className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "campos"
@@ -2345,50 +2449,6 @@ const ProfissionalPage = () => {
                       placeholder="Digite o conteúdo do laudo aqui. Use ** para negrito, * para itálico, <u></u> para sublinhado."
                       className="w-full min-h-[200px] sm:min-h-[300px] resize-none text-xs sm:text-sm"
                     />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "imagens" && (
-                <div className="flex-1 p-2 sm:p-4 overflow-y-auto">
-                  <div className="mb-3 sm:mb-4">
-                    <Label htmlFor="upload-images" className="text-xs sm:text-sm">Upload de Imagens</Label>
-                    <Input
-                      id="upload-images"
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleImageUpload}
-                      className="mt-1 text-xs"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
-                    {imagens.map((img) => (
-                      <div key={img.id} className="border border-border rounded-lg p-1.5 sm:p-2">
-                        {img.type.startsWith('image/') ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img 
-                            src={img.url} 
-                            alt={img.name}
-                            className="w-full h-24 sm:h-32 object-cover rounded"
-                          />
-                        ) : (
-                          <div className="w-full h-24 sm:h-32 bg-muted rounded flex items-center justify-center">
-                            <FileText className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{img.name}</p>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full mt-1 text-xs"
-                          onClick={() => setImagens(prev => prev.filter(i => i.id !== img.id))}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
@@ -2746,7 +2806,178 @@ const ProfissionalPage = () => {
     </div>
   );
 
-  
+  const renderDisponibilidadesSection = () => {
+    // Filtrar apenas a primeira disponibilidade de cada dia da semana
+    const availabilityByDay = new Map<string, DoctorAvailability>();
+    (availabilities || []).forEach((a) => {
+      const day = String(a.weekday ?? '').toLowerCase();
+      if (!availabilityByDay.has(day)) {
+        availabilityByDay.set(day, a);
+      }
+    });
+    let filteredAvailabilities = Array.from(availabilityByDay.values());
+
+    // Ordenar por dia da semana (Segunda a Domingo)
+    filteredAvailabilities = filteredAvailabilities.sort((a, b) => {
+      const weekdayOrder: Record<string, number> = {
+        'segunda': 1, 'segunda-feira': 1, 'mon': 1, 'monday': 1, '1': 1,
+        'terca': 2, 'terça': 2, 'terça-feira': 2, 'tue': 2, 'tuesday': 2, '2': 2,
+        'quarta': 3, 'quarta-feira': 3, 'wed': 3, 'wednesday': 3, '3': 3,
+        'quinta': 4, 'quinta-feira': 4, 'thu': 4, 'thursday': 4, '4': 4,
+        'sexta': 5, 'sexta-feira': 5, 'fri': 5, 'friday': 5, '5': 5,
+        'sabado': 6, 'sábado': 6, 'sat': 6, 'saturday': 6, '6': 6,
+        'domingo': 7, 'dom': 7, 'sun': 7, 'sunday': 7, '0': 7, '7': 7
+      };
+      
+      const getWeekdayOrder = (weekday: any) => {
+        if (typeof weekday === 'number') return weekday === 0 ? 7 : weekday;
+        const normalized = String(weekday).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+        return weekdayOrder[normalized] || 999;
+      };
+      
+      return getWeekdayOrder(a.weekday) - getWeekdayOrder(b.weekday);
+    });
+
+    // Filtrar apenas a primeira exceção de cada data
+    const exceptionByDate = new Map<string, DoctorException>();
+    (exceptions || []).forEach((ex) => {
+      // Alguns backends/versões usam nomes diferentes para a data da exceção.
+      // Fazemos cast para any ao verificar campos legados para satisfazer o tipo DoctorException.
+      const date = String(((ex as any).exception_date) ?? ((ex as any).exceptionDate) ?? ex.date ?? '');
+      if (!exceptionByDate.has(date)) {
+        exceptionByDate.set(date, ex);
+      }
+    });
+    const filteredExceptions = Array.from(exceptionByDate.values());
+
+    return (
+      <section className="bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-6 w-full">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold">Minhas Disponibilidades</h2>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              size="sm"
+              className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+              onClick={async () => {
+                try {
+                  const list = await listarDisponibilidades({ doctorId: doctorId!, active: true });
+                  setAvailabilitiesForCreate(list || []);
+                  setEditingAvailability(null);
+                  setShowAvailabilityForm(true);
+                } catch (e) {
+                  console.warn('Erro ao carregar disponibilidades:', e);
+                  setAvailabilitiesForCreate([]);
+                  setEditingAvailability(null);
+                  setShowAvailabilityForm(true);
+                }
+              }}
+            >
+              + Disponibilidade
+            </Button>
+          </div>
+        </div>
+
+        {/* Disponibilidades */}
+        {availLoading ? (
+          <div className="text-sm text-muted-foreground p-4">Carregando disponibilidades…</div>
+        ) : filteredAvailabilities && filteredAvailabilities.length > 0 ? (
+          <div className="space-y-2">
+            {filteredAvailabilities.map((a) => (
+              <div key={String(a.id)} className="p-2 border rounded flex justify-between items-start">
+                <div>
+                  <div className="font-medium">{translateWeekday(a.weekday)} • {a.start_time} — {a.end_time}</div>
+                  <div className="text-xs text-muted-foreground">Duração: {a.slot_minutes} min • Tipo: {a.appointment_type || '—'} • {a.active ? 'Ativa' : 'Inativa'}</div>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setEditingAvailability(a);
+                      setShowAvailabilityForm(true);
+                    }}
+                    className="hover:bg-muted hover:text-foreground"
+                  >
+                    Editar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={async () => {
+                      if (!confirm('Excluir esta disponibilidade?')) return;
+                      try {
+                        await deletarDisponibilidade(String(a.id));
+                        reloadAvailabilities();
+                        toast({ title: 'Disponibilidade excluída', variant: 'default' });
+                      } catch (e) {
+                        console.warn('Erro ao deletar disponibilidade:', e);
+                        alert((e as any)?.message || 'Erro ao deletar disponibilidade');
+                      }
+                    }}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50">
+            Nenhuma disponibilidade cadastrada.
+          </div>
+        )}
+
+        {/* Exceções */}
+        <div className="mt-8">
+          <h3 className="text-lg sm:text-xl font-bold mb-4">Exceções (Bloqueios/Liberações)</h3>
+            {exceptLoading ? (
+            <div className="text-sm text-muted-foreground p-4">Carregando exceções…</div>
+          ) : filteredExceptions && filteredExceptions.length > 0 ? (
+            <div className="space-y-2">
+              {filteredExceptions.map((ex) => (
+                <div key={String(ex.id)} className="p-3 border rounded flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm sm:text-base">
+                      {(() => {
+                        try {
+                          // Normaliza possíveis nomes de campo (exception_date, exceptionDate, date) e formata com fallback
+                          const dateRaw = (ex as any).exception_date ?? (ex as any).exceptionDate ?? ex.date ?? '';
+                          const parts = String(dateRaw).split('-');
+                          if (parts.length >= 3) {
+                            const [y, m, d] = parts;
+                            return `${d}/${m}/${y}`;
+                          }
+                          // fallback: tentar parse ISO/locale
+                          const dt = new Date(String(dateRaw));
+                          if (!isNaN(dt.getTime())) {
+                            return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+                          }
+                          return String(dateRaw);
+                        } catch (e) {
+                          return ((ex as any).exception_date ?? (ex as any).exceptionDate ?? ex.date) as any;
+                        }
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Tipo: {(ex as any).kind || 'bloqueio'} • Motivo: {(ex as any).reason || '—'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 ml-2">
+                    {/* Sem ações para exceções */}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50">
+              Nenhuma exceção cadastrada.
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const renderPerfilSection = () => (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6 px-0 py-4 sm:py-8 md:px-4">
       {/* Header com Título e Botão */}
@@ -2946,42 +3177,21 @@ const ProfissionalPage = () => {
             <h3 className="text-base sm:text-lg font-semibold mb-4">Foto do Perfil</h3>
 
             <div className="flex flex-col items-center gap-4">
-              {isEditingProfile ? (
-                <UploadAvatar
-                  userId={String(doctorId || (user && (user as any).id) || '')}
-                  currentAvatarUrl={(profileData as any).fotoUrl}
-                  userName={(profileData as any).nome}
-                  onAvatarChange={async (newUrl: string) => {
-                    try {
-                      setProfileData((prev) => ({ ...prev, fotoUrl: newUrl }));
-                      // Foto foi salva no Supabase Storage - atualizar apenas o estado local
-                      // Para persistir no banco, o usuário deve clicar em "Salvar" após isso
-                      try { toast({ title: 'Foto enviada', description: 'Clique em "Salvar" para confirmar as alterações.', variant: 'default' }); } catch (e) { /* ignore toast errors */ }
-                    } catch (err) {
-                      console.error('[ProfissionalPage] erro ao processar upload de foto:', err);
-                      try { toast({ title: 'Erro ao processar foto', description: (err as any)?.message || 'Falha ao processar a foto do perfil.', variant: 'destructive' }); } catch (e) {}
-                    }
-                  }}
-                />
-              ) : (
-                <>
-                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
-                    {(profileData as any).fotoUrl ? (
-                      <AvatarImage src={(profileData as any).fotoUrl} alt={(profileData as any).nome} />
-                    ) : (
-                      <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
-                        {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
+                {(profileData as any).fotoUrl ? (
+                  <AvatarImage src={(profileData as any).fotoUrl} alt={(profileData as any).nome} />
+                ) : (
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-2xl font-bold">
+                    {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                  </AvatarFallback>
+                )}
+              </Avatar>
 
-                  <div className="text-center space-y-2">
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
-                    </p>
-                  </div>
-                </>
-              )}
+              <div className="text-center space-y-2">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MD'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -3022,6 +3232,8 @@ const ProfissionalPage = () => {
     );
       case 'laudos':
         return renderLaudosSection();
+      case 'disponibilidades':
+        return renderDisponibilidadesSection();
       case 'comunicacao':
         return renderComunicacaoSection();
       case 'perfil':
@@ -3042,6 +3254,18 @@ const ProfissionalPage = () => {
             <div className="flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
               {/* Logo/Avatar Section */}
               <div className="flex items-center gap-3 min-w-0 flex-1 md:flex-none">
+                {/* Logo MEDIConnect */}
+                <div className="flex items-center gap-2 mr-2 md:mr-4">
+                  <div className="w-8 h-8 md:w-10 md:h-10 bg-primary rounded-lg flex items-center justify-center shrink-0">
+                    <Stethoscope className="w-4 h-4 md:w-5 md:h-5 text-primary-foreground" />
+                  </div>
+                  <span className="text-base md:text-lg font-semibold text-foreground hidden sm:inline">
+                    MEDIConnect
+                  </span>
+                </div>
+                
+                <div className="h-8 w-px bg-border hidden sm:block"></div>
+                
                 <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
                   <AvatarImage src={(profileData as any).fotoUrl || undefined} alt={profileData.nome} />
                   <AvatarFallback className="bg-muted text-xs md:text-sm">
@@ -3147,6 +3371,17 @@ const ProfissionalPage = () => {
               Laudos
             </Button>
             <Button 
+              variant={activeSection === 'disponibilidades' ? 'default' : 'ghost'} 
+              className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
+              onClick={() => {
+                setActiveSection('disponibilidades');
+                setSidebarOpen(false);
+              }}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Disponibilidades
+            </Button>
+            <Button 
               variant={activeSection === 'comunicacao' ? 'default' : 'ghost'} 
               className="w-full justify-start text-sm md:text-base transition-colors hover:bg-primary! hover:text-white! cursor-pointer"
               onClick={() => {
@@ -3182,7 +3417,32 @@ const ProfissionalPage = () => {
         </main>
       </div>
 
-      {}
+      {/* AvailabilityForm para criar/editar disponibilidades */}
+      {showAvailabilityForm && (
+        <AvailabilityForm
+          open={showAvailabilityForm}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowAvailabilityForm(false);
+              setEditingAvailability(null);
+              setAvailabilitiesForCreate([]);
+            }
+          }}
+          doctorId={editingAvailability?.doctor_id ?? doctorId}
+          availability={editingAvailability}
+          existingAvailabilities={availabilitiesForCreate}
+          mode={editingAvailability ? "edit" : "create"}
+          onSaved={(saved) => {
+            console.log('Disponibilidade salva', saved);
+            setEditingAvailability(null);
+            setShowAvailabilityForm(false);
+            setAvailabilitiesForCreate([]);
+            reloadAvailabilities();
+          }}
+        />
+      )}
+
+      {/* Popup antigo (manter para compatibilidade) */}
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
@@ -18,9 +18,11 @@ export interface AvailabilityFormProps {
   // when editing, pass the existing availability and set mode to 'edit'
   availability?: DoctorAvailability | null
   mode?: 'create' | 'edit'
+  // existing availabilities to prevent duplicate weekday selection
+  existingAvailabilities?: DoctorAvailability[]
 }
 
-export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved, availability = null, mode = 'create' }: AvailabilityFormProps) {
+export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved, availability = null, mode = 'create', existingAvailabilities = [] }: AvailabilityFormProps) {
   const [weekday, setWeekday] = useState<string>('segunda')
   const [startTime, setStartTime] = useState<string>('09:00')
   const [endTime, setEndTime] = useState<string>('17:00')
@@ -30,6 +32,28 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
   const [submitting, setSubmitting] = useState(false)
   const { toast } = useToast()
   const [blockedException, setBlockedException] = useState<null | { date: string; reason?: string; times?: string }>(null)
+
+  // Normalize weekday to standard format for comparison
+  const normalizeWeekdayForComparison = (w?: string) => {
+    if (!w) return w;
+    const k = String(w).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/g, '');
+    const map: Record<string,string> = {
+      'segunda':'segunda','terca':'terca','quarta':'quarta','quinta':'quinta','sexta':'sexta','sabado':'sabado','domingo':'domingo',
+      'monday':'segunda','tuesday':'terca','wednesday':'quarta','thursday':'quinta','friday':'sexta','saturday':'sabado','sunday':'domingo',
+      '1':'segunda','2':'terca','3':'quarta','4':'quinta','5':'sexta','6':'sabado','0':'domingo','7':'domingo'
+    };
+    return map[k] ?? k;
+  };
+
+  // Get list of already used weekdays (excluding current one in edit mode)
+  const usedWeekdays = useMemo(() => {
+    return new Set(
+      (existingAvailabilities || [])
+        .filter(a => mode === 'edit' ? a.id !== availability?.id : true)
+        .map(a => normalizeWeekdayForComparison(a.weekday))
+        .filter(Boolean)
+    );
+  }, [existingAvailabilities, mode, availability?.id]);
 
   // When editing, populate state from availability prop
   useEffect(() => {
@@ -46,6 +70,17 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
       setActive(!!availability.active)
     }
   }, [mode, availability])
+
+  // When creating and modal opens, set the first available weekday
+  useEffect(() => {
+    if (mode === 'create' && open) {
+      const allWeekdays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+      const firstAvailable = allWeekdays.find(day => !usedWeekdays.has(day));
+      if (firstAvailable) {
+        setWeekday(firstAvailable);
+      }
+    }
+  }, [mode, open, usedWeekdays])
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault()
@@ -181,25 +216,25 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Criar disponibilidade</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? 'Editar disponibilidade' : 'Criar disponibilidade'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Dia da semana</Label>
-              <Select value={weekday} onValueChange={(v) => setWeekday(v)}>
+              <Select value={weekday} onValueChange={(v) => setWeekday(v)} disabled={mode === 'edit'}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="segunda">Segunda</SelectItem>
-                  <SelectItem value="terca">Terça</SelectItem>
-                  <SelectItem value="quarta">Quarta</SelectItem>
-                  <SelectItem value="quinta">Quinta</SelectItem>
-                  <SelectItem value="sexta">Sexta</SelectItem>
-                  <SelectItem value="sabado">Sábado</SelectItem>
-                  <SelectItem value="domingo">Domingo</SelectItem>
+                  <SelectItem value="segunda" disabled={usedWeekdays.has('segunda')}>Segunda</SelectItem>
+                  <SelectItem value="terca" disabled={usedWeekdays.has('terca')}>Terça</SelectItem>
+                  <SelectItem value="quarta" disabled={usedWeekdays.has('quarta')}>Quarta</SelectItem>
+                  <SelectItem value="quinta" disabled={usedWeekdays.has('quinta')}>Quinta</SelectItem>
+                  <SelectItem value="sexta" disabled={usedWeekdays.has('sexta')}>Sexta</SelectItem>
+                  <SelectItem value="sabado" disabled={usedWeekdays.has('sabado')}>Sábado</SelectItem>
+                  <SelectItem value="domingo" disabled={usedWeekdays.has('domingo')}>Domingo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -242,7 +277,7 @@ export function AvailabilityForm({ open, onOpenChange, doctorId = null, onSaved,
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>Cancelar</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? 'Salvando...' : 'Criar disponibilidade'}</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? 'Salvando...' : (mode === 'edit' ? 'Salvar alterações' : 'Criar disponibilidade')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1762,7 +1762,7 @@ export default function PacientePage() {
         </div>
 
         {/* Grid de 3 colunas (2 + 1) */}
-        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
           {/* Coluna Esquerda - Informações Pessoais */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-5 md:space-y-6">
             {/* Informações Pessoais */}
@@ -1888,31 +1888,20 @@ export default function PacientePage() {
             <div className="border border-border rounded-lg p-3 sm:p-4 md:p-6">
               <h3 className="text-base sm:text-lg md:text-lg font-semibold mb-3 sm:mb-4">Foto do Perfil</h3>
 
-              {isEditingProfile ? (
-                <div className="space-y-3 sm:space-y-4">
-                  <UploadAvatar
-                    userId={profileData.id}
-                    currentAvatarUrl={profileData.foto_url || "/avatars/01.png"}
-                    onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
-                    userName={profileData.nome}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3 sm:gap-4">
-                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28">
-                    <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl md:text-2xl font-bold">
-                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
-                    </AvatarFallback>
-                  </Avatar>
+              <div className="flex flex-col items-center gap-3 sm:gap-4">
+                <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28">
+                  <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl md:text-2xl font-bold">
+                    {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
+                  </AvatarFallback>
+                </Avatar>
 
-                  <div className="text-center space-y-2">
-                    <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
-                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
-                    </p>
-                  </div>
+                <div className="text-center space-y-2">
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
+                    {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -1925,23 +1914,35 @@ export default function PacientePage() {
     <ProtectedRoute requiredUserType={["paciente"]}>
       <div className="container mx-auto px-2 sm:px-4 py-6 sm:py-8">
         {/* Header com informações do paciente */}
-        <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-3 sm:p-4 md:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 md:h-12 md:w-12">
+        <header className="sticky top-0 z-40 bg-card shadow-md rounded-lg border border-border p-2 sm:p-3 md:p-4 mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {/* Logo MEDIConnect */}
+            <div className="flex items-center gap-2 mr-2 sm:mr-3 shrink-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg flex items-center justify-center">
+                <Stethoscope className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+              </div>
+              <span className="text-base sm:text-sm font-semibold text-foreground hidden sm:inline">
+                MEDIConnect
+              </span>
+            </div>
+            
+            <div className="h-6 w-px bg-border hidden sm:block"></div>
+            
+            <Avatar className="h-10 w-10 sm:h-10 sm:w-10 shrink-0">
               <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
-              <AvatarFallback className="bg-primary text-white font-bold text-sm sm:text-base">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
+              <AvatarFallback className="bg-primary text-white font-bold text-xs sm:text-sm">{profileData.nome?.charAt(0) || 'P'}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs sm:text-sm md:text-sm text-muted-foreground">Conta do paciente</span>
-              <span className="font-bold text-sm sm:text-base md:text-lg leading-none">{profileData.nome || 'Paciente'}</span>
-              <span className="text-xs sm:text-sm md:text-sm text-muted-foreground truncate">{profileData.email || 'Email não disponível'}</span>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-xs text-muted-foreground truncate">Conta do paciente</span>
+              <span className="font-bold text-xs sm:text-sm leading-tight truncate">{profileData.nome || 'Paciente'}</span>
+              <span className="text-xs text-muted-foreground truncate">{profileData.email || 'Email não disponível'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <SimpleThemeToggle />
-            <Button asChild variant="outline" className="hover:bg-primary! hover:text-white! hover:border-primary! transition-colors flex-1 sm:flex-none text-xs sm:text-sm">
+            <Button asChild variant="outline" className="hover:bg-blue-500 hover:text-white transition-colors flex-1 sm:flex-none text-xs sm:text-sm py-1.5 sm:py-2 h-8 sm:h-9 px-2 sm:px-3">
               <Link href="/">
-                <Home className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> Início
+                <Home className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline ml-1">Início</span>
               </Link>
             </Button>
             <Button 
@@ -1949,9 +1950,9 @@ export default function PacientePage() {
               variant="outline" 
               aria-label={strings.sair} 
               disabled={loading} 
-              className="text-destructive border-destructive hover:bg-destructive! hover:text-white! hover:border-destructive! transition-colors"
+              className="text-destructive border-destructive hover:bg-destructive/20 hover:text-destructive transition-colors text-xs sm:text-sm py-1.5 sm:py-2 h-8 sm:h-9 px-2 sm:px-3"
             >
-              <LogOut className="h-4 w-4 mr-1" /> {strings.sair}
+              <LogOut className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline ml-1">{strings.sair}</span>
             </Button>
           </div>
         </header>

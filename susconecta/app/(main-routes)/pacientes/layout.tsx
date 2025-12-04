@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
-import { ChatWidget } from "@/components/features/pacientes/chat-widget";
 
 export default function PacientesLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      {children}
-      <ChatWidget />
-    </>
-  );
+  return <>{children}</>;
 }

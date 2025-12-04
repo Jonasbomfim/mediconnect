@@ -9,7 +9,6 @@ import {
   getUpcomingAppointments,
   getAppointmentsByDateRange,
   getNewUsersLastDays,
-  getPendingReports,
   getDisabledUsers,
   getDoctorsAvailabilityToday,
   getPatientById,
@@ -18,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Calendar, Users, Stethoscope, Clock, FileText, AlertTriangle, Plus, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Calendar, Users, Stethoscope, Clock, AlertTriangle, Plus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { PatientRegistrationForm } from '@/components/features/forms/patient-registration-form';
 import { DoctorRegistrationForm } from '@/components/features/forms/doctor-registration-form';
@@ -49,7 +48,6 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<UpcomingAppointment[]>([]);
   const [appointmentData, setAppointmentData] = useState<any[]>([]);
   const [newUsers, setNewUsers] = useState<any[]>([]);
-  const [pendingReports, setPendingReports] = useState<any[]>([]);
   const [disabledUsers, setDisabledUsers] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<Map<string, any>>(new Map());
   const [patients, setPatients] = useState<Map<string, any>>(new Map());
@@ -83,18 +81,16 @@ export default function DashboardPage() {
       });
 
       // 2. Carrega dados dos widgets em paralelo
-      const [upcomingAppts, appointmentDataRange, newUsersList, pendingReportsList, disabledUsersList] = await Promise.all([
+      const [upcomingAppts, appointmentDataRange, newUsersList, disabledUsersList] = await Promise.all([
         getUpcomingAppointments(5),
         getAppointmentsByDateRange(7),
         getNewUsersLastDays(7),
-        getPendingReports(5),
         getDisabledUsers(5),
       ]);
 
       setAppointments(upcomingAppts);
       setAppointmentData(appointmentDataRange);
       setNewUsers(newUsersList);
-      setPendingReports(pendingReportsList);
       setDisabledUsers(disabledUsersList);
 
       // 3. Busca detalhes de pacientes e médicos para as próximas consultas
@@ -264,15 +260,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border hover:shadow-md transition">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h3 className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Relatórios Pendentes</h3>
-              <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1 sm:mt-2">{pendingReports.length}</p>
-            </div>
-            <FileText className="h-6 sm:h-8 w-6 sm:w-8 text-orange-500 opacity-20 flex-shrink-0" />
-          </div>
-        </div>
+
       </div>
 
       {/* 6. AÇÕES RÁPIDAS - Responsivo: stack em mobile, wrap em desktop */}
@@ -294,17 +282,12 @@ export default function DashboardPage() {
             <span className="hidden sm:inline">Novo Médico</span>
             <span className="sm:hidden">Médico</span>
           </Button>
-          <Button onClick={() => router.push('/dashboard/relatorios')} variant="outline" className="gap-2 text-sm sm:text-base w-full sm:w-auto hover:bg-primary! hover:text-white! transition-colors">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Ver Relatórios</span>
-            <span className="sm:hidden">Relatórios</span>
-          </Button>
         </div>
       </div>
 
       {/* 2. PRÓXIMAS CONSULTAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <div className="lg:col-span-2 bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
+      <div className="grid grid-cols-1 gap-4 md:gap-6">
+        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
           <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Próximas Consultas (7 dias)</h2>
           {appointments.length > 0 ? (
             <div className="space-y-2 sm:space-y-3">
@@ -330,28 +313,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 5. RELATÓRIOS PENDENTES */}
-        <div className="bg-card p-4 sm:p-5 md:p-6 rounded-lg border border-border">
-          <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
-            <FileText className="h-4 sm:h-5 w-4 sm:w-5" />
-            <span className="truncate">Pendentes</span>
-          </h2>
-          {pendingReports.length > 0 ? (
-            <div className="space-y-2">
-              {pendingReports.map(report => (
-                <div key={report.id} className="p-2 sm:p-3 bg-muted rounded-lg hover:bg-muted/80 transition cursor-pointer text-xs sm:text-sm">
-                  <p className="font-medium text-foreground truncate">{report.order_number}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{report.exam || 'Sem descrição'}</p>
-                </div>
-              ))}
-              <Button onClick={() => router.push('/dashboard/relatorios')} variant="ghost" className="w-full mt-2 hover:bg-primary! hover:text-white! transition-colors text-xs sm:text-sm" size="sm">
-                Ver Todos
-              </Button>
-            </div>
-          ) : (
-            <p className="text-xs sm:text-sm text-muted-foreground">Sem relatórios pendentes</p>
-          )}
-        </div>
+
       </div>
 
       {/* 4. NOVOS USUÁRIOS */}

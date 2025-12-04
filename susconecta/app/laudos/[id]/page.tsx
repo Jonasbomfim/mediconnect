@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Printer, Download, MoreVertical } from 'lucide-react'
+import { ArrowLeft, Printer, Download } from 'lucide-react'
 import { buscarRelatorioPorId, getDoctorById, buscarMedicosPorIds, buscarPacientePorId } from '@/lib/api'
 import { ENV_CONFIG } from '@/lib/env-config'
 import ProtectedRoute from '@/components/shared/ProtectedRoute'
@@ -354,18 +354,6 @@ export default function LaudoPage() {
                 }`}
               >
                 <Printer className="w-5 h-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                title="Mais opções"
-                className={`${
-                  isDark 
-                    ? 'text-slate-300 hover:bg-slate-700 hover:text-white' 
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <MoreVertical className="w-5 h-5" />
               </Button>
             </div>
           </div>

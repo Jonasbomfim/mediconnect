@@ -3006,10 +3006,17 @@ const ProfissionalPage = () => {
                 <div key={String(ex.id)} className="p-3 border rounded flex justify-between items-start">
                   <div className="flex-1">
                     <div className="font-medium text-sm sm:text-base">
-                      {new Date(ex.exception_date ?? ex.date).toLocaleDateString('pt-BR')}
+                      {(() => {
+                        try {
+                          const [y, m, d] = String(ex.exception_date ?? ex.date).split('-');
+                          return `${d}/${m}/${y}`;
+                        } catch (e) {
+                          return ex.exception_date ?? ex.date;
+                        }
+                      })()}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Tipo: bloqueio • Motivo: {ex.reason || '—'}
+                      Tipo: {ex.kind || 'bloqueio'} • Motivo: {ex.reason || '—'}
                     </div>
                   </div>
                   <div className="flex gap-2 ml-2">

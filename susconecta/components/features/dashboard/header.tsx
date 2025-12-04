@@ -1,0 +1,127 @@
+"use client"
+
+import { Bell, ChevronDown } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { SidebarTrigger } from "../../ui/sidebar"
+import { SimpleThemeToggle } from "@/components/ui/simple-theme-toggle";
+
+export function PagesHeader({ title = "", subtitle = "" }: { title?: string, subtitle?: string }) {
+  const { logout, user } = useAuth();
+  const router = useRouter();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fechar dropdown quando clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [dropdownOpen]);
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-3 sm:px-6 py-2 flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <SidebarTrigger />
+        <div className="flex flex-col justify-center leading-tight min-w-0">
+          <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate max-w-[55vw] sm:max-w-none">{title}</h1>
+          {subtitle && (
+            <p className="text-[11px] sm:text-xs text-muted-foreground truncate max-w-[55vw] sm:max-w-none">{subtitle}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 ml-auto">
+        <Button variant="ghost" size="icon" className="hover-primary-blue hidden xs:flex">
+          <Bell className="h-4 w-4" />
+        </Button>
+        <SimpleThemeToggle />
+        <div className="relative" ref={dropdownRef}>
+          <Button
+            variant="ghost"
+            className="relative h-8 w-8 rounded-full border border-border hover:border-primary"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            aria-label="Abrir menu do perfil"
+          >
+            <Avatar className="h-8 w-8">
+              {(() => {
+                const userPhoto = (user as any)?.profile?.foto_url || (user as any)?.profile?.fotoUrl || (user as any)?.profile?.avatar_url
+                const alt = user?.name || user?.email || 'Usuário'
+                const getInitials = (name?: string, email?: string) => {
+                  if (name) {
+                    const parts = name.trim().split(/\s+/)
+                    const first = parts[0]?.charAt(0) ?? ''
+                    const second = parts[1]?.charAt(0) ?? ''
+                    return (first + second).toUpperCase() || (email?.charAt(0) ?? 'U').toUpperCase()
+                  }
+                  if (email) return email.charAt(0).toUpperCase()
+                  return 'U'
+                }
+                return (
+                  <>
+                    <AvatarImage src={userPhoto || undefined} alt={alt} />
+                    <AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getInitials(user?.name, user?.email)}</AvatarFallback>
+                  </>
+                )
+              })()}
+            </Avatar>
+          </Button>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-2 w-64 sm:w-80 bg-popover border border-border rounded-md shadow-lg z-[100] text-popover-foreground animate-in fade-in slide-in-from-top-2">
+              <div className="p-3 sm:p-4 border-b border-border">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-xs sm:text-sm font-semibold leading-none">
+                    {user?.userType === 'administrador' ? 'Administrador da Clínica' : 'Usuário do Sistema'}
+                  </p>
+                  {user?.email ? (
+                    <p className="text-[10px] sm:text-xs leading-none text-muted-foreground truncate">{user.email}</p>
+                  ) : (
+                    <p className="text-[10px] sm:text-xs leading-none text-muted-foreground">Email não disponível</p>
+                  )}
+                  <p className="text-[10px] sm:text-xs leading-none text-primary font-medium">
+                    Tipo: {user?.userType === 'administrador' ? 'Administrador' : user?.userType || 'Não definido'}
+                  </p>
+                </div>
+              </div>
+              <div className="py-1">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDropdownOpen(false);
+                    router.push('/perfil');
+                  }}
+                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm hover:bg-accent cursor-pointer"
+                >
+                  Perfil
+                </button>
+                <div className="border-t border-border my-1" />
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDropdownOpen(false);
+                    logout();
+                  }}
+                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
+                >
+                  Sair
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}

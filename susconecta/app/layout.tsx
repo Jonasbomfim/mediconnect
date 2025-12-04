@@ -1,0 +1,34 @@
+import type React from "react"
+import type { Metadata } from "next"
+import { AuthProvider } from "@/hooks/useAuth"
+import { ThemeProvider } from "@/components/providers/theme-provider"
+import "./globals.css"
+
+export const metadata: Metadata = {
+  title: "MediConnect - Conectando Pacientes e Profissionais de Saúde",
+  description:
+    "Plataforma inovadora que conecta pacientes, clínicas, e médicos de forma prática, segura e humanizada. Experimente o futuro dos agendamentos médicos.",
+  keywords: "saúde, médicos, pacientes, agendamento, telemedicina, SUS",
+  generator: 'v0.app'
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="pt-BR" className="antialiased" suppressHydrationWarning>
+      <head>
+        <meta charSet="utf-8" />
+      </head>
+      <body style={{ fontFamily: "var(--font-geist-sans)" }}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}

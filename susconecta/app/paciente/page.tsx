@@ -1888,31 +1888,20 @@ export default function PacientePage() {
             <div className="border border-border rounded-lg p-3 sm:p-4 md:p-6">
               <h3 className="text-base sm:text-lg md:text-lg font-semibold mb-3 sm:mb-4">Foto do Perfil</h3>
 
-              {isEditingProfile ? (
-                <div className="flex justify-center">
-                  <UploadAvatar
-                    userId={profileData.id}
-                    currentAvatarUrl={profileData.foto_url || "/avatars/01.png"}
-                    onAvatarChange={(newUrl) => handleProfileChange('foto_url', newUrl)}
-                    userName={profileData.nome}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3 sm:gap-4">
-                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28">
-                    <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl md:text-2xl font-bold">
-                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
-                    </AvatarFallback>
-                  </Avatar>
+              <div className="flex flex-col items-center gap-3 sm:gap-4">
+                <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28">
+                  <AvatarImage src={profileData.foto_url} alt={profileData.nome || 'Avatar'} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl md:text-2xl font-bold">
+                    {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
+                  </AvatarFallback>
+                </Avatar>
 
-                  <div className="text-center space-y-2">
-                    <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
-                      {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
-                    </p>
-                  </div>
+                <div className="text-center space-y-2">
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
+                    {profileData.nome?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'PC'}
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

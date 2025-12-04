@@ -1889,7 +1889,7 @@ export default function PacientePage() {
               <h3 className="text-base sm:text-lg md:text-lg font-semibold mb-3 sm:mb-4">Foto do Perfil</h3>
 
               {isEditingProfile ? (
-                <div className="space-y-3 sm:space-y-4">
+                <div className="flex justify-center">
                   <UploadAvatar
                     userId={profileData.id}
                     currentAvatarUrl={profileData.foto_url || "/avatars/01.png"}

@@ -24,11 +24,13 @@
 4. [Tecnologias](#️-tecnologias)
 5. [Instalação](#-instalação)
 6. [Como Usar](#-como-usar)
-7. [Fluxos de Usuário](#-fluxos-de-usuário)
-8. [Componentes Principais](#-componentes-principais)
-9. [Contribuindo](#-contribuindo)
-10. [Licença](#-licença)
-11. [Contato](#-contato)
+7. [Acessos de Demonstração](#-acessos-de-demonstração)
+8. [Fluxos de Usuário](#-fluxos-de-usuário)
+9. [Componentes Principais](#-componentes-principais)
+10. [Contribuindo](#-contribuindo)
+11. [Licença](#-licença)
+12. [Contato](#-contato)
+
 
 ---
 
@@ -202,6 +204,24 @@ O sistema possui três níveis de acesso:
 2. Acesse o painel em `/dashboard`
 3. Visualize relatórios em `/dashboard/relatorios`
 4. Gerencie o sistema completo
+
+---
+
+## 🔐 Acessos de Demonstração
+
+Para fins de avaliação do projeto, estão disponíveis contas de teste com permissões limitadas.
+
+### 👤 Paciente
+- **Email:** yinohos278@nrlord.com  
+- **Senha:** senha823!
+
+### 👨‍⚕️ Profissional de Saúde
+- **Email:** wogom29826@nrlord.com  
+- **Senha:** senha659!
+
+> ⚠️ **Observação:**  
+> As credenciais acima são exclusivamente para demonstração do front-end.  
+> A aplicação consome APIs de produção, porém os acessos disponibilizados não possuem permissões administrativas nem dados sensíveis reais.
 
 ---
 

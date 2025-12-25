@@ -28,7 +28,7 @@
 8. [Componentes Principais](#-componentes-principais)
 9. [Contribuindo](#-contribuindo)
 10 [Licença](#-licença)
-11. [Contato](#-contato)
+12. [Contato](#-contato)
 
 
 ---
